@@ -5,7 +5,7 @@ export async function onRequestGet(context) {
 
   return Response.json({
     success: true,
-    database: "os_tato",
+    database: "so_tato",
     customers: result.count
   });
 }
