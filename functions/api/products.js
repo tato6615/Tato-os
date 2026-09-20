@@ -27,14 +27,7 @@ export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
 
-    const id = crypto.randomUUID();
-
-    const name = body.name || null;
-    const category = body.category || null;
-    const price = Number(body.price || 0);
-    const cost = Number(body.cost || 0);
-    const stock = Number(body.stock || 0);
-    const status = body.status || "active";
+    const name = body.name?.trim() || "";
 
     if (!name) {
       return Response.json(
@@ -46,19 +39,43 @@ export async function onRequestPost(context) {
       );
     }
 
+    const id = crypto.randomUUID();
+    const slug =
+      body.slug?.trim() ||
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+    const category = body.category?.trim() || null;
+    const description = body.description?.trim() || null;
+    const price = Number(body.price || 0);
+    const currency = body.currency?.trim() || "THB";
+    const status = body.status || "active";
+
     await context.env.DB
       .prepare(`
         INSERT INTO products
-        (id, name, category, price, cost, stock, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (
+          id,
+          name,
+          slug,
+          category,
+          description,
+          price,
+          currency,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         id,
         name,
+        slug || null,
         category,
+        description,
         price,
-        cost,
-        stock,
+        currency,
         status
       )
       .run();
@@ -68,10 +85,11 @@ export async function onRequestPost(context) {
       product: {
         id,
         name,
+        slug: slug || null,
         category,
+        description,
         price,
-        cost,
-        stock,
+        currency,
         status
       }
     });
