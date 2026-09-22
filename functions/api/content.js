@@ -27,6 +27,200 @@ export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
 
+    const mode = body.mode || "create";
+
+    /*
+     * ============================================================
+     * INTELLIGENCE MODE
+     * Attention + Market → Content Brief
+     * ============================================================
+     */
+    if (mode === "intelligence") {
+      const attentionResult = await context.env.DB
+        .prepare(`
+          SELECT
+            event_type,
+            page,
+            product_id,
+            COUNT(*) AS count
+          FROM behavior_events
+          WHERE event_type IN (
+            'view',
+            'page_view',
+            'product_view',
+            'click',
+            'engagement',
+            'interest'
+          )
+          GROUP BY event_type, page, product_id
+          ORDER BY count DESC
+          LIMIT 10
+        `)
+        .all();
+
+      const marketResult = await context.env.DB
+        .prepare(`
+          SELECT
+            id,
+            source,
+            signal_type,
+            keyword,
+            title,
+            content,
+            url,
+            score,
+            metadata,
+            detected_at
+          FROM market_signals
+          ORDER BY score DESC, detected_at DESC
+          LIMIT 10
+        `)
+        .all();
+
+      const attention = attentionResult.results || [];
+      const market = marketResult.results || [];
+
+      if (!attention.length && !market.length) {
+        return Response.json({
+          success: true,
+          mode: "intelligence",
+          created: false,
+          message: "No attention or market signals available",
+          content: null
+        });
+      }
+
+      const topAttention = attention[0] || {};
+      const topMarket = market[0] || {};
+
+      const attentionType =
+        topAttention.event_type || "attention";
+
+      const marketKeyword =
+        topMarket.keyword || "coffee";
+
+      const page =
+        topAttention.page || "";
+
+      const productId =
+        topAttention.product_id || "";
+
+      const marketTitle =
+        topMarket.title || "";
+
+      const marketScore =
+        Number(topMarket.score || 0);
+
+      let title;
+
+      if (productId) {
+        title = `ทำไมลูกค้าถึงสนใจ ${marketKeyword} ตอนนี้`;
+      } else if (marketTitle) {
+        title = marketTitle;
+      } else {
+        title = `เจาะ Attention ลูกค้าจากกระแส ${marketKeyword}`;
+      }
+
+      const objective =
+        "เปลี่ยน Customer Attention ให้เป็นความสนใจและโอกาสในการซื้อ";
+
+      const angle =
+        marketScore >= 70
+          ? `ใช้ความสนใจเรื่อง ${marketKeyword} เชื่อมกับสิ่งที่ลูกค้ากำลังสนใจ`
+          : `ใช้พฤติกรรม ${attentionType} เป็นจุดเริ่มต้นของ Content`;
+
+      const direction =
+        productId
+          ? `นำเสนอประโยชน์ของสินค้าโดยเชื่อมกับความสนใจของลูกค้า`
+          : `สร้าง Content จากความต้องการที่ตรวจพบ แล้วเชื่อมเข้าสู่ TATO`;
+
+      const cta =
+        "ดูรายละเอียดและทดลอง TATO";
+
+      const contentText = `
+HOOK:
+ลูกค้ากำลังสนใจเรื่อง ${marketKeyword}
+
+INSIGHT:
+ระบบตรวจพบ Attention ประเภท ${attentionType}
+${productId ? `และเกี่ยวข้องกับสินค้า ${productId}` : ""}
+${page ? `จากหน้า ${page}` : ""}
+
+CONTENT ANGLE:
+${angle}
+
+DIRECTION:
+${direction}
+
+CTA:
+${cta}
+      `.trim();
+
+      const id = crypto.randomUUID();
+
+      await context.env.DB
+        .prepare(`
+          INSERT INTO content_engine
+          (
+            id,
+            source,
+            status,
+            title,
+            objective,
+            attention_type,
+            market_keyword,
+            angle,
+            direction,
+            cta,
+            content_text
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          id,
+          "INTELLIGENCE",
+          "IDEA",
+          title,
+          objective,
+          attentionType,
+          marketKeyword,
+          angle,
+          direction,
+          cta,
+          contentText
+        )
+        .run();
+
+      return Response.json({
+        success: true,
+        mode: "intelligence",
+        created: true,
+        content: {
+          id,
+          source: "INTELLIGENCE",
+          status: "IDEA",
+          title,
+          objective,
+          attention_type: attentionType,
+          market_keyword: marketKeyword,
+          angle,
+          direction,
+          cta,
+          content_text: contentText
+        },
+        intelligence: {
+          attention: attention,
+          market: market
+        }
+      });
+    }
+
+    /*
+     * ============================================================
+     * NORMAL CREATE MODE
+     * ============================================================
+     */
+
     const title = body.title?.trim() || "";
 
     if (!title) {
@@ -40,6 +234,20 @@ export async function onRequestPost(context) {
     }
 
     const id = crypto.randomUUID();
+
+    const content = {
+      id,
+      source: body.source || null,
+      status: body.status || "IDEA",
+      title,
+      objective: body.objective || null,
+      attention_type: body.attention_type || null,
+      market_keyword: body.market_keyword || null,
+      angle: body.angle || null,
+      direction: body.direction || null,
+      cta: body.cta || null,
+      content_text: body.content_text || null
+    };
 
     await context.env.DB
       .prepare(`
@@ -60,35 +268,23 @@ export async function onRequestPost(context) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
-        id,
-        body.source || null,
-        body.status || "IDEA",
-        title,
-        body.objective || null,
-        body.attention_type || null,
-        body.market_keyword || null,
-        body.angle || null,
-        body.direction || null,
-        body.cta || null,
-        body.content_text || null
+        content.id,
+        content.source,
+        content.status,
+        content.title,
+        content.objective,
+        content.attention_type,
+        content.market_keyword,
+        content.angle,
+        content.direction,
+        content.cta,
+        content.content_text
       )
       .run();
 
     return Response.json({
       success: true,
-      content: {
-        id,
-        source: body.source || null,
-        status: body.status || "IDEA",
-        title,
-        objective: body.objective || null,
-        attention_type: body.attention_type || null,
-        market_keyword: body.market_keyword || null,
-        angle: body.angle || null,
-        direction: body.direction || null,
-        cta: body.cta || null,
-        content_text: body.content_text || null
-      }
+      content
     });
   } catch (error) {
     return Response.json(
@@ -96,7 +292,7 @@ export async function onRequestPost(context) {
         success: false,
         error: error.message
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
