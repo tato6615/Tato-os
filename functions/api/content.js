@@ -252,12 +252,9 @@ ${cta}
       }
 
       const prompt = `
-You are the Content Intelligence AI for TATO Coffee.
+สร้างโพสต์ Social Media ภาษาไทยสำหรับ TATO Coffee จากข้อมูลด้านล่าง
 
-Your job is to transform business intelligence and customer attention
-into high-converting Thai social media content.
-
-CONTENT BRIEF
+ข้อมูล Content Intelligence:
 
 Title:
 ${brief.title || ""}
@@ -283,44 +280,29 @@ ${brief.cta || ""}
 Original Brief:
 ${brief.content_text || ""}
 
+ข้อมูล TATO ที่ใช้ได้:
+- TATO Coffee
+- Arabica 100%
+- Single Origin
+- Doi Wiang
+- คั่วสดใหม่ทุกออเดอร์
 
-TATO CONTEXT
+กติกา:
+- เขียนภาษาไทยที่เป็นธรรมชาติ
+- Hook ต้องดึงความสนใจ
+- เน้นความต้องการหรือพฤติกรรมของลูกค้า
+- เชื่อม Market Signal อย่างเป็นธรรมชาติ
+- ห้ามแต่งส่วนลด
+- ห้ามแต่งรีวิว
+- ห้ามแต่งรางวัล
+- ห้ามแต่งใบรับรอง
+- ห้ามสร้างข้อมูลที่ไม่มีใน Brief
+- ห้ามเขียนคำอธิบายกระบวนการคิด
+- ห้ามเขียน Reasoning
+- ส่งเฉพาะโพสต์ที่พร้อมนำไปใช้จริง
+- จบด้วย CTA
 
-Brand:
-TATO Coffee
-
-Product:
-Arabica 100%
-
-Origin:
-Doi Wiang
-
-Positioning:
-Single Origin / Premium Coffee
-
-Roasting:
-Fresh roasted per order
-
-
-CONTENT REQUIREMENTS
-
-1. Write natural Thai.
-2. Start with a strong attention-grabbing hook.
-3. Focus on the customer's attention, problem, desire, or behavior.
-4. Use the detected market signal naturally.
-5. Connect the content to TATO only when relevant.
-6. Do not invent discounts.
-7. Do not invent reviews.
-8. Do not invent awards.
-9. Do not invent certifications.
-10. Do not invent facts that are not provided.
-11. Avoid generic motivational content.
-12. Make the content useful and commercially relevant.
-13. End with a clear CTA.
-14. Do not explain your reasoning.
-15. Return only the finished social media post.
-
-FORMAT
+รูปแบบ:
 
 HOOK
 
@@ -331,8 +313,11 @@ CTA
 
       // =======================================================
       // CLOUDFLARE WORKERS AI
-      // Model:
-      // @cf/zai-org/glm-4.7-flash
+      // GLM-4.7-FLASH
+      //
+      // reasoning_effort = low
+      // เพื่อไม่ให้ model ใช้ token หมดกับ reasoning
+      // ก่อนสร้าง content จริง
       // =======================================================
 
       const aiResult = await context.env.AI.run(
@@ -342,34 +327,79 @@ CTA
             {
               role: "system",
               content:
-                "You are a Thai marketing content strategist and content intelligence engine for TATO Coffee."
+                "You are a Thai marketing content writer for TATO Coffee. Do not reveal reasoning. Return only the final content."
             },
             {
               role: "user",
               content: prompt
             }
           ],
-          max_tokens: 1000,
+
+          reasoning_effort: "low",
+
+          max_completion_tokens: 1800,
+
           temperature: 0.7
         }
       );
 
-      const generatedText =
-        aiResult?.response ||
-        aiResult?.result?.response ||
-        aiResult?.choices?.[0]?.message?.content ||
-        "";
+      // =======================================================
+      // EXTRACT FINAL CONTENT
+      // =======================================================
+
+      const choice =
+        aiResult?.choices?.[0];
+
+      const message =
+        choice?.message;
+
+      let generatedText = "";
+
+      if (typeof message?.content === "string") {
+        generatedText =
+          message.content.trim();
+      }
+
+      // รองรับกรณี content ถูกส่งมาเป็น array
+      if (!generatedText && Array.isArray(message?.content)) {
+        generatedText = message.content
+          .map(item => {
+            if (typeof item === "string") {
+              return item;
+            }
+
+            if (item?.text) {
+              return item.text;
+            }
+
+            return "";
+          })
+          .join("")
+          .trim();
+      }
+
+      // =======================================================
+      // AI FAILED TO RETURN FINAL CONTENT
+      // =======================================================
 
       if (!generatedText) {
         return Response.json(
           {
             success: false,
-            error: "AI returned empty content",
+            error: "AI did not return final content",
+            finish_reason:
+              choice?.finish_reason || null,
+            reasoning_present:
+              Boolean(message?.reasoning),
             ai_result: aiResult
           },
           { status: 500 }
         );
       }
+
+      // =======================================================
+      // SAVE GENERATED CONTENT
+      // =======================================================
 
       await context.env.DB
         .prepare(`
