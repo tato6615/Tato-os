@@ -4,6 +4,7 @@ export async function onRequest(context) {
   if (!env.DB) {
     return json({
       success: false,
+      layer: "LEARNING_AI_V1",
       error: "D1 binding DB not found"
     }, 500);
   }
@@ -11,18 +12,12 @@ export async function onRequest(context) {
   if (!env.AI) {
     return json({
       success: false,
+      layer: "LEARNING_AI_V1",
       error: "Workers AI binding AI not found"
     }, 500);
   }
 
   const method = request.method.toUpperCase();
-
-  if (method !== "GET" && method !== "POST") {
-    return json({
-      success: false,
-      error: "Method not allowed"
-    }, 405);
-  }
 
   let mode = "preview";
 
@@ -36,146 +31,26 @@ export async function onRequest(context) {
   }
 
   try {
-    /*
-     * ---------------------------------------------------------
-     * 1. Load latest Learning Feedback
-     * ---------------------------------------------------------
-     */
-
-    const learningResult = await env.DB.prepare(`
-      SELECT *
-      FROM learning_feedback
-      ORDER BY created_at DESC
-      LIMIT 1
-    `).all();
-
-    let learning = learningResult.results?.[0] || null;
-
-    /*
-     * If Learning Feedback has not been saved yet,
-     * calculate a fresh Learning result from /api/learning logic.
-     */
+    const learning = await getLearning(env.DB);
 
     if (!learning) {
-      const measurementResult = await env.DB.prepare(`
-        SELECT *
-        FROM content_measurements
-        ORDER BY measured_at DESC, created_at DESC
-        LIMIT 1
-      `).all();
-
-      const measurement = measurementResult.results?.[0] || null;
-
-      if (!measurement) {
-        return json({
-          success: true,
-          layer: "LEARNING_AI_V1",
-          mode,
-          status: "WAITING",
-          message: "No Content Measurement available for AI analysis.",
-          learning: null,
-          ai: null
-        });
-      }
-
-      learning = buildLearningFromMeasurement(measurement);
-    }
-
-    /*
-     * ---------------------------------------------------------
-     * 2. Load related Content
-     * ---------------------------------------------------------
-     */
-
-    let content = null;
-
-    if (learning.content_id) {
-      const contentResult = await env.DB.prepare(`
-        SELECT *
-        FROM content_engine
-        WHERE id = ?
-        LIMIT 1
-      `).bind(learning.content_id).all();
-
-      content = contentResult.results?.[0] || null;
-    }
-
-    /*
-     * ---------------------------------------------------------
-     * 3. Load latest Measurement
-     * ---------------------------------------------------------
-     */
-
-    const measurementResult = await env.DB.prepare(`
-      SELECT *
-      FROM content_measurements
-      ORDER BY measured_at DESC, created_at DESC
-      LIMIT 1
-    `).all();
-
-    const measurement = measurementResult.results?.[0] || null;
-
-    /*
-     * ---------------------------------------------------------
-     * 4. Normalize metrics
-     * ---------------------------------------------------------
-     */
-
-    const metrics = {
-      attention: Number(measurement?.attention || 0),
-      product_views: Number(measurement?.product_views || 0),
-      clicks: Number(measurement?.clicks || 0),
-      engagements: Number(measurement?.engagements || 0),
-      customers: Number(measurement?.customers || 0),
-      orders: Number(measurement?.orders || 0),
-      revenue: Number(measurement?.revenue || 0)
-    };
-
-    const conversion = {
-      attention_to_view: rate(
-        metrics.product_views,
-        metrics.attention
-      ),
-      view_to_click: rate(
-        metrics.clicks,
-        metrics.product_views
-      ),
-      click_to_customer: rate(
-        metrics.customers,
-        metrics.clicks
-      ),
-      customer_to_order: rate(
-        metrics.orders,
-        metrics.customers
-      ),
-      engagement_to_order: rate(
-        metrics.orders,
-        metrics.engagements
-      )
-    };
-
-    /*
-     * ---------------------------------------------------------
-     * 5. Prepare AI input
-     * ---------------------------------------------------------
-     */
-
-    const aiInput = {
-      system: {
-        role: "TATO Coffee Intelligence OS",
+      return json({
+        success: true,
         layer: "LEARNING_AI_V1",
-        objective:
-          "Analyze learning signals from measured Content and recommend the next Content or growth action.",
-        rules: [
-          "Use only supplied evidence.",
-          "Do not invent traffic, customers, orders, revenue, or market facts.",
-          "Separate observed facts from recommendations.",
-          "Do not declare a winner without sufficient evidence.",
-          "Prefer measurable next actions.",
-          "Keep recommendations practical for a small business."
-        ]
-      },
+        mode,
+        status: "WAITING",
+        message: "ยังไม่มี Learning data สำหรับวิเคราะห์",
+        ai: null,
+        next_step: "Run Learning Feedback Loop first."
+      });
+    }
 
+    const content = await getContent(env.DB, learning.content_id);
+
+    const metrics = normalizeMetrics(learning);
+    const conversion = normalizeConversion(learning);
+
+    const input = {
       learning: {
         signal_type: learning.signal_type,
         title: learning.title,
@@ -183,7 +58,6 @@ export async function onRequest(context) {
         recommendation: learning.recommendation,
         score: Number(learning.score || 0)
       },
-
       content: content
         ? {
             id: content.id,
@@ -193,84 +67,56 @@ export async function onRequest(context) {
             attention_type: content.attention_type,
             market_keyword: content.market_keyword,
             angle: content.angle,
-            cta: content.cta,
-            content_text: content.content_text
+            cta: content.cta
           }
         : null,
-
-      measurement: measurement
-        ? {
-            id: measurement.id,
-            status: measurement.status,
-            attribution_mode: measurement.attribution_mode,
-            measurement_start: measurement.measurement_start,
-            measured_at: measurement.measured_at
-          }
-        : null,
-
       metrics,
-
       conversion
     };
 
-    /*
-     * ---------------------------------------------------------
-     * 6. AI Prompt
-     * ---------------------------------------------------------
-     */
-
-    const prompt = `
+    const systemPrompt = `
 You are the Learning Intelligence layer of TATO Coffee Intelligence OS.
 
-Analyze the supplied Learning, Content Measurement, metrics and conversion data.
+Analyze only the supplied data.
 
-Return ONLY valid JSON.
+Rules:
+- Do not invent external facts.
+- Do not claim success or winner when metrics are zero.
+- If all metrics are zero, explicitly say there is not enough behavioral evidence.
+- Be concise.
+- Return ONLY valid JSON.
+- Do NOT explain your reasoning.
+- Do NOT use markdown.
+`;
 
-Required JSON structure:
+    const userPrompt = `
+Return this exact JSON structure:
 
 {
   "summary": "short factual summary",
-  "observed_signals": [
-    "fact based only on supplied data"
-  ],
+  "observed_signals": ["fact 1", "fact 2"],
   "learning": {
-    "what_we_learned": "what the data currently tells us",
-    "confidence": "LOW | MEDIUM | HIGH"
+    "what_we_learned": "what the data actually tells us",
+    "confidence": "LOW|MEDIUM|HIGH"
   },
-  "problems": [
-    "problem supported by data"
-  ],
+  "problems": ["problem 1"],
   "next_content": {
-    "action": "CREATE | IMPROVE | DISTRIBUTE | WAIT",
-    "direction": "specific direction",
-    "angle": "recommended angle",
-    "cta": "recommended CTA",
-    "success_metric": "metric to measure"
+    "action": "CREATE|IMPROVE|DISTRIBUTE|WAIT",
+    "direction": "next content direction",
+    "angle": "content angle",
+    "cta": "CTA",
+    "success_metric": "metric to watch"
   },
   "next_action": {
-    "type": "CONTENT | DISTRIBUTION | CTA | OFFER | MEASUREMENT | WAIT",
-    "reason": "why this action follows from the evidence"
+    "type": "DISTRIBUTE|MEASURE|IMPROVE|WAIT",
+    "reason": "short reason"
   },
-  "priority": "LOW | MEDIUM | HIGH"
+  "priority": "LOW|MEDIUM|HIGH"
 }
 
-Important:
-- If all metrics are zero, say there is not enough behavioral evidence.
-- Do not claim the Content is successful.
-- Do not claim the Content is a winner.
-- Do not invent external market information.
-- Recommendations must follow the evidence.
-
 DATA:
-
-${JSON.stringify(aiInput, null, 2)}
+${JSON.stringify(input)}
 `;
-
-    /*
-     * ---------------------------------------------------------
-     * 7. Run Workers AI
-     * ---------------------------------------------------------
-     */
 
     const aiResponse = await env.AI.run(
       "@cf/zai-org/glm-4.7-flash",
@@ -278,160 +124,112 @@ ${JSON.stringify(aiInput, null, 2)}
         messages: [
           {
             role: "system",
-            content:
-              "You are a precise business intelligence analyst. Return valid JSON only."
+            content: systemPrompt
           },
           {
             role: "user",
-            content: prompt
+            content: userPrompt
           }
         ],
+
         reasoning_effort: "low",
-        max_completion_tokens: 1800,
-        temperature: 0.3
+
+        max_completion_tokens: 900,
+
+        temperature: 0.2,
+
+        response_format: {
+          type: "json_object"
+        }
       }
     );
 
-    /*
-     * ---------------------------------------------------------
-     * 8. Parse AI response
-     * ---------------------------------------------------------
-     */
+    const rawContent = extractContent(aiResponse);
 
-    const rawOutput = extractAIText(aiResponse);
-
-    const ai = parseAIJson(rawOutput);
+    let analysis = parseJson(rawContent);
 
     /*
-     * ---------------------------------------------------------
-     * 9. Preview mode
-     * ---------------------------------------------------------
+     * If the model still returns no usable content,
+     * create a deterministic fallback from the actual data.
      */
-
-    if (mode === "preview") {
-      return json({
-        success: true,
-        layer: "LEARNING_AI_V1",
-        mode,
-        status: "ANALYZED",
-
-        learning: {
-          signal_type: learning.signal_type,
-          title: learning.title,
-          finding: learning.finding,
-          score: Number(learning.score || 0)
-        },
-
-        content: content
-          ? {
-              id: content.id,
-              title: content.title,
-              status: content.status
-            }
-          : null,
-
+    if (!analysis) {
+      analysis = buildFallbackAnalysis(
+        learning,
+        content,
         metrics,
-        conversion,
-
-        ai: {
-          raw: rawOutput,
-          analysis: ai
-        },
-
-        next_step:
-          "Review AI learning analysis before connecting it to Action Engine."
-      });
+        conversion
+      );
     }
 
-    /*
-     * ---------------------------------------------------------
-     * 10. Execute mode
-     * ---------------------------------------------------------
-     */
+    const aiStatus = rawContent
+      ? "AI_ANALYZED"
+      : "FALLBACK_ANALYZED";
 
-    const runId = crypto.randomUUID();
+    let runId = null;
+    let insightId = null;
 
-    await env.DB.prepare(`
-      INSERT INTO ai_runs (
-        id,
-        customer_id,
-        run_type,
-        model,
-        input_data,
-        output_data,
-        status,
-        tokens_used
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      runId,
-      null,
-      "LEARNING_ANALYSIS",
-      "@cf/zai-org/glm-4.7-flash",
-      JSON.stringify(aiInput),
-      JSON.stringify(ai),
-      "COMPLETED",
-      null
-    ).run();
+    if (
+      method === "POST" &&
+      (mode === "execute" || mode === "save")
+    ) {
+      runId = crypto.randomUUID();
 
-    /*
-     * ---------------------------------------------------------
-     * 11. Save AI Insight
-     * ---------------------------------------------------------
-     */
+      await env.DB.prepare(`
+        INSERT INTO ai_runs (
+          id,
+          customer_id,
+          run_type,
+          model,
+          input_data,
+          output_data,
+          status,
+          tokens_used
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        runId,
+        null,
+        "LEARNING_ANALYSIS",
+        "@cf/zai-org/glm-4.7-flash",
+        JSON.stringify(input),
+        JSON.stringify(analysis),
+        aiStatus,
+        Number(aiResponse?.usage?.total_tokens || 0)
+      ).run();
 
-    const insightId = crypto.randomUUID();
+      insightId = crypto.randomUUID();
 
-    const insightTitle =
-      ai.summary ||
-      ai.learning?.what_we_learned ||
-      learning.title ||
-      "Learning AI Insight";
-
-    const insightContent = JSON.stringify({
-      learning,
-      metrics,
-      conversion,
-      analysis: ai
-    });
-
-    const priority =
-      ai.priority === "HIGH"
-        ? "HIGH"
-        : ai.priority === "MEDIUM"
-          ? "MEDIUM"
-          : "LOW";
-
-    await env.DB.prepare(`
-      INSERT INTO ai_insights (
-        id,
-        customer_id,
-        run_id,
-        insight_type,
-        title,
-        content,
-        score,
-        priority,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      insightId,
-      null,
-      runId,
-      "LEARNING",
-      insightTitle,
-      insightContent,
-      Number(learning.score || 0),
-      priority,
-      "NEW"
-    ).run();
+      await env.DB.prepare(`
+        INSERT INTO ai_insights (
+          id,
+          customer_id,
+          run_id,
+          insight_type,
+          title,
+          content,
+          score,
+          priority,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        insightId,
+        null,
+        runId,
+        "LEARNING",
+        analysis.summary || learning.title,
+        JSON.stringify(analysis),
+        Number(learning.score || 0),
+        analysis.priority || "LOW",
+        "NEW"
+      ).run();
+    }
 
     return json({
       success: true,
       layer: "LEARNING_AI_V1",
       mode,
-      status: "COMPLETED",
+      status: "ANALYZED",
 
       learning: {
         signal_type: learning.signal_type,
@@ -452,13 +250,18 @@ ${JSON.stringify(aiInput, null, 2)}
       conversion,
 
       ai: {
+        status: aiStatus,
+        model: "@cf/zai-org/glm-4.7-flash",
+        analysis,
         run_id: runId,
-        insight_id: insightId,
-        analysis: ai
+        insight_id: insightId
       },
 
       next_step:
-        "Connect Learning AI output to Decision and Action Engine."
+        method === "POST" &&
+        (mode === "execute" || mode === "save")
+          ? "AI Learning Insight saved. Next: connect AI → Action Engine."
+          : "AI Learning analysis ready for review."
     });
 
   } catch (error) {
@@ -471,20 +274,161 @@ ${JSON.stringify(aiInput, null, 2)}
 }
 
 
-/*
- * ============================================================
- * Helpers
- * ============================================================
- */
+/* =========================================================
+   LEARNING
+========================================================= */
 
-function rate(a, b) {
-  if (!b || b <= 0) return 0;
-  return Number(((a / b) * 100).toFixed(2));
+async function getLearning(DB) {
+  try {
+    const result = await DB.prepare(`
+      SELECT *
+      FROM learning_feedback
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).all();
+
+    if (result.results?.[0]) {
+      return normalizeLearning(result.results[0]);
+    }
+  } catch {
+    // Table may not have a saved learning row yet.
+  }
+
+  const measurementResult = await DB.prepare(`
+    SELECT *
+    FROM content_measurements
+    ORDER BY measured_at DESC, created_at DESC
+    LIMIT 1
+  `).all();
+
+  const measurement = measurementResult.results?.[0];
+
+  if (!measurement) {
+    return null;
+  }
+
+  const metrics = normalizeMetrics(measurement);
+
+  let signalType = "INSUFFICIENT_DATA";
+  let title = "ข้อมูลยังไม่เพียงพอ";
+  let finding = "มีข้อมูลบางส่วนแต่ยังไม่สามารถระบุ Pattern ที่ชัดเจนได้";
+  let recommendation = "เก็บข้อมูลเพิ่มก่อนปรับ Content";
+  let score = 30;
+
+  if (
+    metrics.attention === 0 &&
+    metrics.product_views === 0 &&
+    metrics.clicks === 0 &&
+    metrics.engagements === 0 &&
+    metrics.customers === 0 &&
+    metrics.orders === 0 &&
+    metrics.revenue === 0
+  ) {
+    signalType = "NO_TRAFFIC";
+    title = "ยังไม่มี Traffic";
+    finding = "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content";
+    recommendation = "เผยแพร่ Content และรอข้อมูลพฤติกรรมก่อนตัดสินผล";
+    score = 20;
+  }
+
+  return {
+    id: null,
+    content_id: measurement.content_id || null,
+    measurement_id: measurement.id || null,
+    signal_type: signalType,
+    title,
+    finding,
+    recommendation,
+    score,
+    status: "LEARNED",
+    metrics,
+    conversion: normalizeConversion(measurement)
+  };
 }
 
 
-function extractAIText(response) {
-  if (!response) return "";
+function normalizeLearning(row) {
+  return {
+    ...row,
+    score: Number(row.score || 0)
+  };
+}
+
+
+/* =========================================================
+   CONTENT
+========================================================= */
+
+async function getContent(DB, contentId) {
+  if (!contentId) return null;
+
+  const result = await DB.prepare(`
+    SELECT *
+    FROM content_engine
+    WHERE id = ?
+    LIMIT 1
+  `).bind(contentId).all();
+
+  return result.results?.[0] || null;
+}
+
+
+/* =========================================================
+   METRICS
+========================================================= */
+
+function normalizeMetrics(source) {
+  return {
+    attention: Number(source.attention || 0),
+    product_views: Number(source.product_views || 0),
+    clicks: Number(source.clicks || 0),
+    engagements: Number(source.engagements || 0),
+    customers: Number(source.customers || 0),
+    orders: Number(source.orders || 0),
+    revenue: Number(source.revenue || 0)
+  };
+}
+
+
+function normalizeConversion(source) {
+  const metrics = normalizeMetrics(source);
+
+  const rate = (a, b) => {
+    if (!b || b <= 0) return 0;
+    return Number(((a / b) * 100).toFixed(2));
+  };
+
+  return {
+    attention_to_view: rate(
+      metrics.product_views,
+      metrics.attention
+    ),
+    view_to_click: rate(
+      metrics.clicks,
+      metrics.product_views
+    ),
+    click_to_customer: rate(
+      metrics.customers,
+      metrics.clicks
+    ),
+    customer_to_order: rate(
+      metrics.orders,
+      metrics.customers
+    ),
+    engagement_to_order: rate(
+      metrics.orders,
+      metrics.engagements
+    )
+  };
+}
+
+
+/* =========================================================
+   AI RESPONSE PARSER
+========================================================= */
+
+function extractContent(response) {
+  if (!response) return null;
 
   if (typeof response === "string") {
     return response;
@@ -494,229 +438,182 @@ function extractAIText(response) {
     return response.response;
   }
 
-  if (Array.isArray(response.response)) {
-    return response.response
-      .map(x => {
-        if (typeof x === "string") return x;
-        if (x?.text) return x.text;
-        if (x?.content) return x.content;
-        return "";
-      })
-      .join("");
-  }
-
   if (typeof response.content === "string") {
     return response.content;
   }
 
   if (Array.isArray(response.content)) {
     return response.content
-      .map(x => {
-        if (typeof x === "string") return x;
-        if (x?.text) return x.text;
-        return "";
+      .map(item => {
+        if (typeof item === "string") return item;
+        return item?.text || item?.content || "";
       })
-      .join("");
+      .join("")
+      .trim();
   }
 
-  return JSON.stringify(response);
+  if (response.choices?.[0]?.message?.content) {
+    return response.choices[0].message.content;
+  }
+
+  return null;
 }
 
 
-function parseAIJson(text) {
-  if (!text) {
-    return {
-      summary: "AI returned no text.",
-      observed_signals: [],
-      learning: {
-        what_we_learned: "No AI analysis available.",
-        confidence: "LOW"
-      },
-      problems: [],
-      next_content: {
-        action: "WAIT",
-        direction: "Wait for more data.",
-        angle: "",
-        cta: "",
-        success_metric: "Traffic and conversion"
-      },
-      next_action: {
-        type: "WAIT",
-        reason: "No AI output was available."
-      },
-      priority: "LOW"
-    };
+function parseJson(value) {
+  if (!value) return null;
+
+  if (typeof value === "object") {
+    return value;
   }
 
-  let cleaned = text.trim();
+  let text = String(value).trim();
 
-  cleaned = cleaned
+  if (!text) return null;
+
+  text = text
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
 
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(text);
   } catch {
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      try {
-        return JSON.parse(
-          cleaned.slice(start, end + 1)
-        );
-      } catch {}
-    }
-
-    return {
-      summary: cleaned.slice(0, 500),
-      observed_signals: [],
-      learning: {
-        what_we_learned: cleaned.slice(0, 1000),
-        confidence: "LOW"
-      },
-      problems: [],
-      next_content: {
-        action: "WAIT",
-        direction: "AI output requires review.",
-        angle: "",
-        cta: "",
-        success_metric: "More behavioral data"
-      },
-      next_action: {
-        type: "WAIT",
-        reason: "AI response was not valid JSON."
-      },
-      priority: "LOW"
-    };
+    // Try extracting the first JSON object.
   }
+
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(
+        text.slice(start, end + 1)
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 
-function buildLearningFromMeasurement(measurement) {
-  const metrics = {
-    attention: Number(measurement.attention || 0),
-    product_views: Number(measurement.product_views || 0),
-    clicks: Number(measurement.clicks || 0),
-    engagements: Number(measurement.engagements || 0),
-    customers: Number(measurement.customers || 0),
-    orders: Number(measurement.orders || 0),
-    revenue: Number(measurement.revenue || 0)
-  };
+/* =========================================================
+   DETERMINISTIC FALLBACK
+========================================================= */
 
-  if (metrics.orders > 0 && metrics.revenue > 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "REVENUE_SIGNAL",
-      title: "Content มีสัญญาณรายได้",
-      finding:
-        `พบ ${metrics.orders} order และรายได้ ${metrics.revenue}`,
-      recommendation:
-        "ติดตามรูปแบบ Content และพฤติกรรมก่อนซื้อ",
-      score: 100
-    };
-  }
+function buildFallbackAnalysis(
+  learning,
+  content,
+  metrics,
+  conversion
+) {
+  const noTraffic =
+    metrics.attention === 0 &&
+    metrics.product_views === 0 &&
+    metrics.clicks === 0 &&
+    metrics.engagements === 0 &&
+    metrics.customers === 0 &&
+    metrics.orders === 0 &&
+    metrics.revenue === 0;
 
-  if (metrics.orders > 0) {
+  if (noTraffic) {
     return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "CONVERSION_SIGNAL",
-      title: "เกิด Conversion",
-      finding:
-        `พบ ${metrics.orders} order`,
-      recommendation:
-        "วิเคราะห์เส้นทาง Conversion",
-      score: 90
-    };
-  }
+      summary:
+        "ยังไม่มีข้อมูลพฤติกรรมจาก Content จึงยังประเมินประสิทธิภาพไม่ได้",
 
-  if (metrics.customers > 0 && metrics.orders === 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "LOW_PURCHASE_CONVERSION",
-      title: "มี Customer แต่ยังไม่เกิดการซื้อ",
-      finding:
-        `มี customer ${metrics.customers} ราย แต่ยังไม่มี order`,
-      recommendation:
-        "ปรับ Offer หรือ CTA",
-      score: 70
-    };
-  }
+      observed_signals: [
+        "Learning signal คือ NO_TRAFFIC",
+        "Metrics ทั้งหมดยังเป็น 0",
+        "ยังไม่มีข้อมูล Conversion"
+      ],
 
-  if (metrics.clicks > 0 && metrics.customers === 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "LOW_LEAD_CONVERSION",
-      title: "มี Click แต่ยังไม่มี Customer",
-      finding:
-        `พบ ${metrics.clicks} clicks`,
-      recommendation:
-        "ตรวจสอบ Landing Page และข้อเสนอ",
-      score: 65
-    };
-  }
+      learning: {
+        what_we_learned:
+          "ยังไม่มี behavioral evidence เพียงพอสำหรับตัดสิน Content",
+        confidence: "LOW"
+      },
 
-  if (metrics.engagements > 0 && metrics.clicks === 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "ENGAGEMENT_NO_CLICK",
-      title: "มี Engagement แต่ยังไม่มี Click",
-      finding:
-        `มี engagement ${metrics.engagements} ครั้ง`,
-      recommendation:
-        "ปรับ CTA",
-      score: 60
-    };
-  }
+      problems: [
+        "ยังไม่มี Traffic",
+        "ยังไม่มีข้อมูลสำหรับวัด Conversion"
+      ],
 
-  if (metrics.product_views > 0 && metrics.clicks === 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "LOW_CTA_RESPONSE",
-      title: "มี Product View แต่ยังไม่มี Click",
-      finding:
-        `มี product view ${metrics.product_views} ครั้ง`,
-      recommendation:
-        "ทดสอบ CTA หรือ Offer",
-      score: 55
-    };
-  }
+      next_content: {
+        action:
+          content?.status === "READY_TO_PUBLISH"
+            ? "DISTRIBUTE"
+            : "WAIT",
+        direction:
+          "เผยแพร่ Content ปัจจุบันเพื่อสร้าง Traffic และเก็บข้อมูลพฤติกรรม",
+        angle:
+          content?.angle || "ใช้ Angle เดิมเพื่อสร้างข้อมูลชุดแรก",
+        cta:
+          content?.cta || "ดูรายละเอียดและทดลอง TATO",
+        success_metric:
+          "Product Views"
+      },
 
-  if (metrics.attention > 0 && metrics.product_views === 0) {
-    return {
-      content_id: measurement.content_id || null,
-      measurement_id: measurement.id || null,
-      signal_type: "ATTENTION_NO_TRAFFIC",
-      title: "มี Attention แต่ยังไม่มี Traffic",
-      finding:
-        `พบ attention ${metrics.attention} ครั้ง`,
-      recommendation:
-        "เพิ่ม Distribution",
-      score: 45
+      next_action: {
+        type: "DISTRIBUTE",
+        reason:
+          "Content พร้อมเผยแพร่ แต่ยังไม่มีข้อมูลพฤติกรรมสำหรับการเรียนรู้"
+      },
+
+      priority: "LOW"
     };
   }
 
   return {
-    content_id: measurement.content_id || null,
-    measurement_id: measurement.id || null,
-    signal_type: "NO_TRAFFIC",
-    title: "ยังไม่มี Traffic",
-    finding:
-      "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content",
-    recommendation:
-      "เผยแพร่ Content และรอข้อมูลพฤติกรรม",
-    score: 20
+    summary:
+      "มีข้อมูลพฤติกรรมบางส่วน แต่ยังควรเก็บข้อมูลเพิ่มก่อนปรับ Content",
+
+    observed_signals: [
+      `Attention: ${metrics.attention}`,
+      `Product Views: ${metrics.product_views}`,
+      `Clicks: ${metrics.clicks}`,
+      `Orders: ${metrics.orders}`
+    ],
+
+    learning: {
+      what_we_learned:
+        "เริ่มมี behavioral data แต่ยังต้องติดตาม Conversion เพิ่ม",
+      confidence: "LOW"
+    },
+
+    problems: [
+      "ข้อมูลยังมีปริมาณจำกัด",
+      "ยังไม่ควรสรุป Content winner"
+    ],
+
+    next_content: {
+      action: "WAIT",
+      direction:
+        "เก็บข้อมูลเพิ่มเติมจาก Content ปัจจุบัน",
+      angle:
+        content?.angle || "",
+      cta:
+        content?.cta || "",
+      success_metric:
+        "Clicks"
+    },
+
+    next_action: {
+      type: "MEASURE",
+      reason:
+        "ต้องเก็บข้อมูลเพิ่มก่อนตัดสินใจปรับ Content"
+    },
+
+    priority: "MEDIUM"
   };
 }
 
+
+/* =========================================================
+   JSON RESPONSE
+========================================================= */
 
 function json(data, status = 200) {
   return new Response(
