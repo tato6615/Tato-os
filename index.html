@@ -47,18 +47,12 @@
       cursor: pointer;
     }
 
-    /* =========================================================
-       APP
-    ========================================================= */
-
     .app {
       min-height: 100vh;
       display: flex;
     }
 
-    /* =========================================================
-       SIDEBAR
-    ========================================================= */
+    /* SIDEBAR */
 
     .sidebar {
       width: 230px;
@@ -115,9 +109,7 @@
       border-left: 2px solid var(--orange);
     }
 
-    /* =========================================================
-       MAIN
-    ========================================================= */
+    /* MAIN */
 
     .main {
       margin-left: 230px;
@@ -163,9 +155,7 @@
       display: block;
     }
 
-    /* =========================================================
-       BUTTONS
-    ========================================================= */
+    /* BUTTONS */
 
     .btn {
       background: #1b1b1b;
@@ -187,9 +177,7 @@
       font-weight: 700;
     }
 
-    /* =========================================================
-       HEADERS
-    ========================================================= */
+    /* HEADERS */
 
     .page-header {
       display: flex;
@@ -211,9 +199,7 @@
       margin-top: 5px;
     }
 
-    /* =========================================================
-       KPI
-    ========================================================= */
+    /* KPI */
 
     .kpi-grid {
       display: grid;
@@ -247,9 +233,7 @@
       margin-top: 5px;
     }
 
-    /* =========================================================
-       GRID / PANELS
-    ========================================================= */
+    /* GRID */
 
     .grid {
       display: grid;
@@ -286,9 +270,7 @@
       margin-bottom: 14px;
     }
 
-    /* =========================================================
-       COMMAND CENTER
-    ========================================================= */
+    /* COMMAND CENTER */
 
     .command {
       border-color: #33210f;
@@ -319,9 +301,7 @@
       margin-top: 5px;
     }
 
-    /* =========================================================
-       QUEUES
-    ========================================================= */
+    /* QUEUES */
 
     .queue {
       display: flex;
@@ -371,6 +351,59 @@
       color: var(--green);
     }
 
+    .badge.running {
+      background: #352b0a;
+      color: var(--yellow);
+    }
+
+    .badge.error {
+      background: #351313;
+      color: var(--red);
+    }
+
+    .action-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .action-execute {
+      background: var(--orange);
+      border: 1px solid var(--orange);
+      color: #000;
+      padding: 6px 11px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .action-execute:hover {
+      background: var(--orange-2);
+      border-color: var(--orange-2);
+    }
+
+    .action-execute:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .action-result {
+      margin-top: 10px;
+      padding: 11px;
+      border: 1px solid #242424;
+      background: #101010;
+      border-radius: 6px;
+      color: #999;
+      font-size: 10px;
+      line-height: 1.7;
+    }
+
+    .action-result strong {
+      color: #fff;
+    }
+
     .empty {
       color: #666;
       font-size: 11px;
@@ -389,9 +422,7 @@
       padding: 10px 0;
     }
 
-    /* =========================================================
-       TABLES
-    ========================================================= */
+    /* TABLES */
 
     .table-wrap {
       overflow: auto;
@@ -422,9 +453,42 @@
       color: #fff;
     }
 
-    /* =========================================================
-       FORMS
-    ========================================================= */
+    /* LIST */
+
+    .signal-item {
+      border-bottom: 1px solid #191919;
+      padding: 11px 0;
+    }
+
+    .signal-item:last-child {
+      border-bottom: 0;
+    }
+
+    .signal-title {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .signal-meta {
+      color: #666;
+      font-size: 9px;
+      margin-top: 4px;
+    }
+
+    .signal-content {
+      color: #999;
+      font-size: 10px;
+      line-height: 1.5;
+      margin-top: 5px;
+    }
+
+    .score {
+      color: var(--orange);
+      font-weight: 800;
+    }
+
+    /* FORMS */
 
     .form-grid {
       display: grid;
@@ -463,9 +527,7 @@
       grid-column: 1 / -1;
     }
 
-    /* =========================================================
-       MOBILE
-    ========================================================= */
+    /* MOBILE */
 
     @media (max-width: 900px) {
       .sidebar {
@@ -551,6 +613,7 @@
       .command-header {
         align-items: flex-start;
         flex-direction: column;
+        gap: 12px;
       }
     }
   </style>
@@ -560,9 +623,7 @@
 
 <div class="app">
 
-  <!-- =======================================================
-       SIDEBAR
-  ======================================================== -->
+  <!-- SIDEBAR -->
 
   <aside class="sidebar">
 
@@ -572,23 +633,55 @@
     </div>
 
     <nav class="nav">
-      <button class="active" data-view="overview">◉ Overview</button>
-      <button data-view="market">◈ Market</button>
-      <button data-view="behavior">◌ Behavior</button>
-      <button data-view="customers">♙ Customers</button>
-      <button data-view="products">▣ Products</button>
-      <button data-view="sales">฿ Sales</button>
-      <button data-view="ai">✦ AI Team</button>
-      <button data-view="content">▤ Content</button>
-      <button data-view="automation">⚙ Automation</button>
-      <button data-view="settings">◉ Settings</button>
+
+      <button
+        class="active"
+        data-view="overview"
+      >
+        ◉ Overview
+      </button>
+
+      <button data-view="market">
+        ◈ Market
+      </button>
+
+      <button data-view="behavior">
+        ◌ Behavior
+      </button>
+
+      <button data-view="customers">
+        ♙ Customers
+      </button>
+
+      <button data-view="products">
+        ▣ Products
+      </button>
+
+      <button data-view="sales">
+        ฿ Sales
+      </button>
+
+      <button data-view="ai">
+        ✦ AI Team
+      </button>
+
+      <button data-view="content">
+        ▤ Content
+      </button>
+
+      <button data-view="automation">
+        ⚙ Automation
+      </button>
+
+      <button data-view="settings">
+        ◉ Settings
+      </button>
+
     </nav>
 
   </aside>
 
-  <!-- =======================================================
-       MAIN
-  ======================================================== -->
+  <!-- MAIN -->
 
   <main class="main">
 
@@ -604,21 +697,23 @@
       </div>
 
       <div class="top-actions">
+
         <button
           class="btn"
           onclick="loadAll()"
         >
           ↻ Refresh
         </button>
+
       </div>
 
     </header>
 
     <div class="page">
 
-      <!-- ===================================================
+      <!-- =====================================================
            OVERVIEW
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-overview"
@@ -628,6 +723,7 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Command Center
             </div>
@@ -635,6 +731,7 @@
             <div class="page-subtitle">
               TATO Coffee — Data → Intelligence → Decision → Action
             </div>
+
           </div>
 
         </div>
@@ -644,55 +741,79 @@
         <div class="kpi-grid">
 
           <div class="kpi-card">
-            <div class="kpi-label">CUSTOMERS</div>
+
+            <div class="kpi-label">
+              CUSTOMERS
+            </div>
+
             <div
               class="kpi-value"
               id="k-customers"
             >
               0
             </div>
+
             <div class="kpi-meta">
               stored customers
             </div>
+
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label">PRODUCTS</div>
+
+            <div class="kpi-label">
+              PRODUCTS
+            </div>
+
             <div
               class="kpi-value"
               id="k-products"
             >
               0
             </div>
+
             <div class="kpi-meta">
               products
             </div>
+
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label">ORDERS</div>
+
+            <div class="kpi-label">
+              ORDERS
+            </div>
+
             <div
               class="kpi-value"
               id="k-orders"
             >
               0
             </div>
+
             <div class="kpi-meta">
               orders
             </div>
+
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label">REVENUE</div>
+
+            <div class="kpi-label">
+              REVENUE
+            </div>
+
             <div
               class="kpi-value"
               id="k-revenue"
             >
               ฿0
             </div>
+
             <div class="kpi-meta">
               total sales
             </div>
+
           </div>
 
         </div>
@@ -704,6 +825,7 @@
           <div class="command-header">
 
             <div>
+
               <div class="command-title">
                 TATO Intelligence Command Center
               </div>
@@ -711,10 +833,12 @@
               <div class="command-flow">
                 DATA → INTELLIGENCE → DECISION → ACTION
               </div>
+
             </div>
 
             <button
               class="btn primary"
+              id="run-intelligence-btn"
               onclick="runCommandCenter()"
             >
               RUN INTELLIGENCE
@@ -727,6 +851,7 @@
           <div class="kpi-grid">
 
             <div class="kpi-card">
+
               <div class="kpi-label">
                 ATTENTION
               </div>
@@ -741,9 +866,11 @@
               <div class="kpi-meta">
                 attention signals
               </div>
+
             </div>
 
             <div class="kpi-card">
+
               <div class="kpi-label">
                 MARKET SIGNALS
               </div>
@@ -758,9 +885,11 @@
               <div class="kpi-meta">
                 market signals
               </div>
+
             </div>
 
             <div class="kpi-card">
+
               <div class="kpi-label">
                 AI INSIGHTS
               </div>
@@ -775,9 +904,11 @@
               <div class="kpi-meta">
                 available insights
               </div>
+
             </div>
 
             <div class="kpi-card">
+
               <div class="kpi-label">
                 WORKFLOWS
               </div>
@@ -792,6 +923,7 @@
               <div class="kpi-meta">
                 automation workflows
               </div>
+
             </div>
 
           </div>
@@ -810,9 +942,11 @@
                 id="decision-queue"
                 class="queue"
               >
+
                 <div class="loading">
                   Waiting for intelligence...
                 </div>
+
               </div>
 
             </div>
@@ -827,9 +961,11 @@
                 id="action-queue"
                 class="queue"
               >
+
                 <div class="loading">
                   Waiting for decisions...
                 </div>
+
               </div>
 
             </div>
@@ -849,9 +985,11 @@
             </div>
 
             <div id="attention-list">
+
               <div class="empty">
                 No attention signals
               </div>
+
             </div>
 
           </div>
@@ -863,9 +1001,11 @@
             </div>
 
             <div id="market-list">
+
               <div class="empty">
                 No market signals
               </div>
+
             </div>
 
           </div>
@@ -883,9 +1023,11 @@
             </div>
 
             <div id="recent-behavior">
+
               <div class="empty">
                 No behavior events
               </div>
+
             </div>
 
           </div>
@@ -897,9 +1039,11 @@
             </div>
 
             <div id="recent-insights">
+
               <div class="empty">
                 No AI insights
               </div>
+
             </div>
 
           </div>
@@ -908,9 +1052,112 @@
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
+           MARKET
+      ====================================================== -->
+
+      <section
+        id="view-market"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+
+            <div class="page-title">
+              Market
+            </div>
+
+            <div class="page-subtitle">
+              Market demand signals
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            MARKET SIGNALS
+          </div>
+
+          <div id="market-page-list">
+
+            <div class="loading">
+              Loading...
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =====================================================
+           BEHAVIOR
+      ====================================================== -->
+
+      <section
+        id="view-behavior"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+
+            <div class="page-title">
+              Behavior
+            </div>
+
+            <div class="page-subtitle">
+              Customer attention and behavior intelligence
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            BEHAVIOR EVENTS
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>EVENT</th>
+                  <th>CUSTOMER</th>
+                  <th>PAGE</th>
+                  <th>PRODUCT</th>
+                  <th>CREATED</th>
+                </tr>
+
+              </thead>
+
+              <tbody id="behavior-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =====================================================
            CUSTOMERS
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-customers"
@@ -920,6 +1167,7 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Customers
             </div>
@@ -927,6 +1175,7 @@
             <div class="page-subtitle">
               Customer intelligence database
             </div>
+
           </div>
 
         </div>
@@ -942,6 +1191,7 @@
             <table>
 
               <thead>
+
                 <tr>
                   <th>ID</th>
                   <th>NAME</th>
@@ -949,6 +1199,7 @@
                   <th>PHONE</th>
                   <th>CREATED</th>
                 </tr>
+
               </thead>
 
               <tbody id="customers-table"></tbody>
@@ -961,9 +1212,10 @@
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
            PRODUCTS
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-products"
@@ -973,6 +1225,7 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Products
             </div>
@@ -980,6 +1233,7 @@
             <div class="page-subtitle">
               TATO product intelligence
             </div>
+
           </div>
 
         </div>
@@ -995,6 +1249,7 @@
             <table>
 
               <thead>
+
                 <tr>
                   <th>ID</th>
                   <th>NAME</th>
@@ -1002,6 +1257,7 @@
                   <th>COST</th>
                   <th>STATUS</th>
                 </tr>
+
               </thead>
 
               <tbody id="products-table"></tbody>
@@ -1014,9 +1270,10 @@
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
            SALES
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-sales"
@@ -1026,6 +1283,7 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Sales
             </div>
@@ -1033,6 +1291,7 @@
             <div class="page-subtitle">
               Orders and revenue intelligence
             </div>
+
           </div>
 
         </div>
@@ -1069,12 +1328,42 @@
 
           </div>
 
+          <div class="kpi-card">
+
+            <div class="kpi-label">
+              AOV
+            </div>
+
+            <div
+              class="kpi-value"
+              id="sales-aov"
+            >
+              ฿0
+            </div>
+
+          </div>
+
+          <div class="kpi-card">
+
+            <div class="kpi-label">
+              STATUS
+            </div>
+
+            <div
+              class="kpi-value"
+              id="sales-status"
+            >
+              —
+            </div>
+
+          </div>
+
         </div>
 
         <div class="panel">
 
           <div class="panel-title">
-            ORDER DATABASE
+            ORDERS
           </div>
 
           <div class="table-wrap">
@@ -1082,13 +1371,16 @@
             <table>
 
               <thead>
+
                 <tr>
                   <th>ID</th>
                   <th>CUSTOMER</th>
+                  <th>PRODUCT</th>
                   <th>AMOUNT</th>
                   <th>STATUS</th>
                   <th>CREATED</th>
                 </tr>
+
               </thead>
 
               <tbody id="orders-table"></tbody>
@@ -1101,128 +1393,10 @@
 
       </section>
 
-      <!-- ===================================================
-           BEHAVIOR
-      ==================================================== -->
 
-      <section
-        id="view-behavior"
-        class="view"
-      >
-
-        <div class="page-header">
-
-          <div>
-            <div class="page-title">
-              Behavior
-            </div>
-
-            <div class="page-subtitle">
-              ATTENTION — what users actually do
-            </div>
-          </div>
-
-        </div>
-
-        <div class="panel">
-
-          <div class="panel-title">
-            EVENT TYPES
-          </div>
-
-          <div id="behavior-types">
-            <div class="empty">
-              No behavior data
-            </div>
-          </div>
-
-        </div>
-
-        <div class="panel">
-
-          <div class="panel-title">
-            LATEST EVENTS
-          </div>
-
-          <div class="table-wrap">
-
-            <table>
-
-              <thead>
-                <tr>
-                  <th>EVENT</th>
-                  <th>USER</th>
-                  <th>PAGE</th>
-                  <th>CREATED</th>
-                </tr>
-              </thead>
-
-              <tbody id="behavior-table"></tbody>
-
-            </table>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      <!-- ===================================================
-           MARKET
-      ==================================================== -->
-
-      <section
-        id="view-market"
-        class="view"
-      >
-
-        <div class="page-header">
-
-          <div>
-            <div class="page-title">
-              Market
-            </div>
-
-            <div class="page-subtitle">
-              External demand and market signals
-            </div>
-          </div>
-
-        </div>
-
-        <div class="panel">
-
-          <div class="panel-title">
-            MARKET SIGNALS
-          </div>
-
-          <div class="table-wrap">
-
-            <table>
-
-              <thead>
-                <tr>
-                  <th>KEYWORD</th>
-                  <th>SIGNAL</th>
-                  <th>SOURCE</th>
-                  <th>SCORE</th>
-                  <th>DETECTED</th>
-                </tr>
-              </thead>
-
-              <tbody id="market-table"></tbody>
-
-            </table>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      <!-- ===================================================
+      <!-- =====================================================
            AI TEAM
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-ai"
@@ -1232,56 +1406,29 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               AI Team
             </div>
 
             <div class="page-subtitle">
-              AI runs and intelligence outputs
+              AI runs and intelligence
             </div>
+
           </div>
 
         </div>
 
-        <div class="grid grid-2">
+        <div class="panel">
 
-          <div class="panel">
-
-            <div class="panel-title">
-              AI RUNS
-            </div>
-
-            <div class="table-wrap">
-
-              <table>
-
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>TYPE</th>
-                    <th>STATUS</th>
-                    <th>CREATED</th>
-                  </tr>
-                </thead>
-
-                <tbody id="ai-runs-table"></tbody>
-
-              </table>
-
-            </div>
-
+          <div class="panel-title">
+            AI INSIGHTS
           </div>
 
-          <div class="panel">
+          <div id="ai-page-list">
 
-            <div class="panel-title">
-              AI INSIGHTS
-            </div>
-
-            <div id="ai-insights-list">
-              <div class="empty">
-                No AI insights
-              </div>
+            <div class="loading">
+              Loading...
             </div>
 
           </div>
@@ -1290,9 +1437,10 @@
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
            CONTENT
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-content"
@@ -1302,13 +1450,15 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Content
             </div>
 
             <div class="page-subtitle">
-              Content layer — driven by attention and market intelligence
+              Content Engine
             </div>
+
           </div>
 
         </div>
@@ -1319,18 +1469,37 @@
             CONTENT ENGINE
           </div>
 
-          <div class="empty">
-            Content data layer ready.
-            Connect ATTENTION → CONTENT → TEST → WINNER → REUSE.
+          <div class="panel-sub">
+            Attention → Content → Test → Winner → Reuse
+          </div>
+
+          <div class="grid grid-3">
+
+            <div class="kpi-card">
+              <div class="kpi-label">IDEA</div>
+              <div class="kpi-value">—</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">CREATE</div>
+              <div class="kpi-value">—</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">TEST</div>
+              <div class="kpi-value">—</div>
+            </div>
+
           </div>
 
         </div>
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
            AUTOMATION
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-automation"
@@ -1340,90 +1509,13 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Automation
             </div>
 
             <div class="page-subtitle">
-              Decision → Action → Workflow
-            </div>
-          </div>
-
-          <button
-            class="btn primary"
-            onclick="showWorkflowForm()"
-          >
-            + New Workflow
-          </button>
-
-        </div>
-
-        <div
-          id="workflow-form"
-          class="panel"
-          style="display:none"
-        >
-
-          <div class="panel-title">
-            CREATE WORKFLOW
-          </div>
-
-          <div class="form-grid">
-
-            <div class="field">
-
-              <label>NAME</label>
-
-              <input
-                id="wf-name"
-                placeholder="Workflow name"
-              >
-
-            </div>
-
-            <div class="field">
-
-              <label>TRIGGER TYPE</label>
-
-              <select id="wf-trigger">
-                <option value="manual">
-                  manual
-                </option>
-
-                <option value="behavior">
-                  behavior
-                </option>
-
-                <option value="market">
-                  market
-                </option>
-
-                <option value="schedule">
-                  schedule
-                </option>
-              </select>
-
-            </div>
-
-            <div class="field full">
-
-              <label>DESCRIPTION</label>
-
-              <textarea
-                id="wf-description"
-              ></textarea>
-
-            </div>
-
-            <div class="full">
-
-              <button
-                class="btn primary"
-                onclick="createWorkflow()"
-              >
-                CREATE WORKFLOW
-              </button>
-
+              Workflow automation engine
             </div>
 
           </div>
@@ -1437,18 +1529,21 @@
           </div>
 
           <div id="workflow-list">
-            <div class="empty">
-              No workflows
+
+            <div class="loading">
+              Loading...
             </div>
+
           </div>
 
         </div>
 
       </section>
 
-      <!-- ===================================================
+
+      <!-- =====================================================
            SETTINGS
-      ==================================================== -->
+      ====================================================== -->
 
       <section
         id="view-settings"
@@ -1458,13 +1553,15 @@
         <div class="page-header">
 
           <div>
+
             <div class="page-title">
               Settings
             </div>
 
             <div class="page-subtitle">
-              TATO OS system configuration
+              TATO OS configuration
             </div>
+
           </div>
 
         </div>
@@ -1472,40 +1569,62 @@
         <div class="panel">
 
           <div class="panel-title">
-            DATABASE
+            SYSTEM
           </div>
 
-          <div class="table-wrap">
+          <div class="form-grid">
 
-            <table>
+            <div class="field">
 
-              <tbody>
+              <label>
+                DATABASE
+              </label>
 
-                <tr>
-                  <td>D1 Binding</td>
-                  <td>DB</td>
-                </tr>
+              <input
+                value="Cloudflare D1 — so_tato"
+                readonly
+              >
 
-                <tr>
-                  <td>Database</td>
-                  <td>so_tato</td>
-                </tr>
+            </div>
 
-                <tr>
-                  <td>Status</td>
-                  <td style="color:var(--green)">
-                    ● CONNECTED
-                  </td>
-                </tr>
+            <div class="field">
 
-                <tr>
-                  <td>System</td>
-                  <td>TATO-os</td>
-                </tr>
+              <label>
+                BINDING
+              </label>
 
-              </tbody>
+              <input
+                value="DB"
+                readonly
+              >
 
-            </table>
+            </div>
+
+            <div class="field">
+
+              <label>
+                APPLICATION
+              </label>
+
+              <input
+                value="Tato-os"
+                readonly
+              >
+
+            </div>
+
+            <div class="field">
+
+              <label>
+                VERSION
+              </label>
+
+              <input
+                value="TATO OS V1"
+                readonly
+              >
+
+            </div>
 
           </div>
 
@@ -1514,52 +1633,35 @@
       </section>
 
     </div>
+
   </main>
 
 </div>
 
-<script src="/tracker.js"></script>
 
 <script>
-/* ============================================================
-   TATO OS — FRONTEND
-   Data flow:
-
-   D1
-    ↓
-   API
-    ↓
-   State
-    ↓
-   Dashboard
-
-   Command Center is responsible for:
-   KPI + Decision + Action
-
-   D1 API endpoints are responsible for:
-   detailed Behavior / Market / AI / Customers / Products
-============================================================ */
-
 
 /* ============================================================
-   1. STATE
+   STATE
 ============================================================ */
 
 const state = {
+
+  commandCenter: null,
+
   customers: [],
   products: [],
   orders: [],
   behavior: [],
   market: [],
-  aiRuns: [],
-  aiInsights: [],
-  workflows: [],
-  commandCenter: null
+  insights: [],
+  workflows: []
+
 };
 
 
 /* ============================================================
-   2. DOM HELPERS
+   HELPERS
 ============================================================ */
 
 function $(id) {
@@ -1567,12 +1669,13 @@ function $(id) {
 }
 
 
-/* ============================================================
-   3. SECURITY / FORMAT HELPERS
-============================================================ */
-
 function escapeHtml(value) {
-  return String(value ?? "")
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -1581,61 +1684,67 @@ function escapeHtml(value) {
 }
 
 
-function formatMoney(value) {
-  const number = Number(value || 0);
+function formatNumber(value) {
 
-  return "฿" + number.toLocaleString("th-TH", {
-    maximumFractionDigits: 2
-  });
+  return Number(value || 0)
+    .toLocaleString("en-US");
+}
+
+
+function formatMoney(value) {
+
+  return Number(value || 0)
+    .toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
 }
 
 
 function formatDate(value) {
+
   if (!value) {
     return "-";
   }
 
   try {
-    return new Date(value).toLocaleString("th-TH", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+
+    return new Date(value)
+      .toLocaleString("th-TH");
+
   } catch {
+
     return String(value);
+
   }
-}
-
-
-function setStatus(text, color) {
-  const element = $("system-status");
-
-  if (!element) {
-    return;
-  }
-
-  element.textContent = text;
-  element.style.color = color;
 }
 
 
 /* ============================================================
-   4. API
+   API
 ============================================================ */
 
 async function apiGet(url) {
-  const response = await fetch(url, {
-    cache: "no-store"
-  });
 
-  const data = await response.json();
+  const response =
+    await fetch(url, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
 
-  if (!response.ok || data.success === false) {
+  const data =
+    await response.json()
+      .catch(() => ({}));
+
+  if (!response.ok) {
+
     throw new Error(
-      data.error || `GET ${url} failed`
+      data.error ||
+      data.message ||
+      `HTTP ${response.status}`
     );
+
   }
 
   return data;
@@ -1643,20 +1752,45 @@ async function apiGet(url) {
 
 
 async function apiPost(url, body) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
 
-  const data = await response.json();
+  const response =
+    await fetch(url, {
 
-  if (!response.ok || data.success === false) {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+        "Accept":
+          "application/json"
+      },
+
+      body: JSON.stringify(body)
+
+    });
+
+  const data =
+    await response.json()
+      .catch(() => ({}));
+
+  if (!response.ok) {
+
     throw new Error(
-      data.error || `POST ${url} failed`
+      data.error ||
+      data.message ||
+      `HTTP ${response.status}`
     );
+
+  }
+
+  if (data.success === false) {
+
+    throw new Error(
+      data.error ||
+      data.message ||
+      "Request failed"
+    );
+
   }
 
   return data;
@@ -1664,988 +1798,522 @@ async function apiPost(url, body) {
 
 
 /* ============================================================
-   5. NAVIGATION
+   NAVIGATION
 ============================================================ */
 
 document
   .querySelectorAll(".nav button")
   .forEach(button => {
 
-    button.addEventListener("click", () => {
+    button.addEventListener(
+      "click",
+      () => {
 
-      const viewName = button.dataset.view;
+        const view =
+          button.dataset.view;
 
-      document
-        .querySelectorAll(".nav button")
-        .forEach(item => {
-          item.classList.remove("active");
-        });
+        document
+          .querySelectorAll(".nav button")
+          .forEach(item => {
+            item.classList.remove(
+              "active"
+            );
+          });
 
-      button.classList.add("active");
+        button.classList.add(
+          "active"
+        );
 
-      document
-        .querySelectorAll(".view")
-        .forEach(view => {
-          view.classList.remove("active");
-        });
+        document
+          .querySelectorAll(".view")
+          .forEach(section => {
+            section.classList.remove(
+              "active"
+            );
+          });
 
-      const target = $(`view-${viewName}`);
+        const target =
+          $(`view-${view}`);
 
-      if (target) {
-        target.classList.add("active");
+        if (target) {
+          target.classList.add(
+            "active"
+          );
+        }
+
       }
-
-      if (viewName === "automation") {
-        loadWorkflows();
-      }
-    });
+    );
 
   });
 
 
 /* ============================================================
-   6. LOAD ALL D1 DATA
+   LOAD CUSTOMERS
 ============================================================ */
 
-async function loadOverview() {
-
-  const [
-    customers,
-    products,
-    orders,
-    behavior,
-    market,
-    aiRuns,
-    aiInsights,
-    workflows
-  ] = await Promise.all([
-
-    apiGet("/api/customers"),
-    apiGet("/api/products"),
-    apiGet("/api/orders"),
-    apiGet("/api/behavior"),
-    apiGet("/api/market"),
-    apiGet("/api/ai-runs"),
-    apiGet("/api/ai-insights"),
-    apiGet("/api/workflows")
-
-  ]);
-
-
-  state.customers =
-    customers.customers ||
-    customers.data ||
-    [];
-
-
-  state.products =
-    products.products ||
-    products.data ||
-    [];
-
-
-  state.orders =
-    orders.orders ||
-    orders.data ||
-    [];
-
-
-  state.behavior =
-    behavior.behavior ||
-    behavior.events ||
-    behavior.data ||
-    [];
-
-
-  state.market =
-    market.market ||
-    market.signals ||
-    market.data ||
-    [];
-
-
-  state.aiRuns =
-    aiRuns.ai_runs ||
-    aiRuns.runs ||
-    aiRuns.data ||
-    [];
-
-
-  state.aiInsights =
-    aiInsights.ai_insights ||
-    aiInsights.insights ||
-    aiInsights.data ||
-    [];
-
-
-  state.workflows =
-    workflows.workflows ||
-    workflows.data ||
-    [];
-
-
-  renderAll();
-}
-
-
-/* ============================================================
-   7. COMMAND CENTER
-============================================================ */
-
-async function runCommandCenter() {
-
-  setStatus(
-    "● RUNNING INTELLIGENCE...",
-    "var(--orange)"
-  );
-
+async function loadCustomers() {
 
   try {
 
     const data =
-      await apiGet("/api/command-center");
+      await apiGet(
+        "/api/customers"
+      );
 
-
-    state.commandCenter = data;
-
-
-    /*
-      IMPORTANT
-
-      The Command Center API gives us:
-
-      kpis
-      decisions
-      actions
-
-      Detailed cards below are rendered from the
-      D1 data already loaded into state.
-
-      This prevents the frontend from depending on
-      optional nested fields that may not exist in
-      every Command Center response.
-    */
-
-    renderCommandCenter(data);
-
-
-    setStatus(
-      "● INTELLIGENCE LIVE",
-      "var(--green)"
-    );
+    state.customers =
+      Array.isArray(data)
+        ? data
+        : (
+            data.customers ||
+            data.data ||
+            []
+          );
 
   } catch (error) {
 
     console.error(
-      "Command Center Error:",
+      "Customers:",
       error
     );
 
-    setStatus(
-      "● COMMAND CENTER ERROR",
-      "var(--red)"
-    );
+    state.customers = [];
 
-
-    $("decision-queue").innerHTML =
-      `<div class="error">
-        ${escapeHtml(error.message)}
-      </div>`;
   }
-}
-
-
-/* ============================================================
-   8. COMMAND CENTER RENDER
-============================================================ */
-
-function renderCommandCenter(data) {
-
-  if (!data) {
-    return;
-  }
-
-
-  const kpis =
-    data.kpis || {};
-
-
-  const decisions =
-    Array.isArray(data.decisions)
-      ? data.decisions
-      : [];
-
-
-  const actions =
-    Array.isArray(data.actions)
-      ? data.actions
-      : [];
-
-
-  /* ----------------------------------------------------------
-     KPI
-  ---------------------------------------------------------- */
-
-  $("cc-attention").textContent =
-    getAttentionCount();
-
-
-  $("cc-market").textContent =
-    Number(kpis.market_signals || 0);
-
-
-  $("cc-ai").textContent =
-    Number(kpis.ai_insights || 0);
-
-
-  $("cc-workflows").textContent =
-    Number(kpis.workflows || 0);
-
-
-  /* ----------------------------------------------------------
-     DECISION QUEUE
-  ---------------------------------------------------------- */
-
-  if (!decisions.length) {
-
-    $("decision-queue").innerHTML =
-      `<div class="empty">
-        No decisions
-      </div>`;
-
-  } else {
-
-    $("decision-queue").innerHTML =
-      decisions
-        .map(decision => {
-
-          const priority =
-            String(
-              decision.priority || "MEDIUM"
-            ).toUpperCase();
-
-
-          return `
-            <div class="queue-item">
-
-              <div>
-
-                <div class="queue-title">
-                  ${escapeHtml(
-                    decision.title ||
-                    decision.type ||
-                    "Decision"
-                  )}
-                </div>
-
-                <div class="queue-desc">
-                  ${escapeHtml(
-                    decision.reason ||
-                    decision.action ||
-                    ""
-                  )}
-                </div>
-
-              </div>
-
-              <span class="badge ${
-                priority === "HIGH"
-                  ? "high"
-                  : ""
-              }">
-                ${escapeHtml(priority)}
-              </span>
-
-            </div>
-          `;
-        })
-        .join("");
-  }
-
-
-  /* ----------------------------------------------------------
-     ACTION QUEUE
-  ---------------------------------------------------------- */
-
-  if (!actions.length) {
-
-    $("action-queue").innerHTML =
-      `<div class="empty">
-        No actions
-      </div>`;
-
-  } else {
-
-    $("action-queue").innerHTML =
-      actions
-        .map(action => {
-
-          return `
-            <div class="queue-item">
-
-              <div>
-
-                <div class="queue-title">
-                  ${escapeHtml(
-                    action.title ||
-                    action.action_type ||
-                    "Action"
-                  )}
-                </div>
-
-                <div class="queue-desc">
-                  ${escapeHtml(
-                    action.description ||
-                    ""
-                  )}
-                </div>
-
-              </div>
-
-              <span class="badge ready">
-                ${escapeHtml(
-                  action.status ||
-                  "READY"
-                )}
-              </span>
-
-            </div>
-          `;
-        })
-        .join("");
-  }
-
-
-  /*
-    IMPORTANT:
-
-    Do NOT read:
-
-      intelligence.market
-      intelligence.behavior
-      intelligence.ai_insights
-
-    for these detailed panels.
-
-    The current Command Center response is used for
-    decision intelligence, while the detailed panels
-    use the actual D1 datasets already loaded above.
-  */
-
-  renderAttentionPanel();
-  renderMarketPanel();
-  renderRecentBehaviorPanel();
-  renderRecentInsightsPanel();
-}
-
-
-/* ============================================================
-   9. ATTENTION
-============================================================ */
-
-function getAttentionEvents() {
-
-  return state.behavior.filter(event => {
-
-    const type =
-      String(
-        event.event_type ||
-        event.type ||
-        ""
-      ).toLowerCase();
-
-
-    return [
-      "view",
-      "page_view",
-      "product_view",
-      "click",
-      "engagement",
-      "interest"
-    ].includes(type);
-
-  });
-}
-
-
-function getAttentionCount() {
-
-  return getAttentionEvents().length;
-}
-
-
-function renderAttentionPanel() {
-
-  const attentionEvents =
-    getAttentionEvents();
-
-
-  if (!attentionEvents.length) {
-
-    $("attention-list").innerHTML =
-      `<div class="empty">
-        No attention signals
-      </div>`;
-
-    return;
-  }
-
-
-  /*
-    Group identical event types.
-
-    Example:
-
-    product_view = 1
-    click = 4
-  */
-
-  const grouped = {};
-
-
-  attentionEvents.forEach(event => {
-
-    const type =
-      event.event_type ||
-      event.type ||
-      "unknown";
-
-
-    grouped[type] =
-      (grouped[type] || 0) + 1;
-
-  });
-
-
-  $("attention-list").innerHTML =
-    Object.entries(grouped)
-      .sort(
-        (a, b) => b[1] - a[1]
-      )
-      .map(([type, total]) => {
-
-        return `
-          <div class="queue-item">
-
-            <div>
-
-              <div class="queue-title">
-                ${escapeHtml(type)}
-              </div>
-
-              <div class="queue-desc">
-                Attention events detected
-              </div>
-
-            </div>
-
-            <span class="badge">
-              ${total}
-            </span>
-
-          </div>
-        `;
-      })
-      .join("");
-}
-
-
-/* ============================================================
-   10. MARKET
-============================================================ */
-
-function renderMarketPanel() {
-
-  if (!state.market.length) {
-
-    $("market-list").innerHTML =
-      `<div class="empty">
-        No market signals
-      </div>`;
-
-    return;
-  }
-
-
-  $("market-list").innerHTML =
-    state.market
-      .slice(0, 8)
-      .map(signal => {
-
-        const title =
-          signal.keyword ||
-          signal.title ||
-          signal.signal_type ||
-          signal.type ||
-          "Market Signal";
-
-
-        const score =
-          signal.score !== undefined &&
-          signal.score !== null
-            ? ` · Score ${Number(signal.score)}`
-            : "";
-
-
-        return `
-          <div class="queue-item">
-
-            <div>
-
-              <div class="queue-title">
-                ${escapeHtml(title)}
-              </div>
-
-              <div class="queue-desc">
-
-                ${escapeHtml(
-                  signal.content ||
-                  signal.source ||
-                  ""
-                )}
-
-                ${score}
-
-              </div>
-
-            </div>
-
-            <span class="badge high">
-              MARKET
-            </span>
-
-          </div>
-        `;
-      })
-      .join("");
-}
-
-
-/* ============================================================
-   11. RECENT BEHAVIOR
-============================================================ */
-
-function renderRecentBehaviorPanel() {
-
-  if (!state.behavior.length) {
-
-    $("recent-behavior").innerHTML =
-      `<div class="empty">
-        No behavior events
-      </div>`;
-
-    return;
-  }
-
-
-  $("recent-behavior").innerHTML =
-    state.behavior
-      .slice(0, 8)
-      .map(event => {
-
-        const eventType =
-          event.event_type ||
-          event.type ||
-          "event";
-
-
-        const customer =
-          event.customer_id ||
-          event.user_id ||
-          "anonymous";
-
-
-        return `
-          <div class="queue-item">
-
-            <div>
-
-              <div class="queue-title">
-                ${escapeHtml(eventType)}
-              </div>
-
-              <div class="queue-desc">
-
-                ${
-                  event.page
-                    ? escapeHtml(event.page)
-                    : "Behavior event"
-                }
-
-                ${
-                  event.product_id
-                    ? ` · Product ${escapeHtml(
-                        event.product_id
-                      )}`
-                    : ""
-                }
-
-                ${
-                  event.created_at
-                    ? ` · ${formatDate(
-                        event.created_at
-                      )}`
-                    : ""
-                }
-
-              </div>
-
-            </div>
-
-            <span class="badge">
-              ${escapeHtml(customer)}
-            </span>
-
-          </div>
-        `;
-      })
-      .join("");
-}
-
-
-/* ============================================================
-   12. AI INSIGHTS
-============================================================ */
-
-function renderRecentInsightsPanel() {
-
-  if (!state.aiInsights.length) {
-
-    $("recent-insights").innerHTML =
-      `<div class="empty">
-        No AI insights
-      </div>`;
-
-    return;
-  }
-
-
-  $("recent-insights").innerHTML =
-    state.aiInsights
-      .slice(0, 8)
-      .map(insight => {
-
-        const title =
-          insight.title ||
-          insight.name ||
-          insight.insight_type ||
-          insight.type ||
-          "AI Insight";
-
-
-        const content =
-          insight.content ||
-          insight.description ||
-          insight.insight ||
-          "";
-
-
-        const priority =
-          String(
-            insight.priority || ""
-          ).toUpperCase();
-
-
-        return `
-          <div class="queue-item">
-
-            <div>
-
-              <div class="queue-title">
-                ${escapeHtml(title)}
-              </div>
-
-              <div class="queue-desc">
-                ${escapeHtml(content)}
-              </div>
-
-            </div>
-
-            <span class="badge ${
-              priority === "HIGH"
-                ? "high"
-                : ""
-            }">
-              ${escapeHtml(
-                insight.priority ||
-                "INSIGHT"
-              )}
-            </span>
-
-          </div>
-        `;
-      })
-      .join("");
-}
-
-
-/* ============================================================
-   13. RENDER ALL D1 DATA
-============================================================ */
-
-function renderAll() {
-
-  /* ----------------------------------------------------------
-     CORE KPIs
-  ---------------------------------------------------------- */
-
-  $("k-customers").textContent =
-    state.customers.length;
-
-
-  $("k-products").textContent =
-    state.products.length;
-
-
-  $("k-orders").textContent =
-    state.orders.length;
-
-
-  const revenue =
-    state.orders.reduce(
-      (total, order) => {
-
-        return total +
-          Number(
-            order.amount ??
-            order.total_amount ??
-            order.total ??
-            0
-          );
-
-      },
-      0
-    );
-
-
-  $("k-revenue").textContent =
-    formatMoney(revenue);
-
-
-  $("sales-orders").textContent =
-    state.orders.length;
-
-
-  $("sales-revenue").textContent =
-    formatMoney(revenue);
-
-
-  /* ----------------------------------------------------------
-     INDIVIDUAL VIEWS
-  ---------------------------------------------------------- */
 
   renderCustomers();
-  renderProducts();
-  renderOrders();
-  renderBehavior();
-  renderMarket();
-  renderAI();
-  renderWorkflows();
 
-
-  /*
-    If Command Center has already run,
-    refresh its detail panels immediately.
-  */
-
-  if (state.commandCenter) {
-    renderAttentionPanel();
-    renderMarketPanel();
-    renderRecentBehaviorPanel();
-    renderRecentInsightsPanel();
-
-    $("cc-attention").textContent =
-      getAttentionCount();
-  }
 }
 
 
 /* ============================================================
-   14. CUSTOMERS
+   LOAD PRODUCTS
+============================================================ */
+
+async function loadProducts() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/products"
+      );
+
+    state.products =
+      Array.isArray(data)
+        ? data
+        : (
+            data.products ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "Products:",
+      error
+    );
+
+    state.products = [];
+
+  }
+
+  renderProducts();
+
+}
+
+
+/* ============================================================
+   LOAD ORDERS
+============================================================ */
+
+async function loadOrders() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/orders"
+      );
+
+    state.orders =
+      Array.isArray(data)
+        ? data
+        : (
+            data.orders ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "Orders:",
+      error
+    );
+
+    state.orders = [];
+
+  }
+
+  renderOrders();
+
+}
+
+
+/* ============================================================
+   LOAD BEHAVIOR
+============================================================ */
+
+async function loadBehavior() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/behavior"
+      );
+
+    state.behavior =
+      Array.isArray(data)
+        ? data
+        : (
+            data.events ||
+            data.behavior ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "Behavior:",
+      error
+    );
+
+    state.behavior = [];
+
+  }
+
+  renderBehavior();
+
+}
+
+
+/* ============================================================
+   LOAD MARKET
+============================================================ */
+
+async function loadMarket() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/market"
+      );
+
+    state.market =
+      Array.isArray(data)
+        ? data
+        : (
+            data.signals ||
+            data.market ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "Market:",
+      error
+    );
+
+    state.market = [];
+
+  }
+
+  renderMarket();
+
+}
+
+
+/* ============================================================
+   LOAD AI INSIGHTS
+============================================================ */
+
+async function loadInsights() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/ai-insights"
+      );
+
+    state.insights =
+      Array.isArray(data)
+        ? data
+        : (
+            data.insights ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "AI Insights:",
+      error
+    );
+
+    state.insights = [];
+
+  }
+
+  renderInsights();
+
+}
+
+
+/* ============================================================
+   LOAD WORKFLOWS
+============================================================ */
+
+async function loadWorkflows() {
+
+  try {
+
+    const data =
+      await apiGet(
+        "/api/workflows"
+      );
+
+    state.workflows =
+      Array.isArray(data)
+        ? data
+        : (
+            data.workflows ||
+            data.data ||
+            []
+          );
+
+  } catch (error) {
+
+    console.error(
+      "Workflows:",
+      error
+    );
+
+    state.workflows = [];
+
+  }
+
+  renderWorkflows();
+
+}
+
+
+/* ============================================================
+   RENDER CUSTOMERS
 ============================================================ */
 
 function renderCustomers() {
 
-  const tbody =
+  const table =
     $("customers-table");
 
+  if (!table) {
+    return;
+  }
 
   if (!state.customers.length) {
 
-    tbody.innerHTML =
-      `<tr>
+    table.innerHTML = `
+      <tr>
         <td colspan="5">
           No customers
         </td>
-      </tr>`;
+      </tr>
+    `;
 
     return;
   }
 
-
-  tbody.innerHTML =
+  table.innerHTML =
     state.customers
-      .map(customer => {
+      .map(customer => `
 
-        return `
-          <tr>
+        <tr>
 
-            <td>
-              ${escapeHtml(customer.id)}
-            </td>
+          <td>
+            ${escapeHtml(
+              customer.id
+            )}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                customer.name ||
-                customer.full_name ||
-                "-"
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              customer.name ||
+              "-"
+            )}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                customer.email ||
-                "-"
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              customer.email ||
+              "-"
+            )}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                customer.phone ||
-                customer.phone_number ||
-                "-"
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              customer.phone ||
+              "-"
+            )}
+          </td>
 
-            <td>
-              ${formatDate(
-                customer.created_at
-              )}
-            </td>
+          <td>
+            ${formatDate(
+              customer.created_at
+            )}
+          </td>
 
-          </tr>
-        `;
-      })
+        </tr>
+
+      `)
       .join("");
+
 }
 
 
 /* ============================================================
-   15. PRODUCTS
+   RENDER PRODUCTS
 ============================================================ */
 
 function renderProducts() {
 
-  const tbody =
+  const table =
     $("products-table");
 
+  if (!table) {
+    return;
+  }
 
   if (!state.products.length) {
 
-    tbody.innerHTML =
-      `<tr>
+    table.innerHTML = `
+      <tr>
         <td colspan="5">
           No products
         </td>
-      </tr>`;
+      </tr>
+    `;
 
     return;
   }
 
-
-  tbody.innerHTML =
+  table.innerHTML =
     state.products
-      .map(product => {
+      .map(product => `
 
-        return `
-          <tr>
+        <tr>
 
-            <td>
-              ${escapeHtml(product.id)}
-            </td>
+          <td>
+            ${escapeHtml(
+              product.id
+            )}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                product.name ||
-                product.product_name ||
-                "-"
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              product.name ||
+              "-"
+            )}
+          </td>
 
-            <td>
-              ${formatMoney(
-                product.price
-              )}
-            </td>
+          <td>
+            ฿${formatMoney(
+              product.price
+            )}
+          </td>
 
-            <td>
-              ${formatMoney(
-                product.cost
-              )}
-            </td>
+          <td>
+            ฿${formatMoney(
+              product.cost
+            )}
+          </td>
 
-            <td>
-              ${escapeHtml(
-                product.status ||
-                "ACTIVE"
-              )}
-            </td>
+          <td>
+            ${escapeHtml(
+              product.status ||
+              "-"
+            )}
+          </td>
 
-          </tr>
-        `;
-      })
+        </tr>
+
+      `)
       .join("");
+
 }
 
 
 /* ============================================================
-   16. ORDERS
+   RENDER ORDERS
 ============================================================ */
 
 function renderOrders() {
 
-  const tbody =
+  const table =
     $("orders-table");
 
-
-  if (!state.orders.length) {
-
-    tbody.innerHTML =
-      `<tr>
-        <td colspan="5">
-          No orders
-        </td>
-      </tr>`;
-
+  if (!table) {
     return;
   }
 
+  if (!state.orders.length) {
 
-  tbody.innerHTML =
-    state.orders
-      .map(order => {
+    table.innerHTML = `
+      <tr>
+        <td colspan="6">
+          No orders
+        </td>
+      </tr>
+    `;
 
-        return `
+  } else {
+
+    table.innerHTML =
+      state.orders
+        .map(order => `
+
           <tr>
 
             <td>
-              ${escapeHtml(order.id)}
+              ${escapeHtml(
+                order.id
+              )}
             </td>
 
             <td>
               ${escapeHtml(
                 order.customer_id ||
-                order.customer ||
                 "-"
               )}
             </td>
 
             <td>
-              ${formatMoney(
-                order.amount ??
-                order.total_amount ??
-                order.total ??
-                0
+              ${escapeHtml(
+                order.product_id ||
+                "-"
+              )}
+            </td>
+
+            <td>
+              ฿${formatMoney(
+                order.amount
               )}
             </td>
 
@@ -2663,549 +2331,1471 @@ function renderOrders() {
             </td>
 
           </tr>
-        `;
-      })
-      .join("");
+
+        `)
+        .join("");
+
+  }
+
+
+  const revenue =
+    state.orders
+      .reduce(
+        (
+          total,
+          order
+        ) =>
+          total +
+          Number(
+            order.amount ||
+            0
+          ),
+        0
+      );
+
+  const count =
+    state.orders.length;
+
+  const aov =
+    count
+      ? revenue / count
+      : 0;
+
+  if ($("sales-orders")) {
+
+    $("sales-orders")
+      .textContent =
+      formatNumber(count);
+
+  }
+
+  if ($("sales-revenue")) {
+
+    $("sales-revenue")
+      .textContent =
+      `฿${formatMoney(
+        revenue
+      )}`;
+
+  }
+
+  if ($("sales-aov")) {
+
+    $("sales-aov")
+      .textContent =
+      `฿${formatMoney(
+        aov
+      )}`;
+
+  }
+
+  if ($("sales-status")) {
+
+    $("sales-status")
+      .textContent =
+      count
+        ? "ACTIVE"
+        : "—";
+
+  }
+
 }
 
 
 /* ============================================================
-   17. BEHAVIOR VIEW
+   RENDER BEHAVIOR
 ============================================================ */
 
 function renderBehavior() {
 
-  const grouped = {};
-
-
-  state.behavior.forEach(event => {
-
-    const type =
-      event.event_type ||
-      event.type ||
-      "unknown";
-
-
-    grouped[type] =
-      (grouped[type] || 0) + 1;
-
-  });
-
-
-  const types =
-    $("behavior-types");
-
-
-  const entries =
-    Object.entries(grouped)
-      .sort(
-        (a, b) => b[1] - a[1]
-      );
-
-
-  types.innerHTML =
-    entries.length
-
-      ? entries
-          .map(([type, total]) => {
-
-            return `
-              <div class="queue-item">
-
-                <div class="queue-title">
-                  ${escapeHtml(type)}
-                </div>
-
-                <span class="badge">
-                  ${total}
-                </span>
-
-              </div>
-            `;
-          })
-          .join("")
-
-      : `
-        <div class="empty">
-          No behavior events
-        </div>
-      `;
-
-
-  const tbody =
+  const table =
     $("behavior-table");
 
+  if (!table) {
+    return;
+  }
 
-  tbody.innerHTML =
-    state.behavior.length
+  if (!state.behavior.length) {
 
-      ? state.behavior
-          .slice(0, 50)
-          .map(event => {
+    table.innerHTML = `
+      <tr>
+        <td colspan="5">
+          No behavior events
+        </td>
+      </tr>
+    `;
 
-            return `
-              <tr>
+  } else {
 
-                <td>
-                  ${escapeHtml(
-                    event.event_type ||
-                    event.type ||
-                    "-"
-                  )}
-                </td>
+    table.innerHTML =
+      state.behavior
+        .slice(0, 100)
+        .map(event => `
 
-                <td>
-                  ${escapeHtml(
-                    event.customer_id ||
-                    event.user_id ||
-                    "-"
-                  )}
-                </td>
+          <tr>
 
-                <td>
-                  ${escapeHtml(
-                    event.page ||
-                    event.url ||
-                    "-"
-                  )}
-                </td>
+            <td>
+              ${escapeHtml(
+                event.event_type ||
+                "-"
+              )}
+            </td>
 
-                <td>
-                  ${formatDate(
-                    event.created_at
-                  )}
-                </td>
+            <td>
+              ${escapeHtml(
+                event.customer_id ||
+                "-"
+              )}
+            </td>
 
-              </tr>
-            `;
-          })
-          .join("")
+            <td>
+              ${escapeHtml(
+                event.page ||
+                "-"
+              )}
+            </td>
 
-      : `
-        <tr>
-          <td colspan="4">
-            No events
-          </td>
-        </tr>
-      `;
+            <td>
+              ${escapeHtml(
+                event.product_id ||
+                "-"
+              )}
+            </td>
+
+            <td>
+              ${formatDate(
+                event.created_at
+              )}
+            </td>
+
+          </tr>
+
+        `)
+        .join("");
+
+  }
+
 }
 
 
 /* ============================================================
-   18. MARKET VIEW
+   RENDER MARKET
 ============================================================ */
 
 function renderMarket() {
 
-  const tbody =
-    $("market-table");
+  const targets = [
+    $("market-list"),
+    $("market-page-list")
+  ];
 
+  targets.forEach(container => {
 
-  tbody.innerHTML =
-    state.market.length
+    if (!container) {
+      return;
+    }
 
-      ? state.market
-          .map(signal => {
+    if (!state.market.length) {
 
-            return `
-              <tr>
-
-                <td>
-                  ${escapeHtml(
-                    signal.keyword ||
-                    signal.term ||
-                    "-"
-                  )}
-                </td>
-
-                <td>
-                  ${escapeHtml(
-                    signal.signal_type ||
-                    signal.signal ||
-                    signal.title ||
-                    signal.type ||
-                    "-"
-                  )}
-                </td>
-
-                <td>
-                  ${escapeHtml(
-                    signal.source ||
-                    "-"
-                  )}
-                </td>
-
-                <td>
-                  ${
-                    signal.score !== undefined &&
-                    signal.score !== null
-                      ? Number(signal.score)
-                      : "-"
-                  }
-                </td>
-
-                <td>
-                  ${formatDate(
-                    signal.detected_at ||
-                    signal.created_at
-                  )}
-                </td>
-
-              </tr>
-            `;
-          })
-          .join("")
-
-      : `
-        <tr>
-          <td colspan="5">
-            No market signals
-          </td>
-        </tr>
+      container.innerHTML = `
+        <div class="empty">
+          No market signals
+        </div>
       `;
+
+      return;
+    }
+
+    container.innerHTML =
+      state.market
+        .slice(0, 20)
+        .map(signal => `
+
+          <div class="signal-item">
+
+            <div class="signal-title">
+
+              ${escapeHtml(
+                signal.keyword ||
+                signal.title ||
+                "Market Signal"
+              )}
+
+              ${
+                signal.score !== undefined
+                  ? `
+                    <span class="score">
+                      · ${Number(
+                        signal.score
+                      )}
+                    </span>
+                  `
+                  : ""
+              }
+
+            </div>
+
+            <div class="signal-meta">
+
+              ${escapeHtml(
+                signal.signal_type ||
+                "MARKET"
+              )}
+
+              ·
+
+              ${escapeHtml(
+                signal.source ||
+                "-"
+              )}
+
+              ·
+
+              ${formatDate(
+                signal.detected_at
+              )}
+
+            </div>
+
+            <div class="signal-content">
+
+              ${escapeHtml(
+                signal.title ||
+                signal.content ||
+                ""
+              )}
+
+            </div>
+
+          </div>
+
+        `)
+        .join("");
+
+  });
+
 }
 
 
 /* ============================================================
-   19. AI VIEW
+   RENDER INSIGHTS
 ============================================================ */
 
-function renderAI() {
+function renderInsights() {
 
-  const tbody =
-    $("ai-runs-table");
+  const targets = [
+    $("recent-insights"),
+    $("ai-page-list")
+  ];
 
+  targets.forEach(container => {
 
-  tbody.innerHTML =
-    state.aiRuns.length
+    if (!container) {
+      return;
+    }
 
-      ? state.aiRuns
-          .map(run => {
+    if (!state.insights.length) {
 
-            return `
-              <tr>
-
-                <td>
-                  ${escapeHtml(run.id)}
-                </td>
-
-                <td>
-                  ${escapeHtml(
-                    run.run_type ||
-                    run.type ||
-                    "-"
-                  )}
-                </td>
-
-                <td>
-                  ${escapeHtml(
-                    run.status ||
-                    "-"
-                  )}
-                </td>
-
-                <td>
-                  ${formatDate(
-                    run.created_at
-                  )}
-                </td>
-
-              </tr>
-            `;
-          })
-          .join("")
-
-      : `
-        <tr>
-          <td colspan="4">
-            No AI runs
-          </td>
-        </tr>
-      `;
-
-
-  const list =
-    $("ai-insights-list");
-
-
-  list.innerHTML =
-    state.aiInsights.length
-
-      ? state.aiInsights
-          .map(insight => {
-
-            const title =
-              insight.title ||
-              insight.name ||
-              insight.insight_type ||
-              insight.type ||
-              "AI Insight";
-
-
-            const content =
-              insight.content ||
-              insight.description ||
-              insight.insight ||
-              "";
-
-
-            return `
-              <div class="queue-item">
-
-                <div>
-
-                  <div class="queue-title">
-                    ${escapeHtml(title)}
-                  </div>
-
-                  <div class="queue-desc">
-                    ${escapeHtml(content)}
-                  </div>
-
-                </div>
-
-                <span class="badge ${
-                  String(
-                    insight.priority || ""
-                  ).toUpperCase() === "HIGH"
-                    ? "high"
-                    : ""
-                }">
-                  ${escapeHtml(
-                    insight.priority ||
-                    "INSIGHT"
-                  )}
-                </span>
-
-              </div>
-            `;
-          })
-          .join("")
-
-      : `
+      container.innerHTML = `
         <div class="empty">
           No AI insights
         </div>
       `;
+
+      return;
+
+    }
+
+    container.innerHTML =
+      state.insights
+        .slice(0, 20)
+        .map(insight => `
+
+          <div class="signal-item">
+
+            <div class="signal-title">
+
+              ${escapeHtml(
+                insight.title ||
+                insight.insight_type ||
+                "AI Insight"
+              )}
+
+            </div>
+
+            <div class="signal-meta">
+
+              ${escapeHtml(
+                insight.priority ||
+                "NORMAL"
+              )}
+
+              ·
+
+              ${formatDate(
+                insight.created_at
+              )}
+
+            </div>
+
+            <div class="signal-content">
+
+              ${escapeHtml(
+                insight.content ||
+                ""
+              )}
+
+            </div>
+
+          </div>
+
+        `)
+        .join("");
+
+  });
+
 }
 
 
 /* ============================================================
-   20. WORKFLOWS
+   RENDER WORKFLOWS
 ============================================================ */
 
-async function loadWorkflows() {
+function renderWorkflows() {
+
+  const container =
+    $("workflow-list");
+
+  if (!container) {
+    return;
+  }
+
+  if (!state.workflows.length) {
+
+    container.innerHTML = `
+      <div class="empty">
+        No automation workflows
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML =
+    state.workflows
+      .map(workflow => `
+
+        <div class="queue-item">
+
+          <div>
+
+            <div class="queue-title">
+              ${escapeHtml(
+                workflow.name ||
+                workflow.id ||
+                "Workflow"
+              )}
+            </div>
+
+            <div class="queue-desc">
+              ${escapeHtml(
+                workflow.description ||
+                workflow.status ||
+                ""
+              )}
+            </div>
+
+          </div>
+
+          <span class="badge ready">
+            ${escapeHtml(
+              workflow.status ||
+              "READY"
+            )}
+          </span>
+
+        </div>
+
+      `)
+      .join("");
+
+}
+
+
+/* ============================================================
+   ATTENTION
+============================================================ */
+
+function renderAttention() {
+
+  const container =
+    $("attention-list");
+
+  if (!container) {
+    return;
+  }
+
+  const counts = {};
+
+  state.behavior
+    .forEach(event => {
+
+      const type =
+        event.event_type ||
+        "unknown";
+
+      counts[type] =
+        (counts[type] || 0) + 1;
+
+    });
+
+  const entries =
+    Object.entries(counts)
+      .sort(
+        (a, b) =>
+          b[1] - a[1]
+      );
+
+  if (!entries.length) {
+
+    container.innerHTML = `
+      <div class="empty">
+        No attention signals
+      </div>
+    `;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    entries
+      .slice(0, 10)
+      .map(
+        ([type, count]) => `
+
+          <div class="signal-item">
+
+            <div class="signal-title">
+              ${escapeHtml(type)}
+            </div>
+
+            <div class="signal-meta">
+              Attention events detected
+            </div>
+
+            <div class="signal-content">
+              ${Number(count)}
+            </div>
+
+          </div>
+
+        `
+      )
+      .join("");
+
+}
+
+
+/* ============================================================
+   RECENT BEHAVIOR
+============================================================ */
+
+function renderRecentBehavior() {
+
+  const container =
+    $("recent-behavior");
+
+  if (!container) {
+    return;
+  }
+
+  if (!state.behavior.length) {
+
+    container.innerHTML = `
+      <div class="empty">
+        No behavior events
+      </div>
+    `;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    state.behavior
+      .slice(0, 10)
+      .map(event => `
+
+        <div class="signal-item">
+
+          <div class="signal-title">
+            ${escapeHtml(
+              event.event_type ||
+              "-"
+            )}
+          </div>
+
+          <div class="signal-meta">
+
+            ${escapeHtml(
+              event.page ||
+              "-"
+            )}
+
+            ·
+
+            ${escapeHtml(
+              event.product_id ||
+              "-"
+            )}
+
+            ·
+
+            ${formatDate(
+              event.created_at
+            )}
+
+          </div>
+
+          <div class="signal-content">
+
+            ${escapeHtml(
+              event.customer_id ||
+              "anonymous"
+            )}
+
+          </div>
+
+        </div>
+
+      `)
+      .join("");
+
+}
+
+
+/* ============================================================
+   COMMAND CENTER
+============================================================ */
+
+async function runCommandCenter() {
+
+  const button =
+    $("run-intelligence-btn");
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent =
+      "RUNNING...";
+
+  }
 
   try {
 
     const data =
-      await apiGet("/api/workflows");
+      await apiGet(
+        "/api/command-center"
+      );
 
+    state.commandCenter =
+      data;
 
-    state.workflows =
-      data.workflows ||
-      data.data ||
-      [];
-
-
-    renderWorkflows();
+    renderCommandCenter();
 
   } catch (error) {
 
     console.error(
-      "Workflow Error:",
+      "Command Center:",
       error
     );
 
+    setSystemError(
+      error.message
+    );
 
-    $("workflow-list").innerHTML =
-      `<div class="error">
-        ${escapeHtml(error.message)}
-      </div>`;
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        "RUN INTELLIGENCE";
+
+    }
+
   }
+
 }
 
 
-function renderWorkflows() {
+/* ============================================================
+   RENDER COMMAND CENTER
+============================================================ */
 
-  const element =
-    $("workflow-list");
+function renderCommandCenter() {
 
+  const data =
+    state.commandCenter;
 
-  if (!state.workflows.length) {
-
-    element.innerHTML =
-      `<div class="empty">
-        No workflows
-      </div>`;
-
+  if (!data) {
     return;
   }
 
+  const kpis =
+    data.kpis ||
+    {};
 
-  element.innerHTML =
-    state.workflows
-      .map(workflow => {
+  const intelligence =
+    data.intelligence ||
+    {};
 
-        return `
-          <div class="queue-item">
+  const decisions =
+    data.decisions ||
+    [];
 
-            <div>
+  const actions =
+    data.actions ||
+    [];
 
-              <div class="queue-title">
-                ${escapeHtml(
-                  workflow.name ||
-                  "Workflow"
-                )}
+  /* KPI */
+
+  if ($("cc-attention")) {
+
+    $("cc-attention")
+      .textContent =
+      formatNumber(
+        intelligence.attention ??
+        kpis.attention ??
+        0
+      );
+
+  }
+
+  if ($("cc-market")) {
+
+    $("cc-market")
+      .textContent =
+      formatNumber(
+        intelligence.market_signals ??
+        kpis.market_signals ??
+        0
+      );
+
+  }
+
+  if ($("cc-ai")) {
+
+    $("cc-ai")
+      .textContent =
+      formatNumber(
+        intelligence.ai_insights ??
+        kpis.ai_insights ??
+        0
+      );
+
+  }
+
+  if ($("cc-workflows")) {
+
+    $("cc-workflows")
+      .textContent =
+      formatNumber(
+        intelligence.workflows ??
+        kpis.workflows ??
+        0
+      );
+
+  }
+
+
+  /* DECISIONS */
+
+  const decisionContainer =
+    $("decision-queue");
+
+  if (decisionContainer) {
+
+    if (!decisions.length) {
+
+      decisionContainer.innerHTML = `
+        <div class="empty">
+          No decisions
+        </div>
+      `;
+
+    } else {
+
+      decisionContainer.innerHTML =
+        decisions
+          .map(decision => `
+
+            <div class="queue-item">
+
+              <div>
+
+                <div class="queue-title">
+                  ${escapeHtml(
+                    decision.title ||
+                    decision.name ||
+                    "Decision"
+                  )}
+                </div>
+
+                <div class="queue-desc">
+                  ${escapeHtml(
+                    decision.description ||
+                    decision.reason ||
+                    ""
+                  )}
+                </div>
+
               </div>
 
-              <div class="queue-desc">
+              <span class="badge high">
                 ${escapeHtml(
-                  workflow.description ||
-                  ""
+                  decision.priority ||
+                  "READY"
                 )}
-              </div>
+              </span>
 
             </div>
 
-            <span class="badge">
-              ${escapeHtml(
-                workflow.status ||
-                "ACTIVE"
-              )}
-            </span>
+          `)
+          .join("");
 
-          </div>
-        `;
-      })
-      .join("");
+    }
+
+  }
+
+
+  /* ACTIONS */
+
+  renderActionQueue(actions);
+
 }
 
 
 /* ============================================================
-   21. WORKFLOW FORM
+   ACTION QUEUE
 ============================================================ */
 
-function showWorkflowForm() {
+function renderActionQueue(actions) {
 
-  const form =
-    $("workflow-form");
+  const container =
+    $("action-queue");
 
+  if (!container) {
+    return;
+  }
 
-  form.style.display =
-    form.style.display === "none"
-      ? "block"
-      : "none";
+  if (!actions.length) {
+
+    container.innerHTML = `
+      <div class="empty">
+        No actions
+      </div>
+    `;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    actions
+      .map(
+        (action, index) => {
+
+          const actionType =
+            normalizeActionType(
+              action,
+              index
+            );
+
+          const title =
+            action.title ||
+            action.name ||
+            getActionTitle(
+              actionType
+            );
+
+          const description =
+            action.description ||
+            action.reason ||
+            getActionDescription(
+              actionType
+            );
+
+          return `
+
+            <div
+              class="queue-item"
+              id="action-item-${index}"
+            >
+
+              <div style="flex:1;">
+
+                <div class="queue-title">
+                  ${escapeHtml(title)}
+                </div>
+
+                <div class="queue-desc">
+                  ${escapeHtml(
+                    description
+                  )}
+                </div>
+
+                <div class="action-controls">
+
+                  <button
+                    class="action-execute"
+                    id="action-btn-${index}"
+                    onclick="executeAction(
+                      '${actionType}',
+                      '${index}'
+                    )"
+                  >
+                    EXECUTE
+                  </button>
+
+                </div>
+
+                <div
+                  id="action-result-${index}"
+                ></div>
+
+              </div>
+
+              <span
+                class="badge ready"
+                id="action-status-${index}"
+              >
+                READY
+              </span>
+
+            </div>
+
+          `;
+
+        }
+      )
+      .join("");
+
 }
 
 
-async function createWorkflow() {
+/* ============================================================
+   NORMALIZE ACTION
+============================================================ */
 
-  const name =
-    $("wf-name")
-      .value
-      .trim();
+function normalizeActionType(
+  action,
+  index
+) {
+
+  const raw =
+    String(
+      action.action_type ||
+      action.type ||
+      ""
+    )
+      .toUpperCase();
+
+  if (
+    raw === "CONTENT" ||
+    raw === "CREATE_CONTENT"
+  ) {
+    return "CONTENT";
+  }
+
+  if (
+    raw === "MARKET_RESPONSE" ||
+    raw === "MARKET"
+  ) {
+    return "MARKET_RESPONSE";
+  }
+
+  if (
+    raw === "CUSTOMER_SEGMENT" ||
+    raw === "SEGMENT"
+  ) {
+    return "CUSTOMER_SEGMENT";
+  }
+
+  if (
+    raw === "AI_ACTION" ||
+    raw === "AI"
+  ) {
+    return "AI_ACTION";
+  }
+
+  if (index === 0) {
+    return "CONTENT";
+  }
+
+  if (index === 1) {
+    return "MARKET_RESPONSE";
+  }
+
+  if (index === 2) {
+    return "CUSTOMER_SEGMENT";
+  }
+
+  return "AI_ACTION";
+
+}
 
 
-  const description =
-    $("wf-description")
-      .value
-      .trim();
+/* ============================================================
+   ACTION TITLES
+============================================================ */
+
+function getActionTitle(
+  actionType
+) {
+
+  switch (actionType) {
+
+    case "CONTENT":
+
+      return "สร้าง Content จาก Attention";
+
+    case "MARKET_RESPONSE":
+
+      return "ตอบสนองต่อ Market Demand";
+
+    case "CUSTOMER_SEGMENT":
+
+      return "แบ่งกลุ่มลูกค้า";
+
+    case "AI_ACTION":
+
+      return "ดำเนินการด้วย AI";
+
+    default:
+
+      return "Execute Action";
+
+  }
+
+}
 
 
-  const triggerType =
-    $("wf-trigger")
-      .value;
+/* ============================================================
+   ACTION DESCRIPTIONS
+============================================================ */
+
+function getActionDescription(
+  actionType
+) {
+
+  switch (actionType) {
+
+    case "CONTENT":
+
+      return "นำสิ่งที่ลูกค้ากำลังสนใจมาสร้าง Content หรือ Offer";
+
+    case "MARKET_RESPONSE":
+
+      return "สร้างข้อเสนอที่ตรงกับ Demand Signal";
+
+    case "CUSTOMER_SEGMENT":
+
+      return "จัดกลุ่มลูกค้าตามพฤติกรรมและมูลค่า";
+
+    case "AI_ACTION":
+
+      return "ส่ง Intelligence เข้า AI Action Engine";
+
+    default:
+
+      return "Execute TATO action";
+
+  }
+
+}
 
 
-  if (!name) {
+/* ============================================================
+   EXECUTE ACTION
+============================================================ */
 
-    alert(
-      "กรุณาใส่ชื่อ Workflow"
+async function executeAction(
+  actionType,
+  index
+) {
+
+  const button =
+    $(`action-btn-${index}`);
+
+  const status =
+    $(`action-status-${index}`);
+
+  const result =
+    $(`action-result-${index}`);
+
+  if (!button || !status) {
+    return;
+  }
+
+  button.disabled = true;
+
+  button.textContent =
+    "EXECUTING...";
+
+  status.textContent =
+    "EXECUTING";
+
+  status.className =
+    "badge running";
+
+  result.innerHTML = "";
+
+  let source =
+    "COMMAND_CENTER";
+
+  switch (actionType) {
+
+    case "CONTENT":
+
+      source =
+        "ATTENTION";
+
+      break;
+
+    case "MARKET_RESPONSE":
+
+      source =
+        "MARKET";
+
+      break;
+
+    case "CUSTOMER_SEGMENT":
+
+      source =
+        "CUSTOMER";
+
+      break;
+
+    case "AI_ACTION":
+
+      source =
+        "AI";
+
+      break;
+
+  }
+
+  try {
+
+    const data =
+      await apiPost(
+        "/api/actions",
+        {
+          mode: "execute",
+          action_type:
+            actionType,
+          source:
+            source
+        }
+      );
+
+    status.textContent =
+      "COMPLETED";
+
+    status.className =
+      "badge ready";
+
+    button.textContent =
+      "COMPLETED";
+
+    renderActionResult(
+      result,
+      data
     );
+
+  } catch (error) {
+
+    console.error(
+      "Action execution:",
+      error
+    );
+
+    status.textContent =
+      "ERROR";
+
+    status.className =
+      "badge error";
+
+    button.disabled = false;
+
+    button.textContent =
+      "RETRY";
+
+    result.innerHTML = `
+
+      <div class="action-result">
+
+        <strong>
+          Execution Error
+        </strong>
+
+        <br><br>
+
+        ${escapeHtml(
+          error.message
+        )}
+
+      </div>
+
+    `;
+
+  }
+
+}
+
+
+/* ============================================================
+   RENDER ACTION RESULT
+============================================================ */
+
+function renderActionResult(
+  element,
+  data
+) {
+
+  if (!element || !data) {
+    return;
+  }
+
+  const result =
+    data.result ||
+    {};
+
+  const brief =
+    result.content_brief;
+
+  if (brief) {
+
+    const attention =
+      brief.attention_signal ||
+      {};
+
+    const market =
+      brief.market_signal ||
+      {};
+
+    element.innerHTML = `
+
+      <div class="action-result">
+
+        <strong>
+          CONTENT BRIEF
+        </strong>
+
+        <br><br>
+
+        <strong>
+          Objective
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          brief.objective ||
+          "-"
+        )}
+
+        <br><br>
+
+        <strong>
+          Attention
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          attention.type ||
+          "-"
+        )}
+
+        ·
+
+        ${Number(
+          attention.events ||
+          0
+        )}
+
+        events
+
+        <br><br>
+
+        <strong>
+          Market
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          market.keyword ||
+          "-"
+        )}
+
+        · Score
+
+        ${Number(
+          market.score ||
+          0
+        )}
+
+        <br><br>
+
+        <strong>
+          Angle
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          brief.angle ||
+          "-"
+        )}
+
+        <br><br>
+
+        <strong>
+          Direction
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          brief.recommended_direction ||
+          "-"
+        )}
+
+        <br><br>
+
+        <strong>
+          CTA
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          brief.cta ||
+          "-"
+        )}
+
+        <br><br>
+
+        <strong>
+          Next Step
+        </strong>
+
+        <br>
+
+        ${escapeHtml(
+          result.next_step ||
+          "-"
+        )}
+
+      </div>
+
+    `;
 
     return;
   }
 
 
-  try {
+  element.innerHTML = `
 
-    await apiPost(
-      "/api/workflows",
-      {
-        name: name,
-        description: description,
-        trigger_type: triggerType,
-        status: "active",
-        config: {}
-      }
-    );
+    <div class="action-result">
 
+      <strong>
+        ${escapeHtml(
+          result.action ||
+          "ACTION COMPLETED"
+        )}
+      </strong>
 
-    $("wf-name").value = "";
-    $("wf-description").value = "";
+      <br><br>
 
-    $("workflow-form").style.display =
-      "none";
+      Status:
+      ${escapeHtml(
+        result.status ||
+        "EXECUTED"
+      )}
 
+      <br><br>
 
-    await loadWorkflows();
+      ${escapeHtml(
+        result.next_step ||
+        ""
+      )}
 
-    await runCommandCenter();
+    </div>
 
-  } catch (error) {
+  `;
 
-    alert(error.message);
-  }
 }
 
 
 /* ============================================================
-   22. FULL REFRESH
+   CORE KPI
+============================================================ */
+
+function renderCoreKpis() {
+
+  const revenue =
+    state.orders
+      .reduce(
+        (
+          total,
+          order
+        ) =>
+          total +
+          Number(
+            order.amount ||
+            0
+          ),
+        0
+      );
+
+  if ($("k-customers")) {
+
+    $("k-customers")
+      .textContent =
+      formatNumber(
+        state.customers.length
+      );
+
+  }
+
+  if ($("k-products")) {
+
+    $("k-products")
+      .textContent =
+      formatNumber(
+        state.products.length
+      );
+
+  }
+
+  if ($("k-orders")) {
+
+    $("k-orders")
+      .textContent =
+      formatNumber(
+        state.orders.length
+      );
+
+  }
+
+  if ($("k-revenue")) {
+
+    $("k-revenue")
+      .textContent =
+      `฿${formatMoney(
+        revenue
+      )}`;
+
+  }
+
+}
+
+
+/* ============================================================
+   LOAD ALL
 ============================================================ */
 
 async function loadAll() {
 
-  setStatus(
-    "● LOADING D1...",
-    "var(--orange)"
-  );
+  setSystemConnected();
 
+  await Promise.allSettled([
 
-  try {
+    loadCustomers(),
+    loadProducts(),
+    loadOrders(),
+    loadBehavior(),
+    loadMarket(),
+    loadInsights(),
+    loadWorkflows()
 
-    await loadOverview();
+  ]);
 
-    await runCommandCenter();
+  renderCoreKpis();
 
+  renderAttention();
 
-  } catch (error) {
+  renderRecentBehavior();
 
-    console.error(
-      "TATO OS Load Error:",
-      error
-    );
+  await runCommandCenter();
 
-
-    setStatus(
-      "● API ERROR",
-      "var(--red)"
-    );
-
-
-    $("decision-queue").innerHTML =
-      `<div class="error">
-        ${escapeHtml(error.message)}
-      </div>`;
-  }
 }
 
 
 /* ============================================================
-   23. START
+   SYSTEM STATUS
 ============================================================ */
 
-loadAll();
+function setSystemConnected() {
+
+  const status =
+    $("system-status");
+
+  if (!status) {
+    return;
+  }
+
+  status.textContent =
+    "● D1 CONNECTED";
+
+  status.style.color =
+    "var(--green)";
+
+}
+
+
+function setSystemError(
+  message
+) {
+
+  const status =
+    $("system-status");
+
+  if (!status) {
+    return;
+  }
+
+  status.textContent =
+    "● SYSTEM ERROR";
+
+  status.style.color =
+    "var(--red)";
+
+  console.error(
+    message
+  );
+
+}
+
+
+/* ============================================================
+   INITIALIZE
+============================================================ */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    loadAll();
+
+  }
+);
 
 </script>
 
