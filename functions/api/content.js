@@ -15,7 +15,10 @@ export async function onRequestGet(context) {
     });
   } catch (error) {
     return Response.json(
-      { success: false, error: error.message },
+      {
+        success: false,
+        error: error.message
+      },
       { status: 500 }
     );
   }
@@ -26,12 +29,10 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     const mode = body.mode || "create";
 
-    /*
-     * ============================================================
-     * INTELLIGENCE
-     * Attention + Market → Content Brief
-     * ============================================================
-     */
+    // =========================================================
+    // CONTENT INTELLIGENCE
+    // =========================================================
+
     if (mode === "intelligence") {
       const attentionResult = await context.env.DB
         .prepare(`
@@ -90,11 +91,20 @@ export async function onRequestPost(context) {
       const topAttention = attention[0] || {};
       const topMarket = market[0] || {};
 
-      const attentionType = topAttention.event_type || "attention";
-      const marketKeyword = topMarket.keyword || "coffee";
-      const page = topAttention.page || "";
-      const productId = topAttention.product_id || "";
-      const marketScore = Number(topMarket.score || 0);
+      const attentionType =
+        topAttention.event_type || "attention";
+
+      const marketKeyword =
+        topMarket.keyword || "coffee";
+
+      const page =
+        topAttention.page || "";
+
+      const productId =
+        topAttention.product_id || "";
+
+      const marketScore =
+        Number(topMarket.score || 0);
 
       const title = productId
         ? `ทำไมลูกค้าถึงสนใจ ${marketKeyword} ตอนนี้`
@@ -112,7 +122,8 @@ export async function onRequestPost(context) {
         ? "นำเสนอประโยชน์ของสินค้าโดยเชื่อมกับความสนใจของลูกค้า"
         : "สร้าง Content จากความต้องการที่ตรวจพบ แล้วเชื่อมเข้าสู่ TATO";
 
-      const cta = "ดูรายละเอียดและทดลอง TATO";
+      const cta =
+        "ดูรายละเอียดและทดลอง TATO";
 
       const contentText = `
 HOOK:
@@ -192,21 +203,10 @@ ${cta}
       });
     }
 
-    /*
-     * ============================================================
-     * AI GENERATE
-     * Content Brief → AI-ready generation
-     * ============================================================
-     *
-     * Requires:
-     * context.env.AI
-     *
-     * Cloudflare Workers AI binding:
-     * AI
-     *
-     * Model:
-     * @cf/meta/llama-3.1-8b-instruct
-     */
+    // =========================================================
+    // AI CONTENT GENERATION
+    // =========================================================
+
     if (mode === "generate") {
       if (!context.env.AI) {
         return Response.json(
@@ -254,39 +254,74 @@ ${cta}
       const prompt = `
 You are the Content Intelligence AI for TATO Coffee.
 
-Create a high-converting Thai social media content draft from this business intelligence.
+Your job is to transform business intelligence and customer attention
+into high-converting Thai social media content.
 
 CONTENT BRIEF
-Title: ${brief.title || ""}
-Objective: ${brief.objective || ""}
-Attention Type: ${brief.attention_type || ""}
-Market Keyword: ${brief.market_keyword || ""}
-Angle: ${brief.angle || ""}
-Direction: ${brief.direction || ""}
-CTA: ${brief.cta || ""}
+
+Title:
+${brief.title || ""}
+
+Objective:
+${brief.objective || ""}
+
+Attention Type:
+${brief.attention_type || ""}
+
+Market Keyword:
+${brief.market_keyword || ""}
+
+Angle:
+${brief.angle || ""}
+
+Direction:
+${brief.direction || ""}
+
+CTA:
+${brief.cta || ""}
+
 Original Brief:
 ${brief.content_text || ""}
 
+
 TATO CONTEXT
-- Brand: TATO Coffee
-- Arabica 100%
-- Single Origin
-- Doi Wiang
-- Fresh roasted per order
-- Premium coffee positioning
 
-OUTPUT RULES
-1. Write in natural Thai.
-2. Start with a strong hook.
-3. Focus on the customer's attention/problem/desire.
-4. Do not invent discounts, reviews, awards, certifications, or facts.
-5. Connect the market signal naturally.
-6. Mention TATO only when relevant.
-7. End with a clear CTA.
-8. Do not explain your reasoning.
-9. Return only the finished post.
+Brand:
+TATO Coffee
 
-FORMAT:
+Product:
+Arabica 100%
+
+Origin:
+Doi Wiang
+
+Positioning:
+Single Origin / Premium Coffee
+
+Roasting:
+Fresh roasted per order
+
+
+CONTENT REQUIREMENTS
+
+1. Write natural Thai.
+2. Start with a strong attention-grabbing hook.
+3. Focus on the customer's attention, problem, desire, or behavior.
+4. Use the detected market signal naturally.
+5. Connect the content to TATO only when relevant.
+6. Do not invent discounts.
+7. Do not invent reviews.
+8. Do not invent awards.
+9. Do not invent certifications.
+10. Do not invent facts that are not provided.
+11. Avoid generic motivational content.
+12. Make the content useful and commercially relevant.
+13. End with a clear CTA.
+14. Do not explain your reasoning.
+15. Return only the finished social media post.
+
+FORMAT
+
 HOOK
 
 BODY
@@ -294,14 +329,20 @@ BODY
 CTA
       `.trim();
 
+      // =======================================================
+      // CLOUDFLARE WORKERS AI
+      // Model:
+      // @cf/zai-org/glm-4.7-flash
+      // =======================================================
+
       const aiResult = await context.env.AI.run(
-        "@cf/meta/llama-3.1-8b-instruct",
+        "@cf/zai-org/glm-4.7-flash",
         {
           messages: [
             {
               role: "system",
               content:
-                "You are a Thai marketing content strategist for TATO Coffee."
+                "You are a Thai marketing content strategist and content intelligence engine for TATO Coffee."
             },
             {
               role: "user",
@@ -316,13 +357,15 @@ CTA
       const generatedText =
         aiResult?.response ||
         aiResult?.result?.response ||
+        aiResult?.choices?.[0]?.message?.content ||
         "";
 
       if (!generatedText) {
         return Response.json(
           {
             success: false,
-            error: "AI returned empty content"
+            error: "AI returned empty content",
+            ai_result: aiResult
           },
           { status: 500 }
         );
@@ -347,6 +390,7 @@ CTA
         success: true,
         mode: "generate",
         generated: true,
+        model: "@cf/zai-org/glm-4.7-flash",
         content: {
           ...brief,
           status: "GENERATED",
@@ -355,13 +399,12 @@ CTA
       });
     }
 
-    /*
-     * ============================================================
-     * NORMAL CREATE
-     * ============================================================
-     */
+    // =========================================================
+    // NORMAL CREATE
+    // =========================================================
 
-    const title = body.title?.trim() || "";
+    const title =
+      body.title?.trim() || "";
 
     if (!title) {
       return Response.json(
@@ -373,7 +416,8 @@ CTA
       );
     }
 
-    const id = crypto.randomUUID();
+    const id =
+      crypto.randomUUID();
 
     const content = {
       id,
@@ -426,6 +470,7 @@ CTA
       success: true,
       content
     });
+
   } catch (error) {
     return Response.json(
       {
