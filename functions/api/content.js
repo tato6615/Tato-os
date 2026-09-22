@@ -1,3 +1,16 @@
+const json = (data, status = 200) => {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    }
+  );
+};
+
 export async function onRequestGet(context) {
   try {
     const { results } = await context.env.DB
@@ -9,17 +22,17 @@ export async function onRequestGet(context) {
       `)
       .all();
 
-    return Response.json({
+    return json({
       success: true,
       content: results
     });
   } catch (error) {
-    return Response.json(
+    return json(
       {
         success: false,
         error: error.message
       },
-      { status: 500 }
+      500
     );
   }
 }
@@ -79,7 +92,7 @@ export async function onRequestPost(context) {
       const market = marketResult.results || [];
 
       if (!attention.length && !market.length) {
-        return Response.json({
+        return json({
           success: true,
           mode: "intelligence",
           created: false,
@@ -144,7 +157,8 @@ CTA:
 ${cta}
       `.trim();
 
-      const id = crypto.randomUUID();
+      const id =
+        crypto.randomUUID();
 
       await context.env.DB
         .prepare(`
@@ -179,7 +193,7 @@ ${cta}
         )
         .run();
 
-      return Response.json({
+      return json({
         success: true,
         mode: "intelligence",
         created: true,
@@ -209,12 +223,12 @@ ${cta}
 
     if (mode === "generate") {
       if (!context.env.AI) {
-        return Response.json(
+        return json(
           {
             success: false,
             error: "Cloudflare AI binding (AI) is not configured"
           },
-          { status: 500 }
+          500
         );
       }
 
@@ -242,12 +256,12 @@ ${cta}
       }
 
       if (!brief) {
-        return Response.json(
+        return json(
           {
             success: false,
             error: "No content brief found"
           },
-          { status: 404 }
+          404
         );
       }
 
@@ -311,15 +325,6 @@ BODY
 CTA
       `.trim();
 
-      // =======================================================
-      // CLOUDFLARE WORKERS AI
-      // GLM-4.7-FLASH
-      //
-      // reasoning_effort = low
-      // เพื่อไม่ให้ model ใช้ token หมดกับ reasoning
-      // ก่อนสร้าง content จริง
-      // =======================================================
-
       const aiResult = await context.env.AI.run(
         "@cf/zai-org/glm-4.7-flash",
         {
@@ -334,18 +339,11 @@ CTA
               content: prompt
             }
           ],
-
           reasoning_effort: "low",
-
           max_completion_tokens: 1800,
-
           temperature: 0.7
         }
       );
-
-      // =======================================================
-      // EXTRACT FINAL CONTENT
-      // =======================================================
 
       const choice =
         aiResult?.choices?.[0];
@@ -360,7 +358,6 @@ CTA
           message.content.trim();
       }
 
-      // รองรับกรณี content ถูกส่งมาเป็น array
       if (!generatedText && Array.isArray(message?.content)) {
         generatedText = message.content
           .map(item => {
@@ -378,12 +375,8 @@ CTA
           .trim();
       }
 
-      // =======================================================
-      // AI FAILED TO RETURN FINAL CONTENT
-      // =======================================================
-
       if (!generatedText) {
-        return Response.json(
+        return json(
           {
             success: false,
             error: "AI did not return final content",
@@ -393,13 +386,9 @@ CTA
               Boolean(message?.reasoning),
             ai_result: aiResult
           },
-          { status: 500 }
+          500
         );
       }
-
-      // =======================================================
-      // SAVE GENERATED CONTENT
-      // =======================================================
 
       await context.env.DB
         .prepare(`
@@ -416,7 +405,7 @@ CTA
         )
         .run();
 
-      return Response.json({
+      return json({
         success: true,
         mode: "generate",
         generated: true,
@@ -437,12 +426,12 @@ CTA
       body.title?.trim() || "";
 
     if (!title) {
-      return Response.json(
+      return json(
         {
           success: false,
           error: "Content title is required"
         },
-        { status: 400 }
+        400
       );
     }
 
@@ -496,18 +485,18 @@ CTA
       )
       .run();
 
-    return Response.json({
+    return json({
       success: true,
       content
     });
 
   } catch (error) {
-    return Response.json(
+    return json(
       {
         success: false,
         error: error.message
       },
-      { status: 500 }
+      500
     );
   }
 }
