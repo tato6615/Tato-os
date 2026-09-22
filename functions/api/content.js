@@ -5,6 +5,7 @@ export async function onRequestGet(context) {
         SELECT *
         FROM content_engine
         ORDER BY created_at DESC
+        LIMIT 200
       `)
       .all();
 
@@ -14,10 +15,7 @@ export async function onRequestGet(context) {
     });
   } catch (error) {
     return Response.json(
-      {
-        success: false,
-        error: error.message
-      },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
@@ -26,12 +24,11 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
-
     const mode = body.mode || "create";
 
     /*
      * ============================================================
-     * INTELLIGENCE MODE
+     * INTELLIGENCE
      * Attention + Market → Content Brief
      * ============================================================
      */
@@ -93,33 +90,15 @@ export async function onRequestPost(context) {
       const topAttention = attention[0] || {};
       const topMarket = market[0] || {};
 
-      const attentionType =
-        topAttention.event_type || "attention";
+      const attentionType = topAttention.event_type || "attention";
+      const marketKeyword = topMarket.keyword || "coffee";
+      const page = topAttention.page || "";
+      const productId = topAttention.product_id || "";
+      const marketScore = Number(topMarket.score || 0);
 
-      const marketKeyword =
-        topMarket.keyword || "coffee";
-
-      const page =
-        topAttention.page || "";
-
-      const productId =
-        topAttention.product_id || "";
-
-      const marketTitle =
-        topMarket.title || "";
-
-      const marketScore =
-        Number(topMarket.score || 0);
-
-      let title;
-
-      if (productId) {
-        title = `ทำไมลูกค้าถึงสนใจ ${marketKeyword} ตอนนี้`;
-      } else if (marketTitle) {
-        title = marketTitle;
-      } else {
-        title = `เจาะ Attention ลูกค้าจากกระแส ${marketKeyword}`;
-      }
+      const title = productId
+        ? `ทำไมลูกค้าถึงสนใจ ${marketKeyword} ตอนนี้`
+        : `เจาะ Attention ลูกค้าจากกระแส ${marketKeyword}`;
 
       const objective =
         "เปลี่ยน Customer Attention ให้เป็นความสนใจและโอกาสในการซื้อ";
@@ -129,13 +108,11 @@ export async function onRequestPost(context) {
           ? `ใช้ความสนใจเรื่อง ${marketKeyword} เชื่อมกับสิ่งที่ลูกค้ากำลังสนใจ`
           : `ใช้พฤติกรรม ${attentionType} เป็นจุดเริ่มต้นของ Content`;
 
-      const direction =
-        productId
-          ? `นำเสนอประโยชน์ของสินค้าโดยเชื่อมกับความสนใจของลูกค้า`
-          : `สร้าง Content จากความต้องการที่ตรวจพบ แล้วเชื่อมเข้าสู่ TATO`;
+      const direction = productId
+        ? "นำเสนอประโยชน์ของสินค้าโดยเชื่อมกับความสนใจของลูกค้า"
+        : "สร้าง Content จากความต้องการที่ตรวจพบ แล้วเชื่อมเข้าสู่ TATO";
 
-      const cta =
-        "ดูรายละเอียดและทดลอง TATO";
+      const cta = "ดูรายละเอียดและทดลอง TATO";
 
       const contentText = `
 HOOK:
@@ -209,15 +186,178 @@ ${cta}
           content_text: contentText
         },
         intelligence: {
-          attention: attention,
-          market: market
+          attention,
+          market
         }
       });
     }
 
     /*
      * ============================================================
-     * NORMAL CREATE MODE
+     * AI GENERATE
+     * Content Brief → AI-ready generation
+     * ============================================================
+     *
+     * Requires:
+     * context.env.AI
+     *
+     * Cloudflare Workers AI binding:
+     * AI
+     *
+     * Model:
+     * @cf/meta/llama-3.1-8b-instruct
+     */
+    if (mode === "generate") {
+      if (!context.env.AI) {
+        return Response.json(
+          {
+            success: false,
+            error: "Cloudflare AI binding (AI) is not configured"
+          },
+          { status: 500 }
+        );
+      }
+
+      let brief = null;
+
+      if (body.id) {
+        brief = await context.env.DB
+          .prepare(`
+            SELECT *
+            FROM content_engine
+            WHERE id = ?
+            LIMIT 1
+          `)
+          .bind(body.id)
+          .first();
+      } else {
+        brief = await context.env.DB
+          .prepare(`
+            SELECT *
+            FROM content_engine
+            ORDER BY created_at DESC
+            LIMIT 1
+          `)
+          .first();
+      }
+
+      if (!brief) {
+        return Response.json(
+          {
+            success: false,
+            error: "No content brief found"
+          },
+          { status: 404 }
+        );
+      }
+
+      const prompt = `
+You are the Content Intelligence AI for TATO Coffee.
+
+Create a high-converting Thai social media content draft from this business intelligence.
+
+CONTENT BRIEF
+Title: ${brief.title || ""}
+Objective: ${brief.objective || ""}
+Attention Type: ${brief.attention_type || ""}
+Market Keyword: ${brief.market_keyword || ""}
+Angle: ${brief.angle || ""}
+Direction: ${brief.direction || ""}
+CTA: ${brief.cta || ""}
+Original Brief:
+${brief.content_text || ""}
+
+TATO CONTEXT
+- Brand: TATO Coffee
+- Arabica 100%
+- Single Origin
+- Doi Wiang
+- Fresh roasted per order
+- Premium coffee positioning
+
+OUTPUT RULES
+1. Write in natural Thai.
+2. Start with a strong hook.
+3. Focus on the customer's attention/problem/desire.
+4. Do not invent discounts, reviews, awards, certifications, or facts.
+5. Connect the market signal naturally.
+6. Mention TATO only when relevant.
+7. End with a clear CTA.
+8. Do not explain your reasoning.
+9. Return only the finished post.
+
+FORMAT:
+HOOK
+
+BODY
+
+CTA
+      `.trim();
+
+      const aiResult = await context.env.AI.run(
+        "@cf/meta/llama-3.1-8b-instruct",
+        {
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a Thai marketing content strategist for TATO Coffee."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        }
+      );
+
+      const generatedText =
+        aiResult?.response ||
+        aiResult?.result?.response ||
+        "";
+
+      if (!generatedText) {
+        return Response.json(
+          {
+            success: false,
+            error: "AI returned empty content"
+          },
+          { status: 500 }
+        );
+      }
+
+      await context.env.DB
+        .prepare(`
+          UPDATE content_engine
+          SET
+            status = ?,
+            content_text = ?
+          WHERE id = ?
+        `)
+        .bind(
+          "GENERATED",
+          generatedText,
+          brief.id
+        )
+        .run();
+
+      return Response.json({
+        success: true,
+        mode: "generate",
+        generated: true,
+        content: {
+          ...brief,
+          status: "GENERATED",
+          content_text: generatedText
+        }
+      });
+    }
+
+    /*
+     * ============================================================
+     * NORMAL CREATE
      * ============================================================
      */
 
