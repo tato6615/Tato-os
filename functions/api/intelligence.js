@@ -1,4 +1,3 @@
-```javascript
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -14,15 +13,11 @@ export async function onRequestPost(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-
     const type = body.type || "overview";
     const limit = Math.min(Number(body.limit) || 50, 200);
 
     let result = {};
 
-    // =========================================================
-    // OVERVIEW
-    // =========================================================
     if (type === "overview") {
       const [
         customers,
@@ -32,44 +27,47 @@ export async function onRequestPost(context) {
         marketSignals,
         aiInsights
       ] = await Promise.all([
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM customers"
-        ).first(),
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM customers
+        `).first(),
 
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM products"
-        ).first(),
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM products
+        `).first(),
 
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM orders"
-        ).first(),
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM orders
+        `).first(),
 
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM behavior_events"
-        ).first(),
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM behavior_events
+        `).first(),
 
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM market_signals"
-        ).first(),
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM market_signals
+        `).first(),
 
-        env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM ai_insights"
-        ).first()
+        env.DB.prepare(`
+          SELECT COUNT(*) AS total
+          FROM ai_insights
+        `).first()
       ]);
 
       result = {
-        customers: customers?.total || 0,
-        products: products?.total || 0,
-        orders: orders?.total || 0,
-        behavior_events: behavior?.total || 0,
-        market_signals: marketSignals?.total || 0,
-        ai_insights: aiInsights?.total || 0
+        customers: Number(customers?.total || 0),
+        products: Number(products?.total || 0),
+        orders: Number(orders?.total || 0),
+        behavior_events: Number(behavior?.total || 0),
+        market_signals: Number(marketSignals?.total || 0),
+        ai_insights: Number(aiInsights?.total || 0)
       };
     }
 
-    // =========================================================
-    // BEHAVIOR
-    // =========================================================
     else if (type === "behavior") {
       const data = await env.DB.prepare(`
         SELECT
@@ -88,14 +86,11 @@ export async function onRequestPost(context) {
       };
     }
 
-    // =========================================================
-    // MARKET
-    // =========================================================
     else if (type === "market") {
       const data = await env.DB.prepare(`
         SELECT *
         FROM market_signals
-        ORDER BY created_at DESC
+        ORDER BY detected_at DESC
         LIMIT ?
       `)
         .bind(limit)
@@ -106,26 +101,20 @@ export async function onRequestPost(context) {
       };
     }
 
-    // =========================================================
-    // SALES
-    // =========================================================
     else if (type === "sales") {
       const data = await env.DB.prepare(`
         SELECT
           COUNT(*) AS orders,
-          COALESCE(SUM(total_amount), 0) AS revenue
+          COALESCE(SUM(amount), 0) AS revenue
         FROM orders
       `).first();
 
       result = {
-        orders: data?.orders || 0,
-        revenue: data?.revenue || 0
+        orders: Number(data?.orders || 0),
+        revenue: Number(data?.revenue || 0)
       };
     }
 
-    // =========================================================
-    // CUSTOMERS
-    // =========================================================
     else if (type === "customers") {
       const data = await env.DB.prepare(`
         SELECT *
@@ -141,9 +130,6 @@ export async function onRequestPost(context) {
       };
     }
 
-    // =========================================================
-    // AI INSIGHTS
-    // =========================================================
     else if (type === "insights") {
       const data = await env.DB.prepare(`
         SELECT *
@@ -159,9 +145,6 @@ export async function onRequestPost(context) {
       };
     }
 
-    // =========================================================
-    // FULL INTELLIGENCE
-    // =========================================================
     else if (type === "full") {
       const [
         customers,
@@ -184,12 +167,14 @@ export async function onRequestPost(context) {
         env.DB.prepare(`
           SELECT
             COUNT(*) AS total_orders,
-            COALESCE(SUM(total_amount), 0) AS revenue
+            COALESCE(SUM(amount), 0) AS revenue
           FROM orders
         `).first(),
 
         env.DB.prepare(`
-          SELECT event_type, COUNT(*) AS total
+          SELECT
+            event_type,
+            COUNT(*) AS total
           FROM behavior_events
           GROUP BY event_type
           ORDER BY total DESC
@@ -201,7 +186,7 @@ export async function onRequestPost(context) {
         env.DB.prepare(`
           SELECT *
           FROM market_signals
-          ORDER BY created_at DESC
+          ORDER BY detected_at DESC
           LIMIT ?
         `)
           .bind(limit)
@@ -218,16 +203,19 @@ export async function onRequestPost(context) {
       ]);
 
       result = {
-        customers: customers?.total || 0,
-        products: products?.total || 0,
+        customers: Number(customers?.total || 0),
+
+        products: Number(products?.total || 0),
 
         sales: {
-          orders: orders?.total_orders || 0,
-          revenue: orders?.revenue || 0
+          orders: Number(orders?.total_orders || 0),
+          revenue: Number(orders?.revenue || 0)
         },
 
         behavior: behavior?.results || [],
+
         market: market?.results || [],
+
         insights: insights?.results || []
       };
     }
@@ -247,9 +235,8 @@ export async function onRequestPost(context) {
       intelligence: result,
       generated_at: new Date().toISOString()
     });
-  }
 
-  catch (error) {
+  } catch (error) {
     return Response.json(
       {
         success: false,
@@ -259,4 +246,3 @@ export async function onRequestPost(context) {
     );
   }
 }
-```
