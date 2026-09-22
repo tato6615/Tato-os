@@ -1,538 +1,752 @@
-```javascript
-export async function onRequest(context) {
-  const { request, env } = context;
+// functions/api/content-measurement.js
+// TATO OS — Content Measurement Engine V1
+//
+// Purpose:
+// DATA → CONTENT → ATTENTION → BEHAVIOR → SALES
+//
+// V1 measures aggregate behavior after content becomes active.
+// It does NOT automatically declare a WINNER.
+// True attribution will be improved in the Learning / Feedback Loop stage.
 
-  try {
-    const method = request.method.toUpperCase();
-
-    // =========================================================
-    // DATABASE
-    // =========================================================
-
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS content_measurements (
-        id TEXT PRIMARY KEY,
-        content_id TEXT,
-        measurement_start TEXT,
-        measurement_end TEXT,
-        attention_events INTEGER DEFAULT 0,
-        product_views INTEGER DEFAULT 0,
-        clicks INTEGER DEFAULT 0,
-        engagements INTEGER DEFAULT 0,
-        customers INTEGER DEFAULT 0,
-        orders INTEGER DEFAULT 0,
-        revenue REAL DEFAULT 0,
-        score INTEGER DEFAULT 0,
-        status TEXT,
-        measurement_type TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
-
-    // =========================================================
-    // HELPERS
-    // =========================================================
-
-    const now = new Date().toISOString();
-
-    function safeJson(value, fallback = {}) {
-      try {
-        if (!value) return fallback;
-        if (typeof value === "object") return value;
-        return JSON.parse(value);
-      } catch {
-        return fallback;
-      }
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
     }
+  });
 
-    function normalizeRows(result) {
-      return result?.results || [];
-    }
+const now = () => new Date().toISOString();
 
-    function getNumber(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
-    }
+const id = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
 
-    function getContentIdFromDecisionRun(row) {
-      const output = safeJson(row?.output_data, {});
-      const input = safeJson(row?.input_data, {});
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
 
-      return (
-        output?.content?.id ||
-        output?.content_recommendation?.id ||
-        output?.result?.content?.id ||
-        input?.content_id ||
-        null
-      );
-    }
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 
-    // =========================================================
-    // LOAD CONTENT
-    // =========================================================
+function safeString(value) {
+  return value == null ? "" : String(value);
+}
 
-    const contentResult = await env.DB.prepare(`
+async function ensureTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS content_measurements (
+      id TEXT PRIMARY KEY,
+      content_id TEXT,
+      measured_at TEXT,
+      measurement_start TEXT,
+
+      attention INTEGER DEFAULT 0,
+      product_views INTEGER DEFAULT 0,
+      clicks INTEGER DEFAULT 0,
+      engagements INTEGER DEFAULT 0,
+
+      customers INTEGER DEFAULT 0,
+      orders INTEGER DEFAULT 0,
+      revenue REAL DEFAULT 0,
+
+      attention_to_view REAL DEFAULT 0,
+      view_to_click REAL DEFAULT 0,
+      click_to_customer REAL DEFAULT 0,
+      customer_to_order REAL DEFAULT 0,
+
+      status TEXT,
+      attribution_mode TEXT,
+
+      created_at TEXT
+    )
+  `).run();
+}
+
+async function getContent(db, contentId) {
+  if (contentId) {
+    return await db
+      .prepare(`
+        SELECT *
+        FROM content_engine
+        WHERE id = ?
+        LIMIT 1
+      `)
+      .bind(contentId)
+      .first();
+  }
+
+  return await db
+    .prepare(`
       SELECT *
       FROM content_engine
+      WHERE status IN (
+        'READY_TO_PUBLISH',
+        'PUBLISHED',
+        'GENERATED',
+        'TEST',
+        'WINNER',
+        'REUSE'
+      )
       ORDER BY created_at DESC
-    `).all();
+      LIMIT 1
+    `)
+    .first();
+}
 
-    const contents = normalizeRows(contentResult);
+async function getMeasurementStart(db, content) {
+  if (!content) {
+    return now();
+  }
 
-    // =========================================================
-    // GET LATEST PUBLISH DECISION TIME
-    // =========================================================
+  /*
+   * Try to use the latest Content Decision execution
+   * related to this content.
+   *
+   * Because previous versions may have slightly different
+   * schemas, this is intentionally defensive.
+   */
 
-    let decisionRuns = [];
+  try {
+    const table = await db
+      .prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'content_decision_runs'
+        LIMIT 1
+      `)
+      .first();
 
-    try {
-      const result = await env.DB.prepare(`
-        SELECT *
-        FROM content_decision_runs
-        ORDER BY created_at DESC
-        LIMIT 100
-      `).all();
+    if (table) {
+      const rows = await db
+        .prepare(`
+          SELECT *
+          FROM content_decision_runs
+          ORDER BY created_at DESC
+          LIMIT 20
+        `)
+        .all();
 
-      decisionRuns = normalizeRows(result);
-    } catch {
-      decisionRuns = [];
-    }
-
-    function getMeasurementStart(contentId, contentCreatedAt) {
-      for (const run of decisionRuns) {
-        const runContentId = getContentIdFromDecisionRun(run);
+      for (const row of rows.results || []) {
+        const raw = JSON.stringify(row);
 
         if (
-          runContentId === contentId &&
-          run.created_at
+          raw.includes(safeString(content.id)) ||
+          raw.includes(safeString(content.title))
         ) {
-          return run.created_at;
+          if (row.created_at) {
+            return row.created_at;
+          }
+
+          if (row.started_at) {
+            return row.started_at;
+          }
+
+          if (row.executed_at) {
+            return row.executed_at;
+          }
         }
       }
-
-      return contentCreatedAt || now;
     }
+  } catch (error) {
+    // Fall back to content creation time.
+  }
 
-    // =========================================================
-    // MEASURE ONE CONTENT
-    // =========================================================
+  return content.created_at || now();
+}
 
-    async function measureContent(content) {
-      const contentId = content.id;
-      const startTime = getMeasurementStart(
-        contentId,
-        content.created_at
-      );
-
-      // -------------------------------------------------------
-      // BEHAVIOR
-      // -------------------------------------------------------
-
-      const behaviorResult = await env.DB.prepare(`
-        SELECT event_type, COUNT(*) AS total
+async function measureAttention(db, start) {
+  try {
+    const result = await db
+      .prepare(`
+        SELECT COUNT(*) AS total
         FROM behavior_events
         WHERE created_at >= ?
-        GROUP BY event_type
-      `).bind(startTime).all();
+          AND event_type IN (
+            'product_view',
+            'click',
+            'cta_click',
+            'engagement',
+            'content_view',
+            'content_click',
+            'content_engagement'
+          )
+      `)
+      .bind(start)
+      .first();
 
-      const behaviorRows = normalizeRows(behaviorResult);
+    return safeNumber(result?.total);
+  } catch (error) {
+    return 0;
+  }
+}
 
-      let attentionEvents = 0;
-      let productViews = 0;
-      let clicks = 0;
-      let engagements = 0;
+async function measureProductViews(db, start, content) {
+  try {
+    if (content?.product_id) {
+      const result = await db
+        .prepare(`
+          SELECT COUNT(*) AS total
+          FROM behavior_events
+          WHERE created_at >= ?
+            AND product_id = ?
+            AND event_type = 'product_view'
+        `)
+        .bind(start, content.product_id)
+        .first();
 
-      for (const row of behaviorRows) {
-        const type = String(row.event_type || "").toLowerCase();
-        const total = getNumber(row.total);
+      return safeNumber(result?.total);
+    }
 
-        attentionEvents += total;
+    const result = await db
+      .prepare(`
+        SELECT COUNT(*) AS total
+        FROM behavior_events
+        WHERE created_at >= ?
+          AND event_type = 'product_view'
+      `)
+      .bind(start)
+      .first();
 
-        if (
-          type.includes("product_view") ||
-          type === "view_product"
-        ) {
-          productViews += total;
-        }
+    return safeNumber(result?.total);
+  } catch (error) {
+    return 0;
+  }
+}
 
-        if (
-          type.includes("click") ||
-          type.includes("cta")
-        ) {
-          clicks += total;
-        }
+async function measureClicks(db, start) {
+  try {
+    const result = await db
+      .prepare(`
+        SELECT COUNT(*) AS total
+        FROM behavior_events
+        WHERE created_at >= ?
+          AND event_type IN (
+            'click',
+            'cta_click',
+            'content_click',
+            'button_click'
+          )
+      `)
+      .bind(start)
+      .first();
 
-        if (
-          type.includes("like") ||
-          type.includes("comment") ||
-          type.includes("share") ||
-          type.includes("engagement")
-        ) {
-          engagements += total;
-        }
-      }
+    return safeNumber(result?.total);
+  } catch (error) {
+    return 0;
+  }
+}
 
-      // -------------------------------------------------------
-      // CUSTOMERS
-      // -------------------------------------------------------
+async function measureEngagements(db, start) {
+  try {
+    const result = await db
+      .prepare(`
+        SELECT COUNT(*) AS total
+        FROM behavior_events
+        WHERE created_at >= ?
+          AND event_type IN (
+            'engagement',
+            'content_engagement',
+            'share',
+            'save',
+            'comment',
+            'like'
+          )
+      `)
+      .bind(start)
+      .first();
 
-      const customerResult = await env.DB.prepare(`
+    return safeNumber(result?.total);
+  } catch (error) {
+    return 0;
+  }
+}
+
+async function measureCustomers(db, start) {
+  try {
+    const result = await db
+      .prepare(`
         SELECT COUNT(*) AS total
         FROM customers
         WHERE created_at >= ?
-      `).bind(startTime).first();
+      `)
+      .bind(start)
+      .first();
 
-      const customers = getNumber(customerResult?.total);
+    return safeNumber(result?.total);
+  } catch (error) {
+    return 0;
+  }
+}
 
-      // -------------------------------------------------------
-      // SALES
-      // -------------------------------------------------------
-
-      const salesResult = await env.DB.prepare(`
+async function measureOrders(db, start) {
+  try {
+    const result = await db
+      .prepare(`
         SELECT
-          COUNT(*) AS orders,
+          COUNT(*) AS total,
           COALESCE(SUM(amount), 0) AS revenue
         FROM orders
         WHERE created_at >= ?
           AND (
             status IS NULL
-            OR LOWER(status) NOT IN ('cancelled', 'canceled', 'failed')
+            OR LOWER(status) NOT IN (
+              'cancelled',
+              'canceled',
+              'failed',
+              'refunded'
+            )
           )
-      `).bind(startTime).first();
+      `)
+      .bind(start)
+      .first();
 
-      const orders = getNumber(salesResult?.orders);
-      const revenue = getNumber(salesResult?.revenue);
+    return {
+      orders: safeNumber(result?.total),
+      revenue: safeNumber(result?.revenue)
+    };
+  } catch (error) {
+    return {
+      orders: 0,
+      revenue: 0
+    };
+  }
+}
 
-      // -------------------------------------------------------
-      // SCORE
-      // -------------------------------------------------------
+function calculateRate(numerator, denominator) {
+  if (!denominator) return 0;
 
-      let score = 0;
+  return Number(
+    ((numerator / denominator) * 100).toFixed(2)
+  );
+}
 
-      if (attentionEvents > 0) score += 20;
-      if (productViews > 0) score += 20;
-      if (clicks > 0) score += 15;
-      if (engagements > 0) score += 15;
-      if (customers > 0) score += 10;
-      if (orders > 0) score += 20;
+function determineStatus(metrics) {
+  if (
+    metrics.orders > 0 &&
+    metrics.revenue > 0
+  ) {
+    return "CONVERTING";
+  }
 
-      score = Math.min(score, 100);
+  if (
+    metrics.attention > 0 ||
+    metrics.product_views > 0 ||
+    metrics.clicks > 0 ||
+    metrics.engagements > 0 ||
+    metrics.customers > 0
+  ) {
+    return "MEASURED";
+  }
 
-      // -------------------------------------------------------
-      // STATUS
-      // -------------------------------------------------------
+  return "WAITING_FOR_TRAFFIC";
+}
 
-      let status = "WAITING_FOR_TRAFFIC";
+function buildMeasurement(metrics) {
+  return {
+    attention: metrics.attention,
+    product_views: metrics.product_views,
+    clicks: metrics.clicks,
+    engagements: metrics.engagements,
+    customers: metrics.customers,
+    orders: metrics.orders,
+    revenue: metrics.revenue,
 
-      if (attentionEvents > 0 || productViews > 0) {
-        status = "MEASURED";
-      }
+    funnel: {
+      attention_to_view: calculateRate(
+        metrics.product_views,
+        metrics.attention
+      ),
 
-      if (orders > 0) {
-        status = "CONVERTING";
-      }
+      view_to_click: calculateRate(
+        metrics.clicks,
+        metrics.product_views
+      ),
 
-      // IMPORTANT:
-      // Do not declare WINNER in V1.
-      // We need more real-world data before automatic classification.
+      click_to_customer: calculateRate(
+        metrics.customers,
+        metrics.clicks
+      ),
 
-      return {
-        content_id: contentId,
-        title: content.title,
-        content_status: content.status,
-        measurement_start: startTime,
-        measurement_end: now,
+      customer_to_order: calculateRate(
+        metrics.orders,
+        metrics.customers
+      )
+    }
+  };
+}
 
-        metrics: {
-          attention_events: attentionEvents,
-          product_views: productViews,
-          clicks,
-          engagements,
-          customers,
-          orders,
-          revenue
-        },
+async function runMeasurement(db, contentId = null) {
+  await ensureTable(db);
 
-        score,
+  const content = await getContent(db, contentId);
+
+  if (!content) {
+    return {
+      success: false,
+      layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+      error: "No measurable content found.",
+      hint:
+        "Create or generate content first, then run measurement again."
+    };
+  }
+
+  const measurementStart = await getMeasurementStart(
+    db,
+    content
+  );
+
+  const [
+    attention,
+    productViews,
+    clicks,
+    engagements,
+    customers,
+    orderData
+  ] = await Promise.all([
+    measureAttention(db, measurementStart),
+    measureProductViews(
+      db,
+      measurementStart,
+      content
+    ),
+    measureClicks(db, measurementStart),
+    measureEngagements(db, measurementStart),
+    measureCustomers(db, measurementStart),
+    measureOrders(db, measurementStart)
+  ]);
+
+  const metrics = {
+    attention,
+    product_views: productViews,
+    clicks,
+    engagements,
+    customers,
+    orders: orderData.orders,
+    revenue: orderData.revenue
+  };
+
+  const calculated = buildMeasurement(metrics);
+
+  const status = determineStatus(metrics);
+
+  const measuredAt = now();
+
+  const measurementId = id();
+
+  await db
+    .prepare(`
+      INSERT INTO content_measurements (
+        id,
+        content_id,
+        measured_at,
+        measurement_start,
+
+        attention,
+        product_views,
+        clicks,
+        engagements,
+
+        customers,
+        orders,
+        revenue,
+
+        attention_to_view,
+        view_to_click,
+        click_to_customer,
+        customer_to_order,
 
         status,
+        attribution_mode,
 
-        interpretation:
-          status === "CONVERTING"
-            ? "Content มีสัญญาณ Conversion จากข้อมูลปัจจุบัน"
-            : status === "MEASURED"
-              ? "Content เริ่มสร้าง Attention แล้ว ต้องติดตาม Conversion ต่อ"
-              : "ยังไม่มี Traffic หลังช่วงเริ่มวัดผล ต้องรอข้อมูลเพิ่ม",
+        created_at
+      )
+      VALUES (
+        ?,
+        ?,
+        ?,
+        ?,
 
-        next_step:
-          status === "CONVERTING"
-            ? "เก็บข้อมูลต่อเพื่อเรียนรู้ว่า Content นี้สร้างยอดขายได้อย่างไร"
-            : status === "MEASURED"
-              ? "ติดตาม Click → Product View → Customer → Order"
-              : "เผยแพร่ Content แล้วส่ง Traffic เข้าระบบก่อนวัดผล"
-      };
-    }
+        ?,
+        ?,
+        ?,
+        ?,
 
-    // =========================================================
-    // GET = PREVIEW
-    // =========================================================
+        ?,
+        ?,
+        ?,
 
-    if (method === "GET") {
-      const measurements = [];
+        ?,
+        ?,
+        ?,
+        ?,
 
-      for (const content of contents) {
-        measurements.push(await measureContent(content));
-      }
+        ?,
+        ?,
 
-      const latest = measurements[0] || null;
+        ?
+      )
+    `)
+    .bind(
+      measurementId,
+      content.id,
+      measuredAt,
+      measurementStart,
 
-      return new Response(
-        JSON.stringify(
-          {
-            success: true,
-            layer: "CONTENT_MEASUREMENT_ENGINE_V1",
-            mode: "preview",
+      metrics.attention,
+      metrics.product_views,
+      metrics.clicks,
+      metrics.engagements,
 
-            measurement: latest,
+      metrics.customers,
+      metrics.orders,
+      metrics.revenue,
 
-            contents: measurements,
+      calculated.funnel.attention_to_view,
+      calculated.funnel.view_to_click,
+      calculated.funnel.click_to_customer,
+      calculated.funnel.customer_to_order,
 
-            funnel: {
-              publish: latest?.content_status || null,
-              attention: latest?.metrics?.attention_events || 0,
-              product_views: latest?.metrics?.product_views || 0,
-              clicks: latest?.metrics?.clicks || 0,
-              customers: latest?.metrics?.customers || 0,
-              orders: latest?.metrics?.orders || 0,
-              revenue: latest?.metrics?.revenue || 0
-            }
-          },
-          null,
-          2
-        ),
-        {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8"
-          }
-        }
-      );
-    }
+      status,
+      "AGGREGATE_V1",
 
-    // =========================================================
-    // POST
-    // =========================================================
+      measuredAt
+    )
+    .run();
 
-    if (method === "POST") {
-      let body = {};
+  return {
+    success: true,
 
-      try {
-        body = await request.json();
-      } catch {
-        body = {};
-      }
+    layer: "CONTENT_MEASUREMENT_ENGINE_V1",
 
-      const mode = body.mode || "measure";
-      const requestedContentId = body.content_id || null;
+    mode: "measure",
 
-      let selectedContents = contents;
+    measurement: {
+      id: measurementId,
+      status,
+      measured_at: measuredAt,
+      measurement_start: measurementStart,
 
-      if (requestedContentId) {
-        selectedContents = contents.filter(
-          item => item.id === requestedContentId
-        );
-      }
+      attribution_mode:
+        "AGGREGATE_V1",
 
-      if (selectedContents.length === 0) {
-        return new Response(
-          JSON.stringify(
-            {
-              success: false,
-              layer: "CONTENT_MEASUREMENT_ENGINE_V1",
-              error: "CONTENT_NOT_FOUND"
-            },
-            null,
-            2
-          ),
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json; charset=utf-8"
-            }
-          }
-        );
-      }
+      note:
+        "Metrics represent aggregate activity after the measurement start. They are not yet true content-level attribution."
+    },
 
-      const measurements = [];
+    content: {
+      id: content.id,
+      title: content.title || "",
+      status: content.status || "",
+      objective: content.objective || "",
+      attention_type:
+        content.attention_type || "",
+      market_keyword:
+        content.market_keyword || "",
+      angle: content.angle || "",
+      cta: content.cta || ""
+    },
 
-      for (const content of selectedContents) {
-        const measurement = await measureContent(content);
+    metrics: calculated,
 
-        // -----------------------------------------------------
-        // SAVE MEASUREMENT
-        // -----------------------------------------------------
+    learning_signal: {
+      has_attention:
+        metrics.attention > 0,
 
-        const measurementId = crypto.randomUUID();
+      has_traffic:
+        metrics.product_views > 0 ||
+        metrics.clicks > 0,
 
-        await env.DB.prepare(`
-          INSERT INTO content_measurements (
-            id,
-            content_id,
-            measurement_start,
-            measurement_end,
-            attention_events,
-            product_views,
-            clicks,
-            engagements,
-            customers,
-            orders,
-            revenue,
-            score,
-            status,
-            measurement_type
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          measurementId,
-          measurement.content_id,
-          measurement.measurement_start,
-          measurement.measurement_end,
-          measurement.metrics.attention_events,
-          measurement.metrics.product_views,
-          measurement.metrics.clicks,
-          measurement.metrics.engagements,
-          measurement.metrics.customers,
-          measurement.metrics.orders,
-          measurement.metrics.revenue,
-          measurement.score,
-          measurement.status,
-          "CONTENT_MEASUREMENT_V1"
-        ).run();
+      has_engagement:
+        metrics.engagements > 0,
 
-        measurements.push({
-          ...measurement,
-          measurement_id: measurementId
-        });
-      }
+      has_customer:
+        metrics.customers > 0,
 
-      // -------------------------------------------------------
-      // SUMMARY
-      // -------------------------------------------------------
+      has_conversion:
+        metrics.orders > 0,
 
-      const totalAttention = measurements.reduce(
-        (sum, item) => sum + item.metrics.attention_events,
-        0
-      );
+      revenue_generated:
+        metrics.revenue > 0
+    },
 
-      const totalProductViews = measurements.reduce(
-        (sum, item) => sum + item.metrics.product_views,
-        0
-      );
+    next_step:
+      status === "CONVERTING"
+        ? "Send this result to the Learning / Feedback Loop."
+        : status === "MEASURED"
+          ? "Continue collecting traffic and behavior before deciding content performance."
+          : "Wait for traffic, behavior, or sales data.",
 
-      const totalClicks = measurements.reduce(
-        (sum, item) => sum + item.metrics.clicks,
-        0
-      );
+    winner_decision:
+      "NOT_DECLARED_IN_V1"
+  };
+}
 
-      const totalCustomers = measurements.reduce(
-        (sum, item) => sum + item.metrics.customers,
-        0
-      );
+export async function onRequestGet(context) {
+  try {
+    const { env, request } = context;
 
-      const totalOrders = measurements.reduce(
-        (sum, item) => sum + item.metrics.orders,
-        0
-      );
-
-      const totalRevenue = measurements.reduce(
-        (sum, item) => sum + item.metrics.revenue,
-        0
-      );
-
-      return new Response(
-        JSON.stringify(
-          {
-            success: true,
-            layer: "CONTENT_MEASUREMENT_ENGINE_V1",
-            mode,
-
-            execution: {
-              id: crypto.randomUUID(),
-              status: "COMPLETED",
-              started_at: now,
-              completed_at: new Date().toISOString()
-            },
-
-            measurements,
-
-            summary: {
-              contents_measured: measurements.length,
-              attention_events: totalAttention,
-              product_views: totalProductViews,
-              clicks: totalClicks,
-              customers: totalCustomers,
-              orders: totalOrders,
-              revenue: totalRevenue
-            },
-
-            funnel: {
-              publish: measurements.length,
-              attention: totalAttention,
-              product_views: totalProductViews,
-              clicks: totalClicks,
-              customers: totalCustomers,
-              orders: totalOrders,
-              revenue: totalRevenue
-            },
-
-            next_layer:
-              "LEARNING_FEEDBACK_LOOP_V1"
-          },
-          null,
-          2
-        ),
-        {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8"
-          }
-        }
-      );
-    }
-
-    return new Response(
-      JSON.stringify(
-        {
-          success: false,
-          error: "METHOD_NOT_ALLOWED"
-        },
-        null,
-        2
-      ),
-      {
-        status: 405,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8"
-        }
-      }
-    );
-
-  } catch (error) {
-    return new Response(
-      JSON.stringify(
+    if (!env?.DB) {
+      return json(
         {
           success: false,
           layer: "CONTENT_MEASUREMENT_ENGINE_V1",
-          error: error.message
+          error: "D1 binding DB is not available."
         },
-        null,
-        2
-      ),
+        500
+      );
+    }
+
+    const url = new URL(request.url);
+
+    const contentId =
+      url.searchParams.get("content_id") ||
+      url.searchParams.get("id") ||
+      null;
+
+    const result = await runMeasurement(
+      env.DB,
+      contentId
+    );
+
+    return json(result);
+  } catch (error) {
+    return json(
       {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8"
-        }
-      }
+        success: false,
+        layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+        error: safeString(error?.message || error)
+      },
+      500
     );
   }
 }
-```
+
+export async function onRequestPost(context) {
+  try {
+    const { env, request } = context;
+
+    if (!env?.DB) {
+      return json(
+        {
+          success: false,
+          layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+          error: "D1 binding DB is not available."
+        },
+        500
+      );
+    }
+
+    let body = {};
+
+    try {
+      body = await request.json();
+    } catch (error) {
+      body = {};
+    }
+
+    const mode =
+      body?.mode || "measure";
+
+    if (
+      mode !== "measure" &&
+      mode !== "preview"
+    ) {
+      return json(
+        {
+          success: false,
+          layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+          error:
+            "Invalid mode. Use 'measure' or 'preview'."
+        },
+        400
+      );
+    }
+
+    await ensureTable(env.DB);
+
+    const contentId =
+      body?.content_id ||
+      null;
+
+    const content = await getContent(
+      env.DB,
+      contentId
+    );
+
+    if (!content) {
+      return json(
+        {
+          success: false,
+          layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+          mode,
+          error:
+            "No measurable content found."
+        },
+        404
+      );
+    }
+
+    if (mode === "preview") {
+      const measurementStart =
+        await getMeasurementStart(
+          env.DB,
+          content
+        );
+
+      return json({
+        success: true,
+        layer:
+          "CONTENT_MEASUREMENT_ENGINE_V1",
+        mode: "preview",
+
+        content: {
+          id: content.id,
+          title: content.title || "",
+          status: content.status || "",
+          created_at:
+            content.created_at || null
+        },
+
+        measurement_start:
+          measurementStart,
+
+        attribution_mode:
+          "AGGREGATE_V1",
+
+        metrics_to_measure: [
+          "attention",
+          "product_views",
+          "clicks",
+          "engagements",
+          "customers",
+          "orders",
+          "revenue"
+        ],
+
+        winner_decision:
+          "NOT_DECLARED_IN_V1"
+      });
+    }
+
+    const result = await runMeasurement(
+      env.DB,
+      contentId
+    );
+
+    return json(result);
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        layer: "CONTENT_MEASUREMENT_ENGINE_V1",
+        error: safeString(error?.message || error)
+      },
+      500
+    );
+  }
+}
