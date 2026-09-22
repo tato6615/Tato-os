@@ -28,6 +28,11 @@ export async function onRequestPost(context) {
         source: "ATTENTION"
       },
 
+      PUBLISH_CONTENT: {
+        title: "เผยแพร่ Content ที่ผ่าน Decision",
+        source: "CONTENT_DECISION"
+      },
+
       MARKET_RESPONSE: {
         title: "ตอบสนองต่อ Market Demand",
         source: "MARKET"
@@ -62,7 +67,38 @@ export async function onRequestPost(context) {
           decision.type || ""
         ).toUpperCase();
 
-        if (type === "ATTENTION") {
+        /*
+        --------------------------------------------------------
+        CONTENT DECISION
+        --------------------------------------------------------
+        */
+
+        if (type === "PUBLISH_CONTENT") {
+          actions.push({
+            action_type: "PUBLISH_CONTENT",
+            title: "เผยแพร่ Content ที่ผ่าน Decision",
+            description:
+              "นำ Content ที่ผ่าน Content Decision Engine ไปสู่ขั้นตอนเผยแพร่",
+            priority: decision.priority || "HIGH",
+            score: Number(decision.score || 0),
+            status: "READY",
+            source: "CONTENT_DECISION"
+          });
+        }
+
+        else if (type === "GENERATE_CONTENT") {
+          actions.push({
+            action_type: "CONTENT",
+            title: "สร้าง Content จาก Decision",
+            description:
+              "สร้าง Content จาก Attention + Market Demand",
+            priority: decision.priority || "HIGH",
+            status: "READY",
+            source: "CONTENT_DECISION"
+          });
+        }
+
+        else if (type === "ATTENTION") {
           actions.push({
             action_type: "CONTENT",
             title: "สร้าง Content จาก Attention",
@@ -201,7 +237,8 @@ export async function onRequestPost(context) {
       behaviorResult,
       marketResult,
       customersResult,
-      insightsResult
+      insightsResult,
+      contentResult
     ] = await Promise.all([
       env.DB.prepare(`
         SELECT *
@@ -229,6 +266,13 @@ export async function onRequestPost(context) {
         FROM ai_insights
         ORDER BY created_at DESC
         LIMIT 20
+      `).all(),
+
+      env.DB.prepare(`
+        SELECT *
+        FROM content_engine
+        ORDER BY created_at DESC
+        LIMIT 20
       `).all()
     ]);
 
@@ -243,6 +287,9 @@ export async function onRequestPost(context) {
 
     const insights =
       insightsResult.results || [];
+
+    const contents =
+      contentResult.results || [];
 
     /*
     ============================================================
@@ -364,6 +411,117 @@ export async function onRequestPost(context) {
         next_step:
           "ส่ง Content Brief เข้า Content Engine"
       };
+    }
+
+    /*
+    ------------------------------------------------------------
+    PUBLISH CONTENT
+    ------------------------------------------------------------
+    */
+
+    else if (actionType === "PUBLISH_CONTENT") {
+
+      /*
+      ----------------------------------------------------------
+      FIND GENERATED CONTENT
+      ----------------------------------------------------------
+      */
+
+      const generatedContent =
+        contents.filter(content =>
+          String(content.status || "")
+            .toUpperCase() === "GENERATED"
+        );
+
+      const latestContent =
+        generatedContent[0] || null;
+
+
+      /*
+      ----------------------------------------------------------
+      NO CONTENT
+      ----------------------------------------------------------
+      */
+
+      if (!latestContent) {
+
+        output = {
+          action: "PUBLISH_CONTENT",
+          status: "WAITING_CONTENT",
+
+          message:
+            "ยังไม่มี Content ที่ผ่าน AI Generate และ Quality Check",
+
+          next_step:
+            "สร้าง Content ก่อน แล้วจึงเข้าสู่ Publish Action"
+        };
+
+      }
+
+      /*
+      ----------------------------------------------------------
+      CONTENT READY
+      ----------------------------------------------------------
+      */
+
+      else {
+
+        const decisionScore =
+          Number(body.decision_score || 0);
+
+        const decisionPriority =
+          String(
+            body.decision_priority ||
+            "HIGH"
+          ).toUpperCase();
+
+
+        output = {
+          action: "PUBLISH_CONTENT",
+          status: "READY_TO_PUBLISH",
+
+          decision: {
+            score: decisionScore,
+            priority: decisionPriority,
+            type:
+              body.decision_type ||
+              "PUBLISH_CONTENT"
+          },
+
+          content: {
+            id:
+              latestContent.id,
+
+            title:
+              latestContent.title,
+
+            status:
+              latestContent.status,
+
+            attention_type:
+              latestContent.attention_type,
+
+            market_keyword:
+              latestContent.market_keyword,
+
+            cta:
+              latestContent.cta,
+
+            content_text:
+              latestContent.content_text
+          },
+
+          publish: {
+            status: "READY",
+            channel: body.channel || "MANUAL",
+            platform:
+              body.platform || "SOCIAL_MEDIA"
+          },
+
+          next_step:
+            "ส่ง Content ไปยัง Publishing Channel"
+        };
+      }
     }
 
     /*
@@ -500,9 +658,19 @@ export async function onRequestPost(context) {
 
     const inputData = {
       action_type: actionType,
+
       source:
         body.source ||
         ACTION_TYPES[actionType].source,
+
+      decision_type:
+        body.decision_type || null,
+
+      decision_score:
+        body.decision_score || null,
+
+      decision_priority:
+        body.decision_priority || null,
 
       attention_events:
         attentionEvents.length,
@@ -514,7 +682,10 @@ export async function onRequestPost(context) {
         customerCount,
 
       ai_insights:
-        insights.length
+        insights.length,
+
+      content:
+        contents.length
     };
 
     await env.DB.prepare(`
@@ -585,7 +756,10 @@ export async function onRequestPost(context) {
           customerCount,
 
         ai_insights:
-          insights.length
+          insights.length,
+
+        content:
+          contents.length
       },
 
       result: output
