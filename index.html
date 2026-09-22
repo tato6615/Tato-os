@@ -1,1162 +1,1549 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TATO HQ — Coffee Intelligence OS</title>
-
-<style>
-:root{
-  --bg:#090909;
-  --panel:#111111;
-  --panel2:#151515;
-  --line:#262626;
-  --text:#f5f5f5;
-  --muted:#8b8b8b;
-  --orange:#ff7a00;
-  --orange2:#ff9a3d;
-  --green:#31d07c;
-  --red:#ff5757;
-  --yellow:#ffc857;
-}
-
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-}
-
-button,input,select,textarea{
-  font:inherit;
-}
-
-button{
-  cursor:pointer;
-}
-
-.app{
-  min-height:100vh;
-  display:flex;
-}
-
-/* SIDEBAR */
-.sidebar{
-  width:230px;
-  background:#0c0c0c;
-  border-right:1px solid var(--line);
-  position:fixed;
-  inset:0 auto 0 0;
-  padding:24px 14px;
-  z-index:10;
-}
-
-.logo{
-  padding:0 12px 26px;
-  border-bottom:1px solid var(--line);
-  margin-bottom:16px;
-}
-
-.logo-main{
-  font-size:23px;
-  font-weight:800;
-  letter-spacing:2px;
-}
-
-.logo-sub{
-  color:var(--orange);
-  font-size:10px;
-  letter-spacing:2px;
-  margin-top:5px;
-}
-
-.nav{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-
-.nav button{
-  border:0;
-  background:transparent;
-  color:#888;
-  text-align:left;
-  padding:11px 12px;
-  border-radius:8px;
-  font-size:13px;
-}
-
-.nav button:hover,
-.nav button.active{
-  background:#1b1b1b;
-  color:#fff;
-}
-
-.nav button.active{
-  border-left:2px solid var(--orange);
-}
-
-/* MAIN */
-.main{
-  margin-left:230px;
-  width:calc(100% - 230px);
-}
-
-.topbar{
-  height:68px;
-  border-bottom:1px solid var(--line);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 28px;
-  position:sticky;
-  top:0;
-  background:rgba(9,9,9,.94);
-  backdrop-filter:blur(10px);
-  z-index:5;
-}
-
-.status{
-  font-size:11px;
-  color:var(--green);
-  letter-spacing:1px;
-}
-
-.top-actions{
-  display:flex;
-  gap:8px;
-}
-
-.btn{
-  background:#1b1b1b;
-  border:1px solid var(--line);
-  color:#fff;
-  padding:8px 13px;
-  border-radius:7px;
-  font-size:12px;
-}
-
-.btn:hover{
-  border-color:#555;
-}
-
-.btn.primary{
-  background:var(--orange);
-  border-color:var(--orange);
-  color:#000;
-  font-weight:700;
-}
-
-.page{
-  padding:28px;
-  max-width:1600px;
-  margin:auto;
-}
-
-.view{
-  display:none;
-}
-
-.view.active{
-  display:block;
-}
-
-/* HEADERS */
-.page-header{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:20px;
-  margin-bottom:24px;
-}
-
-.page-title{
-  font-size:28px;
-  font-weight:800;
-  letter-spacing:-.5px;
-}
-
-.page-subtitle{
-  color:var(--muted);
-  font-size:12px;
-  margin-top:5px;
-}
-
-/* KPI */
-.kpi-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:12px;
-  margin-bottom:18px;
-}
-
-.kpi-card{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:18px;
-}
-
-.kpi-label{
-  color:var(--muted);
-  font-size:10px;
-  letter-spacing:1.4px;
-  margin-bottom:10px;
-}
-
-.kpi-value{
-  font-size:28px;
-  font-weight:800;
-}
-
-.kpi-meta{
-  color:#666;
-  font-size:10px;
-  margin-top:5px;
-}
-
-/* PANELS */
-.grid{
-  display:grid;
-  gap:14px;
-}
-
-.grid-2{
-  grid-template-columns:1fr 1fr;
-}
-
-.grid-3{
-  grid-template-columns:repeat(3,1fr);
-}
-
-.panel{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:18px;
-  margin-bottom:14px;
-}
-
-.panel-title{
-  font-size:12px;
-  font-weight:700;
-  letter-spacing:1px;
-  margin-bottom:15px;
-}
-
-.panel-sub{
-  color:#666;
-  font-size:10px;
-  margin-top:-9px;
-  margin-bottom:14px;
-}
-
-/* COMMAND CENTER */
-.command{
-  border-color:#33210f;
-  background:
-    linear-gradient(135deg,#12100d,#101010 55%);
-}
-
-.command-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:18px;
-}
-
-.command-title{
-  font-size:17px;
-  font-weight:800;
-}
-
-.command-flow{
-  color:var(--orange);
-  font-size:10px;
-  letter-spacing:1px;
-  margin-top:5px;
-}
-
-.queue{
-  display:flex;
-  flex-direction:column;
-  gap:9px;
-}
-
-.queue-item{
-  border:1px solid var(--line);
-  background:#0d0d0d;
-  border-radius:8px;
-  padding:12px;
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.queue-title{
-  font-size:12px;
-  font-weight:700;
-}
-
-.queue-desc,
-.muted{
-  color:#777;
-  font-size:10px;
-  margin-top:4px;
-  line-height:1.5;
-}
-
-.badge{
-  height:max-content;
-  padding:4px 7px;
-  border-radius:5px;
-  background:#1c1c1c;
-  color:#aaa;
-  font-size:9px;
-  white-space:nowrap;
-}
-
-.badge.high{
-  background:#351b0a;
-  color:var(--orange2);
-}
-
-.badge.ready{
-  background:#0e281a;
-  color:var(--green);
-}
-
-.empty{
-  color:#666;
-  font-size:11px;
-  padding:20px 0;
-}
-
-/* TABLE */
-.table-wrap{
-  overflow:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:11px;
-}
-
-th{
-  text-align:left;
-  color:#666;
-  font-size:9px;
-  letter-spacing:1px;
-  padding:10px;
-  border-bottom:1px solid var(--line);
-}
-
-td{
-  padding:11px 10px;
-  border-bottom:1px solid #191919;
-  color:#ccc;
-}
-
-td:first-child{
-  color:#fff;
-}
-
-/* FORMS */
-.form-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-}
-
-.field{
-  display:flex;
-  flex-direction:column;
-  gap:5px;
-}
-
-.field label{
-  color:#777;
-  font-size:10px;
-}
-
-.field input,
-.field select,
-.field textarea{
-  background:#0c0c0c;
-  color:#fff;
-  border:1px solid var(--line);
-  border-radius:6px;
-  padding:9px;
-  outline:none;
-}
-
-.field textarea{
-  min-height:90px;
-  resize:vertical;
-}
-
-.full{
-  grid-column:1/-1;
-}
-
-/* LOADING */
-.loading{
-  color:#777;
-  font-size:11px;
-  padding:15px 0;
-}
-
-.error{
-  color:var(--red);
-  font-size:11px;
-  padding:10px 0;
-}
-
-/* MOBILE */
-@media(max-width:900px){
-  .sidebar{
-    width:190px;
-  }
-
-  .main{
-    margin-left:190px;
-    width:calc(100% - 190px);
-  }
-
-  .kpi-grid{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .grid-2,
-  .grid-3{
-    grid-template-columns:1fr;
-  }
-}
-
-@media(max-width:650px){
-  .sidebar{
-    width:64px;
-    padding:15px 7px;
-  }
-
-  .logo{
-    padding:5px 4px 18px;
-  }
-
-  .logo-main{
-    font-size:15px;
-  }
-
-  .logo-sub{
-    display:none;
-  }
-
-  .nav button{
-    font-size:0;
-    text-align:center;
-  }
-
-  .nav button::first-letter{
-    font-size:16px;
-  }
-
-  .main{
-    margin-left:64px;
-    width:calc(100% - 64px);
-  }
-
-  .page{
-    padding:18px 12px;
-  }
-
-  .topbar{
-    padding:0 12px;
-  }
-
-  .kpi-grid{
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-  }
-
-  .kpi-card{
-    padding:13px;
-  }
-
-  .kpi-value{
-    font-size:22px;
-  }
-
-  .form-grid{
-    grid-template-columns:1fr;
-  }
-
-  .full{
-    grid-column:auto;
-  }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>TATO HQ — Coffee Intelligence OS</title>
+
+  <style>
+    :root {
+      --bg: #090909;
+      --panel: #111111;
+      --panel-2: #151515;
+      --line: #262626;
+      --text: #f5f5f5;
+      --muted: #8b8b8b;
+      --orange: #ff7a00;
+      --orange-2: #ff9a3d;
+      --green: #31d07c;
+      --red: #ff5757;
+      --yellow: #ffc857;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* =========================================================
+       APP
+    ========================================================= */
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* =========================================================
+       SIDEBAR
+    ========================================================= */
+
+    .sidebar {
+      width: 230px;
+      background: #0c0c0c;
+      border-right: 1px solid var(--line);
+      position: fixed;
+      inset: 0 auto 0 0;
+      padding: 24px 14px;
+      z-index: 10;
+    }
+
+    .logo {
+      padding: 0 12px 26px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    .logo-main {
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .logo-sub {
+      color: var(--orange);
+      font-size: 10px;
+      letter-spacing: 2px;
+      margin-top: 5px;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      color: #888;
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      background: #1b1b1b;
+      color: #fff;
+    }
+
+    .nav button.active {
+      border-left: 2px solid var(--orange);
+    }
+
+    /* =========================================================
+       MAIN
+    ========================================================= */
+
+    .main {
+      margin-left: 230px;
+      width: calc(100% - 230px);
+    }
+
+    .topbar {
+      height: 68px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      background: rgba(9, 9, 9, 0.94);
+      backdrop-filter: blur(10px);
+      z-index: 5;
+    }
+
+    .status {
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 1px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .page {
+      padding: 28px;
+      max-width: 1600px;
+      margin: auto;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    /* =========================================================
+       BUTTONS
+    ========================================================= */
+
+    .btn {
+      background: #1b1b1b;
+      border: 1px solid var(--line);
+      color: #fff;
+      padding: 8px 13px;
+      border-radius: 7px;
+      font-size: 12px;
+    }
+
+    .btn:hover {
+      border-color: #555;
+    }
+
+    .btn.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #000;
+      font-weight: 700;
+    }
+
+    /* =========================================================
+       HEADERS
+    ========================================================= */
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    /* =========================================================
+       KPI
+    ========================================================= */
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1.4px;
+      margin-bottom: 10px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .kpi-meta {
+      color: #666;
+      font-size: 10px;
+      margin-top: 5px;
+    }
+
+    /* =========================================================
+       GRID / PANELS
+    ========================================================= */
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+    }
+
+    .panel-sub {
+      color: #666;
+      font-size: 10px;
+      margin-top: -9px;
+      margin-bottom: 14px;
+    }
+
+    /* =========================================================
+       COMMAND CENTER
+    ========================================================= */
+
+    .command {
+      border-color: #33210f;
+      background:
+        linear-gradient(
+          135deg,
+          #12100d,
+          #101010 55%
+        );
+    }
+
+    .command-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .command-title {
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .command-flow {
+      color: var(--orange);
+      font-size: 10px;
+      letter-spacing: 1px;
+      margin-top: 5px;
+    }
+
+    /* =========================================================
+       QUEUES
+    ========================================================= */
+
+    .queue {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .queue-item {
+      border: 1px solid var(--line);
+      background: #0d0d0d;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .queue-title {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .queue-desc {
+      color: #777;
+      font-size: 10px;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .badge {
+      height: max-content;
+      padding: 4px 7px;
+      border-radius: 5px;
+      background: #1c1c1c;
+      color: #aaa;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .badge.high {
+      background: #351b0a;
+      color: var(--orange-2);
+    }
+
+    .badge.ready {
+      background: #0e281a;
+      color: var(--green);
+    }
+
+    .empty {
+      color: #666;
+      font-size: 11px;
+      padding: 20px 0;
+    }
+
+    .loading {
+      color: #777;
+      font-size: 11px;
+      padding: 15px 0;
+    }
+
+    .error {
+      color: var(--red);
+      font-size: 11px;
+      padding: 10px 0;
+    }
+
+    /* =========================================================
+       TABLES
+    ========================================================= */
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    th {
+      text-align: left;
+      color: #666;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    td {
+      padding: 11px 10px;
+      border-bottom: 1px solid #191919;
+      color: #ccc;
+    }
+
+    td:first-child {
+      color: #fff;
+    }
+
+    /* =========================================================
+       FORMS
+    ========================================================= */
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field label {
+      color: #777;
+      font-size: 10px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      background: #0c0c0c;
+      color: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    /* =========================================================
+       MOBILE
+    ========================================================= */
+
+    @media (max-width: 900px) {
+      .sidebar {
+        width: 190px;
+      }
+
+      .main {
+        margin-left: 190px;
+        width: calc(100% - 190px);
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .sidebar {
+        width: 64px;
+        padding: 15px 7px;
+      }
+
+      .logo {
+        padding: 5px 4px 18px;
+      }
+
+      .logo-main {
+        font-size: 15px;
+      }
+
+      .logo-sub {
+        display: none;
+      }
+
+      .nav button {
+        font-size: 0;
+        text-align: center;
+      }
+
+      .nav button::first-letter {
+        font-size: 16px;
+      }
+
+      .main {
+        margin-left: 64px;
+        width: calc(100% - 64px);
+      }
+
+      .page {
+        padding: 18px 12px;
+      }
+
+      .topbar {
+        padding: 0 12px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .kpi-card {
+        padding: 13px;
+      }
+
+      .kpi-value {
+        font-size: 22px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full {
+        grid-column: auto;
+      }
+
+      .command-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
 <div class="app">
 
-<!-- ========================================================= -->
-<!-- SIDEBAR -->
-<!-- ========================================================= -->
+  <!-- =======================================================
+       SIDEBAR
+  ======================================================== -->
 
-<aside class="sidebar">
+  <aside class="sidebar">
 
-  <div class="logo">
-    <div class="logo-main">TATO HQ</div>
-    <div class="logo-sub">COFFEE INTELLIGENCE OS</div>
-  </div>
-
-  <nav class="nav">
-
-    <button class="active" data-view="overview">◉ Overview</button>
-    <button data-view="market">◈ Market</button>
-    <button data-view="behavior">◌ Behavior</button>
-    <button data-view="customers">♙ Customers</button>
-    <button data-view="products">▣ Products</button>
-    <button data-view="sales">฿ Sales</button>
-    <button data-view="ai">✦ AI Team</button>
-    <button data-view="content">▤ Content</button>
-    <button data-view="automation">⚙ Automation</button>
-    <button data-view="settings">◉ Settings</button>
-
-  </nav>
-
-</aside>
-
-<!-- ========================================================= -->
-<!-- MAIN -->
-<!-- ========================================================= -->
-
-<main class="main">
-
-<header class="topbar">
-
-  <div>
-    <span class="status" id="system-status">● D1 CONNECTED</span>
-  </div>
-
-  <div class="top-actions">
-    <button class="btn" onclick="loadAll()">↻ Refresh</button>
-  </div>
-
-</header>
-
-<div class="page">
-
-<!-- ========================================================= -->
-<!-- OVERVIEW -->
-<!-- ========================================================= -->
-
-<section id="view-overview" class="view active">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Command Center</div>
-      <div class="page-subtitle">
-        TATO Coffee — Data → Intelligence → Decision → Action
-      </div>
-    </div>
-  </div>
-
-  <div class="kpi-grid">
-
-    <div class="kpi-card">
-      <div class="kpi-label">CUSTOMERS</div>
-      <div class="kpi-value" id="k-customers">0</div>
-      <div class="kpi-meta">stored customers</div>
+    <div class="logo">
+      <div class="logo-main">TATO HQ</div>
+      <div class="logo-sub">COFFEE INTELLIGENCE OS</div>
     </div>
 
-    <div class="kpi-card">
-      <div class="kpi-label">PRODUCTS</div>
-      <div class="kpi-value" id="k-products">0</div>
-      <div class="kpi-meta">products</div>
-    </div>
+    <nav class="nav">
+      <button class="active" data-view="overview">◉ Overview</button>
+      <button data-view="market">◈ Market</button>
+      <button data-view="behavior">◌ Behavior</button>
+      <button data-view="customers">♙ Customers</button>
+      <button data-view="products">▣ Products</button>
+      <button data-view="sales">฿ Sales</button>
+      <button data-view="ai">✦ AI Team</button>
+      <button data-view="content">▤ Content</button>
+      <button data-view="automation">⚙ Automation</button>
+      <button data-view="settings">◉ Settings</button>
+    </nav>
 
-    <div class="kpi-card">
-      <div class="kpi-label">ORDERS</div>
-      <div class="kpi-value" id="k-orders">0</div>
-      <div class="kpi-meta">orders</div>
-    </div>
+  </aside>
 
-    <div class="kpi-card">
-      <div class="kpi-label">REVENUE</div>
-      <div class="kpi-value" id="k-revenue">฿0</div>
-      <div class="kpi-meta">total sales</div>
-    </div>
+  <!-- =======================================================
+       MAIN
+  ======================================================== -->
 
-  </div>
+  <main class="main">
 
-  <!-- COMMAND CENTER -->
-  <div class="panel command">
-
-    <div class="command-header">
+    <header class="topbar">
 
       <div>
-        <div class="command-title">
-          TATO Intelligence Command Center
-        </div>
-
-        <div class="command-flow">
-          DATA → INTELLIGENCE → DECISION → ACTION
-        </div>
+        <span
+          class="status"
+          id="system-status"
+        >
+          ● D1 CONNECTED
+        </span>
       </div>
 
-      <button class="btn primary" onclick="runCommandCenter()">
-        RUN INTELLIGENCE
-      </button>
-
-    </div>
-
-    <div class="kpi-grid">
-
-      <div class="kpi-card">
-        <div class="kpi-label">ATTENTION</div>
-        <div class="kpi-value" id="cc-attention">0</div>
-        <div class="kpi-meta">attention signals</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-label">MARKET SIGNALS</div>
-        <div class="kpi-value" id="cc-market">0</div>
-        <div class="kpi-meta">market signals</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-label">AI INSIGHTS</div>
-        <div class="kpi-value" id="cc-ai">0</div>
-        <div class="kpi-meta">available insights</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-label">WORKFLOWS</div>
-        <div class="kpi-value" id="cc-workflows">0</div>
-        <div class="kpi-meta">automation workflows</div>
-      </div>
-
-    </div>
-
-    <div class="grid grid-2">
-
-      <div>
-        <div class="panel-title">DECISION QUEUE</div>
-        <div id="decision-queue" class="queue">
-          <div class="loading">Waiting for intelligence...</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="panel-title">ACTION QUEUE</div>
-        <div id="action-queue" class="queue">
-          <div class="loading">Waiting for decisions...</div>
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- ATTENTION / MARKET -->
-  <div class="grid grid-2">
-
-    <div class="panel">
-
-      <div class="panel-title">ATTENTION SIGNALS</div>
-
-      <div id="attention-list">
-        <div class="empty">No attention data</div>
-      </div>
-
-    </div>
-
-    <div class="panel">
-
-      <div class="panel-title">LATEST MARKET SIGNALS</div>
-
-      <div id="market-list">
-        <div class="empty">No market signals</div>
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- RECENT -->
-  <div class="grid grid-2">
-
-    <div class="panel">
-
-      <div class="panel-title">RECENT BEHAVIOR</div>
-
-      <div id="recent-behavior">
-        <div class="empty">No behavior data</div>
-      </div>
-
-    </div>
-
-    <div class="panel">
-
-      <div class="panel-title">LATEST AI INSIGHTS</div>
-
-      <div id="recent-insights">
-        <div class="empty">No AI insights</div>
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- CUSTOMERS -->
-<!-- ========================================================= -->
-
-<section id="view-customers" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Customers</div>
-      <div class="page-subtitle">Customer intelligence database</div>
-    </div>
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">CUSTOMER DATABASE</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>NAME</th>
-            <th>EMAIL</th>
-            <th>PHONE</th>
-            <th>CREATED</th>
-          </tr>
-        </thead>
-
-        <tbody id="customers-table">
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- PRODUCTS -->
-<!-- ========================================================= -->
-
-<section id="view-products" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Products</div>
-      <div class="page-subtitle">TATO product intelligence</div>
-    </div>
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">PRODUCT DATABASE</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>NAME</th>
-            <th>PRICE</th>
-            <th>COST</th>
-            <th>STATUS</th>
-          </tr>
-        </thead>
-
-        <tbody id="products-table">
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- SALES -->
-<!-- ========================================================= -->
-
-<section id="view-sales" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Sales</div>
-      <div class="page-subtitle">Orders and revenue intelligence</div>
-    </div>
-  </div>
-
-  <div class="kpi-grid">
-
-    <div class="kpi-card">
-      <div class="kpi-label">ORDERS</div>
-      <div class="kpi-value" id="sales-orders">0</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-label">REVENUE</div>
-      <div class="kpi-value" id="sales-revenue">฿0</div>
-    </div>
-
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">ORDER DATABASE</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>CUSTOMER</th>
-            <th>AMOUNT</th>
-            <th>STATUS</th>
-            <th>CREATED</th>
-          </tr>
-        </thead>
-
-        <tbody id="orders-table">
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- BEHAVIOR -->
-<!-- ========================================================= -->
-
-<section id="view-behavior" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Behavior</div>
-      <div class="page-subtitle">
-        ATTENTION — what users actually do
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">EVENT TYPES</div>
-
-    <div id="behavior-types">
-      <div class="empty">No behavior data</div>
-    </div>
-
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">LATEST EVENTS</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <thead>
-          <tr>
-            <th>EVENT</th>
-            <th>USER</th>
-            <th>PAGE</th>
-            <th>CREATED</th>
-          </tr>
-        </thead>
-
-        <tbody id="behavior-table">
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- MARKET -->
-<!-- ========================================================= -->
-
-<section id="view-market" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Market</div>
-      <div class="page-subtitle">External demand and market signals</div>
-    </div>
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">MARKET SIGNALS</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <thead>
-          <tr>
-            <th>KEYWORD</th>
-            <th>SIGNAL</th>
-            <th>SOURCE</th>
-            <th>DETECTED</th>
-          </tr>
-        </thead>
-
-        <tbody id="market-table">
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- AI -->
-<!-- ========================================================= -->
-
-<section id="view-ai" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">AI Team</div>
-      <div class="page-subtitle">AI runs and intelligence outputs</div>
-    </div>
-  </div>
-
-  <div class="grid grid-2">
-
-    <div class="panel">
-
-      <div class="panel-title">AI RUNS</div>
-
-      <div class="table-wrap">
-
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>TYPE</th>
-              <th>STATUS</th>
-              <th>CREATED</th>
-            </tr>
-          </thead>
-
-          <tbody id="ai-runs-table">
-          </tbody>
-        </table>
-
-      </div>
-
-    </div>
-
-    <div class="panel">
-
-      <div class="panel-title">AI INSIGHTS</div>
-
-      <div id="ai-insights-list">
-        <div class="empty">No AI insights</div>
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- CONTENT -->
-<!-- ========================================================= -->
-
-<section id="view-content" class="view">
-
-  <div class="page-header">
-    <div>
-      <div class="page-title">Content</div>
-      <div class="page-subtitle">
-        Content layer — driven by attention and market intelligence
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">CONTENT ENGINE</div>
-
-    <div class="empty">
-      Content data layer ready.
-      Connect ATTENTION → CONTENT → TEST → WINNER → REUSE.
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- AUTOMATION -->
-<!-- ========================================================= -->
-
-<section id="view-automation" class="view">
-
-  <div class="page-header">
-
-    <div>
-      <div class="page-title">Automation</div>
-      <div class="page-subtitle">
-        Decision → Action → Workflow
-      </div>
-    </div>
-
-    <button class="btn primary" onclick="showWorkflowForm()">
-      + New Workflow
-    </button>
-
-  </div>
-
-  <div id="workflow-form" class="panel" style="display:none">
-
-    <div class="panel-title">CREATE WORKFLOW</div>
-
-    <div class="form-grid">
-
-      <div class="field">
-        <label>NAME</label>
-        <input id="wf-name" placeholder="Workflow name">
-      </div>
-
-      <div class="field">
-        <label>TRIGGER TYPE</label>
-
-        <select id="wf-trigger">
-          <option value="manual">manual</option>
-          <option value="behavior">behavior</option>
-          <option value="market">market</option>
-          <option value="schedule">schedule</option>
-        </select>
-
-      </div>
-
-      <div class="field full">
-        <label>DESCRIPTION</label>
-        <textarea id="wf-description"></textarea>
-      </div>
-
-      <div class="full">
-        <button class="btn primary" onclick="createWorkflow()">
-          CREATE WORKFLOW
+      <div class="top-actions">
+        <button
+          class="btn"
+          onclick="loadAll()"
+        >
+          ↻ Refresh
         </button>
       </div>
 
+    </header>
+
+    <div class="page">
+
+      <!-- ===================================================
+           OVERVIEW
+      ==================================================== -->
+
+      <section
+        id="view-overview"
+        class="view active"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Command Center
+            </div>
+
+            <div class="page-subtitle">
+              TATO Coffee — Data → Intelligence → Decision → Action
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CORE KPIs -->
+
+        <div class="kpi-grid">
+
+          <div class="kpi-card">
+            <div class="kpi-label">CUSTOMERS</div>
+            <div
+              class="kpi-value"
+              id="k-customers"
+            >
+              0
+            </div>
+            <div class="kpi-meta">
+              stored customers
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">PRODUCTS</div>
+            <div
+              class="kpi-value"
+              id="k-products"
+            >
+              0
+            </div>
+            <div class="kpi-meta">
+              products
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">ORDERS</div>
+            <div
+              class="kpi-value"
+              id="k-orders"
+            >
+              0
+            </div>
+            <div class="kpi-meta">
+              orders
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">REVENUE</div>
+            <div
+              class="kpi-value"
+              id="k-revenue"
+            >
+              ฿0
+            </div>
+            <div class="kpi-meta">
+              total sales
+            </div>
+          </div>
+
+        </div>
+
+        <!-- COMMAND CENTER -->
+
+        <div class="panel command">
+
+          <div class="command-header">
+
+            <div>
+              <div class="command-title">
+                TATO Intelligence Command Center
+              </div>
+
+              <div class="command-flow">
+                DATA → INTELLIGENCE → DECISION → ACTION
+              </div>
+            </div>
+
+            <button
+              class="btn primary"
+              onclick="runCommandCenter()"
+            >
+              RUN INTELLIGENCE
+            </button>
+
+          </div>
+
+          <!-- INTELLIGENCE KPIs -->
+
+          <div class="kpi-grid">
+
+            <div class="kpi-card">
+              <div class="kpi-label">
+                ATTENTION
+              </div>
+
+              <div
+                class="kpi-value"
+                id="cc-attention"
+              >
+                0
+              </div>
+
+              <div class="kpi-meta">
+                attention signals
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">
+                MARKET SIGNALS
+              </div>
+
+              <div
+                class="kpi-value"
+                id="cc-market"
+              >
+                0
+              </div>
+
+              <div class="kpi-meta">
+                market signals
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">
+                AI INSIGHTS
+              </div>
+
+              <div
+                class="kpi-value"
+                id="cc-ai"
+              >
+                0
+              </div>
+
+              <div class="kpi-meta">
+                available insights
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">
+                WORKFLOWS
+              </div>
+
+              <div
+                class="kpi-value"
+                id="cc-workflows"
+              >
+                0
+              </div>
+
+              <div class="kpi-meta">
+                automation workflows
+              </div>
+            </div>
+
+          </div>
+
+          <!-- DECISION + ACTION -->
+
+          <div class="grid grid-2">
+
+            <div>
+
+              <div class="panel-title">
+                DECISION QUEUE
+              </div>
+
+              <div
+                id="decision-queue"
+                class="queue"
+              >
+                <div class="loading">
+                  Waiting for intelligence...
+                </div>
+              </div>
+
+            </div>
+
+            <div>
+
+              <div class="panel-title">
+                ACTION QUEUE
+              </div>
+
+              <div
+                id="action-queue"
+                class="queue"
+              >
+                <div class="loading">
+                  Waiting for decisions...
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ATTENTION + MARKET -->
+
+        <div class="grid grid-2">
+
+          <div class="panel">
+
+            <div class="panel-title">
+              ATTENTION SIGNALS
+            </div>
+
+            <div id="attention-list">
+              <div class="empty">
+                No attention signals
+              </div>
+            </div>
+
+          </div>
+
+          <div class="panel">
+
+            <div class="panel-title">
+              LATEST MARKET SIGNALS
+            </div>
+
+            <div id="market-list">
+              <div class="empty">
+                No market signals
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- BEHAVIOR + AI -->
+
+        <div class="grid grid-2">
+
+          <div class="panel">
+
+            <div class="panel-title">
+              RECENT BEHAVIOR
+            </div>
+
+            <div id="recent-behavior">
+              <div class="empty">
+                No behavior events
+              </div>
+            </div>
+
+          </div>
+
+          <div class="panel">
+
+            <div class="panel-title">
+              LATEST AI INSIGHTS
+            </div>
+
+            <div id="recent-insights">
+              <div class="empty">
+                No AI insights
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           CUSTOMERS
+      ==================================================== -->
+
+      <section
+        id="view-customers"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Customers
+            </div>
+
+            <div class="page-subtitle">
+              Customer intelligence database
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            CUSTOMER DATABASE
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>NAME</th>
+                  <th>EMAIL</th>
+                  <th>PHONE</th>
+                  <th>CREATED</th>
+                </tr>
+              </thead>
+
+              <tbody id="customers-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           PRODUCTS
+      ==================================================== -->
+
+      <section
+        id="view-products"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Products
+            </div>
+
+            <div class="page-subtitle">
+              TATO product intelligence
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            PRODUCT DATABASE
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>NAME</th>
+                  <th>PRICE</th>
+                  <th>COST</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+
+              <tbody id="products-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           SALES
+      ==================================================== -->
+
+      <section
+        id="view-sales"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Sales
+            </div>
+
+            <div class="page-subtitle">
+              Orders and revenue intelligence
+            </div>
+          </div>
+
+        </div>
+
+        <div class="kpi-grid">
+
+          <div class="kpi-card">
+
+            <div class="kpi-label">
+              ORDERS
+            </div>
+
+            <div
+              class="kpi-value"
+              id="sales-orders"
+            >
+              0
+            </div>
+
+          </div>
+
+          <div class="kpi-card">
+
+            <div class="kpi-label">
+              REVENUE
+            </div>
+
+            <div
+              class="kpi-value"
+              id="sales-revenue"
+            >
+              ฿0
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            ORDER DATABASE
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>CUSTOMER</th>
+                  <th>AMOUNT</th>
+                  <th>STATUS</th>
+                  <th>CREATED</th>
+                </tr>
+              </thead>
+
+              <tbody id="orders-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           BEHAVIOR
+      ==================================================== -->
+
+      <section
+        id="view-behavior"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Behavior
+            </div>
+
+            <div class="page-subtitle">
+              ATTENTION — what users actually do
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            EVENT TYPES
+          </div>
+
+          <div id="behavior-types">
+            <div class="empty">
+              No behavior data
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            LATEST EVENTS
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+                <tr>
+                  <th>EVENT</th>
+                  <th>USER</th>
+                  <th>PAGE</th>
+                  <th>CREATED</th>
+                </tr>
+              </thead>
+
+              <tbody id="behavior-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           MARKET
+      ==================================================== -->
+
+      <section
+        id="view-market"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Market
+            </div>
+
+            <div class="page-subtitle">
+              External demand and market signals
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            MARKET SIGNALS
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <thead>
+                <tr>
+                  <th>KEYWORD</th>
+                  <th>SIGNAL</th>
+                  <th>SOURCE</th>
+                  <th>SCORE</th>
+                  <th>DETECTED</th>
+                </tr>
+              </thead>
+
+              <tbody id="market-table"></tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           AI TEAM
+      ==================================================== -->
+
+      <section
+        id="view-ai"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              AI Team
+            </div>
+
+            <div class="page-subtitle">
+              AI runs and intelligence outputs
+            </div>
+          </div>
+
+        </div>
+
+        <div class="grid grid-2">
+
+          <div class="panel">
+
+            <div class="panel-title">
+              AI RUNS
+            </div>
+
+            <div class="table-wrap">
+
+              <table>
+
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>TYPE</th>
+                    <th>STATUS</th>
+                    <th>CREATED</th>
+                  </tr>
+                </thead>
+
+                <tbody id="ai-runs-table"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+          <div class="panel">
+
+            <div class="panel-title">
+              AI INSIGHTS
+            </div>
+
+            <div id="ai-insights-list">
+              <div class="empty">
+                No AI insights
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           CONTENT
+      ==================================================== -->
+
+      <section
+        id="view-content"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Content
+            </div>
+
+            <div class="page-subtitle">
+              Content layer — driven by attention and market intelligence
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            CONTENT ENGINE
+          </div>
+
+          <div class="empty">
+            Content data layer ready.
+            Connect ATTENTION → CONTENT → TEST → WINNER → REUSE.
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           AUTOMATION
+      ==================================================== -->
+
+      <section
+        id="view-automation"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Automation
+            </div>
+
+            <div class="page-subtitle">
+              Decision → Action → Workflow
+            </div>
+          </div>
+
+          <button
+            class="btn primary"
+            onclick="showWorkflowForm()"
+          >
+            + New Workflow
+          </button>
+
+        </div>
+
+        <div
+          id="workflow-form"
+          class="panel"
+          style="display:none"
+        >
+
+          <div class="panel-title">
+            CREATE WORKFLOW
+          </div>
+
+          <div class="form-grid">
+
+            <div class="field">
+
+              <label>NAME</label>
+
+              <input
+                id="wf-name"
+                placeholder="Workflow name"
+              >
+
+            </div>
+
+            <div class="field">
+
+              <label>TRIGGER TYPE</label>
+
+              <select id="wf-trigger">
+                <option value="manual">
+                  manual
+                </option>
+
+                <option value="behavior">
+                  behavior
+                </option>
+
+                <option value="market">
+                  market
+                </option>
+
+                <option value="schedule">
+                  schedule
+                </option>
+              </select>
+
+            </div>
+
+            <div class="field full">
+
+              <label>DESCRIPTION</label>
+
+              <textarea
+                id="wf-description"
+              ></textarea>
+
+            </div>
+
+            <div class="full">
+
+              <button
+                class="btn primary"
+                onclick="createWorkflow()"
+              >
+                CREATE WORKFLOW
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            WORKFLOWS
+          </div>
+
+          <div id="workflow-list">
+            <div class="empty">
+              No workflows
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================
+           SETTINGS
+      ==================================================== -->
+
+      <section
+        id="view-settings"
+        class="view"
+      >
+
+        <div class="page-header">
+
+          <div>
+            <div class="page-title">
+              Settings
+            </div>
+
+            <div class="page-subtitle">
+              TATO OS system configuration
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel">
+
+          <div class="panel-title">
+            DATABASE
+          </div>
+
+          <div class="table-wrap">
+
+            <table>
+
+              <tbody>
+
+                <tr>
+                  <td>D1 Binding</td>
+                  <td>DB</td>
+                </tr>
+
+                <tr>
+                  <td>Database</td>
+                  <td>so_tato</td>
+                </tr>
+
+                <tr>
+                  <td>Status</td>
+                  <td style="color:var(--green)">
+                    ● CONNECTED
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>System</td>
+                  <td>TATO-os</td>
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
     </div>
-
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">WORKFLOWS</div>
-
-    <div id="workflow-list">
-      <div class="empty">No workflows</div>
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ========================================================= -->
-<!-- SETTINGS -->
-<!-- ========================================================= -->
-
-<section id="view-settings" class="view">
-
-  <div class="page-header">
-
-    <div>
-      <div class="page-title">Settings</div>
-      <div class="page-subtitle">TATO OS system configuration</div>
-    </div>
-
-  </div>
-
-  <div class="panel">
-
-    <div class="panel-title">DATABASE</div>
-
-    <div class="table-wrap">
-
-      <table>
-        <tbody>
-
-          <tr>
-            <td>D1 Binding</td>
-            <td>DB</td>
-          </tr>
-
-          <tr>
-            <td>Database</td>
-            <td>so_tato</td>
-          </tr>
-
-          <tr>
-            <td>Status</td>
-            <td style="color:var(--green)">● CONNECTED</td>
-          </tr>
-
-          <tr>
-            <td>System</td>
-            <td>TATO-os</td>
-          </tr>
-
-        </tbody>
-      </table>
-
-    </div>
-
-  </div>
-
-</section>
-
-</div>
-</main>
+  </main>
 
 </div>
 
 <script src="/tracker.js"></script>
 
 <script>
+/* ============================================================
+   TATO OS — FRONTEND
+   Data flow:
 
-/* =========================================================
-   STATE
-========================================================= */
+   D1
+    ↓
+   API
+    ↓
+   State
+    ↓
+   Dashboard
+
+   Command Center is responsible for:
+   KPI + Decision + Action
+
+   D1 API endpoints are responsible for:
+   detailed Behavior / Market / AI / Customers / Products
+============================================================ */
+
+
+/* ============================================================
+   1. STATE
+============================================================ */
 
 const state = {
   customers: [],
@@ -1171,58 +1558,81 @@ const state = {
 };
 
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/* ============================================================
+   2. DOM HELPERS
+============================================================ */
 
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+function $(id) {
+  return document.getElementById(id);
 }
 
 
-function formatMoney(value){
-  const n = Number(value || 0);
+/* ============================================================
+   3. SECURITY / FORMAT HELPERS
+============================================================ */
 
-  return "฿" + n.toLocaleString("th-TH",{
-    maximumFractionDigits:2
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+function formatMoney(value) {
+  const number = Number(value || 0);
+
+  return "฿" + number.toLocaleString("th-TH", {
+    maximumFractionDigits: 2
   });
 }
 
 
-function formatDate(value){
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
 
-  if(!value) return "-";
-
-  try{
-    return new Date(value).toLocaleString("th-TH",{
-      year:"numeric",
-      month:"2-digit",
-      day:"2-digit",
-      hour:"2-digit",
-      minute:"2-digit"
+  try {
+    return new Date(value).toLocaleString("th-TH", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
     });
-  }catch{
-    return value;
+  } catch {
+    return String(value);
   }
 }
 
 
-/* =========================================================
-   API
-========================================================= */
+function setStatus(text, color) {
+  const element = $("system-status");
 
-async function apiGet(url){
+  if (!element) {
+    return;
+  }
 
-  const response = await fetch(url);
+  element.textContent = text;
+  element.style.color = color;
+}
+
+
+/* ============================================================
+   4. API
+============================================================ */
+
+async function apiGet(url) {
+  const response = await fetch(url, {
+    cache: "no-store"
+  });
 
   const data = await response.json();
 
-  if(!response.ok || data.success === false){
+  if (!response.ok || data.success === false) {
     throw new Error(
       data.error || `GET ${url} failed`
     );
@@ -1232,19 +1642,18 @@ async function apiGet(url){
 }
 
 
-async function apiPost(url,body){
-
-  const response = await fetch(url,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json"
+async function apiPost(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
     },
-    body:JSON.stringify(body)
+    body: JSON.stringify(body)
   });
 
   const data = await response.json();
 
-  if(!response.ok || data.success === false){
+  if (!response.ok || data.success === false) {
     throw new Error(
       data.error || `POST ${url} failed`
     );
@@ -1254,494 +1663,776 @@ async function apiPost(url,body){
 }
 
 
-/* =========================================================
-   NAVIGATION
-========================================================= */
+/* ============================================================
+   5. NAVIGATION
+============================================================ */
 
-document.querySelectorAll(".nav button").forEach(button=>{
+document
+  .querySelectorAll(".nav button")
+  .forEach(button => {
 
-  button.addEventListener("click",()=>{
+    button.addEventListener("click", () => {
 
-    const view = button.dataset.view;
+      const viewName = button.dataset.view;
 
-    document.querySelectorAll(".nav button")
-      .forEach(b=>b.classList.remove("active"));
+      document
+        .querySelectorAll(".nav button")
+        .forEach(item => {
+          item.classList.remove("active");
+        });
 
-    button.classList.add("active");
+      button.classList.add("active");
 
-    document.querySelectorAll(".view")
-      .forEach(v=>v.classList.remove("active"));
+      document
+        .querySelectorAll(".view")
+        .forEach(view => {
+          view.classList.remove("active");
+        });
 
-    const target =
-      document.getElementById("view-"+view);
+      const target = $(`view-${viewName}`);
 
-    if(target){
-      target.classList.add("active");
-    }
+      if (target) {
+        target.classList.add("active");
+      }
 
-    if(view === "automation"){
-      loadWorkflows();
-    }
+      if (viewName === "automation") {
+        loadWorkflows();
+      }
+    });
 
   });
 
-});
+
+/* ============================================================
+   6. LOAD ALL D1 DATA
+============================================================ */
+
+async function loadOverview() {
+
+  const [
+    customers,
+    products,
+    orders,
+    behavior,
+    market,
+    aiRuns,
+    aiInsights,
+    workflows
+  ] = await Promise.all([
+
+    apiGet("/api/customers"),
+    apiGet("/api/products"),
+    apiGet("/api/orders"),
+    apiGet("/api/behavior"),
+    apiGet("/api/market"),
+    apiGet("/api/ai-runs"),
+    apiGet("/api/ai-insights"),
+    apiGet("/api/workflows")
+
+  ]);
 
 
-/* =========================================================
-   OVERVIEW DATA
-========================================================= */
+  state.customers =
+    customers.customers ||
+    customers.data ||
+    [];
 
-async function loadOverview(){
 
-  try{
+  state.products =
+    products.products ||
+    products.data ||
+    [];
 
-    const [
-      customers,
-      products,
-      orders,
-      behavior,
-      market,
-      aiRuns,
-      aiInsights,
-      workflows
-    ] = await Promise.all([
 
-      apiGet("/api/customers"),
-      apiGet("/api/products"),
-      apiGet("/api/orders"),
-      apiGet("/api/behavior"),
-      apiGet("/api/market"),
-      apiGet("/api/ai-runs"),
-      apiGet("/api/ai-insights"),
-      apiGet("/api/workflows")
+  state.orders =
+    orders.orders ||
+    orders.data ||
+    [];
 
-    ]);
 
-    state.customers =
-      customers.customers ||
-      customers.data ||
-      [];
+  state.behavior =
+    behavior.behavior ||
+    behavior.events ||
+    behavior.data ||
+    [];
 
-    state.products =
-      products.products ||
-      products.data ||
-      [];
 
-    state.orders =
-      orders.orders ||
-      orders.data ||
-      [];
+  state.market =
+    market.market ||
+    market.signals ||
+    market.data ||
+    [];
 
-    state.behavior =
-      behavior.behavior ||
-      behavior.events ||
-      behavior.data ||
-      [];
 
-    state.market =
-      market.market ||
-      market.signals ||
-      market.data ||
-      [];
+  state.aiRuns =
+    aiRuns.ai_runs ||
+    aiRuns.runs ||
+    aiRuns.data ||
+    [];
 
-    state.aiRuns =
-      aiRuns.ai_runs ||
-      aiRuns.runs ||
-      aiRuns.data ||
-      [];
 
-    state.aiInsights =
-      aiInsights.ai_insights ||
-      aiInsights.insights ||
-      aiInsights.data ||
-      [];
+  state.aiInsights =
+    aiInsights.ai_insights ||
+    aiInsights.insights ||
+    aiInsights.data ||
+    [];
 
-    state.workflows =
-      workflows.workflows ||
-      workflows.data ||
-      [];
 
-    renderAll();
+  state.workflows =
+    workflows.workflows ||
+    workflows.data ||
+    [];
 
-  }catch(error){
 
-    console.error(error);
-
-    document.getElementById("system-status").textContent =
-      "● API ERROR";
-
-    document.getElementById("system-status").style.color =
-      "var(--red)";
-
-  }
-
+  renderAll();
 }
 
 
-/* =========================================================
-   COMMAND CENTER
-========================================================= */
+/* ============================================================
+   7. COMMAND CENTER
+============================================================ */
 
-async function runCommandCenter(){
+async function runCommandCenter() {
 
-  const status =
-    document.getElementById("system-status");
+  setStatus(
+    "● RUNNING INTELLIGENCE...",
+    "var(--orange)"
+  );
 
-  status.textContent =
-    "● RUNNING INTELLIGENCE...";
 
-  status.style.color =
-    "var(--orange)";
-
-  try{
+  try {
 
     const data =
       await apiGet("/api/command-center");
 
+
     state.commandCenter = data;
+
+
+    /*
+      IMPORTANT
+
+      The Command Center API gives us:
+
+      kpis
+      decisions
+      actions
+
+      Detailed cards below are rendered from the
+      D1 data already loaded into state.
+
+      This prevents the frontend from depending on
+      optional nested fields that may not exist in
+      every Command Center response.
+    */
 
     renderCommandCenter(data);
 
-    status.textContent =
-      "● INTELLIGENCE LIVE";
 
-    status.style.color =
-      "var(--green)";
+    setStatus(
+      "● INTELLIGENCE LIVE",
+      "var(--green)"
+    );
 
-  }catch(error){
+  } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Command Center Error:",
+      error
+    );
 
-    status.textContent =
-      "● COMMAND CENTER ERROR";
+    setStatus(
+      "● COMMAND CENTER ERROR",
+      "var(--red)"
+    );
 
-    status.style.color =
-      "var(--red)";
 
-    document.getElementById("decision-queue").innerHTML =
-      `<div class="error">${escapeHtml(error.message)}</div>`;
-
+    $("decision-queue").innerHTML =
+      `<div class="error">
+        ${escapeHtml(error.message)}
+      </div>`;
   }
-
 }
 
 
-function renderCommandCenter(data){
+/* ============================================================
+   8. COMMAND CENTER RENDER
+============================================================ */
 
-  if(!data) return;
+function renderCommandCenter(data) {
 
-  const k =
+  if (!data) {
+    return;
+  }
+
+
+  const kpis =
     data.kpis || {};
 
-  const intelligence =
-    data.intelligence || {};
 
   const decisions =
-    data.decisions || [];
+    Array.isArray(data.decisions)
+      ? data.decisions
+      : [];
+
 
   const actions =
-    data.actions || [];
-
-  document.getElementById("cc-attention").textContent =
-    intelligence.attention?.total || 0;
-
-  document.getElementById("cc-market").textContent =
-    k.market_signals || 0;
-
-  document.getElementById("cc-ai").textContent =
-    k.ai_insights || 0;
-
-  document.getElementById("cc-workflows").textContent =
-    k.workflows || 0;
+    Array.isArray(data.actions)
+      ? data.actions
+      : [];
 
 
-  /* DECISIONS */
+  /* ----------------------------------------------------------
+     KPI
+  ---------------------------------------------------------- */
 
-  const decisionEl =
-    document.getElementById("decision-queue");
+  $("cc-attention").textContent =
+    getAttentionCount();
 
-  if(!decisions.length){
 
-    decisionEl.innerHTML =
-      `<div class="empty">No decisions</div>`;
+  $("cc-market").textContent =
+    Number(kpis.market_signals || 0);
 
-  }else{
 
-    decisionEl.innerHTML =
-      decisions.map(d=>`
+  $("cc-ai").textContent =
+    Number(kpis.ai_insights || 0);
 
-        <div class="queue-item">
 
-          <div>
+  $("cc-workflows").textContent =
+    Number(kpis.workflows || 0);
 
-            <div class="queue-title">
-              ${escapeHtml(
-                d.title || d.type || "Decision"
-              )}
+
+  /* ----------------------------------------------------------
+     DECISION QUEUE
+  ---------------------------------------------------------- */
+
+  if (!decisions.length) {
+
+    $("decision-queue").innerHTML =
+      `<div class="empty">
+        No decisions
+      </div>`;
+
+  } else {
+
+    $("decision-queue").innerHTML =
+      decisions
+        .map(decision => {
+
+          const priority =
+            String(
+              decision.priority || "MEDIUM"
+            ).toUpperCase();
+
+
+          return `
+            <div class="queue-item">
+
+              <div>
+
+                <div class="queue-title">
+                  ${escapeHtml(
+                    decision.title ||
+                    decision.type ||
+                    "Decision"
+                  )}
+                </div>
+
+                <div class="queue-desc">
+                  ${escapeHtml(
+                    decision.reason ||
+                    decision.action ||
+                    ""
+                  )}
+                </div>
+
+              </div>
+
+              <span class="badge ${
+                priority === "HIGH"
+                  ? "high"
+                  : ""
+              }">
+                ${escapeHtml(priority)}
+              </span>
+
             </div>
-
-            <div class="queue-desc">
-              ${escapeHtml(
-                d.reason || d.action || ""
-              )}
-            </div>
-
-          </div>
-
-          <span class="badge ${
-            String(d.priority).toUpperCase() === "HIGH"
-              ? "high"
-              : ""
-          }">
-            ${escapeHtml(
-              d.priority || "MEDIUM"
-            )}
-          </span>
-
-        </div>
-
-      `).join("");
-
+          `;
+        })
+        .join("");
   }
 
 
-  /* ACTIONS */
+  /* ----------------------------------------------------------
+     ACTION QUEUE
+  ---------------------------------------------------------- */
 
-  const actionEl =
-    document.getElementById("action-queue");
+  if (!actions.length) {
 
-  if(!actions.length){
+    $("action-queue").innerHTML =
+      `<div class="empty">
+        No actions
+      </div>`;
 
-    actionEl.innerHTML =
-      `<div class="empty">No actions</div>`;
+  } else {
 
-  }else{
+    $("action-queue").innerHTML =
+      actions
+        .map(action => {
 
-    actionEl.innerHTML =
-      actions.map(a=>`
+          return `
+            <div class="queue-item">
 
-        <div class="queue-item">
+              <div>
 
-          <div>
+                <div class="queue-title">
+                  ${escapeHtml(
+                    action.title ||
+                    action.action_type ||
+                    "Action"
+                  )}
+                </div>
 
-            <div class="queue-title">
-              ${escapeHtml(
-                a.title ||
-                a.action_type ||
-                "Action"
-              )}
+                <div class="queue-desc">
+                  ${escapeHtml(
+                    action.description ||
+                    ""
+                  )}
+                </div>
+
+              </div>
+
+              <span class="badge ready">
+                ${escapeHtml(
+                  action.status ||
+                  "READY"
+                )}
+              </span>
+
             </div>
-
-            <div class="queue-desc">
-              ${escapeHtml(
-                a.description || ""
-              )}
-            </div>
-
-          </div>
-
-          <span class="badge ready">
-            ${escapeHtml(
-              a.status || "READY"
-            )}
-          </span>
-
-        </div>
-
-      `).join("");
-
+          `;
+        })
+        .join("");
   }
 
 
-  /* ATTENTION */
+  /*
+    IMPORTANT:
 
-  const attention =
-    intelligence.attention?.events || [];
+    Do NOT read:
 
-  document.getElementById("attention-list").innerHTML =
-    attention.length
-      ? attention.map(x=>`
+      intelligence.market
+      intelligence.behavior
+      intelligence.ai_insights
 
-        <div class="queue-item">
+    for these detailed panels.
 
-          <div>
-            <div class="queue-title">
-              ${escapeHtml(x.event_type)}
-            </div>
+    The current Command Center response is used for
+    decision intelligence, while the detailed panels
+    use the actual D1 datasets already loaded above.
+  */
 
-            <div class="queue-desc">
-              Attention events detected
-            </div>
-          </div>
-
-          <span class="badge">
-            ${Number(x.total || 0)}
-          </span>
-
-        </div>
-
-      `).join("")
-      : `<div class="empty">No attention signals</div>`;
-
-
-  /* MARKET */
-
-  const markets =
-    intelligence.market || [];
-
-  document.getElementById("market-list").innerHTML =
-    markets.length
-      ? markets.slice(0,8).map(x=>`
-
-        <div class="queue-item">
-
-          <div>
-
-            <div class="queue-title">
-              ${escapeHtml(
-                x.keyword ||
-                x.signal ||
-                x.title ||
-                "Market Signal"
-              )}
-            </div>
-
-            <div class="queue-desc">
-              ${escapeHtml(
-                x.source || ""
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-      `).join("")
-      : `<div class="empty">No market signals</div>`;
-
-
-  /* RECENT BEHAVIOR */
-
-  const recentBehavior =
-    intelligence.behavior || [];
-
-  document.getElementById("recent-behavior").innerHTML =
-    recentBehavior.length
-      ? recentBehavior.slice(0,8).map(x=>`
-
-        <div class="queue-item">
-
-          <div>
-            <div class="queue-title">
-              ${escapeHtml(
-                x.event_type ||
-                x.type ||
-                "event"
-              )}
-            </div>
-
-            <div class="queue-desc">
-              ${formatDate(
-                x.created_at
-              )}
-            </div>
-          </div>
-
-        </div>
-
-      `).join("")
-      : `<div class="empty">No behavior events</div>`;
-
-
-  /* AI INSIGHTS */
-
-  const insights =
-    intelligence.ai_insights || [];
-
-  document.getElementById("recent-insights").innerHTML =
-    insights.length
-      ? insights.slice(0,8).map(x=>`
-
-        <div class="queue-item">
-
-          <div>
-
-            <div class="queue-title">
-              ${escapeHtml(
-                x.title ||
-                x.name ||
-                x.insight ||
-                "AI Insight"
-              )}
-            </div>
-
-            <div class="queue-desc">
-              ${escapeHtml(
-                x.description ||
-                x.content ||
-                ""
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-      `).join("")
-      : `<div class="empty">No AI insights</div>`;
-
+  renderAttentionPanel();
+  renderMarketPanel();
+  renderRecentBehaviorPanel();
+  renderRecentInsightsPanel();
 }
 
 
-/* =========================================================
-   RENDER ALL
-========================================================= */
+/* ============================================================
+   9. ATTENTION
+============================================================ */
 
-function renderAll(){
+function getAttentionEvents() {
 
-  const customers =
-    state.customers;
+  return state.behavior.filter(event => {
 
-  const products =
-    state.products;
+    const type =
+      String(
+        event.event_type ||
+        event.type ||
+        ""
+      ).toLowerCase();
 
-  const orders =
-    state.orders;
 
-  /* KPI */
+    return [
+      "view",
+      "page_view",
+      "product_view",
+      "click",
+      "engagement",
+      "interest"
+    ].includes(type);
 
-  document.getElementById("k-customers").textContent =
-    customers.length;
+  });
+}
 
-  document.getElementById("k-products").textContent =
-    products.length;
 
-  document.getElementById("k-orders").textContent =
-    orders.length;
+function getAttentionCount() {
+
+  return getAttentionEvents().length;
+}
+
+
+function renderAttentionPanel() {
+
+  const attentionEvents =
+    getAttentionEvents();
+
+
+  if (!attentionEvents.length) {
+
+    $("attention-list").innerHTML =
+      `<div class="empty">
+        No attention signals
+      </div>`;
+
+    return;
+  }
+
+
+  /*
+    Group identical event types.
+
+    Example:
+
+    product_view = 1
+    click = 4
+  */
+
+  const grouped = {};
+
+
+  attentionEvents.forEach(event => {
+
+    const type =
+      event.event_type ||
+      event.type ||
+      "unknown";
+
+
+    grouped[type] =
+      (grouped[type] || 0) + 1;
+
+  });
+
+
+  $("attention-list").innerHTML =
+    Object.entries(grouped)
+      .sort(
+        (a, b) => b[1] - a[1]
+      )
+      .map(([type, total]) => {
+
+        return `
+          <div class="queue-item">
+
+            <div>
+
+              <div class="queue-title">
+                ${escapeHtml(type)}
+              </div>
+
+              <div class="queue-desc">
+                Attention events detected
+              </div>
+
+            </div>
+
+            <span class="badge">
+              ${total}
+            </span>
+
+          </div>
+        `;
+      })
+      .join("");
+}
+
+
+/* ============================================================
+   10. MARKET
+============================================================ */
+
+function renderMarketPanel() {
+
+  if (!state.market.length) {
+
+    $("market-list").innerHTML =
+      `<div class="empty">
+        No market signals
+      </div>`;
+
+    return;
+  }
+
+
+  $("market-list").innerHTML =
+    state.market
+      .slice(0, 8)
+      .map(signal => {
+
+        const title =
+          signal.keyword ||
+          signal.title ||
+          signal.signal_type ||
+          signal.type ||
+          "Market Signal";
+
+
+        const score =
+          signal.score !== undefined &&
+          signal.score !== null
+            ? ` · Score ${Number(signal.score)}`
+            : "";
+
+
+        return `
+          <div class="queue-item">
+
+            <div>
+
+              <div class="queue-title">
+                ${escapeHtml(title)}
+              </div>
+
+              <div class="queue-desc">
+
+                ${escapeHtml(
+                  signal.content ||
+                  signal.source ||
+                  ""
+                )}
+
+                ${score}
+
+              </div>
+
+            </div>
+
+            <span class="badge high">
+              MARKET
+            </span>
+
+          </div>
+        `;
+      })
+      .join("");
+}
+
+
+/* ============================================================
+   11. RECENT BEHAVIOR
+============================================================ */
+
+function renderRecentBehaviorPanel() {
+
+  if (!state.behavior.length) {
+
+    $("recent-behavior").innerHTML =
+      `<div class="empty">
+        No behavior events
+      </div>`;
+
+    return;
+  }
+
+
+  $("recent-behavior").innerHTML =
+    state.behavior
+      .slice(0, 8)
+      .map(event => {
+
+        const eventType =
+          event.event_type ||
+          event.type ||
+          "event";
+
+
+        const customer =
+          event.customer_id ||
+          event.user_id ||
+          "anonymous";
+
+
+        return `
+          <div class="queue-item">
+
+            <div>
+
+              <div class="queue-title">
+                ${escapeHtml(eventType)}
+              </div>
+
+              <div class="queue-desc">
+
+                ${
+                  event.page
+                    ? escapeHtml(event.page)
+                    : "Behavior event"
+                }
+
+                ${
+                  event.product_id
+                    ? ` · Product ${escapeHtml(
+                        event.product_id
+                      )}`
+                    : ""
+                }
+
+                ${
+                  event.created_at
+                    ? ` · ${formatDate(
+                        event.created_at
+                      )}`
+                    : ""
+                }
+
+              </div>
+
+            </div>
+
+            <span class="badge">
+              ${escapeHtml(customer)}
+            </span>
+
+          </div>
+        `;
+      })
+      .join("");
+}
+
+
+/* ============================================================
+   12. AI INSIGHTS
+============================================================ */
+
+function renderRecentInsightsPanel() {
+
+  if (!state.aiInsights.length) {
+
+    $("recent-insights").innerHTML =
+      `<div class="empty">
+        No AI insights
+      </div>`;
+
+    return;
+  }
+
+
+  $("recent-insights").innerHTML =
+    state.aiInsights
+      .slice(0, 8)
+      .map(insight => {
+
+        const title =
+          insight.title ||
+          insight.name ||
+          insight.insight_type ||
+          insight.type ||
+          "AI Insight";
+
+
+        const content =
+          insight.content ||
+          insight.description ||
+          insight.insight ||
+          "";
+
+
+        const priority =
+          String(
+            insight.priority || ""
+          ).toUpperCase();
+
+
+        return `
+          <div class="queue-item">
+
+            <div>
+
+              <div class="queue-title">
+                ${escapeHtml(title)}
+              </div>
+
+              <div class="queue-desc">
+                ${escapeHtml(content)}
+              </div>
+
+            </div>
+
+            <span class="badge ${
+              priority === "HIGH"
+                ? "high"
+                : ""
+            }">
+              ${escapeHtml(
+                insight.priority ||
+                "INSIGHT"
+              )}
+            </span>
+
+          </div>
+        `;
+      })
+      .join("");
+}
+
+
+/* ============================================================
+   13. RENDER ALL D1 DATA
+============================================================ */
+
+function renderAll() {
+
+  /* ----------------------------------------------------------
+     CORE KPIs
+  ---------------------------------------------------------- */
+
+  $("k-customers").textContent =
+    state.customers.length;
+
+
+  $("k-products").textContent =
+    state.products.length;
+
+
+  $("k-orders").textContent =
+    state.orders.length;
+
 
   const revenue =
-    orders.reduce((sum,o)=>{
+    state.orders.reduce(
+      (total, order) => {
 
-      return sum +
-        Number(
-          o.total_amount ??
-          o.amount ??
-          o.total ??
-          0
-        );
+        return total +
+          Number(
+            order.amount ??
+            order.total_amount ??
+            order.total ??
+            0
+          );
 
-    },0);
+      },
+      0
+    );
 
-  document.getElementById("k-revenue").textContent =
+
+  $("k-revenue").textContent =
     formatMoney(revenue);
 
-  document.getElementById("sales-orders").textContent =
-    orders.length;
 
-  document.getElementById("sales-revenue").textContent =
+  $("sales-orders").textContent =
+    state.orders.length;
+
+
+  $("sales-revenue").textContent =
     formatMoney(revenue);
 
+
+  /* ----------------------------------------------------------
+     INDIVIDUAL VIEWS
+  ---------------------------------------------------------- */
 
   renderCustomers();
   renderProducts();
@@ -1751,521 +2442,768 @@ function renderAll(){
   renderAI();
   renderWorkflows();
 
+
+  /*
+    If Command Center has already run,
+    refresh its detail panels immediately.
+  */
+
+  if (state.commandCenter) {
+    renderAttentionPanel();
+    renderMarketPanel();
+    renderRecentBehaviorPanel();
+    renderRecentInsightsPanel();
+
+    $("cc-attention").textContent =
+      getAttentionCount();
+  }
 }
 
 
-/* =========================================================
-   CUSTOMERS
-========================================================= */
+/* ============================================================
+   14. CUSTOMERS
+============================================================ */
 
-function renderCustomers(){
+function renderCustomers() {
 
   const tbody =
-    document.getElementById("customers-table");
+    $("customers-table");
 
-  if(!state.customers.length){
+
+  if (!state.customers.length) {
 
     tbody.innerHTML =
-      `<tr><td colspan="5">No customers</td></tr>`;
+      `<tr>
+        <td colspan="5">
+          No customers
+        </td>
+      </tr>`;
 
     return;
   }
 
+
   tbody.innerHTML =
-    state.customers.map(c=>`
+    state.customers
+      .map(customer => {
 
-      <tr>
-        <td>${escapeHtml(c.id)}</td>
-        <td>${escapeHtml(
-          c.name ||
-          c.full_name ||
-          "-"
-        )}</td>
-        <td>${escapeHtml(c.email || "-")}</td>
-        <td>${escapeHtml(
-          c.phone ||
-          c.phone_number ||
-          "-"
-        )}</td>
-        <td>${formatDate(c.created_at)}</td>
-      </tr>
+        return `
+          <tr>
 
-    `).join("");
+            <td>
+              ${escapeHtml(customer.id)}
+            </td>
 
+            <td>
+              ${escapeHtml(
+                customer.name ||
+                customer.full_name ||
+                "-"
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                customer.email ||
+                "-"
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                customer.phone ||
+                customer.phone_number ||
+                "-"
+              )}
+            </td>
+
+            <td>
+              ${formatDate(
+                customer.created_at
+              )}
+            </td>
+
+          </tr>
+        `;
+      })
+      .join("");
 }
 
 
-/* =========================================================
-   PRODUCTS
-========================================================= */
+/* ============================================================
+   15. PRODUCTS
+============================================================ */
 
-function renderProducts(){
+function renderProducts() {
 
   const tbody =
-    document.getElementById("products-table");
+    $("products-table");
 
-  if(!state.products.length){
+
+  if (!state.products.length) {
 
     tbody.innerHTML =
-      `<tr><td colspan="5">No products</td></tr>`;
+      `<tr>
+        <td colspan="5">
+          No products
+        </td>
+      </tr>`;
 
     return;
   }
 
+
   tbody.innerHTML =
-    state.products.map(p=>`
+    state.products
+      .map(product => {
 
-      <tr>
+        return `
+          <tr>
 
-        <td>${escapeHtml(p.id)}</td>
+            <td>
+              ${escapeHtml(product.id)}
+            </td>
 
-        <td>${escapeHtml(
-          p.name ||
-          p.product_name ||
-          "-"
-        )}</td>
+            <td>
+              ${escapeHtml(
+                product.name ||
+                product.product_name ||
+                "-"
+              )}
+            </td>
 
-        <td>${formatMoney(
-          p.price
-        )}</td>
+            <td>
+              ${formatMoney(
+                product.price
+              )}
+            </td>
 
-        <td>${formatMoney(
-          p.cost
-        )}</td>
+            <td>
+              ${formatMoney(
+                product.cost
+              )}
+            </td>
 
-        <td>${escapeHtml(
-          p.status || "ACTIVE"
-        )}</td>
+            <td>
+              ${escapeHtml(
+                product.status ||
+                "ACTIVE"
+              )}
+            </td>
 
-      </tr>
-
-    `).join("");
-
+          </tr>
+        `;
+      })
+      .join("");
 }
 
 
-/* =========================================================
-   ORDERS
-========================================================= */
+/* ============================================================
+   16. ORDERS
+============================================================ */
 
-function renderOrders(){
+function renderOrders() {
 
   const tbody =
-    document.getElementById("orders-table");
+    $("orders-table");
 
-  if(!state.orders.length){
+
+  if (!state.orders.length) {
 
     tbody.innerHTML =
-      `<tr><td colspan="5">No orders</td></tr>`;
+      `<tr>
+        <td colspan="5">
+          No orders
+        </td>
+      </tr>`;
 
     return;
   }
 
+
   tbody.innerHTML =
-    state.orders.map(o=>`
+    state.orders
+      .map(order => {
 
-      <tr>
+        return `
+          <tr>
 
-        <td>${escapeHtml(o.id)}</td>
+            <td>
+              ${escapeHtml(order.id)}
+            </td>
 
-        <td>${escapeHtml(
-          o.customer_id ||
-          o.customer ||
-          "-"
-        )}</td>
+            <td>
+              ${escapeHtml(
+                order.customer_id ||
+                order.customer ||
+                "-"
+              )}
+            </td>
 
-        <td>${formatMoney(
-          o.total_amount ??
-          o.amount ??
-          o.total
-        )}</td>
+            <td>
+              ${formatMoney(
+                order.amount ??
+                order.total_amount ??
+                order.total ??
+                0
+              )}
+            </td>
 
-        <td>${escapeHtml(
-          o.status || "-"
-        )}</td>
+            <td>
+              ${escapeHtml(
+                order.status ||
+                "-"
+              )}
+            </td>
 
-        <td>${formatDate(
-          o.created_at
-        )}</td>
+            <td>
+              ${formatDate(
+                order.created_at
+              )}
+            </td>
 
-      </tr>
-
-    `).join("");
-
+          </tr>
+        `;
+      })
+      .join("");
 }
 
 
-/* =========================================================
-   BEHAVIOR
-========================================================= */
+/* ============================================================
+   17. BEHAVIOR VIEW
+============================================================ */
 
-function renderBehavior(){
+function renderBehavior() {
 
   const grouped = {};
 
-  state.behavior.forEach(e=>{
+
+  state.behavior.forEach(event => {
 
     const type =
-      e.event_type ||
-      e.type ||
+      event.event_type ||
+      event.type ||
       "unknown";
+
 
     grouped[type] =
       (grouped[type] || 0) + 1;
 
   });
 
+
   const types =
-    document.getElementById("behavior-types");
+    $("behavior-types");
+
 
   const entries =
     Object.entries(grouped)
-      .sort((a,b)=>b[1]-a[1]);
+      .sort(
+        (a, b) => b[1] - a[1]
+      );
+
 
   types.innerHTML =
     entries.length
-      ? entries.map(([type,total])=>`
 
-        <div class="queue-item">
+      ? entries
+          .map(([type, total]) => {
 
-          <div class="queue-title">
-            ${escapeHtml(type)}
-          </div>
+            return `
+              <div class="queue-item">
 
-          <span class="badge">
-            ${total}
-          </span>
+                <div class="queue-title">
+                  ${escapeHtml(type)}
+                </div>
 
+                <span class="badge">
+                  ${total}
+                </span>
+
+              </div>
+            `;
+          })
+          .join("")
+
+      : `
+        <div class="empty">
+          No behavior events
         </div>
-
-      `).join("")
-      : `<div class="empty">No behavior events</div>`;
+      `;
 
 
   const tbody =
-    document.getElementById("behavior-table");
+    $("behavior-table");
+
 
   tbody.innerHTML =
     state.behavior.length
-      ? state.behavior.slice(0,50).map(e=>`
 
+      ? state.behavior
+          .slice(0, 50)
+          .map(event => {
+
+            return `
+              <tr>
+
+                <td>
+                  ${escapeHtml(
+                    event.event_type ||
+                    event.type ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    event.customer_id ||
+                    event.user_id ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    event.page ||
+                    event.url ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${formatDate(
+                    event.created_at
+                  )}
+                </td>
+
+              </tr>
+            `;
+          })
+          .join("")
+
+      : `
         <tr>
-
-          <td>${escapeHtml(
-            e.event_type ||
-            e.type ||
-            "-"
-          )}</td>
-
-          <td>${escapeHtml(
-            e.user_id ||
-            e.customer_id ||
-            "-"
-          )}</td>
-
-          <td>${escapeHtml(
-            e.page ||
-            e.url ||
-            "-"
-          )}</td>
-
-          <td>${formatDate(
-            e.created_at
-          )}</td>
-
+          <td colspan="4">
+            No events
+          </td>
         </tr>
-
-      `).join("")
-      : `<tr><td colspan="4">No events</td></tr>`;
-
+      `;
 }
 
 
-/* =========================================================
-   MARKET
-========================================================= */
+/* ============================================================
+   18. MARKET VIEW
+============================================================ */
 
-function renderMarket(){
+function renderMarket() {
 
   const tbody =
-    document.getElementById("market-table");
+    $("market-table");
+
 
   tbody.innerHTML =
     state.market.length
-      ? state.market.map(m=>`
 
+      ? state.market
+          .map(signal => {
+
+            return `
+              <tr>
+
+                <td>
+                  ${escapeHtml(
+                    signal.keyword ||
+                    signal.term ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    signal.signal_type ||
+                    signal.signal ||
+                    signal.title ||
+                    signal.type ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    signal.source ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${
+                    signal.score !== undefined &&
+                    signal.score !== null
+                      ? Number(signal.score)
+                      : "-"
+                  }
+                </td>
+
+                <td>
+                  ${formatDate(
+                    signal.detected_at ||
+                    signal.created_at
+                  )}
+                </td>
+
+              </tr>
+            `;
+          })
+          .join("")
+
+      : `
         <tr>
-
-          <td>${escapeHtml(
-            m.keyword ||
-            m.term ||
-            "-"
-          )}</td>
-
-          <td>${escapeHtml(
-            m.signal ||
-            m.title ||
-            m.type ||
-            "-"
-          )}</td>
-
-          <td>${escapeHtml(
-            m.source ||
-            "-"
-          )}</td>
-
-          <td>${formatDate(
-            m.detected_at ||
-            m.created_at
-          )}</td>
-
+          <td colspan="5">
+            No market signals
+          </td>
         </tr>
-
-      `).join("")
-      : `<tr><td colspan="4">No market signals</td></tr>`;
-
+      `;
 }
 
 
-/* =========================================================
-   AI
-========================================================= */
+/* ============================================================
+   19. AI VIEW
+============================================================ */
 
-function renderAI(){
+function renderAI() {
 
   const tbody =
-    document.getElementById("ai-runs-table");
+    $("ai-runs-table");
+
 
   tbody.innerHTML =
     state.aiRuns.length
-      ? state.aiRuns.map(r=>`
 
+      ? state.aiRuns
+          .map(run => {
+
+            return `
+              <tr>
+
+                <td>
+                  ${escapeHtml(run.id)}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    run.run_type ||
+                    run.type ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHtml(
+                    run.status ||
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${formatDate(
+                    run.created_at
+                  )}
+                </td>
+
+              </tr>
+            `;
+          })
+          .join("")
+
+      : `
         <tr>
-
-          <td>${escapeHtml(r.id)}</td>
-
-          <td>${escapeHtml(
-            r.type ||
-            r.run_type ||
-            "-"
-          )}</td>
-
-          <td>${escapeHtml(
-            r.status ||
-            "-"
-          )}</td>
-
-          <td>${formatDate(
-            r.created_at
-          )}</td>
-
+          <td colspan="4">
+            No AI runs
+          </td>
         </tr>
-
-      `).join("")
-      : `<tr><td colspan="4">No AI runs</td></tr>`;
+      `;
 
 
   const list =
-    document.getElementById("ai-insights-list");
+    $("ai-insights-list");
+
 
   list.innerHTML =
     state.aiInsights.length
-      ? state.aiInsights.map(i=>`
 
-        <div class="queue-item">
+      ? state.aiInsights
+          .map(insight => {
 
-          <div>
+            const title =
+              insight.title ||
+              insight.name ||
+              insight.insight_type ||
+              insight.type ||
+              "AI Insight";
 
-            <div class="queue-title">
-              ${escapeHtml(
-                i.title ||
-                i.name ||
-                i.type ||
-                "AI Insight"
-              )}
-            </div>
 
-            <div class="queue-desc">
-              ${escapeHtml(
-                i.description ||
-                i.content ||
-                i.insight ||
-                ""
-              )}
-            </div>
+            const content =
+              insight.content ||
+              insight.description ||
+              insight.insight ||
+              "";
 
-          </div>
 
+            return `
+              <div class="queue-item">
+
+                <div>
+
+                  <div class="queue-title">
+                    ${escapeHtml(title)}
+                  </div>
+
+                  <div class="queue-desc">
+                    ${escapeHtml(content)}
+                  </div>
+
+                </div>
+
+                <span class="badge ${
+                  String(
+                    insight.priority || ""
+                  ).toUpperCase() === "HIGH"
+                    ? "high"
+                    : ""
+                }">
+                  ${escapeHtml(
+                    insight.priority ||
+                    "INSIGHT"
+                  )}
+                </span>
+
+              </div>
+            `;
+          })
+          .join("")
+
+      : `
+        <div class="empty">
+          No AI insights
         </div>
-
-      `).join("")
-      : `<div class="empty">No AI insights</div>`;
-
+      `;
 }
 
 
-/* =========================================================
-   WORKFLOWS
-========================================================= */
+/* ============================================================
+   20. WORKFLOWS
+============================================================ */
 
-async function loadWorkflows(){
+async function loadWorkflows() {
 
-  try{
+  try {
 
     const data =
       await apiGet("/api/workflows");
+
 
     state.workflows =
       data.workflows ||
       data.data ||
       [];
 
+
     renderWorkflows();
 
-  }catch(error){
+  } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Workflow Error:",
+      error
+    );
 
-    document.getElementById("workflow-list").innerHTML =
-      `<div class="error">${escapeHtml(error.message)}</div>`;
 
+    $("workflow-list").innerHTML =
+      `<div class="error">
+        ${escapeHtml(error.message)}
+      </div>`;
   }
-
 }
 
 
-function renderWorkflows(){
+function renderWorkflows() {
 
-  const el =
-    document.getElementById("workflow-list");
+  const element =
+    $("workflow-list");
 
-  if(!state.workflows.length){
 
-    el.innerHTML =
-      `<div class="empty">No workflows</div>`;
+  if (!state.workflows.length) {
+
+    element.innerHTML =
+      `<div class="empty">
+        No workflows
+      </div>`;
 
     return;
   }
 
-  el.innerHTML =
-    state.workflows.map(w=>`
 
-      <div class="queue-item">
+  element.innerHTML =
+    state.workflows
+      .map(workflow => {
 
-        <div>
+        return `
+          <div class="queue-item">
 
-          <div class="queue-title">
-            ${escapeHtml(
-              w.name ||
-              "Workflow"
-            )}
+            <div>
+
+              <div class="queue-title">
+                ${escapeHtml(
+                  workflow.name ||
+                  "Workflow"
+                )}
+              </div>
+
+              <div class="queue-desc">
+                ${escapeHtml(
+                  workflow.description ||
+                  ""
+                )}
+              </div>
+
+            </div>
+
+            <span class="badge">
+              ${escapeHtml(
+                workflow.status ||
+                "ACTIVE"
+              )}
+            </span>
+
           </div>
-
-          <div class="queue-desc">
-            ${escapeHtml(
-              w.description ||
-              ""
-            )}
-          </div>
-
-        </div>
-
-        <span class="badge">
-          ${escapeHtml(
-            w.status ||
-            "ACTIVE"
-          )}
-        </span>
-
-      </div>
-
-    `).join("");
-
+        `;
+      })
+      .join("");
 }
 
 
-function showWorkflowForm(){
+/* ============================================================
+   21. WORKFLOW FORM
+============================================================ */
+
+function showWorkflowForm() {
 
   const form =
-    document.getElementById("workflow-form");
+    $("workflow-form");
+
 
   form.style.display =
     form.style.display === "none"
       ? "block"
       : "none";
-
 }
 
 
-async function createWorkflow(){
+async function createWorkflow() {
 
   const name =
-    document.getElementById("wf-name").value.trim();
+    $("wf-name")
+      .value
+      .trim();
+
 
   const description =
-    document.getElementById("wf-description").value.trim();
+    $("wf-description")
+      .value
+      .trim();
 
-  const trigger_type =
-    document.getElementById("wf-trigger").value;
 
-  if(!name){
+  const triggerType =
+    $("wf-trigger")
+      .value;
 
-    alert("กรุณาใส่ชื่อ Workflow");
+
+  if (!name) {
+
+    alert(
+      "กรุณาใส่ชื่อ Workflow"
+    );
 
     return;
   }
 
-  try{
 
-    await apiPost("/api/workflows",{
+  try {
 
-      name,
+    await apiPost(
+      "/api/workflows",
+      {
+        name: name,
+        description: description,
+        trigger_type: triggerType,
+        status: "active",
+        config: {}
+      }
+    );
 
-      description,
 
-      trigger_type,
+    $("wf-name").value = "";
+    $("wf-description").value = "";
 
-      status:"active",
-
-      config:{}
-
-    });
-
-    document.getElementById("wf-name").value = "";
-    document.getElementById("wf-description").value = "";
-
-    document.getElementById("workflow-form").style.display =
+    $("workflow-form").style.display =
       "none";
+
 
     await loadWorkflows();
 
     await runCommandCenter();
 
-  }catch(error){
+  } catch (error) {
 
     alert(error.message);
-
   }
-
 }
 
 
-/* =========================================================
-   REFRESH
-========================================================= */
+/* ============================================================
+   22. FULL REFRESH
+============================================================ */
 
-async function loadAll(){
+async function loadAll() {
 
-  await loadOverview();
+  setStatus(
+    "● LOADING D1...",
+    "var(--orange)"
+  );
 
-  await runCommandCenter();
 
+  try {
+
+    await loadOverview();
+
+    await runCommandCenter();
+
+
+  } catch (error) {
+
+    console.error(
+      "TATO OS Load Error:",
+      error
+    );
+
+
+    setStatus(
+      "● API ERROR",
+      "var(--red)"
+    );
+
+
+    $("decision-queue").innerHTML =
+      `<div class="error">
+        ${escapeHtml(error.message)}
+      </div>`;
+  }
 }
 
 
-/* =========================================================
-   START
-========================================================= */
+/* ============================================================
+   23. START
+============================================================ */
 
 loadAll();
 
