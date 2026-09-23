@@ -1,559 +1,471 @@
-export async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
+// TATO-OS
+// AI → Action Engine V1
+// Route: /api/actions
+
+const HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store"
+};
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: HEADERS
+  });
+}
+
+function id() {
+  return crypto.randomUUID();
+}
+
+function s(value) {
+  return value == null ? "" : String(value);
+}
+
+async function ensureTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS action_runs (
+      id TEXT PRIMARY KEY,
+      action_type TEXT,
+      source TEXT,
+      status TEXT,
+      input_data TEXT,
+      output_data TEXT,
+      created_at TEXT,
+      completed_at TEXT
+    )
+  `).run();
+}
+
+async function getLearningAI(request) {
+  const url = new URL("/api/learning-ai", request.url);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data?.success) {
+    throw new Error(
+      data?.error || `Learning AI returned HTTP ${response.status}`
+    );
+  }
+
+  return data;
+}
+
+function buildAction(learningAI) {
+  const analysis = learningAI?.ai?.analysis || {};
+  const nextAction = analysis?.next_action || {};
+
+  const rawAction = s(
+    nextAction.type ||
+    analysis?.next_content?.action ||
+    learningAI?.learning?.signal_type
+  ).toUpperCase();
+
+  let actionType = "WAIT";
+  let status = "WAITING";
+
+  if (
+    rawAction === "DISTRIBUTE" ||
+    rawAction === "PUBLISH" ||
+    rawAction === "DISTRIBUTE_CONTENT" ||
+    rawAction === "PUBLISH_CONTENT" ||
+    rawAction === "NO_TRAFFIC"
+  ) {
+    actionType = "DISTRIBUTE_CONTENT";
+    status = "READY";
+  } else if (
+    rawAction === "OPTIMIZE" ||
+    rawAction === "ITERATE" ||
+    rawAction === "ITERATE_CONTENT"
+  ) {
+    actionType = "ITERATE_CONTENT";
+    status = "READY";
+  } else if (rawAction === "SCALE") {
+    actionType = "SCALE_CONTENT";
+    status = "READY";
+  }
+
+  return {
+    action_type: actionType,
+    status,
+    reason:
+      analysis?.next_action?.reason ||
+      analysis?.summary ||
+      "AI generated action",
+    priority: analysis?.priority || "LOW",
+    content: learningAI?.content || null,
+    learning: learningAI?.learning || null,
+    ai: analysis
+  };
+}
+
+async function saveActionRun(db, action) {
+  const runId = id();
+  const now = new Date().toISOString();
+
+  await db.prepare(`
+    INSERT INTO action_runs (
+      id,
+      action_type,
+      source,
+      status,
+      input_data,
+      output_data,
+      created_at,
+      completed_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    runId,
+    action.action_type,
+    "AI_ACTION_ENGINE",
+    "COMPLETED",
+    JSON.stringify({
+      reason: action.reason,
+      priority: action.priority,
+      content: action.content,
+      learning: action.learning,
+      ai: action.ai
+    }),
+    JSON.stringify(action),
+    now,
+    now
+  ).run();
+
+  return {
+    id: runId,
+    status: "COMPLETED",
+    created_at: now,
+    completed_at: now
+  };
+}
+
+async function executeAutomation(context, action, execution) {
+  const url = new URL("/api/ai-automation", context.request.url);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      action_run_id: execution.id,
+      action_type: action.action_type,
+      source: "AI_ACTION_ENGINE",
+      content: action.content,
+      learning: action.learning,
+      ai: action.ai
+    })
+  });
+
+  let data = null;
 
   try {
-    // =========================================================
-    // AI → ACTION ENGINE V1
-    // AI → ACTION → AUTOMATION BRIDGE
-    // =========================================================
+    data = await response.json();
+  } catch (_) {
+    data = {
+      success: false,
+      error: "Automation Bridge returned invalid JSON"
+    };
+  }
 
-    const mode =
-      request.method === "POST"
-        ? ((await safeJson(request))?.mode || "preview")
-        : (url.searchParams.get("mode") || "preview");
+  if (!response.ok || !data?.success) {
+    return {
+      success: false,
+      status: "FAILED",
+      http_status: response.status,
+      error:
+        data?.error ||
+        `Automation Bridge returned HTTP ${response.status}`,
+      raw: data
+    };
+  }
 
-    // ---------------------------------------------------------
-    // 1. Get Learning AI
-    // ---------------------------------------------------------
-    const learningUrl = new URL("/api/learning-ai", request.url);
+  return data;
+}
 
-    const learningResponse = await fetch(learningUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json"
-      }
-    });
+async function executeDistribution(context, action, automation) {
+  const contentId = action?.content?.id;
 
-    const learningAI = await safeResponseJson(learningResponse);
+  if (!contentId) {
+    return {
+      success: false,
+      status: "SKIPPED",
+      error: "No content ID available for distribution."
+    };
+  }
 
-    if (!learningAI || learningAI.success !== true) {
-      return json({
-        success: false,
-        layer: "AI_ACTION_ENGINE_V1",
-        mode,
-        error: "Learning AI unavailable",
-        learning_ai: learningAI
-      }, 500);
+  const url = new URL("/api/distribution", context.request.url);
+
+  url.searchParams.set("mode", "execute");
+  url.searchParams.set("content_id", contentId);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
     }
+  });
 
-    // ---------------------------------------------------------
-    // 2. Build Action from Learning AI
-    // ---------------------------------------------------------
-    const action = buildAction(learningAI);
+  let data = null;
 
-    // ---------------------------------------------------------
-    // 3. Preview
-    // ---------------------------------------------------------
-    if (mode !== "execute") {
+  try {
+    data = await response.json();
+  } catch (_) {
+    data = {
+      success: false,
+      error: "Distribution returned invalid JSON"
+    };
+  }
+
+  if (!response.ok || !data?.success) {
+    return {
+      success: false,
+      status: "FAILED",
+      http_status: response.status,
+      error:
+        data?.error ||
+        `Distribution returned HTTP ${response.status}`,
+      raw: data
+    };
+  }
+
+  return data;
+}
+
+async function analyze(context) {
+  if (!context.env.DB) {
+    throw new Error("D1 binding DB is missing");
+  }
+
+  await ensureTable(context.env.DB);
+
+  const learningAI = await getLearningAI(context.request);
+
+  const action = buildAction(learningAI);
+
+  return {
+    learning_ai: learningAI,
+    action
+  };
+}
+
+async function execute(context) {
+  const result = await analyze(context);
+
+  const execution = await saveActionRun(
+    context.env.DB,
+    result.action
+  );
+
+  let automation = null;
+  let distribution = null;
+
+  if (
+    result.action.action_type === "DISTRIBUTE_CONTENT" ||
+    result.action.action_type === "ITERATE_CONTENT"
+  ) {
+    automation = await executeAutomation(
+      context,
+      result.action,
+      execution
+    );
+
+    if (!automation?.success) {
+      return {
+        ...result,
+        execution,
+        automation,
+        distribution: null,
+        result: {
+          success: false,
+          action_type: result.action.action_type,
+          status: "AUTOMATION_FAILED",
+          next_step: "Fix Automation Bridge before Distribution."
+        }
+      };
+    }
+  }
+
+  if (
+    result.action.action_type === "DISTRIBUTE_CONTENT"
+  ) {
+    distribution = await executeDistribution(
+      context,
+      result.action,
+      automation
+    );
+  }
+
+  return {
+    ...result,
+    execution,
+    automation,
+    distribution,
+    result: {
+      success:
+        result.action.action_type === "WAIT"
+          ? true
+          : Boolean(
+              automation?.success !== false &&
+              distribution?.success !== false
+            ),
+      action_type: result.action.action_type,
+      status:
+        distribution?.status ||
+        automation?.execution?.status ||
+        execution.status,
+      automation_run_id:
+        automation?.run_id || null,
+      distribution_run_id:
+        distribution?.distribution?.id || null,
+      next_step:
+        distribution?.success
+          ? "AI → Action → Automation → Distribution completed successfully."
+          : automation?.success
+            ? "Automation completed. Distribution did not complete."
+            : "Action execution completed."
+    }
+  };
+}
+
+export async function onRequestGet(context) {
+  try {
+    const url = new URL(context.request.url);
+    const mode = url.searchParams.get("mode") || "preview";
+
+    if (mode === "execute") {
+      const result = await execute(context);
+
       return json({
         success: true,
         layer: "AI_ACTION_ENGINE_V1",
-        mode: "preview",
-        source: "LEARNING_AI",
-        learning_ai: learningAI,
-        action
+        mode: "execute",
+        status: result.result.status,
+
+        learning_ai: {
+          status: result.learning_ai?.status || null,
+          learning: result.learning_ai?.learning || null,
+          content: result.learning_ai?.content || null
+        },
+
+        action: result.action,
+
+        execution: result.execution,
+
+        automation: result.automation,
+
+        distribution: result.distribution,
+
+        result: result.result
       });
     }
 
-    // ---------------------------------------------------------
-    // 4. Ensure action_runs table
-    // ---------------------------------------------------------
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS action_runs (
-        id TEXT PRIMARY KEY,
-        action_type TEXT,
-        source TEXT,
-        status TEXT,
-        input_data TEXT,
-        output_data TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        completed_at DATETIME
-      )
-    `).run();
+    const result = await analyze(context);
 
-    // ---------------------------------------------------------
-    // 5. Create Action Execution
-    // ---------------------------------------------------------
-    const executionId = crypto.randomUUID();
-    const startedAt = new Date().toISOString();
-
-    let executionStatus = "WAITING";
-
-    if (action.action_type === "DISTRIBUTE_CONTENT") {
-      executionStatus = "READY_TO_DISTRIBUTE";
-    } else if (action.action_type === "ITERATE_CONTENT") {
-      executionStatus = "READY_TO_ITERATE";
-    } else if (action.action_type === "WAIT") {
-      executionStatus = "WAITING_DATA";
-    }
-
-    const execution = {
-      id: executionId,
-      action_type: action.action_type,
-      source: "LEARNING_AI",
-      status: executionStatus,
-      started_at: startedAt,
-      completed_at: new Date().toISOString()
-    };
-
-    await env.DB.prepare(`
-      INSERT INTO action_runs
-      (
-        id,
-        action_type,
-        source,
-        status,
-        input_data,
-        output_data,
-        created_at,
-        completed_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      execution.id,
-      execution.action_type,
-      execution.source,
-      execution.status,
-      JSON.stringify({
-        learning_ai: learningAI,
-        action
-      }),
-      JSON.stringify(execution),
-      startedAt,
-      execution.completed_at
-    ).run();
-
-    // ---------------------------------------------------------
-    // 6. Default result
-    // ---------------------------------------------------------
-    const result = buildResult(action);
-
-    // ---------------------------------------------------------
-    // 7. AI → Automation Bridge
-    //
-    // IMPORTANT:
-    // Do NOT call old /api/automation here.
-    // That could create:
-    //
-    // Action → Automation → Action
-    //
-    // Instead use the dedicated AI Automation Bridge.
-    // ---------------------------------------------------------
-    let automation = null;
-
-    if (
-      action.action_type === "DISTRIBUTE_CONTENT" ||
-      action.action_type === "ITERATE_CONTENT"
-    ) {
-      const automationUrl = new URL("/api/ai-automation", request.url);
-
-      const automationPayload = {
-        action_run_id: execution.id,
-        action_type: action.action_type,
-        source: "AI_ACTION_ENGINE",
-
-        // ส่ง Content จริงจาก Action Engine
-        content: action.content || null,
-
-        // ส่ง Learning จริง
-        learning: action.learning || null,
-
-        // ส่ง AI recommendation จริง
-        ai: action.ai || null
-      };
-
-      try {
-        const automationResponse = await fetch(
-          automationUrl.toString(),
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json"
-            },
-            body: JSON.stringify(automationPayload)
-          }
-        );
-
-        automation = await safeResponseJson(automationResponse);
-
-        if (!automation) {
-          automation = {
-            success: false,
-            error: "Automation Bridge returned invalid JSON"
-          };
-        }
-      } catch (automationError) {
-        automation = {
-          success: false,
-          error: automationError?.message || "Automation Bridge request failed"
-        };
-      }
-    }
-
-    // ---------------------------------------------------------
-    // 8. Update result based on Automation Bridge
-    // ---------------------------------------------------------
-    if (automation) {
-      if (automation.success === true) {
-        result.next_step = "Automation Bridge executed successfully";
-
-        if (automation.run_id) {
-          result.automation_run_id = automation.run_id;
-        }
-      } else {
-        result.next_step =
-          "Action executed, but Automation Bridge failed";
-      }
-    }
-
-    // ---------------------------------------------------------
-    // 9. Final response
-    // ---------------------------------------------------------
     return json({
       success: true,
       layer: "AI_ACTION_ENGINE_V1",
-      mode: "execute",
-      source: "LEARNING_AI",
+      mode: "preview",
 
-      learning_ai: learningAI,
+      learning_ai: {
+        status: result.learning_ai?.status || null,
+        learning: result.learning_ai?.learning || null,
+        content: result.learning_ai?.content || null
+      },
 
-      action,
+      action: result.action,
 
-      execution,
-
-      automation,
-
-      result
+      next_step:
+        result.action.action_type === "WAIT"
+          ? "AI recommends waiting."
+          : "Run ?mode=execute to execute Action → Automation → Distribution."
     });
 
   } catch (error) {
+    return json(
+      {
+        success: false,
+        layer: "AI_ACTION_ENGINE_V1",
+        error: error?.message || String(error)
+      },
+      500
+    );
+  }
+}
+
+export async function onRequestPost(context) {
+  try {
+    let body = {};
+
+    try {
+      body = await context.request.json();
+    } catch (_) {}
+
+    const mode = body?.mode || "preview";
+
+    if (mode === "execute") {
+      const result = await execute(context);
+
+      return json({
+        success: true,
+        layer: "AI_ACTION_ENGINE_V1",
+        mode: "execute",
+        status: result.result.status,
+
+        learning_ai: {
+          status: result.learning_ai?.status || null,
+          learning: result.learning_ai?.learning || null,
+          content: result.learning_ai?.content || null
+        },
+
+        action: result.action,
+
+        execution: result.execution,
+
+        automation: result.automation,
+
+        distribution: result.distribution,
+
+        result: result.result
+      });
+    }
+
+    const result = await analyze(context);
+
     return json({
-      success: false,
+      success: true,
       layer: "AI_ACTION_ENGINE_V1",
-      error: error?.message || "Unknown error"
-    }, 500);
-  }
-}
+      mode: "preview",
 
-
-// =============================================================
-// BUILD ACTION
-// =============================================================
-
-function buildAction(learningAI) {
-  const signal =
-    learningAI?.signal ||
-    learningAI?.learning?.signal_type ||
-    learningAI?.analysis?.signal ||
-    "WAIT";
-
-  const learning =
-    learningAI?.learning ||
-    learningAI?.analysis ||
-    {};
-
-  const ai =
-    learningAI?.ai ||
-    learningAI?.recommendation ||
-    {};
-
-  const content =
-    learningAI?.content ||
-    learningAI?.latest_content ||
-    learningAI?.content_data ||
-    null;
-
-  // -----------------------------------------------------------
-  // DISTRIBUTE / PUBLISH
-  // -----------------------------------------------------------
-  if (
-    signal === "NO_TRAFFIC" ||
-    signal === "PUBLISH" ||
-    signal === "DISTRIBUTE" ||
-    signal === "PUBLISH_CONTENT"
-  ) {
-    return {
-      action_type: "DISTRIBUTE_CONTENT",
-
-      title: "เผยแพร่ Content จาก Learning AI",
-
-      description:
-        "นำคำแนะนำจาก Learning AI ไปสร้าง Action สำหรับเผยแพร่ Content",
-
-      priority: "LOW",
-
-      status: "READY",
-
-      source: "LEARNING_AI",
-
-      content: normalizeContent(content),
-
-      learning: {
-        signal_type:
-          learning?.signal_type ||
-          signal,
-
-        finding:
-          learning?.finding ||
-          "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content",
-
-        score:
-          learning?.score ??
-          20
+      learning_ai: {
+        status: result.learning_ai?.status || null,
+        learning: result.learning_ai?.learning || null,
+        content: result.learning_ai?.content || null
       },
 
-      ai: {
-        direction:
-          ai?.direction ||
-          "Release content to generate initial traffic.",
+      action: result.action,
 
-        success_metric:
-          ai?.success_metric ||
-          "Product Views",
+      next_step:
+        "AI Action preview ready. Run POST execute to execute the full loop."
+    });
 
-        reason:
-          ai?.reason ||
-          "Need to expose content to audience to gather behavioral data."
-      }
-    };
-  }
-
-  // -----------------------------------------------------------
-  // ITERATE / OPTIMIZE
-  // -----------------------------------------------------------
-  if (
-    signal === "ITERATE" ||
-    signal === "OPTIMIZE" ||
-    signal === "ITERATE_CONTENT"
-  ) {
-    return {
-      action_type: "ITERATE_CONTENT",
-
-      title: "ปรับปรุง Content จาก Learning AI",
-
-      description:
-        "นำข้อมูล Feedback และ Measurement มาปรับปรุง Content",
-
-      priority: "MEDIUM",
-
-      status: "READY",
-
-      source: "LEARNING_AI",
-
-      content: normalizeContent(content),
-
-      learning: {
-        signal_type:
-          learning?.signal_type ||
-          signal,
-
-        finding:
-          learning?.finding ||
-          "พบข้อมูลที่สามารถนำไปปรับปรุง Content",
-
-        score:
-          learning?.score ??
-          50
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        layer: "AI_ACTION_ENGINE_V1",
+        error: error?.message || String(error)
       },
-
-      ai: {
-        direction:
-          ai?.direction ||
-          "Optimize existing content based on observed behavior.",
-
-        success_metric:
-          ai?.success_metric ||
-          "Engagement",
-
-        reason:
-          ai?.reason ||
-          "Use behavioral feedback to improve content performance."
-      }
-    };
+      500
+    );
   }
-
-  // -----------------------------------------------------------
-  // WAIT
-  // -----------------------------------------------------------
-  return {
-    action_type: "WAIT",
-
-    title: "รอข้อมูลเพิ่มเติม",
-
-    description:
-      "ยังไม่มีข้อมูลเพียงพอสำหรับการดำเนิน Action",
-
-    priority: "LOW",
-
-    status: "WAITING",
-
-    source: "LEARNING_AI",
-
-    content: normalizeContent(content),
-
-    learning: {
-      signal_type:
-        learning?.signal_type ||
-        signal,
-
-      finding:
-        learning?.finding ||
-        "Insufficient data",
-
-      score:
-        learning?.score ??
-        0
-    },
-
-    ai: {
-      direction:
-        ai?.direction ||
-        "Wait for additional behavioral data.",
-
-      success_metric:
-        ai?.success_metric ||
-        "Behavior Data",
-
-      reason:
-        ai?.reason ||
-        "More data is required before taking action."
-    }
-  };
-}
-
-
-// =============================================================
-// BUILD RESULT
-// =============================================================
-
-function buildResult(action) {
-  if (action.action_type === "DISTRIBUTE_CONTENT") {
-    return {
-      action: "DISTRIBUTE_CONTENT",
-      status: "READY_TO_DISTRIBUTE",
-      content_id: action?.content?.id || null,
-      next_step: "ส่งเข้า Automation / Distribution Engine"
-    };
-  }
-
-  if (action.action_type === "ITERATE_CONTENT") {
-    return {
-      action: "ITERATE_CONTENT",
-      status: "READY_TO_ITERATE",
-      content_id: action?.content?.id || null,
-      next_step: "ส่งเข้า Automation / Content Iteration Engine"
-    };
-  }
-
-  return {
-    action: "WAIT",
-    status: "WAITING_DATA",
-    content_id: action?.content?.id || null,
-    next_step: "รอ Behavioral / Measurement Data"
-  };
-}
-
-
-// =============================================================
-// NORMALIZE CONTENT
-// =============================================================
-
-function normalizeContent(content) {
-  if (!content) {
-    return null;
-  }
-
-  return {
-    id:
-      content.id ||
-      content.content_id ||
-      null,
-
-    title:
-      content.title ||
-      content.name ||
-      null,
-
-    status:
-      content.status ||
-      null,
-
-    objective:
-      content.objective ||
-      null,
-
-    attention_type:
-      content.attention_type ||
-      null,
-
-    market_keyword:
-      content.market_keyword ||
-      null,
-
-    angle:
-      content.angle ||
-      null,
-
-    direction:
-      content.direction ||
-      null,
-
-    cta:
-      content.cta ||
-      null,
-
-    content_text:
-      content.content_text ||
-      content.text ||
-      null
-  };
-}
-
-
-// =============================================================
-// SAFE JSON
-// =============================================================
-
-async function safeJson(request) {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
-}
-
-
-// =============================================================
-// SAFE RESPONSE JSON
-// =============================================================
-
-async function safeResponseJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    return {
-      success: false,
-      error: `Invalid JSON response (${response.status})`
-    };
-  }
-}
-
-
-// =============================================================
-// JSON RESPONSE
-// =============================================================
-
-function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data, null, 2),
-    {
-      status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store"
-      }
-    }
-  );
 }
