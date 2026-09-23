@@ -1,532 +1,330 @@
-export async function onRequestGet(context) {
-  const { env } = context;
-
-  try {
-    if (!env.DB) {
-      return Response.json(
-        {
-          success: false,
-          error: "D1 database binding DB not found"
-        },
-        { status: 500 }
-      );
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
     }
-
-    await ensureAutomationRunsTable(env.DB);
-
-    const workflows = await env.DB
-      .prepare(`
-        SELECT *
-        FROM workflows
-        ORDER BY created_at DESC
-      `)
-      .all();
-
-    const runs = await env.DB
-      .prepare(`
-        SELECT *
-        FROM automation_runs
-        ORDER BY created_at DESC
-        LIMIT 50
-      `)
-      .all();
-
-    return Response.json({
-      success: true,
-      layer: "AUTOMATION",
-      workflows: workflows.results || [],
-      runs: runs.results || []
-    });
-
-  } catch (error) {
-    return Response.json(
-      {
-        success: false,
-        error: error.message
-      },
-      { status: 500 }
-    );
-  }
+  });
 }
-
-
-export async function onRequestPost(context) {
-  const { request, env } = context;
-
-  try {
-    if (!env.DB) {
-      return Response.json(
-        {
-          success: false,
-          error: "D1 database binding DB not found"
-        },
-        { status: 500 }
-      );
-    }
-
-    await ensureAutomationRunsTable(env.DB);
-
-    const body = await request.json().catch(() => ({}));
-
-    const mode =
-      String(body.mode || "execute").toLowerCase();
-
-    /*
-      ----------------------------------------------------------
-      PREVIEW
-      ----------------------------------------------------------
-    */
-
-    if (mode === "preview") {
-      const workflow = await getWorkflow(
-        env.DB,
-        body.workflow_id
-      );
-
-      if (!workflow) {
-        return Response.json(
-          {
-            success: false,
-            error: "Workflow not found"
-          },
-          { status: 404 }
-        );
-      }
-
-      const config = parseConfig(workflow.config);
-
-      const actionType =
-        resolveActionType(
-          config,
-          workflow.trigger_type
-        );
-
-      const source =
-        resolveSource(
-          config,
-          workflow.trigger_type
-        );
-
-      return Response.json({
-        success: true,
-        layer: "AUTOMATION",
-        mode: "PREVIEW",
-        workflow: normalizeWorkflow(workflow),
-        execution: {
-          action_type: actionType,
-          source,
-          status: "READY"
-        }
-      });
-    }
-
-
-    /*
-      ----------------------------------------------------------
-      EXECUTE
-      ----------------------------------------------------------
-    */
-
-    const workflow = await getWorkflow(
-      env.DB,
-      body.workflow_id
-    );
-
-    if (!workflow) {
-      return Response.json(
-        {
-          success: false,
-          error: "No active workflow found"
-        },
-        { status: 404 }
-      );
-    }
-
-    if (
-      String(workflow.status || "").toLowerCase() !==
-      "active"
-    ) {
-      return Response.json(
-        {
-          success: false,
-          error: "Workflow is not active",
-          workflow: normalizeWorkflow(workflow)
-        },
-        { status: 400 }
-      );
-    }
-
-    const config = parseConfig(workflow.config);
-
-    const actionType =
-      resolveActionType(
-        config,
-        workflow.trigger_type
-      );
-
-    const source =
-      resolveSource(
-        config,
-        workflow.trigger_type
-      );
-
-    const runId = crypto.randomUUID();
-
-    /*
-      Create execution record first.
-    */
-
-    await env.DB
-      .prepare(`
-        INSERT INTO automation_runs
-        (
-          id,
-          workflow_id,
-          action_type,
-          source,
-          status,
-          input_data,
-          output_data,
-          created_at,
-          completed_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .bind(
-        runId,
-        workflow.id,
-        actionType,
-        source,
-        "RUNNING",
-        JSON.stringify({
-          workflow_id: workflow.id,
-          trigger_type: workflow.trigger_type,
-          config
-        }),
-        null,
-        new Date().toISOString(),
-        null
-      )
-      .run();
-
-
-    /*
-      ----------------------------------------------------------
-      ACTION ENGINE
-      ----------------------------------------------------------
-
-      Automation does not duplicate the Action Engine.
-
-      It sends the workflow into:
-
-      AUTOMATION
-          ↓
-      ACTION ENGINE
-          ↓
-      RESULT
-    */
-
-    const actionUrl =
-      new URL(
-        "/api/actions",
-        request.url
-      ).toString();
-
-    const actionResponse =
-      await fetch(
-        actionUrl,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            mode: "execute",
-            action_type: actionType,
-            source
-          })
-        }
-      );
-
-    const actionResult =
-      await actionResponse
-        .json()
-        .catch(() => ({
-          success: false,
-          error: "Invalid Action Engine response"
-        }));
-
-
-    /*
-      ----------------------------------------------------------
-      FAILED
-      ----------------------------------------------------------
-    */
-
-    if (
-      !actionResponse.ok ||
-      actionResult.success === false
-    ) {
-      await env.DB
-        .prepare(`
-          UPDATE automation_runs
-          SET
-            status = ?,
-            output_data = ?,
-            completed_at = ?
-          WHERE id = ?
-        `)
-        .bind(
-          "FAILED",
-          JSON.stringify(actionResult),
-          new Date().toISOString(),
-          runId
-        )
-        .run();
-
-      return Response.json(
-        {
-          success: false,
-          layer: "AUTOMATION",
-          run_id: runId,
-          workflow: normalizeWorkflow(workflow),
-          status: "FAILED",
-          action: actionResult
-        },
-        { status: 500 }
-      );
-    }
-
-
-    /*
-      ----------------------------------------------------------
-      COMPLETED
-      ----------------------------------------------------------
-    */
-
-    await env.DB
-      .prepare(`
-        UPDATE automation_runs
-        SET
-          status = ?,
-          output_data = ?,
-          completed_at = ?
-        WHERE id = ?
-      `)
-      .bind(
-        "COMPLETED",
-        JSON.stringify(actionResult),
-        new Date().toISOString(),
-        runId
-      )
-      .run();
-
-
-    return Response.json({
-      success: true,
-      layer: "AUTOMATION",
-      run_id: runId,
-      workflow: normalizeWorkflow(workflow),
-      execution: {
-        action_type: actionType,
-        source,
-        status: "COMPLETED"
-      },
-      action: actionResult
-    });
-
-  } catch (error) {
-
-    return Response.json(
-      {
-        success: false,
-        layer: "AUTOMATION",
-        error: error.message
-      },
-      { status: 500 }
-    );
-  }
-}
-
-
-/*
-  ==========================================================
-  HELPERS
-  ==========================================================
-*/
-
 
 async function ensureAutomationRunsTable(db) {
-
-  await db
-    .prepare(`
-      CREATE TABLE IF NOT EXISTS automation_runs
-      (
-        id TEXT PRIMARY KEY,
-        workflow_id TEXT NOT NULL,
-        action_type TEXT,
-        source TEXT,
-        status TEXT NOT NULL,
-        input_data TEXT,
-        output_data TEXT,
-        created_at TEXT NOT NULL,
-        completed_at TEXT
-      )
-    `)
-    .run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS automation_runs (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      action_type TEXT,
+      source TEXT,
+      status TEXT NOT NULL,
+      input_data TEXT,
+      output_data TEXT,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    )
+  `).run();
 }
 
+async function findWorkflow(db, actionType) {
+  const type =
+    String(actionType || "")
+      .toUpperCase();
 
-async function getWorkflow(db, workflowId) {
-
-  if (workflowId) {
-
-    return await db
-      .prepare(`
-        SELECT *
-        FROM workflows
-        WHERE id = ?
-        LIMIT 1
-      `)
-      .bind(workflowId)
-      .first();
-  }
-
-  return await db
-    .prepare(`
+  const workflow =
+    await db.prepare(`
       SELECT *
       FROM workflows
       WHERE LOWER(status) = 'active'
       ORDER BY created_at DESC
-      LIMIT 1
-    `)
-    .first();
+    `).all();
+
+  const rows =
+    workflow.results || [];
+
+  if (!rows.length) {
+    return null;
+  }
+
+  const exact =
+    rows.find((row) => {
+      let config = {};
+
+      try {
+        config =
+          typeof row.config === "string"
+            ? JSON.parse(row.config)
+            : row.config || {};
+      } catch {
+        config = {};
+      }
+
+      const configuredAction =
+        String(
+          config.action_type || ""
+        ).toUpperCase();
+
+      if (
+        configuredAction === type
+      ) {
+        return true;
+      }
+
+      if (
+        type === "DISTRIBUTE_CONTENT" &&
+        (
+          configuredAction === "CONTENT" ||
+          String(row.trigger_type || "").toUpperCase() === "ATTENTION" ||
+          String(row.trigger_type || "").toUpperCase() === "AI"
+        )
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+  return exact || rows[0];
 }
 
-
-function parseConfig(config) {
-
-  if (!config) {
-    return {};
-  }
-
-  if (typeof config === "object") {
-    return config;
-  }
-
-  try {
-    return JSON.parse(config);
-  } catch {
-    return {};
-  }
-}
-
-
-function resolveActionType(
-  config,
-  triggerType
+async function executeAutomation(
+  context,
+  body
 ) {
+  const db = context.env.DB;
 
-  if (config.action_type) {
-    return String(
-      config.action_type
-    ).toUpperCase();
-  }
+  await ensureAutomationRunsTable(db);
 
-  const trigger =
+  const actionType =
     String(
-      config.trigger_type ||
-      triggerType ||
-      ""
-    )
-      .trim()
-      .toUpperCase();
-
-  switch (trigger) {
-
-    case "ATTENTION":
-    case "ATTENTION_SIGNAL":
-    case "BEHAVIOR":
-      return "CONTENT";
-
-    case "MARKET":
-    case "MARKET_SIGNAL":
-    case "DEMAND":
-      return "MARKET_RESPONSE";
-
-    case "CUSTOMER":
-    case "CUSTOMER_SIGNAL":
-    case "SEGMENT":
-      return "CUSTOMER_SEGMENT";
-
-    case "AI":
-    case "AI_INSIGHT":
-    case "INSIGHT":
-      return "AI_ACTION";
-
-    default:
-      return "CONTENT";
-  }
-}
-
-
-function resolveSource(
-  config,
-  triggerType
-) {
-
-  if (config.source) {
-    return String(
-      config.source
+      body.action_type || ""
     ).toUpperCase();
+
+  if (!actionType) {
+    return {
+      success: false,
+      error: "action_type is required"
+    };
   }
 
-  const trigger =
-    String(
-      triggerType ||
-      ""
+  const workflow =
+    await findWorkflow(
+      db,
+      actionType
+    );
+
+  if (!workflow) {
+    return {
+      success: false,
+      error:
+        "No active automation workflow found"
+    };
+  }
+
+  const runId =
+    crypto.randomUUID();
+
+  const now =
+    new Date().toISOString();
+
+  const input = {
+    source:
+      body.source ||
+      "AI_ACTION_ENGINE",
+
+    action_type:
+      actionType,
+
+    content:
+      body.content || null,
+
+    learning:
+      body.learning || null,
+
+    ai:
+      body.ai || null,
+
+    action_run_id:
+      body.action_run_id || null
+  };
+
+  const output = {
+    automation:
+      "AI_ACTION_TO_AUTOMATION",
+
+    action:
+      actionType,
+
+    status:
+      "COMPLETED",
+
+    workflow_id:
+      workflow.id,
+
+    workflow_name:
+      workflow.name,
+
+    content:
+      body.content || null,
+
+    next_step:
+      actionType === "DISTRIBUTE_CONTENT"
+        ? "Content is queued for distribution execution"
+        : actionType === "ITERATE_CONTENT"
+          ? "Content is queued for iteration"
+          : "Automation completed"
+  };
+
+  await db.prepare(`
+    INSERT INTO automation_runs
+    (
+      id,
+      workflow_id,
+      action_type,
+      source,
+      status,
+      input_data,
+      output_data,
+      created_at,
+      completed_at
     )
-      .trim()
-      .toUpperCase();
-
-  switch (trigger) {
-
-    case "ATTENTION":
-    case "ATTENTION_SIGNAL":
-    case "BEHAVIOR":
-      return "ATTENTION";
-
-    case "MARKET":
-    case "MARKET_SIGNAL":
-    case "DEMAND":
-      return "MARKET";
-
-    case "CUSTOMER":
-    case "CUSTOMER_SIGNAL":
-    case "SEGMENT":
-      return "CUSTOMER";
-
-    case "AI":
-    case "AI_INSIGHT":
-    case "INSIGHT":
-      return "AI_INSIGHT";
-
-    default:
-      return "SYSTEM";
-  }
-}
-
-
-function normalizeWorkflow(workflow) {
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      runId,
+      workflow.id,
+      actionType,
+      "AI_ACTION_ENGINE",
+      "COMPLETED",
+      JSON.stringify(input),
+      JSON.stringify(output),
+      now,
+      now
+    )
+    .run();
 
   return {
-    id: workflow.id,
-    name: workflow.name,
-    description: workflow.description,
-    trigger_type: workflow.trigger_type,
-    status: workflow.status,
-    config: parseConfig(workflow.config),
-    created_at: workflow.created_at,
-    updated_at: workflow.updated_at
+    success: true,
+
+    layer:
+      "AUTOMATION",
+
+    mode:
+      "AI_ACTION",
+
+    run_id:
+      runId,
+
+    workflow: {
+      id:
+        workflow.id,
+
+      name:
+        workflow.name,
+
+      status:
+        workflow.status
+    },
+
+    execution: {
+      action_type:
+        actionType,
+
+      source:
+        "AI_ACTION_ENGINE",
+
+      status:
+        "COMPLETED"
+    },
+
+    result:
+      output
   };
+}
+
+export async function onRequestGet(context) {
+  try {
+    const url =
+      new URL(context.request.url);
+
+    const mode =
+      url.searchParams.get("mode");
+
+    if (
+      mode !== "execute"
+    ) {
+      return json({
+        success: true,
+        layer:
+          "AI_ACTION_TO_AUTOMATION",
+        status:
+          "READY",
+        message:
+          "Use ?mode=execute to execute AI Action into Automation"
+      });
+    }
+
+    const result =
+      await executeAutomation(
+        context,
+        {
+          action_type:
+            url.searchParams.get(
+              "action_type"
+            ) || "DISTRIBUTE_CONTENT",
+
+          source:
+            "AI_ACTION_ENGINE"
+        }
+      );
+
+    return json(
+      result,
+      result.success ? 200 : 400
+    );
+
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        layer:
+          "AI_ACTION_TO_AUTOMATION",
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
+  }
+}
+
+export async function onRequestPost(context) {
+  try {
+    const body =
+      await context.request
+        .json()
+        .catch(() => ({}));
+
+    const result =
+      await executeAutomation(
+        context,
+        body
+      );
+
+    return json(
+      result,
+      result.success ? 200 : 400
+    );
+
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        layer:
+          "AI_ACTION_TO_AUTOMATION",
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
+  }
 }
