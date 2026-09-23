@@ -1,10 +1,11 @@
 // TATO-OS
-// Learning AI V1.8
+// Learning AI V1.9
 // Purpose: Learn from CONTENT_ATTRIBUTION_V2 measurement
+// JSON Mode compatible model
 // No winner decision
 
-const LAYER = "LEARNING_AI_V1.8";
-const MODEL = "@cf/zai-org/glm-4.7-flash";
+const LAYER = "LEARNING_AI_V1.9";
+const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
 
 function json(data, status = 200) {
@@ -90,28 +91,24 @@ function getConversion(measurement, metrics) {
 
 function buildPrompt(measurement, content, metrics, conversion) {
   return `
-You are the Learning AI for TATO Coffee.
+Analyze this TATO Coffee content measurement.
 
-Analyze ONLY this CONTENT_ATTRIBUTION_V2 measurement.
+Use ONLY the supplied data.
 
-Rules:
-- Do NOT use old measurements.
-- Do NOT use AGGREGATE_V1.
-- Do NOT declare a winner.
-- Do NOT invent data.
-- Base conclusions only on supplied evidence.
+Do not use old measurements.
+Do not use AGGREGATE_V1.
+Do not declare a winner.
+Do not invent data.
 
-Return ONLY one valid JSON object.
-Do not use markdown.
-Do not add explanation before or after the JSON.
+Return ONLY a JSON object.
 
-Required JSON structure:
+Required structure:
 
 {
   "summary": "short factual summary",
   "observed_signals": [],
   "learning": {
-    "what_we_learned": "what the measured behavior tells us",
+    "what_we_learned": "evidence-based learning",
     "confidence": "LOW|MEDIUM|HIGH"
   },
   "problems": [],
@@ -124,153 +121,83 @@ Required JSON structure:
   },
   "next_action": {
     "type": "OPTIMIZE|REPEAT|TEST|WAIT",
-    "reason": "reason based only on evidence"
+    "reason": "evidence-based reason"
   },
   "priority": "LOW|MEDIUM|HIGH"
 }
 
 CONTENT:
-${JSON.stringify(content || {}, null, 2)}
+${JSON.stringify(content || {})}
 
 MEASUREMENT:
-${JSON.stringify(measurement, null, 2)}
+${JSON.stringify(measurement)}
 
 METRICS:
-${JSON.stringify(metrics, null, 2)}
+${JSON.stringify(metrics)}
 
 CONVERSION:
-${JSON.stringify(conversion, null, 2)}
+${JSON.stringify(conversion)}
 `;
 }
 
-/*
-  Extract text without collapsing structured objects
-  into a single field.
-*/
-function extractContentValue(value) {
-  if (value == null) return "";
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    const parts = [];
-
-    for (const item of value) {
-      if (typeof item === "string") {
-        parts.push(item);
-        continue;
-      }
-
-      if (item && typeof item === "object") {
-        if (typeof item.text === "string") {
-          parts.push(item.text);
-          continue;
-        }
-
-        if (typeof item.content === "string") {
-          parts.push(item.content);
-          continue;
-        }
-
-        if (item.type === "text" && typeof item.value === "string") {
-          parts.push(item.value);
-          continue;
-        }
-
-        const nested = extractContentValue(item);
-
-        if (nested) {
-          parts.push(nested);
-        }
-      }
-    }
-
-    return parts.join("");
-  }
-
-  if (typeof value === "object") {
-    /*
-      If this is already a structured JSON answer,
-      preserve the entire object.
-    */
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "";
-    }
-  }
-
-  return "";
-}
-
 function extractResponseText(response) {
-  if (response == null) return "";
+  if (!response) return "";
 
   if (typeof response === "string") {
     return response;
   }
 
-  if (response.response != null) {
-    const value = extractContentValue(response.response);
+  if (response.response) {
+    if (typeof response.response === "string") {
+      return response.response;
+    }
 
-    if (value) return value;
+    if (typeof response.response === "object") {
+      return JSON.stringify(response.response);
+    }
   }
 
-  if (response.output_text != null) {
-    const value = extractContentValue(response.output_text);
+  if (response.result) {
+    if (typeof response.result === "string") {
+      return response.result;
+    }
 
-    if (value) return value;
+    if (typeof response.result === "object") {
+      return JSON.stringify(response.result);
+    }
   }
 
-  if (response.result != null) {
-    const value = extractContentValue(response.result);
-
-    if (value) return value;
+  if (response.output_text) {
+    return String(response.output_text);
   }
 
   if (Array.isArray(response.choices)) {
-    for (const choice of response.choices) {
-      if (!choice) continue;
+    const choice = response.choices[0];
 
-      if (choice.message) {
-        const message = choice.message;
+    if (!choice) return "";
 
-        if (message.content != null) {
-          const value = extractContentValue(message.content);
+    if (choice.message) {
+      const message = choice.message;
 
-          if (value) return value;
-        }
-
-        if (message.response != null) {
-          const value = extractContentValue(message.response);
-
-          if (value) return value;
-        }
-
-        if (message.text != null) {
-          const value = extractContentValue(message.text);
-
-          if (value) return value;
-        }
+      if (message.parsed) {
+        return JSON.stringify(message.parsed);
       }
 
-      if (choice.text != null) {
-        const value = extractContentValue(choice.text);
-
-        if (value) return value;
+      if (typeof message.content === "string") {
+        return message.content;
       }
 
-      if (choice.content != null) {
-        const value = extractContentValue(choice.content);
-
-        if (value) return value;
+      if (message.content && typeof message.content === "object") {
+        return JSON.stringify(message.content);
       }
+    }
+
+    if (typeof choice.text === "string") {
+      return choice.text;
+    }
+
+    if (choice.text && typeof choice.text === "object") {
+      return JSON.stringify(choice.text);
     }
   }
 
@@ -286,11 +213,11 @@ function cleanJSON(text) {
   cleaned = cleaned.replace(/^```\s*/i, "");
   cleaned = cleaned.replace(/\s*```$/i, "");
 
-  const firstObject = cleaned.indexOf("{");
-  const lastObject = cleaned.lastIndexOf("}");
+  const first = cleaned.indexOf("{");
+  const last = cleaned.lastIndexOf("}");
 
-  if (firstObject >= 0 && lastObject > firstObject) {
-    cleaned = cleaned.slice(firstObject, lastObject + 1);
+  if (first >= 0 && last > first) {
+    cleaned = cleaned.slice(first, last + 1);
   }
 
   return cleaned.trim();
@@ -313,7 +240,7 @@ function fallbackAnalysis(metrics) {
   let whatWeLearned = "ต้องเก็บพฤติกรรมเพิ่มเติมก่อนตัดสินใจ";
   let action = "WAIT";
   let direction = "เก็บข้อมูลพฤติกรรมเพิ่มเติม";
-  let angle = "ยังไม่สรุปมุม Content จากข้อมูลไม่เพียงพอ";
+  let angle = "ยังไม่สรุปมุม Content";
   let cta = "รอข้อมูล";
   let successMetric = "Attention";
   let reason = "ข้อมูลยังไม่เพียงพอ";
@@ -327,7 +254,7 @@ function fallbackAnalysis(metrics) {
     metrics.revenue > 0
   ) {
     summary = "Content มีสัญญาณ Conversion จากพฤติกรรมจริง";
-    whatWeLearned = "พบพฤติกรรมที่เชื่อมต่อไปถึง Customer หรือ Order";
+    whatWeLearned = "พบพฤติกรรมที่เชื่อมต่อถึง Customer หรือ Order";
     action = "TEST";
     direction = "ทดสอบรูปแบบ Content ที่สร้าง Conversion";
     angle = "ใช้รูปแบบและเส้นทางที่นำไปสู่ Conversion มาทดสอบต่อ";
@@ -344,7 +271,7 @@ function fallbackAnalysis(metrics) {
     angle = "ใช้พฤติกรรมจริงของผู้ชมเป็นตัวกำหนดมุม Content";
     cta = "ดูรายละเอียดและทดลอง TATO";
     successMetric = "Customers";
-    reason = "Content สร้าง Click แล้ว แต่ยังต้องเพิ่ม Conversion";
+    reason = "มี Click แต่ยังไม่มี Customer";
     priority = "MEDIUM";
     confidence = "MEDIUM";
     problems.push("ยังไม่มี Customer");
@@ -414,7 +341,7 @@ async function analyzeAI(env, promptText, metrics) {
       messages: [
         {
           role: "system",
-          content: "Return ONLY one valid JSON object. No markdown. No explanation."
+          content: "Return only valid JSON. No markdown. No explanation."
         },
         {
           role: "user",
@@ -424,7 +351,7 @@ async function analyzeAI(env, promptText, metrics) {
       response_format: {
         type: "json_object"
       },
-      max_completion_tokens: 1200,
+      max_tokens: 1200,
       temperature: 0.1
     });
 
@@ -434,23 +361,17 @@ async function analyzeAI(env, promptText, metrics) {
       debug.raw_response_keys = Object.keys(response);
     }
 
-    if (Array.isArray(response?.choices) && response.choices[0]) {
-      const choice = response.choices[0];
+    if (response?.choices?.[0]) {
+      debug.raw_choice_keys =
+        Object.keys(response.choices[0] || {});
 
-      if (typeof choice === "object") {
-        debug.raw_choice_keys = Object.keys(choice);
-      }
-
-      if (choice.message && typeof choice.message === "object") {
-        debug.choice_message_keys = Object.keys(choice.message);
-      }
+      debug.choice_message_keys =
+        Object.keys(response.choices[0]?.message || {});
     }
 
     const responseText = extractResponseText(response);
 
-    if (responseText) {
-      debug.response_text_received = true;
-    }
+    debug.response_text_received = Boolean(responseText);
 
     const parsed = parseJSON(responseText);
 
@@ -616,7 +537,7 @@ async function handlePreview(env) {
           provider_status: "WAITING_FOR_MEASUREMENT"
         }
       },
-      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
+      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.9",
       next_step: "Create CONTENT_ATTRIBUTION_V2 measurement first."
     });
   }
@@ -678,7 +599,7 @@ async function handlePreview(env) {
       debug: aiResult.debug
     },
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.9",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
@@ -750,7 +671,7 @@ async function handleExecute(env) {
 
     saved,
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.9",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
