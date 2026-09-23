@@ -56,15 +56,8 @@ function extractText(response) {
     const value = response.content
       .map(item => {
         if (typeof item === "string") return item;
-
-        if (item && typeof item.text === "string") {
-          return item.text;
-        }
-
-        if (item && typeof item.content === "string") {
-          return item.content;
-        }
-
+        if (item && typeof item.text === "string") return item.text;
+        if (item && typeof item.content === "string") return item.content;
         return "";
       })
       .join("\n")
@@ -84,15 +77,8 @@ function extractText(response) {
       const value = message.content
         .map(item => {
           if (typeof item === "string") return item;
-
-          if (item && typeof item.text === "string") {
-            return item.text;
-          }
-
-          if (item && typeof item.content === "string") {
-            return item.content;
-          }
-
+          if (item && typeof item.text === "string") return item.text;
+          if (item && typeof item.content === "string") return item.content;
           return "";
         })
         .join("\n")
@@ -112,7 +98,7 @@ function extractText(response) {
 function parseJSON(value) {
   if (!value) return null;
 
-  let text = value
+  const text = value
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
@@ -162,29 +148,35 @@ function normalizeAIResult(value, metrics, learning, content) {
     "HIGH"
   ];
 
-  const action = allowedActions.includes(
-    s(value?.next_content?.action).toUpperCase()
-  )
-    ? s(value.next_content.action).toUpperCase()
-    : "DISTRIBUTE";
-
-  const priority = allowedPriority.includes(
-    s(value?.priority).toUpperCase()
-  )
-    ? s(value.priority).toUpperCase()
-    : "LOW";
-
-  const confidenceValues = [
+  const allowedConfidence = [
     "LOW",
     "MEDIUM",
     "HIGH"
   ];
 
-  const confidence = confidenceValues.includes(
-    s(value?.learning?.confidence).toUpperCase()
-  )
-    ? s(value.learning.confidence).toUpperCase()
-    : "LOW";
+  const actionValue =
+    s(value?.next_content?.action).toUpperCase();
+
+  const action =
+    allowedActions.includes(actionValue)
+      ? actionValue
+      : "DISTRIBUTE";
+
+  const priorityValue =
+    s(value?.priority).toUpperCase();
+
+  const priority =
+    allowedPriority.includes(priorityValue)
+      ? priorityValue
+      : "LOW";
+
+  const confidenceValue =
+    s(value?.learning?.confidence).toUpperCase();
+
+  const confidence =
+    allowedConfidence.includes(confidenceValue)
+      ? confidenceValue
+      : "LOW";
 
   return {
     summary:
@@ -214,11 +206,7 @@ function normalizeAIResult(value, metrics, learning, content) {
 
       direction:
         s(value?.next_content?.direction) ||
-        (
-          action === "DISTRIBUTE"
-            ? "เผยแพร่ Content เพื่อสร้าง Traffic"
-            : "ปรับ Content จากข้อมูลพฤติกรรม"
-        ),
+        "เผยแพร่ Content เพื่อสร้าง Traffic",
 
       angle:
         s(value?.next_content?.angle) ||
@@ -249,13 +237,13 @@ function normalizeAIResult(value, metrics, learning, content) {
       reason:
         s(value?.next_action?.reason) ||
         (
-          action === "DISTRIBUTE"
-            ? "Content ต้องสร้าง Traffic ก่อน"
+          action === "SCALE"
+            ? "พบ Conversion แล้ว"
             : action === "OPTIMIZE"
-              ? "พบพฤติกรรมแล้ว ควรปรับ Content"
-              : action === "SCALE"
-                ? "พบ Conversion แล้ว สามารถขยายผล"
-                : "ยังมีข้อมูลไม่เพียงพอ"
+              ? "พบพฤติกรรมแล้ว ควร Optimize"
+              : action === "WAIT"
+                ? "ยังมีข้อมูลไม่เพียงพอ"
+                : "Content พร้อมสร้าง Traffic"
         )
     },
 
@@ -602,7 +590,7 @@ function prompt(learning, content, metrics, conversion) {
 
 ตอบ JSON เท่านั้น
 ห้าม Markdown
-ห้ามอธิบายเหตุผล
+ห้าม reasoning
 ตอบสั้นมาก
 
 Learning:
@@ -626,8 +614,7 @@ ${JSON.stringify(metrics)}
 Conversion:
 ${JSON.stringify(conversion)}
 
-คืน JSON ตามนี้เท่านั้น:
-
+JSON:
 {
   "summary": "สรุปสั้น",
   "observed_signals": ["สัญญาณ"],
@@ -650,13 +637,8 @@ ${JSON.stringify(conversion)}
   "priority": "LOW"
 }
 
-Allowed action:
+Allowed:
 DISTRIBUTE, OPTIMIZE, SCALE, WAIT
-
-Allowed priority:
-LOW, MEDIUM, HIGH
-
-Allowed confidence:
 LOW, MEDIUM, HIGH
 `.trim();
 }
@@ -708,7 +690,7 @@ async function analyze(env) {
             {
               role: "system",
               content:
-                "ตอบเป็น JSON เท่านั้น ห้าม reasoning ห้าม markdown และให้สั้นมาก"
+                "JSON only. No reasoning. Very short response."
             },
             {
               role: "user",
@@ -734,7 +716,8 @@ async function analyze(env) {
         }
       );
 
-    rawResponse = response;
+    rawResponse =
+      response;
 
     aiText =
       extractText(response);
@@ -783,8 +766,7 @@ async function analyze(env) {
       analysis,
 
       debug: {
-        ai_called:
-          true,
+        ai_called: true,
 
         response_text_received:
           !!aiText,
@@ -795,23 +777,23 @@ async function analyze(env) {
 
         finish_reason:
           rawResponse?.choices?.[0]
-            ?.finish_reason || null,
+            ?.finish_reason ||
+          null,
 
         error:
           aiError
-      },
-
-      raw_response:
-        aiStatus === "AI_ANALYZED"
-          ? undefined
-          : rawResponse
+      }
     }
   };
 }
 
 async function save(env, result) {
-  const runId = id();
-  const insightId = id();
+  const runId =
+    id();
+
+  const insightId =
+    id();
+
   const now =
     new Date().toISOString();
 
@@ -865,7 +847,8 @@ async function save(env, result) {
   const priority =
     s(
       result.ai.analysis?.priority
-    ).toUpperCase() || "LOW";
+    ).toUpperCase() ||
+    "LOW";
 
   const score =
     priority === "HIGH"
@@ -982,10 +965,8 @@ export async function onRequestGet(context) {
     return json(
       {
         success: false,
-
         layer:
           "LEARNING_AI_V1",
-
         error:
           error?.message ||
           String(error)
@@ -1015,5 +996,109 @@ export async function onRequestPost(context) {
 
     if (mode === "execute") {
       const saved =
-        awa
+        await save(
+          context.env,
+          result
+        );
+
+      return json({
+        success: true,
+
+        layer:
+          "LEARNING_AI_V1",
+
+        mode:
+          "execute",
+
+        status:
+          "EXECUTED",
+
+        learning:
+          saved.learning,
+
+        content:
+          saved.content
+            ? {
+                id:
+                  saved.content.id,
+
+                title:
+                  saved.content.title,
+
+                status:
+                  saved.content.status
+              }
+            : null,
+
+        metrics:
+          saved.metrics,
+
+        conversion:
+          saved.conversion,
+
+        ai:
+          saved.ai,
+
+        next_step:
+          "Learning AI saved. Next stage: AI → Action Engine."
+      });
+    }
+
+    return json({
+      success: true,
+
+      layer:
+        "LEARNING_AI_V1",
+
+      mode:
+        "preview",
+
+      status:
+        "ANALYZED",
+
+      learning:
+        result.learning,
+
+      content:
+        result.content
+          ? {
+              id:
+                result.content.id,
+
+              title:
+                result.content.title,
+
+              status:
+                result.content.status
+            }
+          : null,
+
+      metrics:
+        result.metrics,
+
+      conversion:
+        result.conversion,
+
+      ai:
+        result.ai,
+
+      next_step:
+        "AI Learning analysis ready."
+    });
+  } catch (error) {
+    return json(
+      {
+        success: false,
+
+        layer:
+          "LEARNING_AI_V1",
+
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
+  }
+}
 ````
