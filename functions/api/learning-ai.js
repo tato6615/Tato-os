@@ -1,6 +1,6 @@
 // TATO-OS
-// Learning AI V1.6
-// Workers AI diagnostic + robust response parser
+// Learning AI V1.7
+// Full replacement
 
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 
@@ -88,14 +88,18 @@ async function loadData(db) {
     SELECT COUNT(*) AS total
     FROM behavior_events
     WHERE event_type = 'product_view'
-      AND created_at >= ?
+    AND created_at >= ?
   `).bind(start).first();
 
   const clicks = await db.prepare(`
     SELECT COUNT(*) AS total
     FROM behavior_events
-    WHERE event_type IN ('click', 'cta_click', 'product_click')
-      AND created_at >= ?
+    WHERE event_type IN (
+      'click',
+      'cta_click',
+      'product_click'
+    )
+    AND created_at >= ?
   `).bind(start).first();
 
   const engagements = await db.prepare(`
@@ -108,7 +112,7 @@ async function loadData(db) {
       'share',
       'save'
     )
-      AND created_at >= ?
+    AND created_at >= ?
   `).bind(start).first();
 
   const customers = await db.prepare(`
@@ -164,7 +168,10 @@ async function loadData(db) {
       score: 60,
       status: "LEARNED"
     };
-  } else if (metrics.product_views > 0 || metrics.clicks > 0) {
+  } else if (
+    metrics.product_views > 0 ||
+    metrics.clicks > 0
+  ) {
     learning = {
       signal_type: "TRAFFIC",
       title: "เกิด Traffic",
@@ -197,11 +204,26 @@ async function loadData(db) {
     },
     metrics,
     conversion: {
-      attention_to_view: pct(metrics.product_views, metrics.attention),
-      view_to_click: pct(metrics.clicks, metrics.product_views),
-      click_to_customer: pct(metrics.customers, metrics.clicks),
-      customer_to_order: pct(metrics.orders, metrics.customers),
-      engagement_to_order: pct(metrics.orders, metrics.engagements)
+      attention_to_view: pct(
+        metrics.product_views,
+        metrics.attention
+      ),
+      view_to_click: pct(
+        metrics.clicks,
+        metrics.product_views
+      ),
+      click_to_customer: pct(
+        metrics.customers,
+        metrics.clicks
+      ),
+      customer_to_order: pct(
+        metrics.orders,
+        metrics.customers
+      ),
+      engagement_to_order: pct(
+        metrics.orders,
+        metrics.engagements
+      )
     },
     learning
   };
@@ -210,6 +232,7 @@ async function loadData(db) {
 function fallback(data) {
   return {
     summary: data.learning.finding,
+
     observed_signals: [
       `Learning signal คือ ${data.learning.signal_type}`,
       `Attention ${data.metrics.attention}`,
@@ -220,100 +243,169 @@ function fallback(data) {
       `Orders ${data.metrics.orders}`,
       `Revenue ${data.metrics.revenue}`
     ],
+
     learning: {
       what_we_learned: data.learning.finding,
-      confidence: data.metrics.orders > 0
+      confidence:
+        data.metrics.orders > 0
+          ? "HIGH"
+          : data.metrics.product_views > 0
+            ? "MEDIUM"
+            : "LOW"
+    },
+
+    problems:
+      data.metrics.attention === 0
+        ? ["ยังไม่มี Traffic"]
+        : data.metrics.orders === 0
+          ? ["ยังไม่มี Conversion"]
+          : [],
+
+    next_content: {
+      action:
+        data.metrics.orders > 0
+          ? "ITERATE"
+          : "DISTRIBUTE",
+
+      direction: data.learning.recommendation,
+
+      angle: data.content?.angle || "",
+
+      cta: data.content?.cta || "",
+
+      success_metric:
+        data.metrics.orders > 0
+          ? "Revenue"
+          : "Product Views"
+    },
+
+    next_action: {
+      type:
+        data.metrics.orders > 0
+          ? "ITERATE"
+          : "DISTRIBUTE",
+
+      reason: data.learning.recommendation
+    },
+
+    priority:
+      data.metrics.orders > 0
         ? "HIGH"
         : data.metrics.product_views > 0
           ? "MEDIUM"
           : "LOW"
-    },
-    problems: data.metrics.attention === 0
-      ? ["ยังไม่มี Traffic"]
-      : data.metrics.orders === 0
-        ? ["ยังไม่มี Conversion"]
-        : [],
-    next_content: {
-      action: data.metrics.orders > 0 ? "ITERATE" : "DISTRIBUTE",
-      direction: data.learning.recommendation,
-      angle: data.content?.angle || "",
-      cta: data.content?.cta || "",
-      success_metric: data.metrics.orders > 0
-        ? "Revenue"
-        : "Product Views"
-    },
-    next_action: {
-      type: data.metrics.orders > 0 ? "ITERATE" : "DISTRIBUTE",
-      reason: data.learning.recommendation
-    },
-    priority: data.metrics.orders > 0
-      ? "HIGH"
-      : data.metrics.product_views > 0
-        ? "MEDIUM"
-        : "LOW"
   };
 }
 
-function parseResponse(result) {
+function extractContent(result) {
+  if (!result) {
+    return {
+      content: null,
+      debug: {
+        result_type: "null",
+        reason: "AI returned no result"
+      }
+    };
+  }
+
   const debug = {
     result_type: typeof result,
-    has_result: !!result,
-    has_response: !!result?.response,
-    has_choices: Array.isArray(result?.response?.choices),
-    choice_count: Array.isArray(result?.response?.choices)
-      ? result.response.choices.length
-      : 0,
-    finish_reason: result?.response?.choices?.[0]?.finish_reason ?? null,
-    content_type: typeof result?.response?.choices?.[0]?.message?.content,
-    content_length: 0
+    keys:
+      typeof result === "object"
+        ? Object.keys(result)
+        : [],
+    has_response: !!result.response,
+    has_choices: Array.isArray(
+      result?.response?.choices
+    ),
+    has_result: !!result.result
   };
 
-  const message = result?.response?.choices?.[0]?.message;
+  let content = null;
 
-  let content = message?.content;
+  if (
+    result.response &&
+    result.response.choices &&
+    result.response.choices[0]
+  ) {
+    const choice = result.response.choices[0];
+
+    debug.finish_reason =
+      choice.finish_reason || null;
+
+    if (choice.message) {
+      content = choice.message.content;
+    }
+
+    if (!content && choice.text) {
+      content = choice.text;
+    }
+  }
+
+  if (!content && typeof result.response === "string") {
+    content = result.response;
+  }
+
+  if (!content && typeof result.result === "string") {
+    content = result.result;
+  }
+
+  if (
+    result.result &&
+    typeof result.result.response === "string"
+  ) {
+    content = result.result.response;
+  }
 
   if (Array.isArray(content)) {
     content = content
       .map(item => {
-        if (typeof item === "string") return item;
-        return item?.text || item?.content || "";
+        if (typeof item === "string") {
+          return item;
+        }
+
+        return (
+          item?.text ||
+          item?.content ||
+          ""
+        );
       })
       .join("");
   }
 
-  if (typeof content !== "string") {
+  debug.content_type = typeof content;
+  debug.content_length =
+    typeof content === "string"
+      ? content.length
+      : 0;
+
+  if (
+    typeof content !== "string" ||
+    !content.trim()
+  ) {
     return {
-      parsed: null,
+      content: null,
       debug
     };
   }
 
-  content = content.trim();
-
-  debug.content_length = content.length;
-
-  if (!content) {
-    return {
-      parsed: null,
-      debug
-    };
-  }
+  const text = content.trim();
 
   try {
     return {
-      parsed: JSON.parse(content),
+      content: JSON.parse(text),
       debug
     };
   } catch {}
 
-  const start = content.indexOf("{");
-  const end = content.lastIndexOf("}");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
 
   if (start >= 0 && end > start) {
     try {
       return {
-        parsed: JSON.parse(
-          content.slice(start, end + 1)
+        content: JSON.parse(
+          text.slice(start, end + 1)
         ),
         debug
       };
@@ -321,7 +413,7 @@ function parseResponse(result) {
   }
 
   return {
-    parsed: null,
+    content: null,
     debug
   };
 }
@@ -329,7 +421,7 @@ function parseResponse(result) {
 async function callAI(ai, data) {
   if (!ai) {
     return {
-      parsed: null,
+      content: null,
       debug: {
         error: "AI binding not found"
       }
@@ -338,69 +430,78 @@ async function callAI(ai, data) {
 
   if (typeof ai.run !== "function") {
     return {
-      parsed: null,
+      content: null,
       debug: {
-        error: "AI binding exists but ai.run is not a function"
+        error:
+          "AI binding exists but ai.run is not a function"
       }
     };
   }
 
   const prompt = `
-Analyze this TATO Coffee learning data.
+Analyze TATO Coffee learning data.
 
-Return ONLY one compact JSON object.
-Do not use markdown.
-Do not explain.
+Return ONLY valid JSON.
+No markdown.
+No explanation.
 
-Required fields:
-summary, observed_signals, learning, problems,
-next_content, next_action, priority.
+Required:
+summary
+observed_signals
+learning
+problems
+next_content
+next_action
+priority
 
-learning must contain:
-what_we_learned, confidence
+learning:
+what_we_learned
+confidence
 
-next_content must contain:
-action, direction, angle, cta, success_metric
+next_content:
+action
+direction
+angle
+cta
+success_metric
 
-next_action must contain:
-type, reason
+next_action:
+type
+reason
 
 DATA:
 ${JSON.stringify(data)}
 `;
 
   try {
-    const result = await ai.run(MODEL, {
-      messages: [
-        {
-          role: "system",
-          content: "Return only valid compact JSON."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_tokens: 512,
-      temperature: 0
-    });
-
-    const parsed = parseResponse(result);
-
-    return {
-      ...parsed,
-      raw_response: {
-        finish_reason:
-          parsed.debug?.finish_reason ?? null,
-        content_length:
-          parsed.debug?.content_length ?? 0
+    const result = await ai.run(
+      MODEL,
+      {
+        messages: [
+          {
+            role: "system",
+            content:
+              "Return only valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 700,
+        temperature: 0
       }
-    };
+    );
+
+    return extractContent(result);
+
   } catch (error) {
     return {
-      parsed: null,
+      content: null,
       debug: {
-        error: error?.message || String(error)
+        error:
+          error?.message ||
+          String(error)
       }
     };
   }
@@ -410,10 +511,13 @@ async function handle(context) {
   const db = context.env.DB;
 
   if (!db) {
-    return json({
-      success: false,
-      error: "D1 binding DB not found"
-    }, 500);
+    return json(
+      {
+        success: false,
+        error: "D1 binding DB not found"
+      },
+      500
+    );
   }
 
   await ensureTables(db);
@@ -426,29 +530,46 @@ async function handle(context) {
   );
 
   const analysis =
-    aiResult.parsed || fallback(data);
+    aiResult.content ||
+    fallback(data);
 
   return {
     success: true,
+
     layer: "LEARNING_AI_V1",
+
     mode: "preview",
+
     status: "ANALYZED",
+
     learning: data.learning,
+
     content: data.content,
+
     metrics: data.metrics,
+
     conversion: data.conversion,
+
     ai: {
-      status: aiResult.parsed
-        ? "AI_ANALYZED"
-        : "FALLBACK_ANALYZED",
+      status:
+        aiResult.content
+          ? "AI_ANALYZED"
+          : "FALLBACK_ANALYZED",
+
       model: MODEL,
+
       analysis,
-      debug: aiResult.parsed
-        ? undefined
-        : aiResult.debug || null,
+
+      debug:
+        aiResult.content
+          ? null
+          : aiResult.debug || null,
+
       run_id: null,
+
       insight_id: null
     },
+
     next_step:
       "AI Learning analysis ready for review."
   };
@@ -456,29 +577,42 @@ async function handle(context) {
 
 export async function onRequestGet(context) {
   try {
-    return json(await handle(context));
+    return json(
+      await handle(context)
+    );
   } catch (error) {
-    return json({
-      success: false,
-      layer: "LEARNING_AI_V1",
-      error: error?.message || String(error)
-    }, 500);
+    return json(
+      {
+        success: false,
+        layer: "LEARNING_AI_V1",
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
   }
 }
 
 export async function onRequestPost(context) {
   try {
-    const result = await handle(context);
+    const result =
+      await handle(context);
 
     return json({
       ...result,
       mode: "execute"
     });
   } catch (error) {
-    return json({
-      success: false,
-      layer: "LEARNING_AI_V1",
-      error: error?.message || String(error)
-    }, 500);
+    return json(
+      {
+        success: false,
+        layer: "LEARNING_AI_V1",
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
   }
 }
