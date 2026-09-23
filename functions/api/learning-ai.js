@@ -1,5 +1,5 @@
 // TATO-OS
-// Learning AI V1.7
+// Learning AI V1.8
 // Full replacement
 
 const MODEL = "@cf/zai-org/glm-4.7-flash";
@@ -20,7 +20,9 @@ function num(value) {
 }
 
 function pct(a, b) {
-  return b > 0 ? Math.round((a / b) * 10000) / 100 : 0;
+  return b > 0
+    ? Math.round((a / b) * 10000) / 100
+    : 0;
 }
 
 async function ensureTables(db) {
@@ -146,7 +148,8 @@ async function loadData(db) {
       signal_type: "CONVERSION",
       title: "เกิด Conversion",
       finding: "พบคำสั่งซื้อหลังช่วงเริ่มวัดผล",
-      recommendation: "วิเคราะห์องค์ประกอบของ Content ที่นำไปสู่การซื้อและนำไปทำซ้ำ",
+      recommendation:
+        "วิเคราะห์องค์ประกอบของ Content ที่นำไปสู่การซื้อและนำไปทำซ้ำ",
       score: 100,
       status: "LEARNED"
     };
@@ -155,7 +158,8 @@ async function loadData(db) {
       signal_type: "CUSTOMER",
       title: "เกิด Customer Signal",
       finding: "พบลูกค้าใหม่ แต่ยังไม่พบคำสั่งซื้อ",
-      recommendation: "ติดตาม Customer Journey และปรับ CTA เพื่อเพิ่ม Conversion",
+      recommendation:
+        "ติดตาม Customer Journey และปรับ CTA เพื่อเพิ่ม Conversion",
       score: 75,
       status: "LEARNED"
     };
@@ -164,7 +168,8 @@ async function loadData(db) {
       signal_type: "ENGAGEMENT",
       title: "เกิด Engagement",
       finding: "Content เริ่มสร้าง Engagement",
-      recommendation: "ทดลองต่อยอดมุม Content เดิมและติดตาม Product View",
+      recommendation:
+        "ทดลองต่อยอดมุม Content เดิมและติดตาม Product View",
       score: 60,
       status: "LEARNED"
     };
@@ -176,7 +181,8 @@ async function loadData(db) {
       signal_type: "TRAFFIC",
       title: "เกิด Traffic",
       finding: "เริ่มมีพฤติกรรมเข้าชมหรือคลิก",
-      recommendation: "เก็บข้อมูลต่อและปรับ CTA เพื่อเพิ่ม Conversion",
+      recommendation:
+        "เก็บข้อมูลต่อและปรับ CTA เพื่อเพิ่ม Conversion",
       score: 45,
       status: "LEARNED"
     };
@@ -184,8 +190,10 @@ async function loadData(db) {
     learning = {
       signal_type: "NO_TRAFFIC",
       title: "ยังไม่มี Traffic",
-      finding: "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content",
-      recommendation: "เผยแพร่ Content และรอข้อมูลพฤติกรรมก่อนตัดสินผล",
+      finding:
+        "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content",
+      recommendation:
+        "เผยแพร่ Content และรอข้อมูลพฤติกรรมก่อนตัดสินผล",
       score: 20,
       status: "LEARNED"
     };
@@ -202,7 +210,9 @@ async function loadData(db) {
       angle: content.angle,
       cta: content.cta
     },
+
     metrics,
+
     conversion: {
       attention_to_view: pct(
         metrics.product_views,
@@ -225,6 +235,7 @@ async function loadData(db) {
         metrics.engagements
       )
     },
+
     learning
   };
 }
@@ -297,124 +308,138 @@ function fallback(data) {
   };
 }
 
+function normalizeContent(content) {
+  if (content === null || content === undefined) {
+    return null;
+  }
+
+  if (typeof content === "string") {
+    const text = content.trim();
+
+    if (!text) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {}
+
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(
+          text.slice(start, end + 1)
+        );
+      } catch {}
+    }
+
+    return null;
+  }
+
+  if (typeof content === "object") {
+    return content;
+  }
+
+  return null;
+}
+
 function extractContent(result) {
   if (!result) {
     return {
       content: null,
       debug: {
         result_type: "null",
+        keys: [],
         reason: "AI returned no result"
       }
     };
   }
 
-  const debug = {
-    result_type: typeof result,
-    keys:
-      typeof result === "object"
-        ? Object.keys(result)
-        : [],
-    has_response: !!result.response,
-    has_choices: Array.isArray(
-      result?.response?.choices
-    ),
-    has_result: !!result.result
-  };
+  const choices =
+    Array.isArray(result?.choices)
+      ? result.choices
+      : Array.isArray(result?.response?.choices)
+        ? result.response.choices
+        : Array.isArray(result?.result?.choices)
+          ? result.result.choices
+          : Array.isArray(
+              result?.result?.response?.choices
+            )
+            ? result.result.response.choices
+            : [];
 
-  let content = null;
+  const choice = choices[0];
 
-  if (
-    result.response &&
-    result.response.choices &&
-    result.response.choices[0]
-  ) {
-    const choice = result.response.choices[0];
+  let rawContent = null;
 
-    debug.finish_reason =
-      choice.finish_reason || null;
-
-    if (choice.message) {
-      content = choice.message.content;
-    }
-
-    if (!content && choice.text) {
-      content = choice.text;
-    }
-  }
-
-  if (!content && typeof result.response === "string") {
-    content = result.response;
-  }
-
-  if (!content && typeof result.result === "string") {
-    content = result.result;
+  if (choice?.message) {
+    rawContent = choice.message.content;
   }
 
   if (
-    result.result &&
-    typeof result.result.response === "string"
+    rawContent === null ||
+    rawContent === undefined
   ) {
-    content = result.result.response;
+    rawContent = choice?.text;
   }
-
-  if (Array.isArray(content)) {
-    content = content
-      .map(item => {
-        if (typeof item === "string") {
-          return item;
-        }
-
-        return (
-          item?.text ||
-          item?.content ||
-          ""
-        );
-      })
-      .join("");
-  }
-
-  debug.content_type = typeof content;
-  debug.content_length =
-    typeof content === "string"
-      ? content.length
-      : 0;
 
   if (
-    typeof content !== "string" ||
-    !content.trim()
+    rawContent === null ||
+    rawContent === undefined
   ) {
-    return {
-      content: null,
-      debug
-    };
+    rawContent = result?.output_text;
   }
 
-  const text = content.trim();
-
-  try {
-    return {
-      content: JSON.parse(text),
-      debug
-    };
-  } catch {}
-
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-
-  if (start >= 0 && end > start) {
-    try {
-      return {
-        content: JSON.parse(
-          text.slice(start, end + 1)
-        ),
-        debug
-      };
-    } catch {}
+  if (
+    rawContent === null ||
+    rawContent === undefined
+  ) {
+    rawContent = result?.response;
   }
+
+  const parsed = normalizeContent(
+    rawContent
+  );
 
   return {
-    content: null,
-    debug
+    content: parsed,
+
+    debug: {
+      result_type: typeof result,
+
+      keys:
+        typeof result === "object"
+          ? Object.keys(result)
+          : [],
+
+      choice_count: choices.length,
+
+      has_direct_choices:
+        Array.isArray(result?.choices),
+
+      has_response_choices:
+        Array.isArray(
+          result?.response?.choices
+        ),
+
+      finish_reason:
+        choice?.finish_reason || null,
+
+      raw_content_type:
+        typeof rawContent,
+
+      content_type:
+        typeof rawContent === "object"
+          ? "object"
+          : typeof rawContent,
+
+      content_length:
+        typeof rawContent === "string"
+          ? rawContent.length
+          : 0
+    }
   };
 }
 
@@ -445,29 +470,29 @@ Return ONLY valid JSON.
 No markdown.
 No explanation.
 
-Required:
-summary
-observed_signals
-learning
-problems
-next_content
-next_action
-priority
+Required JSON structure:
 
-learning:
-what_we_learned
-confidence
-
-next_content:
-action
-direction
-angle
-cta
-success_metric
-
-next_action:
-type
-reason
+{
+  "summary": "...",
+  "observed_signals": [],
+  "learning": {
+    "what_we_learned": "...",
+    "confidence": "LOW"
+  },
+  "problems": [],
+  "next_content": {
+    "action": "...",
+    "direction": "...",
+    "angle": "...",
+    "cta": "...",
+    "success_metric": "..."
+  },
+  "next_action": {
+    "type": "...",
+    "reason": "..."
+  },
+  "priority": "LOW"
+}
 
 DATA:
 ${JSON.stringify(data)}
@@ -481,7 +506,7 @@ ${JSON.stringify(data)}
           {
             role: "system",
             content:
-              "Return only valid JSON."
+              "Return only valid JSON. Do not use markdown."
           },
           {
             role: "user",
@@ -511,13 +536,10 @@ async function handle(context) {
   const db = context.env.DB;
 
   if (!db) {
-    return json(
-      {
-        success: false,
-        error: "D1 binding DB not found"
-      },
-      500
-    );
+    return {
+      success: false,
+      error: "D1 binding DB not found"
+    };
   }
 
   await ensureTables(db);
