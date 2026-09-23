@@ -1,7 +1,7 @@
 // TATO-OS
 // Learning AI V1.10
-// Flow: Measurement -> Learning AI -> AI Run -> AI Insight
-// Exact measurement-driven learning. No winner declaration.
+// Exact Measurement Driven
+// FIX: ai_insights live schema has NO agent_name column
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const LAYER = "LEARNING_AI_V1.10";
@@ -16,6 +16,10 @@ function json(data, status = 200) {
   });
 }
 
+function uid() {
+  return crypto.randomUUID();
+}
+
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -25,14 +29,14 @@ function pct(a, b) {
   return b > 0 ? Math.round((a / b) * 10000) / 100 : 0;
 }
 
-function id() {
-  return crypto.randomUUID();
-}
+function safeJson(value, fallback = {}) {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
 
-function safeJSON(value, fallback = {}) {
-  if (value == null) return fallback;
-
-  if (typeof value === "object") return value;
+  if (typeof value === "object") {
+    return value;
+  }
 
   try {
     return JSON.parse(value);
@@ -51,12 +55,11 @@ function getMeasurementId(request) {
   );
 }
 
-async function loadMeasurement(db, measurementId) {
+async function loadExactMeasurement(db, measurementId) {
   if (!measurementId) {
-    return {
-      success: false,
-      error: "measurement_id is required"
-    };
+    throw new Error(
+      "measurement_id is required. Use ?measurement_id=<measurement_id>"
+    );
   }
 
   const measurement = await db
@@ -70,24 +73,30 @@ async function loadMeasurement(db, measurementId) {
     .first();
 
   if (!measurement) {
-    return {
-      success: false,
-      error: "Measurement not found",
-      measurement_id: measurementId
-    };
+    throw new Error(
+      `Measurement not found: ${measurementId}`
+    );
   }
 
-  const content = await db
+  return measurement;
+}
+
+async function loadContent(db, contentId) {
+  if (!contentId) return null;
+
+  return await db
     .prepare(`
       SELECT *
       FROM content_engine
       WHERE id = ?
       LIMIT 1
     `)
-    .bind(measurement.content_id)
+    .bind(contentId)
     .first();
+}
 
-  const metrics = {
+function buildMetrics(measurement) {
+  return {
     attention: num(measurement.attention),
     product_views: num(measurement.product_views),
     clicks: num(measurement.clicks),
@@ -96,241 +105,214 @@ async function loadMeasurement(db, measurementId) {
     orders: num(measurement.orders),
     revenue: num(measurement.revenue)
   };
+}
 
-  const funnel = {
-    attention_to_view: pct(
+function buildFunnel(metrics) {
+  return {
+    attention: metrics.attention,
+    product_views: metrics.product_views,
+    clicks: metrics.clicks,
+    engagements: metrics.engagements,
+    customers: metrics.customers,
+    orders: metrics.orders,
+    revenue: metrics.revenue
+  };
+}
+
+function buildConversion(metrics) {
+  return {
+    attention_to_product_view: pct(
       metrics.product_views,
       metrics.attention
     ),
-    view_to_click: pct(
+
+    product_view_to_click: pct(
       metrics.clicks,
       metrics.product_views
     ),
+
     click_to_customer: pct(
       metrics.customers,
       metrics.clicks
     ),
+
     customer_to_order: pct(
       metrics.orders,
       metrics.customers
+    ),
+
+    engagement_to_order: pct(
+      metrics.orders,
+      metrics.engagements
+    ),
+
+    attention_to_order: pct(
+      metrics.orders,
+      metrics.attention
     )
-  };
-
-  const attribution = safeJSON(
-    measurement.attribution,
-    {}
-  );
-
-  const diagnostic = safeJSON(
-    measurement.diagnostic,
-    {}
-  );
-
-  const learningSignal = safeJSON(
-    measurement.learning_signal,
-    {}
-  );
-
-  return {
-    success: true,
-
-    measurement: {
-      id: measurement.id,
-      content_id: measurement.content_id,
-      status: measurement.status,
-      measured_at: measurement.measured_at,
-      measurement_start: measurement.measurement_start,
-      attribution_mode: measurement.attribution_mode
-    },
-
-    content: content
-      ? {
-          id: content.id,
-          title: content.title,
-          status: content.status,
-          objective: content.objective,
-          attention_type: content.attention_type,
-          market_keyword: content.market_keyword,
-          angle: content.angle,
-          cta: content.cta
-        }
-      : null,
-
-    metrics,
-    funnel,
-    attribution,
-    diagnostic,
-    learning_signal: learningSignal
   };
 }
 
-function deterministicLearning(data) {
-  const m = data.metrics;
-
-  if (m.revenue > 0 || m.orders > 0) {
+function buildDeterministicLearning(metrics) {
+  if (metrics.orders > 0 || metrics.revenue > 0) {
     return {
       signal_type: "CONVERSION",
-      finding:
-        "พบคำสั่งซื้อหรือรายได้จาก Measurement นี้",
-      confidence: "HIGH",
+      finding: "พบคำสั่งซื้อหรือรายได้จากช่วง Measurement นี้",
       recommendation:
-        "วิเคราะห์เส้นทางที่นำไปสู่ Conversion และเก็บข้อมูลเพิ่มก่อนขยาย"
+        "ตรวจสอบเส้นทางจาก Attention ไป Conversion และเก็บหลักฐานเพิ่มก่อนนำไปตัดสินใจทำซ้ำ",
+      confidence: "HIGH"
     };
   }
 
-  if (m.customers > 0) {
+  if (metrics.customers > 0) {
     return {
       signal_type: "CUSTOMER",
       finding:
-        "พบ Customer Signal แต่ยังไม่มี Conversion",
-      confidence: "MEDIUM",
+        "พบ Customer Signal แต่ยังไม่มี Conversion ใน Measurement นี้",
       recommendation:
-        "ตรวจเส้นทางจาก Click ไป Customer และติดตาม Conversion ต่อ"
+        "ติดตาม Customer Journey ต่อจาก Click ไป Customer และ Order",
+      confidence: "MEDIUM"
     };
   }
 
-  if (m.engagements > 0) {
+  if (metrics.engagements > 0) {
     return {
       signal_type: "ENGAGEMENT",
       finding:
-        "Content สร้าง Engagement แต่ยังไม่มี Customer หรือ Conversion",
-      confidence: "MEDIUM",
+        "Content สร้าง Engagement แต่ยังไม่เกิด Customer หรือ Conversion",
       recommendation:
-        "ติดตาม Product View และ Customer ต่อ โดยยังไม่สรุปผู้ชนะ"
+        "เก็บ Measurement ต่อและตรวจเส้นทางจาก Engagement ไป Product View และ Customer",
+      confidence: "MEDIUM"
     };
   }
 
-  if (m.product_views > 0) {
+  if (metrics.product_views > 0) {
     return {
       signal_type: "PRODUCT_INTEREST",
       finding:
-        "เกิด Product View แสดงว่ามีความสนใจในระดับสินค้า",
-      confidence: "MEDIUM",
+        "พบ Product View แสดงถึงความสนใจในระดับสินค้า แต่ยังไม่เกิด Conversion",
       recommendation:
-        "ติดตาม Click, Customer และ Conversion ต่อ"
+        "ตรวจสอบเส้นทางจาก Product View ไป Click และ Customer",
+      confidence: "MEDIUM"
     };
   }
 
-  if (m.clicks > 0) {
+  if (metrics.clicks > 0) {
     return {
       signal_type: "TRAFFIC",
       finding:
-        "Content สร้าง Click แต่ยังไม่เกิด Product View หรือ Conversion",
-      confidence: "LOW",
+        "Content สร้าง Click แต่ยังไม่เกิด Product View, Customer หรือ Conversion",
       recommendation:
-        "เก็บ Measurement เพิ่มและตรวจเส้นทางจาก Click ไป Product View"
+        "ตรวจสอบเส้นทางหลัง Click และเก็บ Measurement ต่อก่อนเปลี่ยนกลยุทธ์",
+      confidence: "LOW"
     };
   }
 
-  if (m.attention > 0) {
+  if (metrics.attention > 0) {
     return {
       signal_type: "ATTENTION",
       finding:
-        "Content สร้าง Attention แต่ยังไม่เกิด downstream action",
-      confidence: "LOW",
+        "Content ได้รับ Attention แต่ยังไม่มีพฤติกรรมปลายทางที่ชัดเจน",
       recommendation:
-        "เก็บ Behavior และ Measurement ต่อก่อนเปลี่ยนกลยุทธ์"
+        "เก็บ Behavior และ Measurement เพิ่มก่อนตัดสินใจเปลี่ยนกลยุทธ์",
+      confidence: "LOW"
     };
   }
 
   return {
     signal_type: "NO_SIGNAL",
     finding:
-      "ยังไม่มี Behavior Signal เพียงพอสำหรับการเรียนรู้",
-    confidence: "LOW",
+      "ยังไม่มี Behavior Signal ที่เพียงพอสำหรับการเรียนรู้",
     recommendation:
-      "รอข้อมูลเพิ่มเติมก่อนตัดสินใจ"
+      "เผยแพร่หรือกระจาย Content และเก็บ Attention / Behavior เพิ่ม",
+    confidence: "LOW"
   };
 }
 
-function fallback(data) {
-  const base = deterministicLearning(data);
+function fallbackAnalysis(data) {
   const m = data.metrics;
+  const learning = data.deterministic_learning;
+
+  let problems = [];
+
+  if (m.attention > 0 && m.product_views === 0) {
+    problems.push("มี Attention แต่ยังไม่มี Product View");
+  }
+
+  if (m.clicks > 0 && m.product_views === 0) {
+    problems.push("มี Click แต่ยังไม่มี Product View");
+  }
+
+  if (m.attention > 0 && m.customers === 0) {
+    problems.push("ยังไม่มี Customer");
+  }
+
+  if (m.orders === 0) {
+    problems.push("ยังไม่มี Conversion");
+  }
+
+  if (problems.length === 0) {
+    problems.push("ยังไม่มีปัญหาที่ระบุได้จากข้อมูลชุดนี้");
+  }
 
   return {
-    summary: base.finding,
+    summary:
+      `Measurement นี้มี Attention ${m.attention}, Click ${m.clicks}, ` +
+      `Product View ${m.product_views}, Engagement ${m.engagements}, ` +
+      `Customer ${m.customers}, Order ${m.orders}, Revenue ${m.revenue}`,
 
     observed_signals: [
-      `attention: ${m.attention}`,
-      `product_views: ${m.product_views}`,
-      `clicks: ${m.clicks}`,
-      `engagements: ${m.engagements}`,
-      `customers: ${m.customers}`,
-      `orders: ${m.orders}`,
-      `revenue: ${m.revenue}`
+      `Attention: ${m.attention}`,
+      `Product Views: ${m.product_views}`,
+      `Clicks: ${m.clicks}`,
+      `Engagements: ${m.engagements}`,
+      `Customers: ${m.customers}`,
+      `Orders: ${m.orders}`,
+      `Revenue: ${m.revenue}`
     ],
 
     learning: {
-      what_we_learned: base.finding,
-      confidence: base.confidence
+      what_we_learned: learning.finding,
+      confidence: learning.confidence
     },
 
-    problems:
-      m.revenue === 0 && m.orders === 0
-        ? ["ยังไม่มี Conversion"]
-        : [],
+    problems,
 
     next_content: {
-      action:
-        m.orders > 0
-          ? "ITERATE"
-          : "OBSERVE",
-
-      direction: base.recommendation,
-
-      angle:
-        data.content?.angle || "",
-
-      cta:
-        data.content?.cta || "",
-
-      success_metric:
-        m.orders > 0
-          ? "Revenue"
-          : m.customers > 0
-            ? "Customers"
-            : m.product_views > 0
-              ? "Product Views"
-              : "Behavior Signal"
+      action: "MEASURE_MORE",
+      direction:
+        "เก็บข้อมูลต่อโดยยังไม่เปลี่ยนกลยุทธ์จาก Measurement เดียว",
+      angle: data.content?.angle || "",
+      cta: data.content?.cta || "",
+      success_metric: "Product Views, Customers, Orders, Revenue"
     },
 
     next_action: {
-      type:
-        m.orders > 0
-          ? "ITERATE"
-          : "CONTINUE_MEASUREMENT",
-
-      reason: base.recommendation
+      type: "CONTINUE_MEASUREMENT",
+      reason: learning.recommendation
     },
 
     priority:
-      m.orders > 0
+      m.orders > 0 || m.revenue > 0
         ? "HIGH"
         : m.customers > 0 || m.product_views > 0
           ? "MEDIUM"
-          : "LOW",
-
-    winner_decision:
-      "NOT_DECLARED_IN_LEARNING_AI_V1.10"
+          : "LOW"
   };
 }
 
-function parseAIResponse(result) {
+function parseResponse(result) {
   const debug = {
     top_level_keys:
       result && typeof result === "object"
         ? Object.keys(result)
         : [],
-
-    response_type:
-      typeof result?.response,
-
+    response_type: typeof result?.response,
     response_keys:
       result?.response &&
       typeof result.response === "object"
         ? Object.keys(result.response)
         : [],
-
     finish_reason:
       result?.choices?.[0]?.finish_reason ?? null
   };
@@ -363,9 +345,7 @@ function parseAIResponse(result) {
     content = result.choices[0].message.content;
   }
 
-  debug.content_length = content
-    ? content.length
-    : 0;
+  debug.content_length = content ? content.length : 0;
 
   if (!content) {
     return {
@@ -414,45 +394,44 @@ async function callAI(ai, data) {
   }
 
   const prompt = `
-You are the Learning AI for TATO Coffee Intelligence OS.
+You are the Learning AI layer of TATO Coffee Intelligence OS.
 
-Analyze ONLY the supplied Measurement.
+Analyze ONLY the supplied Measurement data.
 
-Do not invent data.
-Do not declare a winner.
-Do not claim causality unless directly supported by the data.
-Separate observed signals from interpretation.
-If data is insufficient, say so.
+Do NOT declare a winner.
+Do NOT rank content.
+Do NOT invent missing data.
+Do NOT treat one Measurement as proof of success or failure.
+Distinguish observed facts from interpretation.
+Recommend the next information/action needed to reduce uncertainty.
 
-Return ONLY valid JSON.
-
-Required fields:
+Return ONLY valid JSON with exactly these fields:
 
 {
-  "summary": "...",
-  "observed_signals": [],
+  "summary": "string",
+  "observed_signals": ["string"],
   "learning": {
-    "what_we_learned": "...",
-    "confidence": "LOW|MEDIUM|HIGH"
+    "what_we_learned": "string",
+    "confidence": "HIGH|MEDIUM|LOW"
   },
-  "problems": [],
+  "problems": ["string"],
   "next_content": {
-    "action": "...",
-    "direction": "...",
-    "angle": "...",
-    "cta": "...",
-    "success_metric": "..."
+    "action": "string",
+    "direction": "string",
+    "angle": "string",
+    "cta": "string",
+    "success_metric": "string"
   },
   "next_action": {
-    "type": "...",
-    "reason": "..."
+    "type": "string",
+    "reason": "string"
   },
-  "priority": "LOW|MEDIUM|HIGH"
+  "priority": "HIGH|MEDIUM|LOW"
 }
 
-Language: Thai.
+All explanations must be in Thai.
 
-MEASUREMENT DATA:
+DATA:
 ${JSON.stringify(data)}
 `;
 
@@ -462,7 +441,7 @@ ${JSON.stringify(data)}
         {
           role: "system",
           content:
-            "Return only valid JSON. No markdown. No explanation."
+            "Return only valid JSON. Do not explain. Do not use markdown."
         },
         {
           role: "user",
@@ -478,47 +457,231 @@ ${JSON.stringify(data)}
         enable_thinking: false
       },
 
-      max_tokens: 700,
+      max_tokens: 768,
       temperature: 0
     });
 
-    return parseAIResponse(result);
+    return parseResponse(result);
   } catch (error) {
     return {
       parsed: null,
       debug: {
-        error:
-          error?.message ||
-          String(error)
+        error: error?.message || String(error)
       }
     };
   }
 }
 
+async function buildData(db, measurement) {
+  const content = await loadContent(
+    db,
+    measurement.content_id
+  );
+
+  const metrics = buildMetrics(measurement);
+  const funnel = buildFunnel(metrics);
+  const conversion = buildConversion(metrics);
+
+  const attribution = safeJson(
+    measurement.attribution,
+    {}
+  );
+
+  const learningSignal = safeJson(
+    measurement.learning_signal,
+    {}
+  );
+
+  const diagnostic = safeJson(
+    measurement.diagnostic,
+    {}
+  );
+
+  const deterministicLearning =
+    buildDeterministicLearning(metrics);
+
+  return {
+    measurement: {
+      id: measurement.id,
+      content_id: measurement.content_id,
+      content_title: measurement.content_title,
+      measurement_start:
+        measurement.measurement_start,
+      measured_at: measurement.measured_at,
+      status: measurement.status,
+      attribution_model:
+        measurement.attribution_model ||
+        measurement.attribution_mode ||
+        null
+    },
+
+    content: content
+      ? {
+          id: content.id,
+          title: content.title,
+          status: content.status,
+          objective: content.objective,
+          attention_type: content.attention_type,
+          market_keyword: content.market_keyword,
+          angle: content.angle,
+          cta: content.cta
+        }
+      : null,
+
+    metrics,
+
+    funnel,
+
+    conversion,
+
+    attribution,
+
+    learning_signal: learningSignal,
+
+    diagnostic,
+
+    deterministic_learning: deterministicLearning
+  };
+}
+
+async function analyze(context) {
+  const db = context.env.DB;
+
+  if (!db) {
+    throw new Error(
+      "D1 binding DB not found"
+    );
+  }
+
+  const measurementId =
+    getMeasurementId(context.request);
+
+  const measurement =
+    await loadExactMeasurement(
+      db,
+      measurementId
+    );
+
+  const data =
+    await buildData(
+      db,
+      measurement
+    );
+
+  const aiResult =
+    await callAI(
+      context.env.AI,
+      data
+    );
+
+  const analysis =
+    aiResult.parsed ||
+    fallbackAnalysis(data);
+
+  return {
+    measurement_id: measurement.id,
+    content_id: measurement.content_id,
+
+    status: aiResult.parsed
+      ? "AI_ANALYZED"
+      : "FALLBACK_ANALYZED",
+
+    model: MODEL,
+
+    analysis,
+
+    metrics: data.metrics,
+
+    funnel: data.funnel,
+
+    conversion: data.conversion,
+
+    attribution: data.attribution,
+
+    learning_signal:
+      data.learning_signal,
+
+    diagnostic: data.diagnostic,
+
+    debug: aiResult.parsed
+      ? {
+          ai_called: true,
+          response_text_received:
+            aiResult.debug?.content_length > 0,
+          parsed_json: true,
+          provider_status:
+            "AI_RESPONSE_PARSED"
+        }
+      : {
+          ai_called: true,
+          response_text_received:
+            aiResult.debug?.content_length > 0,
+          parsed_json: false,
+          provider_status:
+            "AI_RESPONSE_NOT_PARSED",
+          error:
+            aiResult.debug?.error || null
+        }
+  };
+}
+
 async function saveLearning(
   db,
-  data,
-  analysis
+  measurement,
+  result
 ) {
-  const runId = id();
-  const insightId = id();
+  const runId = uid();
+  const insightId = uid();
 
-  const runInput = {
-    measurement: data.measurement,
-    content: data.content,
-    metrics: data.metrics,
-    funnel: data.funnel,
-    attribution: data.attribution,
-    diagnostic: data.diagnostic,
-    learning_signal: data.learning_signal
+  const inputData = {
+    measurement: {
+      id: measurement.id,
+      content_id: measurement.content_id,
+      content_title:
+        measurement.content_title,
+      measurement_start:
+        measurement.measurement_start,
+      measured_at:
+        measurement.measured_at
+    },
+
+    metrics: result.metrics,
+
+    funnel: result.funnel,
+
+    conversion: result.conversion,
+
+    attribution:
+      result.attribution,
+
+    learning_signal:
+      result.learning_signal,
+
+    diagnostic:
+      result.diagnostic
   };
 
   const outputData = {
-    analysis,
-    layer: LAYER,
+    analysis: result.analysis,
+
+    status: result.status,
+
     winner_decision:
       "NOT_DECLARED_IN_LEARNING_AI_V1.10"
   };
+
+  /*
+   * LIVE ai_runs schema:
+   * id
+   * customer_id
+   * run_type
+   * model
+   * input_data
+   * output_data
+   * status
+   * tokens_used
+   * created_at
+   */
 
   await db
     .prepare(`
@@ -529,56 +692,67 @@ async function saveLearning(
         model,
         input_data,
         output_data,
-        status,
-        tokens_used,
-        created_at
+        status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
     .bind(
       runId,
       null,
       "LEARNING",
       MODEL,
-      JSON.stringify(runInput),
+      JSON.stringify(inputData),
       JSON.stringify(outputData),
-      "COMPLETED",
-      null
+      "COMPLETED"
     )
     .run();
 
-  const summary =
-    analysis?.summary ||
-    analysis?.learning?.what_we_learned ||
+  /*
+   * IMPORTANT:
+   * Live ai_insights schema does NOT have agent_name.
+   *
+   * Therefore DO NOT insert agent_name.
+   *
+   * We link the insight to this Learning AI run through run_id.
+   */
+
+  const insightText =
+    result.analysis?.summary ||
+    result.analysis?.learning
+      ?.what_we_learned ||
     "Learning analysis completed";
 
   const priority =
-    ["LOW", "MEDIUM", "HIGH"].includes(
-      analysis?.priority
-    )
-      ? analysis.priority
-      : "LOW";
+    result.analysis?.priority ||
+    "MEDIUM";
+
+  const evidence = {
+    measurement_id: measurement.id,
+    content_id: measurement.content_id,
+    metrics: result.metrics,
+    funnel: result.funnel,
+    conversion: result.conversion,
+    learning_signal:
+      result.learning_signal
+  };
 
   await db
     .prepare(`
       INSERT INTO ai_insights (
         id,
         run_id,
-        agent_name,
         title,
         insight,
         priority,
-        status,
-        created_at
+        status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, ?, ?)
     `)
     .bind(
       insightId,
       runId,
-      "LEARNING_AI_V1.10",
       "CONTENT_LEARNING",
-      summary,
+      insightText,
       priority,
       "ACTIVE"
     )
@@ -590,145 +764,241 @@ async function saveLearning(
   };
 }
 
-async function handle(context, mode) {
+async function handle(context) {
   const db = context.env.DB;
 
   if (!db) {
-    return {
-      success: false,
-      layer: LAYER,
-      error: "D1 binding DB not found"
-    };
+    return json(
+      {
+        success: false,
+        layer: LAYER,
+        error:
+          "D1 binding DB not found"
+      },
+      500
+    );
   }
 
-  const measurementId =
-    getMeasurementId(
-      context.request
-    );
+  const result =
+    await analyze(context);
 
-  if (!measurementId) {
-    return {
-      success: false,
+  const method =
+    context.request.method;
+
+  /*
+   * GET = PREVIEW
+   * POST = EXECUTE / SAVE
+   */
+
+  if (method === "GET") {
+    return json({
+      success: true,
       layer: LAYER,
-      error:
-        "measurement_id is required",
-      example:
-        "/api/learning-ai?measurement_id=YOUR_MEASUREMENT_ID"
-    };
+      mode: "preview",
+
+      status: result.status,
+
+      measurement_id:
+        result.measurement_id,
+
+      content_id:
+        result.content_id,
+
+      model: result.model,
+
+      metrics: result.metrics,
+
+      funnel: result.funnel,
+
+      conversion:
+        result.conversion,
+
+      attribution:
+        result.attribution,
+
+      learning_signal:
+        result.learning_signal,
+
+      diagnostic:
+        result.diagnostic,
+
+      ai: {
+        status: result.status,
+        model: result.model,
+        analysis:
+          result.analysis,
+        debug:
+          result.debug,
+        run_id: null,
+        insight_id: null
+      },
+
+      winner_decision:
+        "NOT_DECLARED_IN_LEARNING_AI_V1.10",
+
+      next_step:
+        "POST the same measurement_id to save AI Run and AI Insight."
+    });
   }
 
-  const data =
-    await loadMeasurement(
-      db,
-      measurementId
+  if (method === "POST") {
+    const measurementId =
+      getMeasurementId(
+        context.request
+      );
+
+    let body = {};
+
+    try {
+      body =
+        await context.request.json();
+    } catch (_) {}
+
+    const finalMeasurementId =
+      measurementId ||
+      body?.measurement_id ||
+      body?.id ||
+      null;
+
+    if (!finalMeasurementId) {
+      return json(
+        {
+          success: false,
+          layer: LAYER,
+          error:
+            "measurement_id is required"
+        },
+        400
+      );
+    }
+
+    /*
+     * Re-run using the exact ID from
+     * query/body so execute can never
+     * accidentally save another measurement.
+     */
+
+    const executeUrl =
+      new URL(
+        context.request.url
+      );
+
+    executeUrl.searchParams.set(
+      "measurement_id",
+      finalMeasurementId
     );
 
-  if (!data.success) {
-    return {
-      success: false,
-      layer: LAYER,
-      mode,
-      error: data.error,
-      measurement_id: measurementId
+    const originalRequest =
+      context.request;
+
+    const executeContext = {
+      ...context,
+      request: new Request(
+        executeUrl.toString(),
+        {
+          method: "GET",
+          headers:
+            originalRequest.headers
+        }
+      )
     };
-  }
 
-  const aiResult =
-    await callAI(
-      context.env.AI,
-      data
-    );
+    const execution =
+      await analyze(
+        executeContext
+      );
 
-  const analysis =
-    aiResult.parsed ||
-    fallback(data);
+    const measurement =
+      await loadExactMeasurement(
+        db,
+        finalMeasurementId
+      );
 
-  let saved = null;
-
-  if (mode === "execute") {
-    saved =
+    const saved =
       await saveLearning(
         db,
-        data,
-        analysis
+        measurement,
+        execution
       );
-  }
 
-  return {
-    success: true,
+    return json({
+      success: true,
 
-    layer: LAYER,
+      layer: LAYER,
 
-    mode,
+      mode: "execute",
 
-    status:
-      aiResult.parsed
-        ? "AI_ANALYZED"
-        : "FALLBACK_ANALYZED",
+      status: "AI_ANALYZED",
 
-    measurement: data.measurement,
+      measurement_id:
+        execution.measurement_id,
 
-    content: data.content,
-
-    metrics: data.metrics,
-
-    funnel: data.funnel,
-
-    attribution: data.attribution,
-
-    learning_signal:
-      data.learning_signal,
-
-    ai: {
-      status:
-        aiResult.parsed
-          ? "AI_RESPONSE_PARSED"
-          : "FALLBACK_ANALYSIS",
+      content_id:
+        execution.content_id,
 
       model: MODEL,
 
-      analysis,
+      metrics:
+        execution.metrics,
 
-      parsed_json:
-        Boolean(aiResult.parsed),
+      funnel:
+        execution.funnel,
 
-      debug:
-        aiResult.parsed
-          ? undefined
-          : aiResult.debug,
+      conversion:
+        execution.conversion,
 
-      run_id:
-        saved?.run_id || null,
+      attribution:
+        execution.attribution,
 
-      insight_id:
-        saved?.insight_id || null
-    },
+      learning_signal:
+        execution.learning_signal,
 
-    control: {
-      exact_measurement:
-        measurementId,
+      diagnostic:
+        execution.diagnostic,
+
+      ai: {
+        status:
+          execution.status,
+
+        model: MODEL,
+
+        analysis:
+          execution.analysis,
+
+        debug:
+          execution.debug,
+
+        run_id:
+          saved.run_id,
+
+        insight_id:
+          saved.insight_id
+      },
 
       winner_decision:
-        "NOT_DECLARED_IN_LEARNING_AI_V1.10"
-    },
+        "NOT_DECLARED_IN_LEARNING_AI_V1.10",
 
-    next_step:
-      mode === "execute"
-        ? "Send this Learning result to Decision Engine."
-        : "Preview ready. POST to save AI Run and AI Insight."
-  };
+      next_step:
+        "Learning saved. Send the new learning run into Decision Engine."
+    });
+  }
+
+  return json(
+    {
+      success: false,
+      layer: LAYER,
+      error:
+        "Method not allowed"
+    },
+    405
+  );
 }
 
 export async function onRequestGet(
   context
 ) {
   try {
-    return json(
-      await handle(
-        context,
-        "preview"
-      )
-    );
+    return await handle(context);
   } catch (error) {
     return json(
       {
@@ -747,12 +1017,7 @@ export async function onRequestPost(
   context
 ) {
   try {
-    return json(
-      await handle(
-        context,
-        "execute"
-      )
-    );
+    return await handle(context);
   } catch (error) {
     return json(
       {
