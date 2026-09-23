@@ -1,4 +1,4 @@
-const LAYER = "DECISION_ENGINE_V1.3";
+const LAYER = "DECISION_ENGINE_V1.4";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
 
 function json(data, status = 200) {
@@ -31,28 +31,6 @@ function uuid() {
   return crypto.randomUUID();
 }
 
-async function ensureDecisionTable(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS decision_runs (
-      id TEXT PRIMARY KEY,
-      measurement_id TEXT,
-      content_id TEXT,
-      learning_run_id TEXT,
-      learning_insight_id TEXT,
-      decision_type TEXT,
-      decision_status TEXT,
-      priority TEXT,
-      reason TEXT,
-      evidence TEXT,
-      recommendation TEXT,
-      action_required TEXT,
-      requires_approval INTEGER DEFAULT 1,
-      status TEXT DEFAULT 'PENDING',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
-}
-
 async function getLatestMeasurement(db) {
   const result = await db.prepare(`
     SELECT *
@@ -77,6 +55,7 @@ function normalizeMeasurement(row) {
     attribution_mode: row.attribution_mode || null,
     measured_at: row.measured_at || null,
     measurement_start: row.measurement_start || null,
+
     attention: toNumber(row.attention),
     product_views: toNumber(row.product_views),
     clicks: toNumber(row.clicks),
@@ -84,6 +63,7 @@ function normalizeMeasurement(row) {
     customers: toNumber(row.customers),
     orders: toNumber(row.orders),
     revenue: toNumber(row.revenue),
+
     attention_to_view: toNumber(row.attention_to_view),
     view_to_click: toNumber(row.view_to_click),
     click_to_customer: toNumber(row.click_to_customer),
@@ -195,26 +175,12 @@ function extractLearning(learningRun, learningInsight) {
     ? output.analysis
     : output;
 
-  const insightEvidence = learningInsight
-    ? safeJsonParse(learningInsight.evidence, {})
-    : {};
-
   return {
     source: "LEARNING_AI_V1.9",
     run_id: learningRun ? learningRun.id : null,
     insight_id: learningInsight ? learningInsight.id : null,
     status: learningRun ? learningRun.status : null,
-    analysis: analysis || {},
-    insight: learningInsight
-      ? {
-          title: learningInsight.title || null,
-          insight: learningInsight.insight || null,
-          confidence: learningInsight.confidence || null,
-          priority: learningInsight.priority || null,
-          status: learningInsight.status || null,
-          evidence: insightEvidence
-        }
-      : null
+    analysis: analysis || {}
   };
 }
 
@@ -229,7 +195,7 @@ function calculateDecision(measurement, learning) {
       reason: "ยังไม่มี Measurement สำหรับตัดสินใจ",
       evidence: {},
       recommendation: "สร้าง Measurement ก่อน",
-      action_required: "NONE",
+      action_required: 0,
       requires_approval: 0
     };
   }
@@ -245,7 +211,7 @@ function calculateDecision(measurement, learning) {
         content_id: m.content_id
       },
       recommendation: "ให้ Learning AI วิเคราะห์ Measurement ก่อน",
-      action_required: "RUN_LEARNING_AI",
+      action_required: 0,
       requires_approval: 0
     };
   }
@@ -272,7 +238,7 @@ function calculateDecision(measurement, learning) {
       reason: "Content มีสัญญาณปลายทางจากคำสั่งซื้อหรือรายได้",
       evidence,
       recommendation: "เก็บข้อมูลเพิ่มและพิจารณาขยายการทำงานของแนวทางนี้",
-      action_required: "REVIEW_FOR_SCALE",
+      action_required: 1,
       requires_approval: 1
     };
   }
@@ -285,7 +251,7 @@ function calculateDecision(measurement, learning) {
       reason: "Content สร้าง Customer ได้ แต่ยังไม่มี Order หรือ Revenue",
       evidence,
       recommendation: "รักษาแนวทางและเก็บข้อมูลต่อเพื่อดู Customer-to-Order",
-      action_required: "CONTINUE_MEASUREMENT",
+      action_required: 1,
       requires_approval: 1
     };
   }
@@ -298,7 +264,7 @@ function calculateDecision(measurement, learning) {
       reason: "Content มี Engagement แต่ยังไม่เกิด Customer หรือ Order",
       evidence,
       recommendation: "รักษาแนวทางไว้และเก็บข้อมูลต่อ โดยเน้นการเปลี่ยน Engagement ไปสู่ Customer",
-      action_required: "OPTIMIZE_CONVERSION_PATH",
+      action_required: 1,
       requires_approval: 1
     };
   }
@@ -311,7 +277,7 @@ function calculateDecision(measurement, learning) {
       reason: "Content สร้างสัญญาณการสนใจระดับ Traffic แต่ยังไม่มี Customer หรือ Conversion",
       evidence,
       recommendation: "เก็บ Measurement เพิ่มและตรวจเส้นทางจาก Click ไป Product View และ Customer",
-      action_required: "CONTINUE_MEASUREMENT",
+      action_required: 1,
       requires_approval: 1
     };
   }
@@ -324,7 +290,7 @@ function calculateDecision(measurement, learning) {
       reason: "Content มี Attention แต่ยังมีข้อมูลปลายทางไม่เพียงพอสำหรับการเปลี่ยนกลยุทธ์",
       evidence,
       recommendation: "ยังไม่ควรตัดสินว่า Content ดีหรือแย่ ให้เก็บ Behavior เพิ่มก่อน",
-      action_required: "CONTINUE_MEASUREMENT",
+      action_required: 1,
       requires_approval: 1
     };
   }
@@ -336,7 +302,7 @@ function calculateDecision(measurement, learning) {
     reason: "ยังไม่พบสัญญาณจาก Attention หรือ Behavior",
     evidence,
     recommendation: "ตรวจสอบการกระจาย Content และระบบเก็บ Behavior",
-    action_required: "CHECK_DATA_COLLECTION",
+    action_required: 1,
     requires_approval: 1
   };
 }
@@ -354,16 +320,20 @@ async function buildDecisionResult(db) {
       measurement: null,
       learning: null,
       decision: null,
-      winner_decision: "NOT_DECLARED_IN_DECISION_ENGINE_V1.3",
+      winner_decision: "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
       next_step: "Create CONTENT_ATTRIBUTION_V2 measurement first."
     };
   }
 
   const measurement = normalizeMeasurement(measurementRow);
 
-  const learningResult = await findLearningRun(db, measurement);
+  const learningResult = await findLearningRun(
+    db,
+    measurement
+  );
 
   const learningRun = learningResult.run;
+
   const learningInsight = await findLearningInsight(
     db,
     learningRun,
@@ -393,6 +363,7 @@ async function buildDecisionResult(db) {
       content_id: measurement.content_id,
       attribution_mode: measurement.attribution_mode,
       measured_at: measurement.measured_at,
+
       metrics: {
         attention: measurement.attention,
         product_views: measurement.product_views,
@@ -418,20 +389,26 @@ async function buildDecisionResult(db) {
       ai_run_id: learningRun
         ? learningRun.id
         : null,
+
       ai_insight_id: learningInsight
         ? learningInsight.id
         : null,
+
       run_type: learningRun
         ? learningRun.run_type
         : null,
-      lookup_method: "ai_runs.run_type + input_data.measurement.id/content_id",
-      insight_method: "ai_insights.run_id"
+
+      lookup_method:
+        "ai_runs.run_type + input_data.measurement.id/content_id",
+
+      insight_method:
+        "ai_insights.run_id"
     },
 
     decision,
 
     winner_decision:
-      "NOT_DECLARED_IN_DECISION_ENGINE_V1.3",
+      "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
 
     next_step: learning
       ? "POST to save this Decision."
@@ -440,24 +417,25 @@ async function buildDecisionResult(db) {
 }
 
 async function saveDecision(db, result) {
-  await ensureDecisionTable(db);
-
   const decision = result.decision;
   const measurement = result.measurement;
   const learning = result.learning;
 
   const id = uuid();
 
+  const evidence = JSON.stringify(
+    decision.evidence || {}
+  );
+
   await db.prepare(`
     INSERT INTO decision_runs (
       id,
-      measurement_id,
-      content_id,
-      learning_run_id,
-      learning_insight_id,
       decision_type,
       decision_status,
       priority,
+      content_id,
+      measurement_id,
+      learning_run_id,
       reason,
       evidence,
       recommendation,
@@ -466,20 +444,25 @@ async function saveDecision(db, result) {
       status,
       created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
-    measurement ? measurement.id : null,
-    measurement ? measurement.content_id : null,
-    learning ? learning.run_id : null,
-    learning ? learning.insight_id : null,
     decision.decision_type,
     decision.decision_status,
     decision.priority,
+    measurement
+      ? measurement.content_id
+      : null,
+    measurement
+      ? measurement.id
+      : null,
+    learning
+      ? learning.run_id
+      : null,
     decision.reason,
-    JSON.stringify(decision.evidence || {}),
+    evidence,
     decision.recommendation,
-    decision.action_required,
+    decision.action_required ? 1 : 0,
     decision.requires_approval ? 1 : 0,
     "PENDING",
     new Date().toISOString()
@@ -500,9 +483,9 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const result = await buildDecisionResult(db);
-
-    return json(result);
+    return json(
+      await buildDecisionResult(db)
+    );
   } catch (error) {
     return json({
       success: false,
@@ -569,7 +552,7 @@ export async function onRequestPost(context) {
       },
 
       winner_decision:
-        "NOT_DECLARED_IN_DECISION_ENGINE_V1.3",
+        "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
 
       next_step:
         "Decision saved. Next layer is Action/Automation after approval."
