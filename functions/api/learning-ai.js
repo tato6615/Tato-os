@@ -1,5 +1,3 @@
-````javascript
-// TATO-OS
 // Learning AI V1.4
 // Route: /api/learning-ai
 
