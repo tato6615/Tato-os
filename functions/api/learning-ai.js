@@ -1,9 +1,9 @@
 // TATO-OS
-// Learning AI V1.7
+// Learning AI V1.8
 // Purpose: Learn from CONTENT_ATTRIBUTION_V2 measurement
 // No winner decision
 
-const LAYER = "LEARNING_AI_V1.7";
+const LAYER = "LEARNING_AI_V1.8";
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
 
@@ -99,9 +99,13 @@ Rules:
 - Do NOT use AGGREGATE_V1.
 - Do NOT declare a winner.
 - Do NOT invent data.
-- Base conclusions only on the supplied evidence.
+- Base conclusions only on supplied evidence.
 
-Return one JSON object matching this structure:
+Return ONLY one valid JSON object.
+Do not use markdown.
+Do not add explanation before or after the JSON.
+
+Required JSON structure:
 
 {
   "summary": "short factual summary",
@@ -139,77 +143,138 @@ ${JSON.stringify(conversion, null, 2)}
 `;
 }
 
-function collectText(value, depth = 0, visited = new Set()) {
-  if (depth > 8 || value == null) return "";
+/*
+  Extract text without collapsing structured objects
+  into a single field.
+*/
+function extractContentValue(value) {
+  if (value == null) return "";
 
   if (typeof value === "string") {
-    const text = value.trim();
-    if (!text) return "";
-
-    if (
-      text.startsWith("{") ||
-      text.startsWith("[") ||
-      text.includes('"summary"') ||
-      text.includes('"learning"') ||
-      text.includes('"next_content"')
-    ) {
-      return text;
-    }
-
-    return text;
+    return value;
   }
 
-  if (typeof value !== "object") return "";
-
-  if (visited.has(value)) return "";
-  visited.add(value);
-
-  const preferredKeys = [
-    "response",
-    "output_text",
-    "text",
-    "content",
-    "message",
-    "choices",
-    "result"
-  ];
-
-  for (const key of preferredKeys) {
-    if (!(key in value)) continue;
-
-    const found = collectText(
-      value[key],
-      depth + 1,
-      visited
-    );
-
-    if (found) return found;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
   }
 
-  for (const key of Object.keys(value)) {
-    if (
-      key === "usage" ||
-      key === "prompt_token_ids" ||
-      key === "kv_transfer_params" ||
-      key === "prompt_logprobs"
-    ) {
-      continue;
+  if (Array.isArray(value)) {
+    const parts = [];
+
+    for (const item of value) {
+      if (typeof item === "string") {
+        parts.push(item);
+        continue;
+      }
+
+      if (item && typeof item === "object") {
+        if (typeof item.text === "string") {
+          parts.push(item.text);
+          continue;
+        }
+
+        if (typeof item.content === "string") {
+          parts.push(item.content);
+          continue;
+        }
+
+        if (item.type === "text" && typeof item.value === "string") {
+          parts.push(item.value);
+          continue;
+        }
+
+        const nested = extractContentValue(item);
+
+        if (nested) {
+          parts.push(nested);
+        }
+      }
     }
 
-    const found = collectText(
-      value[key],
-      depth + 1,
-      visited
-    );
+    return parts.join("");
+  }
 
-    if (found) return found;
+  if (typeof value === "object") {
+    /*
+      If this is already a structured JSON answer,
+      preserve the entire object.
+    */
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
   }
 
   return "";
 }
 
 function extractResponseText(response) {
-  return collectText(response);
+  if (response == null) return "";
+
+  if (typeof response === "string") {
+    return response;
+  }
+
+  if (response.response != null) {
+    const value = extractContentValue(response.response);
+
+    if (value) return value;
+  }
+
+  if (response.output_text != null) {
+    const value = extractContentValue(response.output_text);
+
+    if (value) return value;
+  }
+
+  if (response.result != null) {
+    const value = extractContentValue(response.result);
+
+    if (value) return value;
+  }
+
+  if (Array.isArray(response.choices)) {
+    for (const choice of response.choices) {
+      if (!choice) continue;
+
+      if (choice.message) {
+        const message = choice.message;
+
+        if (message.content != null) {
+          const value = extractContentValue(message.content);
+
+          if (value) return value;
+        }
+
+        if (message.response != null) {
+          const value = extractContentValue(message.response);
+
+          if (value) return value;
+        }
+
+        if (message.text != null) {
+          const value = extractContentValue(message.text);
+
+          if (value) return value;
+        }
+      }
+
+      if (choice.text != null) {
+        const value = extractContentValue(choice.text);
+
+        if (value) return value;
+      }
+
+      if (choice.content != null) {
+        const value = extractContentValue(choice.content);
+
+        if (value) return value;
+      }
+    }
+  }
+
+  return "";
 }
 
 function cleanJSON(text) {
@@ -221,11 +286,11 @@ function cleanJSON(text) {
   cleaned = cleaned.replace(/^```\s*/i, "");
   cleaned = cleaned.replace(/\s*```$/i, "");
 
-  const first = cleaned.indexOf("{");
-  const last = cleaned.lastIndexOf("}");
+  const firstObject = cleaned.indexOf("{");
+  const lastObject = cleaned.lastIndexOf("}");
 
-  if (first >= 0 && last > first) {
-    cleaned = cleaned.slice(first, last + 1);
+  if (firstObject >= 0 && lastObject > firstObject) {
+    cleaned = cleaned.slice(firstObject, lastObject + 1);
   }
 
   return cleaned.trim();
@@ -338,6 +403,7 @@ async function analyzeAI(env, promptText, metrics) {
     raw_response_type: null,
     raw_response_keys: [],
     raw_choice_keys: [],
+    choice_message_keys: [],
     provider_status: null
   };
 
@@ -366,12 +432,17 @@ async function analyzeAI(env, promptText, metrics) {
 
     if (response && typeof response === "object") {
       debug.raw_response_keys = Object.keys(response);
+    }
 
-      if (Array.isArray(response.choices) && response.choices[0]) {
-        debug.raw_choice_keys =
-          typeof response.choices[0] === "object"
-            ? Object.keys(response.choices[0])
-            : [];
+    if (Array.isArray(response?.choices) && response.choices[0]) {
+      const choice = response.choices[0];
+
+      if (typeof choice === "object") {
+        debug.raw_choice_keys = Object.keys(choice);
+      }
+
+      if (choice.message && typeof choice.message === "object") {
+        debug.choice_message_keys = Object.keys(choice.message);
       }
     }
 
@@ -383,7 +454,7 @@ async function analyzeAI(env, promptText, metrics) {
 
     const parsed = parseJSON(responseText);
 
-    if (parsed) {
+    if (parsed && typeof parsed === "object") {
       debug.parsed_json = true;
       debug.provider_status = "AI_RESPONSE_PARSED";
 
@@ -401,6 +472,7 @@ async function analyzeAI(env, promptText, metrics) {
       analysis: fallbackAnalysis(metrics),
       debug
     };
+
   } catch (error) {
     debug.error = error?.message || String(error);
     debug.provider_status = "AI_ERROR";
@@ -540,10 +612,11 @@ async function handlePreview(env) {
           raw_response_type: null,
           raw_response_keys: [],
           raw_choice_keys: [],
+          choice_message_keys: [],
           provider_status: "WAITING_FOR_MEASUREMENT"
         }
       },
-      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
+      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
       next_step: "Create CONTENT_ATTRIBUTION_V2 measurement first."
     });
   }
@@ -605,7 +678,7 @@ async function handlePreview(env) {
       debug: aiResult.debug
     },
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
@@ -677,7 +750,7 @@ async function handleExecute(env) {
 
     saved,
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.8",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
