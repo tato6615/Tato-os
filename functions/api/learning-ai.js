@@ -1,4 +1,3 @@
-````javascript
 // TATO-OS
 // Learning AI V1.1
 // Learning Feedback -> Workers AI -> Structured Learning Insight
@@ -69,11 +68,7 @@ async function handleRequest(context, mode) {
     const aiResult = await runAI(env.AI, input);
 
     if (mode === "execute" || mode === "save") {
-      const saved = await saveLearningAI(
-        env.DB,
-        input,
-        aiResult
-      );
+      const saved = await saveLearningAI(env.DB, input, aiResult);
 
       return json({
         success: true,
@@ -89,7 +84,7 @@ async function handleRequest(context, mode) {
           run_id: saved.run_id,
           insight_id: saved.insight_id
         },
-        next_step: "Learning AI analysis saved. Ready for AI → Action Engine."
+        next_step: "Learning AI analysis saved. Ready for AI -> Action Engine."
       });
     }
 
@@ -133,12 +128,8 @@ async function getLearning(DB) {
       LIMIT 1
     `).first();
 
-    if (result) {
-      return result;
-    }
-  } catch (_) {
-    // Fallback to content measurements below.
-  }
+    if (result) return result;
+  } catch (_) {}
 
   try {
     const result = await DB.prepare(`
@@ -154,9 +145,7 @@ async function getLearning(DB) {
       LIMIT 1
     `).first();
 
-    if (!result) {
-      return null;
-    }
+    if (!result) return null;
 
     const metrics = parseJSON(result.metrics);
     const signal = parseJSON(result.learning_signal);
@@ -229,9 +218,7 @@ async function getContent(DB, contentId) {
         FROM content_engine
         WHERE id = ?
         LIMIT 1
-      `)
-        .bind(contentId)
-        .first();
+      `).bind(contentId).first();
 
       if (row) return row;
     }
@@ -396,12 +383,10 @@ function extractContent(response) {
     }
 
     if (Array.isArray(message?.content)) {
-      return message.content
-        .map(item => {
-          if (typeof item === "string") return item;
-          return item?.text || item?.content || "";
-        })
-        .join("");
+      return message.content.map(item => {
+        if (typeof item === "string") return item;
+        return item?.text || item?.content || "";
+      }).join("");
     }
 
     if (typeof choices[0]?.text === "string") {
@@ -413,19 +398,11 @@ function extractContent(response) {
     return response.response;
   }
 
-  if (Array.isArray(response.response)) {
-    return response.response
-      .map(item => item?.text || item?.content || String(item))
-      .join("");
-  }
-
   return "";
 }
 
 function parseAIJSON(value) {
-  if (!value || typeof value !== "string") {
-    return null;
-  }
+  if (!value || typeof value !== "string") return null;
 
   let text = value.trim();
 
@@ -529,7 +506,7 @@ function fallbackAnalysis(input) {
     summary: "ยังไม่มีข้อมูลพฤติกรรมจาก Content จึงยังประเมินประสิทธิภาพไม่ได้",
     observed_signals: [
       `Learning signal คือ ${learning.signal_type || "NO_DATA"}`,
-      "Metrics ทั้งหมดยังไม่มีสัญญาณที่เพียงพอ",
+      "Metrics ยังไม่มีสัญญาณที่เพียงพอ",
       "ยังไม่มีข้อมูล Conversion"
     ],
     learning: {
@@ -558,6 +535,7 @@ function fallbackAnalysis(input) {
 async function saveLearningAI(DB, input, aiResult) {
   const runId = crypto.randomUUID();
   const insightId = crypto.randomUUID();
+  const now = new Date().toISOString();
 
   await DB.prepare(`
     CREATE TABLE IF NOT EXISTS ai_runs (
@@ -588,8 +566,6 @@ async function saveLearningAI(DB, input, aiResult) {
     )
   `).run();
 
-  const now = new Date().toISOString();
-
   await DB.prepare(`
     INSERT INTO ai_runs (
       id,
@@ -603,19 +579,17 @@ async function saveLearningAI(DB, input, aiResult) {
       created_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-    .bind(
-      runId,
-      null,
-      "LEARNING_ANALYSIS",
-      aiResult.model || "@cf/zai-org/glm-4.7-flash",
-      JSON.stringify(input),
-      JSON.stringify(aiResult.analysis || {}),
-      aiResult.status || "ANALYZED",
-      null,
-      now
-    )
-    .run();
+  `).bind(
+    runId,
+    null,
+    "LEARNING_ANALYSIS",
+    aiResult.model || "@cf/zai-org/glm-4.7-flash",
+    JSON.stringify(input),
+    JSON.stringify(aiResult.analysis || {}),
+    aiResult.status || "ANALYZED",
+    null,
+    now
+  ).run();
 
   const analysis = aiResult.analysis || {};
 
@@ -633,20 +607,18 @@ async function saveLearningAI(DB, input, aiResult) {
       created_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-    .bind(
-      insightId,
-      null,
-      runId,
-      "LEARNING",
-      analysis.summary || "Learning AI Analysis",
-      JSON.stringify(analysis),
-      Number(input.learning?.score || 0),
-      analysis.priority || "LOW",
-      "NEW",
-      now
-    )
-    .run();
+  `).bind(
+    insightId,
+    null,
+    runId,
+    "LEARNING",
+    analysis.summary || "Learning AI Analysis",
+    JSON.stringify(analysis),
+    Number(input.learning?.score || 0),
+    analysis.priority || "LOW",
+    "NEW",
+    now
+  ).run();
 
   return {
     run_id: runId,
@@ -685,4 +657,3 @@ function json(data, status = 200) {
     }
   );
 }
-````
