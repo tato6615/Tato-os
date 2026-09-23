@@ -1,6 +1,6 @@
 // TATO-OS
-// Learning AI V1.5
-// Safe Cloudflare Pages Functions version
+// Learning AI V1.6
+// Workers AI diagnostic + robust response parser
 
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 
@@ -19,7 +19,7 @@ function num(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function percentage(a, b) {
+function pct(a, b) {
   return b > 0 ? Math.round((a / b) * 10000) / 100 : 0;
 }
 
@@ -197,32 +197,17 @@ async function loadData(db) {
     },
     metrics,
     conversion: {
-      attention_to_view: percentage(
-        metrics.product_views,
-        metrics.attention
-      ),
-      view_to_click: percentage(
-        metrics.clicks,
-        metrics.product_views
-      ),
-      click_to_customer: percentage(
-        metrics.customers,
-        metrics.clicks
-      ),
-      customer_to_order: percentage(
-        metrics.orders,
-        metrics.customers
-      ),
-      engagement_to_order: percentage(
-        metrics.orders,
-        metrics.engagements
-      )
+      attention_to_view: pct(metrics.product_views, metrics.attention),
+      view_to_click: pct(metrics.clicks, metrics.product_views),
+      click_to_customer: pct(metrics.customers, metrics.clicks),
+      customer_to_order: pct(metrics.orders, metrics.customers),
+      engagement_to_order: pct(metrics.orders, metrics.engagements)
     },
     learning
   };
 }
 
-function fallbackAnalysis(data) {
+function fallback(data) {
   return {
     summary: data.learning.finding,
     observed_signals: [
@@ -249,9 +234,7 @@ function fallbackAnalysis(data) {
         ? ["ยังไม่มี Conversion"]
         : [],
     next_content: {
-      action: data.metrics.orders > 0
-        ? "ITERATE"
-        : "DISTRIBUTE",
+      action: data.metrics.orders > 0 ? "ITERATE" : "DISTRIBUTE",
       direction: data.learning.recommendation,
       angle: data.content?.angle || "",
       cta: data.content?.cta || "",
@@ -260,9 +243,7 @@ function fallbackAnalysis(data) {
         : "Product Views"
     },
     next_action: {
-      type: data.metrics.orders > 0
-        ? "ITERATE"
-        : "DISTRIBUTE",
+      type: data.metrics.orders > 0 ? "ITERATE" : "DISTRIBUTE",
       reason: data.learning.recommendation
     },
     priority: data.metrics.orders > 0
@@ -273,100 +254,116 @@ function fallbackAnalysis(data) {
   };
 }
 
-function extractAIContent(result) {
-  if (!result) {
-    return null;
-  }
+function parseResponse(result) {
+  const debug = {
+    result_type: typeof result,
+    has_result: !!result,
+    has_response: !!result?.response,
+    has_choices: Array.isArray(result?.response?.choices),
+    choice_count: Array.isArray(result?.response?.choices)
+      ? result.response.choices.length
+      : 0,
+    finish_reason: result?.response?.choices?.[0]?.finish_reason ?? null,
+    content_type: typeof result?.response?.choices?.[0]?.message?.content,
+    content_length: 0
+  };
 
-  let content = null;
+  const message = result?.response?.choices?.[0]?.message;
 
-  if (typeof result === "string") {
-    content = result;
-  } else if (
-    result.result &&
-    result.result.response &&
-    result.result.response.choices &&
-    result.result.response.choices[0] &&
-    result.result.response.choices[0].message
-  ) {
-    content =
-      result.result.response.choices[0].message.content;
-  } else if (
-    result.response &&
-    result.response.choices &&
-    result.response.choices[0] &&
-    result.response.choices[0].message
-  ) {
-    content =
-      result.response.choices[0].message.content;
+  let content = message?.content;
+
+  if (Array.isArray(content)) {
+    content = content
+      .map(item => {
+        if (typeof item === "string") return item;
+        return item?.text || item?.content || "";
+      })
+      .join("");
   }
 
   if (typeof content !== "string") {
-    return null;
+    return {
+      parsed: null,
+      debug
+    };
   }
 
-  const trimmed = content.trim();
+  content = content.trim();
 
-  if (!trimmed) {
-    return null;
+  debug.content_length = content.length;
+
+  if (!content) {
+    return {
+      parsed: null,
+      debug
+    };
   }
 
   try {
-    return JSON.parse(trimmed);
+    return {
+      parsed: JSON.parse(content),
+      debug
+    };
   } catch {}
 
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
 
   if (start >= 0 && end > start) {
     try {
-      return JSON.parse(
-        trimmed.slice(start, end + 1)
-      );
+      return {
+        parsed: JSON.parse(
+          content.slice(start, end + 1)
+        ),
+        debug
+      };
     } catch {}
   }
 
-  return null;
+  return {
+    parsed: null,
+    debug
+  };
 }
 
 async function callAI(ai, data) {
   if (!ai) {
-    return null;
+    return {
+      parsed: null,
+      debug: {
+        error: "AI binding not found"
+      }
+    };
   }
 
   if (typeof ai.run !== "function") {
-    return null;
+    return {
+      parsed: null,
+      debug: {
+        error: "AI binding exists but ai.run is not a function"
+      }
+    };
   }
 
   const prompt = `
-Analyze TATO Coffee learning data.
+Analyze this TATO Coffee learning data.
 
-Return ONLY valid JSON.
-No markdown.
-No explanation outside JSON.
+Return ONLY one compact JSON object.
+Do not use markdown.
+Do not explain.
 
-JSON structure:
-{
-  "summary": "Thai summary",
-  "observed_signals": ["Thai signal"],
-  "learning": {
-    "what_we_learned": "Thai",
-    "confidence": "LOW|MEDIUM|HIGH"
-  },
-  "problems": ["Thai problem"],
-  "next_content": {
-    "action": "DISTRIBUTE|ITERATE|CREATE_NEW|HOLD",
-    "direction": "Thai",
-    "angle": "Thai",
-    "cta": "Thai",
-    "success_metric": "Attention|Product Views|Clicks|Customers|Orders|Revenue"
-  },
-  "next_action": {
-    "type": "DISTRIBUTE|ITERATE|CREATE_NEW|HOLD",
-    "reason": "Thai"
-  },
-  "priority": "LOW|MEDIUM|HIGH"
-}
+Required fields:
+summary, observed_signals, learning, problems,
+next_content, next_action, priority.
+
+learning must contain:
+what_we_learned, confidence
+
+next_content must contain:
+action, direction, angle, cta, success_metric
+
+next_action must contain:
+type, reason
 
 DATA:
 ${JSON.stringify(data)}
@@ -377,25 +374,35 @@ ${JSON.stringify(data)}
       messages: [
         {
           role: "system",
-          content:
-            "Return only compact valid JSON."
+          content: "Return only valid compact JSON."
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      reasoning_effort: "low",
-      max_completion_tokens: 256,
-      temperature: 0,
-      response_format: {
-        type: "json_object"
-      }
+      max_tokens: 512,
+      temperature: 0
     });
 
-    return extractAIContent(result);
-  } catch {
-    return null;
+    const parsed = parseResponse(result);
+
+    return {
+      ...parsed,
+      raw_response: {
+        finish_reason:
+          parsed.debug?.finish_reason ?? null,
+        content_length:
+          parsed.debug?.content_length ?? 0
+      }
+    };
+  } catch (error) {
+    return {
+      parsed: null,
+      debug: {
+        error: error?.message || String(error)
+      }
+    };
   }
 }
 
@@ -403,29 +410,23 @@ async function handle(context) {
   const db = context.env.DB;
 
   if (!db) {
-    return json(
-      {
-        success: false,
-        error: "D1 binding DB not found"
-      },
-      500
-    );
+    return json({
+      success: false,
+      error: "D1 binding DB not found"
+    }, 500);
   }
 
   await ensureTables(db);
 
   const data = await loadData(db);
 
-  const fallback = fallbackAnalysis(data);
+  const aiResult = await callAI(
+    context.env.AI,
+    data
+  );
 
-  let aiAnalysis = null;
-
-  if (context.env.AI) {
-    aiAnalysis = await callAI(
-      context.env.AI,
-      data
-    );
-  }
+  const analysis =
+    aiResult.parsed || fallback(data);
 
   return {
     success: true,
@@ -437,11 +438,14 @@ async function handle(context) {
     metrics: data.metrics,
     conversion: data.conversion,
     ai: {
-      status: aiAnalysis
+      status: aiResult.parsed
         ? "AI_ANALYZED"
         : "FALLBACK_ANALYZED",
       model: MODEL,
-      analysis: aiAnalysis || fallback,
+      analysis,
+      debug: aiResult.parsed
+        ? undefined
+        : aiResult.debug || null,
       run_id: null,
       insight_id: null
     },
@@ -454,16 +458,11 @@ export async function onRequestGet(context) {
   try {
     return json(await handle(context));
   } catch (error) {
-    return json(
-      {
-        success: false,
-        layer: "LEARNING_AI_V1",
-        error:
-          error?.message ||
-          String(error)
-      },
-      500
-    );
+    return json({
+      success: false,
+      layer: "LEARNING_AI_V1",
+      error: error?.message || String(error)
+    }, 500);
   }
 }
 
@@ -476,15 +475,10 @@ export async function onRequestPost(context) {
       mode: "execute"
     });
   } catch (error) {
-    return json(
-      {
-        success: false,
-        layer: "LEARNING_AI_V1",
-        error:
-          error?.message ||
-          String(error)
-      },
-      500
-    );
+    return json({
+      success: false,
+      layer: "LEARNING_AI_V1",
+      error: error?.message || String(error)
+    }, 500);
   }
 }
