@@ -1,115 +1,149 @@
-const LAYER = "ACTION_ENGINE_V1";
-const ACTION_STATUS = "PENDING_APPROVAL";
+const LAYER = "ACTION_ENGINE_V1.1";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
-      "content-type": "application/json; charset=utf-8"
+      "content-type": "application/json; charset=UTF-8"
     }
   });
 }
 
-function safeJsonParse(value, fallback = null) {
-  if (value === null || value === undefined) return fallback;
-
-  if (typeof value === "object") return value;
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
+function now() {
+  return new Date().toISOString();
 }
 
 function uuid() {
   return crypto.randomUUID();
 }
 
-async function ensureActionTable(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS action_runs (
-      id TEXT PRIMARY KEY,
-      decision_run_id TEXT,
-      measurement_id TEXT,
-      content_id TEXT,
-      action_type TEXT NOT NULL,
-      action_status TEXT NOT NULL,
-      priority TEXT NOT NULL,
-      reason TEXT NOT NULL,
-      action_payload TEXT NOT NULL DEFAULT '{}',
-      requires_approval INTEGER NOT NULL DEFAULT 1,
-      approved_at TEXT,
-      executed_at TEXT,
-      result TEXT NOT NULL DEFAULT '{}',
-      status TEXT NOT NULL DEFAULT 'PENDING',
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
+async function tableExists(DB, table) {
+  const row = await DB.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+  ).bind(table).first();
+
+  return !!row;
 }
 
-async function getLatestDecision(db) {
-  const result = await db.prepare(`
-    SELECT *
-    FROM decision_runs
-    ORDER BY created_at DESC
-    LIMIT 1
-  `).all();
-
-  return result.results && result.results.length
-    ? result.results[0]
-    : null;
+async function getColumns(DB, table) {
+  const result = await DB.prepare(`PRAGMA table_info(${table})`).all();
+  return (result.results || []).map(row => row.name);
 }
 
-function normalizeDecision(row) {
-  if (!row) return null;
+async function ensureActionRunsSchema(DB) {
+  const exists = await tableExists(DB, "action_runs");
+
+  if (!exists) {
+    await DB.prepare(`
+      CREATE TABLE action_runs (
+        id TEXT PRIMARY KEY,
+        decision_run_id TEXT,
+        measurement_id TEXT,
+        content_id TEXT,
+        action_type TEXT,
+        action_status TEXT,
+        priority TEXT,
+        reason TEXT,
+        action_payload TEXT,
+        requires_approval INTEGER DEFAULT 1,
+        approved_at TEXT,
+        executed_at TEXT,
+        result TEXT,
+        status TEXT DEFAULT 'PENDING',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    return {
+      created: true,
+      added_columns: [
+        "id",
+        "decision_run_id",
+        "measurement_id",
+        "content_id",
+        "action_type",
+        "action_status",
+        "priority",
+        "reason",
+        "action_payload",
+        "requires_approval",
+        "approved_at",
+        "executed_at",
+        "result",
+        "status",
+        "created_at"
+      ]
+    };
+  }
+
+  const existing = await getColumns(DB, "action_runs");
+  const added = [];
+
+  const requiredColumns = [
+    ["decision_run_id", "TEXT"],
+    ["measurement_id", "TEXT"],
+    ["content_id", "TEXT"],
+    ["action_type", "TEXT"],
+    ["action_status", "TEXT"],
+    ["priority", "TEXT"],
+    ["reason", "TEXT"],
+    ["action_payload", "TEXT"],
+    ["requires_approval", "INTEGER DEFAULT 1"],
+    ["approved_at", "TEXT"],
+    ["executed_at", "TEXT"],
+    ["result", "TEXT"],
+    ["status", "TEXT DEFAULT 'PENDING'"],
+    ["created_at", "TEXT"]
+  ];
+
+  for (const [column, definition] of requiredColumns) {
+    if (!existing.includes(column)) {
+      await DB.prepare(
+        `ALTER TABLE action_runs ADD COLUMN ${column} ${definition}`
+      ).run();
+
+      added.push(column);
+    }
+  }
 
   return {
-    id: row.id || null,
-    decision_type: row.decision_type || null,
-    decision_status: row.decision_status || null,
-    priority: row.priority || "LOW",
-    content_id: row.content_id || null,
-    measurement_id: row.measurement_id || null,
-    learning_run_id: row.learning_run_id || null,
-    reason: row.reason || "",
-    evidence: safeJsonParse(row.evidence, {}),
-    recommendation: safeJsonParse(row.recommendation, row.recommendation || ""),
-    action_required: Number(row.action_required || 0),
-    requires_approval: Number(row.requires_approval || 0),
-    status: row.status || null,
-    created_at: row.created_at || null
+    created: false,
+    existing_columns: existing,
+    added_columns: added
   };
 }
 
+async function getLatestDecision(DB) {
+  return await DB.prepare(`
+    SELECT
+      id,
+      decision_type,
+      decision_status,
+      priority,
+      content_id,
+      measurement_id,
+      learning_run_id,
+      reason,
+      evidence,
+      recommendation,
+      action_required,
+      requires_approval,
+      status,
+      created_at
+    FROM decision_runs
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).first();
+}
+
 function buildAction(decision) {
-  if (!decision) {
-    return {
-      action_type: "WAIT_FOR_DECISION",
-      action_status: "WAITING",
-      priority: "LOW",
-      reason: "ยังไม่มี Decision สำหรับสร้าง Action",
-      action_payload: {},
-      requires_approval: 0
-    };
-  }
+  const type = decision.decision_type;
 
-  if (!decision.action_required) {
-    return {
-      action_type: "NO_ACTION",
-      action_status: "NO_ACTION_REQUIRED",
-      priority: decision.priority,
-      reason: "Decision นี้ไม่ได้กำหนดให้ต้องดำเนินการ",
-      action_payload: {},
-      requires_approval: 0
-    };
-  }
-
-  if (decision.decision_type === "CONTINUE_TRAFFIC_SIGNAL") {
+  if (type === "CONTINUE_TRAFFIC_SIGNAL") {
     return {
       action_type: "CONTINUE_MEASUREMENT",
-      action_status: ACTION_STATUS,
-      priority: decision.priority,
+      action_status: "PENDING_APPROVAL",
+      priority: decision.priority || "LOW",
       reason:
         "Decision พบสัญญาณ Traffic แต่ข้อมูลปลายทางยังไม่เพียงพอ จึงควรเก็บ Behavior และ Measurement ต่อ",
       action_payload: {
@@ -127,70 +161,38 @@ function buildAction(decision) {
         ],
         do_not_change_strategy_yet: true
       },
-      requires_approval: decision.requires_approval ? 1 : 0
+      requires_approval: 1
     };
   }
 
-  if (decision.decision_type === "CONTINUE_MEASUREMENT") {
+  if (type === "OPTIMIZE_CONTENT") {
     return {
-      action_type: "CONTINUE_MEASUREMENT",
-      action_status: ACTION_STATUS,
-      priority: decision.priority,
-      reason: decision.reason,
+      action_type: "OPTIMIZE_CONTENT",
+      action_status: "PENDING_APPROVAL",
+      priority: decision.priority || "MEDIUM",
+      reason:
+        "Decision พบสัญญาณที่มีข้อมูลเพียงพอสำหรับเสนอการปรับ Content แต่ยังต้องได้รับ Approval",
       action_payload: {
-        operation: "MEASURE_CONTENT",
-        content_id: decision.content_id,
-        measurement_id: decision.measurement_id
-      },
-      requires_approval: decision.requires_approval ? 1 : 0
-    };
-  }
-
-  if (decision.decision_type === "OPTIMIZE_CONVERSION_PATH") {
-    return {
-      action_type: "OPTIMIZE_CONVERSION_PATH",
-      action_status: ACTION_STATUS,
-      priority: decision.priority,
-      reason: decision.reason,
-      action_payload: {
-        operation: "REVIEW_CONVERSION_PATH",
+        operation: "REVIEW_CONTENT_OPTIMIZATION",
         content_id: decision.content_id,
         measurement_id: decision.measurement_id,
-        focus: [
-          "engagement_to_customer",
-          "customer_to_order"
-        ]
+        recommendation: decision.recommendation || {}
       },
-      requires_approval: decision.requires_approval ? 1 : 0
+      requires_approval: 1
     };
   }
 
-  if (decision.decision_type === "CONTINUE_CUSTOMER_SIGNAL") {
+  if (type === "MONITOR_CONTENT") {
     return {
-      action_type: "CONTINUE_CUSTOMER_MEASUREMENT",
-      action_status: ACTION_STATUS,
-      priority: decision.priority,
-      reason: decision.reason,
+      action_type: "MONITOR_CONTENT",
+      action_status: "PENDING_APPROVAL",
+      priority: decision.priority || "LOW",
+      reason:
+        "Decision ระบุให้ติดตามสัญญาณเพิ่มเติมก่อนเปลี่ยนกลยุทธ์",
       action_payload: {
-        operation: "MONITOR_CUSTOMER_TO_ORDER",
+        operation: "MONITOR",
         content_id: decision.content_id,
         measurement_id: decision.measurement_id
-      },
-      requires_approval: decision.requires_approval ? 1 : 0
-    };
-  }
-
-  if (decision.decision_type === "CONTINUE_AND_SCALE_SIGNAL") {
-    return {
-      action_type: "REVIEW_SCALE",
-      action_status: ACTION_STATUS,
-      priority: decision.priority,
-      reason: decision.reason,
-      action_payload: {
-        operation: "REVIEW_FOR_SCALE",
-        content_id: decision.content_id,
-        measurement_id: decision.measurement_id,
-        approval_required: true
       },
       requires_approval: 1
     };
@@ -198,12 +200,13 @@ function buildAction(decision) {
 
   return {
     action_type: "REVIEW_DECISION",
-    action_status: ACTION_STATUS,
-    priority: decision.priority,
-    reason: decision.reason,
+    action_status: "PENDING_APPROVAL",
+    priority: decision.priority || "MEDIUM",
+    reason:
+      "Decision type นี้ยังไม่มี execution mapping แบบอัตโนมัติ จึงส่งเข้า Approval Queue",
     action_payload: {
-      operation: "FOUNDER_REVIEW",
-      decision_type: decision.decision_type,
+      operation: "REVIEW",
+      decision_type: type,
       content_id: decision.content_id,
       measurement_id: decision.measurement_id
     },
@@ -211,164 +214,173 @@ function buildAction(decision) {
   };
 }
 
-async function buildActionResult(db) {
-  const decisionRow = await getLatestDecision(db);
+async function createAction(DB, decision, action) {
+  const actionRunId = uuid();
+  const createdAt = now();
 
-  if (!decisionRow) {
-    return {
-      success: false,
-      layer: LAYER,
-      mode: "preview",
-      status: "WAITING_FOR_DECISION",
-      decision: null,
-      action: null,
-      next_step: "Create Decision first."
-    };
+  const columns = await getColumns(DB, "action_runs");
+
+  const values = {
+    id: actionRunId,
+    decision_run_id: decision.id,
+    measurement_id: decision.measurement_id || null,
+    content_id: decision.content_id || null,
+    action_type: action.action_type,
+    action_status: action.action_status,
+    priority: action.priority,
+    reason: action.reason,
+    action_payload: JSON.stringify(action.action_payload),
+    requires_approval: action.requires_approval,
+    approved_at: null,
+    executed_at: null,
+    result: null,
+    status: "PENDING",
+    created_at: createdAt
+  };
+
+  const insertColumns = [];
+  const placeholders = [];
+  const bindings = [];
+
+  for (const [column, value] of Object.entries(values)) {
+    if (columns.includes(column)) {
+      insertColumns.push(column);
+      placeholders.push("?");
+      bindings.push(value);
+    }
   }
 
-  const decision = normalizeDecision(decisionRow);
-  const action = buildAction(decision);
+  if (!columns.includes("id")) {
+    throw new Error("action_runs table is missing required primary key column: id");
+  }
+
+  const sql = `
+    INSERT INTO action_runs
+    (${insertColumns.join(", ")})
+    VALUES
+    (${placeholders.join(", ")})
+  `;
+
+  await DB.prepare(sql).bind(...bindings).run();
 
   return {
-    success: true,
-    layer: LAYER,
-    mode: "preview",
-    status: action.action_status,
-
-    decision: {
-      id: decision.id,
-      decision_type: decision.decision_type,
-      decision_status: decision.decision_status,
-      priority: decision.priority,
-      content_id: decision.content_id,
-      measurement_id: decision.measurement_id,
-      action_required: decision.action_required,
-      requires_approval: decision.requires_approval
-    },
-
-    action,
-
-    control: {
-      automatic_execution: false,
-      approval_required: action.requires_approval === 1,
-      execution_status: "NOT_EXECUTED"
-    },
-
-    next_step:
-      action.requires_approval === 1
-        ? "POST to create the Action and place it in the approval queue."
-        : "No execution required."
+    action_run_id: actionRunId,
+    status: "PENDING",
+    created_at: createdAt
   };
-}
-
-async function saveAction(db, result) {
-  await ensureActionTable(db);
-
-  const decision = result.decision;
-  const action = result.action;
-
-  const id = uuid();
-
-  await db.prepare(`
-    INSERT INTO action_runs (
-      id,
-      decision_run_id,
-      measurement_id,
-      content_id,
-      action_type,
-      action_status,
-      priority,
-      reason,
-      action_payload,
-      requires_approval,
-      status,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    decision.id,
-    decision.measurement_id,
-    decision.content_id,
-    action.action_type,
-    action.action_status,
-    action.priority,
-    action.reason,
-    JSON.stringify(action.action_payload || {}),
-    action.requires_approval ? 1 : 0,
-    "PENDING",
-    new Date().toISOString()
-  ).run();
-
-  return id;
 }
 
 export async function onRequestGet(context) {
   try {
-    const db = context.env.DB;
+    const { env } = context;
+    const DB = env.DB;
 
-    if (!db) {
+    if (!DB) {
       return json({
         success: false,
         layer: LAYER,
+        status: "ERROR",
         error: "D1 binding DB not found"
       }, 500);
     }
 
-    return json(
-      await buildActionResult(db)
-    );
+    const decision = await getLatestDecision(DB);
+
+    if (!decision) {
+      return json({
+        success: true,
+        layer: LAYER,
+        mode: "preview",
+        status: "WAITING_FOR_DECISION",
+        decision: null,
+        action: null,
+        control: {
+          automatic_execution: false,
+          approval_required: true,
+          execution_status: "NOT_EXECUTED"
+        }
+      });
+    }
+
+    const action = buildAction(decision);
+
+    return json({
+      success: true,
+      layer: LAYER,
+      mode: "preview",
+      status: "PENDING_APPROVAL",
+      decision: {
+        id: decision.id,
+        decision_type: decision.decision_type,
+        decision_status: decision.decision_status,
+        priority: decision.priority,
+        content_id: decision.content_id,
+        measurement_id: decision.measurement_id,
+        learning_run_id: decision.learning_run_id,
+        action_required: decision.action_required,
+        requires_approval: decision.requires_approval
+      },
+      action,
+      control: {
+        automatic_execution: false,
+        approval_required: true,
+        execution_status: "NOT_EXECUTED"
+      },
+      next_step: "POST to create the Action and place it in the approval queue."
+    });
+
   } catch (error) {
     return json({
       success: false,
       layer: LAYER,
       mode: "preview",
       status: "ERROR",
-      error: error && error.message
-        ? error.message
-        : String(error)
+      error: error.message
     }, 500);
   }
 }
 
 export async function onRequestPost(context) {
   try {
-    const db = context.env.DB;
+    const { request, env } = context;
+    const DB = env.DB;
 
-    if (!db) {
+    if (!DB) {
       return json({
         success: false,
         layer: LAYER,
+        mode: "execute",
+        status: "ERROR",
         error: "D1 binding DB not found"
       }, 500);
     }
 
-    const preview = await buildActionResult(db);
+    /*
+      IMPORTANT:
+      This endpoint creates an Action only.
+      It does NOT execute the action.
+    */
 
-    if (!preview.success) {
+    const schemaRepair = await ensureActionRunsSchema(DB);
+
+    const decision = await getLatestDecision(DB);
+
+    if (!decision) {
       return json({
-        ...preview,
-        mode: "execute"
+        success: false,
+        layer: LAYER,
+        mode: "execute",
+        status: "WAITING_FOR_DECISION",
+        error: "No decision found"
       }, 400);
     }
 
-    if (
-      preview.action.action_type === "NO_ACTION"
-    ) {
-      return json({
-        success: true,
-        layer: LAYER,
-        mode: "execute",
-        status: "NO_ACTION_REQUIRED",
-        decision: preview.decision,
-        action: preview.action,
-        saved: false
-      });
-    }
+    const action = buildAction(decision);
 
-    const actionRunId = await saveAction(
-      db,
-      preview
+    const saved = await createAction(
+      DB,
+      decision,
+      action
     );
 
     return json({
@@ -376,35 +388,35 @@ export async function onRequestPost(context) {
       layer: LAYER,
       mode: "execute",
       status: "ACTION_CREATED",
-
-      decision: preview.decision,
-
-      action: preview.action,
-
+      decision: {
+        id: decision.id,
+        decision_type: decision.decision_type,
+        decision_status: decision.decision_status,
+        content_id: decision.content_id,
+        measurement_id: decision.measurement_id
+      },
+      action,
+      saved,
+      schema: {
+        repaired: schemaRepair.created || schemaRepair.added_columns.length > 0,
+        added_columns: schemaRepair.added_columns
+      },
       control: {
         automatic_execution: false,
-        approval_required:
-          preview.action.requires_approval === 1,
+        approval_required: true,
         execution_status: "NOT_EXECUTED"
       },
-
-      saved: {
-        action_run_id: actionRunId,
-        status: "PENDING"
-      },
-
       next_step:
-        "Action created. Approval is required before execution."
+        "Approval is required before Execution. The action has NOT been executed."
     });
+
   } catch (error) {
     return json({
       success: false,
       layer: LAYER,
       mode: "execute",
       status: "ERROR",
-      error: error && error.message
-        ? error.message
-        : String(error)
+      error: error.message
     }, 500);
   }
 }
