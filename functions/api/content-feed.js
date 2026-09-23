@@ -13,11 +13,11 @@
 //   { mode: "event", event_type, content_id, distribution_id,
 //     session_id, metadata }
 //
-// V1.1 FIX
-// - content_view is tracked ONLY by browser-side tracking.
-// - Prevents duplicate content_view events from server + browser.
-// - content_click remains browser-side.
-// - content_id + distribution_id remain attached to every event.
+// V1.1
+// - One page open = one content_view
+// - No server-side duplicate content_view
+// - content_click remains browser tracked
+// - content_id + distribution_id + session_id preserved
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -81,9 +81,15 @@ async function ensureTables(db) {
   `).run();
 }
 
-async function getPublishedContent(db, contentId = null, distributionId = null) {
+async function getPublishedContent(
+  db,
+  contentId = null,
+  distributionId = null
+) {
   if (distributionId) {
-    return await first(db, `
+    return await first(
+      db,
+      `
       SELECT
         d.id AS distribution_id,
         d.content_id,
@@ -107,11 +113,15 @@ async function getPublishedContent(db, contentId = null, distributionId = null) 
       WHERE d.id = ?
         AND d.status = 'PUBLISHED'
       LIMIT 1
-    `, distributionId);
+      `,
+      distributionId
+    );
   }
 
   if (contentId) {
-    return await first(db, `
+    return await first(
+      db,
+      `
       SELECT
         d.id AS distribution_id,
         d.content_id,
@@ -136,10 +146,14 @@ async function getPublishedContent(db, contentId = null, distributionId = null) 
         AND d.status = 'PUBLISHED'
       ORDER BY datetime(d.created_at) DESC
       LIMIT 1
-    `, contentId);
+      `,
+      contentId
+    );
   }
 
-  return await first(db, `
+  return await first(
+    db,
+    `
     SELECT
       d.id AS distribution_id,
       d.content_id,
@@ -163,11 +177,14 @@ async function getPublishedContent(db, contentId = null, distributionId = null) 
     WHERE d.status = 'PUBLISHED'
     ORDER BY datetime(d.created_at) DESC
     LIMIT 1
-  `);
+    `
+  );
 }
 
 async function getFeed(db) {
-  return await all(db, `
+  return await all(
+    db,
+    `
     SELECT
       d.id AS distribution_id,
       d.content_id,
@@ -187,101 +204,158 @@ async function getFeed(db) {
     JOIN content_engine c ON c.id = d.content_id
     WHERE d.status = 'PUBLISHED'
     ORDER BY datetime(d.created_at) DESC
-  `);
+    `
+  );
 }
 
-async function recordEvent(db, {
-  eventType,
-  contentId = null,
-  distributionId = null,
-  sessionId = null,
-  metadata = {},
-  customerId = null
-}) {
+async function recordEvent(db, options) {
+  const {
+    eventType,
+    contentId = null,
+    distributionId = null,
+    sessionId = null,
+    metadata = {},
+    customerId = null
+  } = options;
+
   const id = uid();
 
   const eventMetadata = {
-    ...(
-      metadata && typeof metadata === "object"
-        ? metadata
-        : {}
-    ),
+    ...(metadata && typeof metadata === "object" ? metadata : {}),
     ...(contentId ? { content_id: contentId } : {}),
     ...(distributionId ? { distribution_id: distributionId } : {}),
     source: "PUBLIC_CONTENT_FEED"
   };
 
-  await db.prepare(`
-    INSERT INTO behavior_events
-      (id, customer_id, session_id, event_type, page, product_id, metadata, created_at)
-    VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    customerId,
-    sessionId || uid(),
-    eventType,
-    "/api/content-feed",
-    null,
-    JSON.stringify(eventMetadata),
-    new Date().toISOString()
-  ).run();
+  const finalSessionId = sessionId || uid();
+
+  await db
+    .prepare(`
+      INSERT INTO behavior_events
+        (
+          id,
+          customer_id,
+          session_id,
+          event_type,
+          page,
+          product_id,
+          metadata,
+          created_at
+        )
+      VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    .bind(
+      id,
+      customerId,
+      finalSessionId,
+      eventType,
+      "/api/content-feed",
+      null,
+      JSON.stringify(eventMetadata),
+      new Date().toISOString()
+    )
+    .run();
 
   return {
     id,
     event_type: eventType,
     content_id: contentId,
     distribution_id: distributionId,
-    session_id: sessionId
+    session_id: finalSessionId
+  };
+}
+
+function parseContentText(contentText) {
+  const raw = String(contentText || "");
+
+  let hook = "";
+  let body = "";
+  let cta = "";
+
+  const hookMatch = raw.match(
+    /HOOK\s*([\s\S]*?)(?=\n\s*BODY|\n\s*CTA|$)/i
+  );
+
+  const bodyMatch = raw.match(
+    /BODY\s*([\s\S]*?)(?=\n\s*CTA|$)/i
+  );
+
+  const ctaMatch = raw.match(
+    /CTA\s*([\s\S]*)$/i
+  );
+
+  if (hookMatch) {
+    hook = hookMatch[1].trim();
+  }
+
+  if (bodyMatch) {
+    body = bodyMatch[1].trim();
+  }
+
+  if (ctaMatch) {
+    cta = ctaMatch[1].trim();
+  }
+
+  if (!hook && !body && !cta) {
+    body = raw;
+  }
+
+  return {
+    hook,
+    body,
+    cta
   };
 }
 
 function renderPage(content) {
-  const contentId = escapeHtml(content.content_id || content.id);
-  const distributionId = escapeHtml(content.distribution_id || "");
-  const title = escapeHtml(content.title || "TATO Coffee");
-  const objective = escapeHtml(content.objective || "");
-  const attentionType = escapeHtml(content.attention_type || "");
-  const marketKeyword = escapeHtml(content.market_keyword || "");
-  const angle = escapeHtml(content.angle || "");
-  const direction = escapeHtml(content.direction || "");
-  const cta = escapeHtml(content.cta || "ดูรายละเอียดและทดลอง TATO");
+  const contentId = content.content_id || content.id || "";
+  const distributionId = content.distribution_id || "";
 
-  const rawText = String(content.content_text || "");
-
-  let hook = "";
-  let body = "";
-  let contentCta = "";
-
-  const hookMatch = rawText.match(
-    /HOOK\s*([\s\S]*?)(?=\n\s*BODY|\n\s*CTA|$)/i
+  const title = escapeHtml(
+    content.title || "TATO Coffee"
   );
 
-  const bodyMatch = rawText.match(
-    /BODY\s*([\s\S]*?)(?=\n\s*CTA|$)/i
+  const objective = escapeHtml(
+    content.objective || ""
   );
 
-  const ctaMatch = rawText.match(
-    /CTA\s*([\s\S]*)$/i
+  const attentionType = escapeHtml(
+    content.attention_type || ""
   );
 
-  if (hookMatch) hook = hookMatch[1].trim();
-  if (bodyMatch) body = bodyMatch[1].trim();
-  if (ctaMatch) contentCta = ctaMatch[1].trim();
+  const marketKeyword = escapeHtml(
+    content.market_keyword || ""
+  );
 
-  if (!hook && !body && !contentCta) {
-    body = rawText;
-  }
+  const angle = escapeHtml(
+    content.angle || ""
+  );
 
-  const safeHook = escapeHtml(hook);
-  const safeBody = escapeHtml(body);
-  const safeContentCta = escapeHtml(contentCta || cta);
+  const direction = escapeHtml(
+    content.direction || ""
+  );
+
+  const cta = escapeHtml(
+    content.cta || "ดูรายละเอียดและทดลอง TATO"
+  );
+
+  const parsed = parseContentText(
+    content.content_text
+  );
+
+  const hook = escapeHtml(parsed.hook);
+  const body = escapeHtml(parsed.body);
+  const contentCta = escapeHtml(
+    parsed.cta || content.cta || ""
+  );
 
   return `<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>${title} — TATO Coffee</title>
 
 <style>
@@ -291,7 +365,7 @@ function renderPage(content) {
 
 body {
   margin: 0;
-  background: #111111;
+  background: #111;
   color: #f5f5f5;
   font-family:
     -apple-system,
@@ -313,7 +387,7 @@ body {
   width: 100%;
   max-width: 720px;
   background: #181818;
-  border: 1px solid #333333;
+  border: 1px solid #333;
   border-radius: 20px;
   padding: 28px;
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
@@ -323,7 +397,7 @@ body {
   font-size: 13px;
   letter-spacing: 3px;
   color: #ff8a00;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 24px;
 }
 
@@ -333,21 +407,21 @@ h1 {
   line-height: 1.25;
 }
 
+.section {
+  margin-top: 24px;
+}
+
 .label {
-  color: #999999;
+  color: #888;
   font-size: 11px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 
-.section {
-  margin-top: 24px;
-}
-
 .text {
   white-space: pre-line;
-  color: #dddddd;
+  color: #ddd;
   font-size: 16px;
   line-height: 1.8;
 }
@@ -367,7 +441,7 @@ h1 {
 }
 
 .meta-value {
-  color: #dddddd;
+  color: #ddd;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -380,7 +454,7 @@ h1 {
   border-radius: 12px;
   padding: 15px 18px;
   background: #ff8a00;
-  color: #111111;
+  color: #111;
   font-size: 16px;
   font-weight: 800;
   text-align: center;
@@ -395,7 +469,7 @@ h1 {
 .footer {
   margin-top: 22px;
   text-align: center;
-  color: #666666;
+  color: #666;
   font-size: 11px;
 }
 
@@ -418,40 +492,43 @@ h1 {
 <body>
 
 <div class="page">
+
   <main class="card">
 
-    <div class="brand">TATO COFFEE</div>
+    <div class="brand">
+      TATO COFFEE
+    </div>
 
     <h1>${title}</h1>
 
     ${
-      safeHook
+      hook
         ? `
     <section class="section">
       <div class="label">Hook</div>
-      <div class="text">${safeHook}</div>
+      <div class="text">${hook}</div>
     </section>
     `
         : ""
     }
 
     ${
-      safeBody
+      body
         ? `
     <section class="section">
       <div class="label">Content</div>
-      <div class="text">${safeBody}</div>
+      <div class="text">${body}</div>
     </section>
     `
         : ""
     }
 
     ${
-      safeContentCta
+      contentCta
         ? `
     <section class="section">
       <div class="label">CTA</div>
-      <div class="text">${safeContentCta}</div>
+      <div class="text">${contentCta}</div>
     </section>
     `
         : ""
@@ -519,7 +596,7 @@ h1 {
     <a
       id="cta"
       class="cta"
-      href="/api/content-feed?mode=thank_you&content_id=${contentId}"
+      href="/api/content-feed?mode=thank_you&content_id=${encodeURIComponent(contentId)}"
     >
       ${cta}
     </a>
@@ -529,27 +606,38 @@ h1 {
     </div>
 
   </main>
+
 </div>
 
 <script>
 (function () {
-  const contentId = ${JSON.stringify(content.content_id || content.id || null)};
-  const distributionId = ${JSON.stringify(content.distribution_id || null)};
 
-  let sessionId = sessionStorage.getItem("tato_content_session");
+  const contentId = ${JSON.stringify(contentId)};
+  const distributionId = ${JSON.stringify(distributionId)};
+
+  let sessionId =
+    sessionStorage.getItem("tato_content_session");
 
   if (!sessionId) {
     sessionId = crypto.randomUUID();
-    sessionStorage.setItem("tato_content_session", sessionId);
+
+    sessionStorage.setItem(
+      "tato_content_session",
+      sessionId
+    );
   }
 
   async function track(eventType, metadata) {
+
     try {
+
       await fetch("/api/content-feed", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json"
         },
+
         body: JSON.stringify({
           mode: "event",
           event_type: eventType,
@@ -558,29 +646,40 @@ h1 {
           session_id: sessionId,
           metadata: metadata || {}
         }),
+
         keepalive: true
       });
+
     } catch (_) {
-      // Tracking failure must never block the user.
+      // Tracking must never block the visitor.
     }
   }
 
-  // V1.1:
-  // content_view is intentionally recorded ONLY here.
-  // Server-side tracking was removed to prevent duplicate events.
+  // IMPORTANT:
+  // content_view is recorded ONLY here.
+  // No server-side content_view exists.
   track("content_view", {
     page_type: "public_content"
   });
 
-  const cta = document.getElementById("cta");
+  const cta =
+    document.getElementById("cta");
 
   if (cta) {
-    cta.addEventListener("click", function () {
-      track("content_click", {
-        cta: true
-      });
-    });
+
+    cta.addEventListener(
+      "click",
+      function () {
+
+        track("content_click", {
+          cta: true
+        });
+
+      }
+    );
+
   }
+
 })();
 </script>
 
@@ -591,19 +690,27 @@ h1 {
 function renderThankYou() {
   return `<!DOCTYPE html>
 <html lang="th">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
 <title>TATO Coffee</title>
 
 <style>
+
 body {
   margin: 0;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #111111;
+  background: #111;
   color: #f5f5f5;
   font-family:
     -apple-system,
@@ -618,7 +725,7 @@ body {
   max-width: 520px;
   padding: 36px 24px;
   background: #181818;
-  border: 1px solid #333333;
+  border: 1px solid #333;
   border-radius: 20px;
   text-align: center;
 }
@@ -636,7 +743,7 @@ h1 {
 }
 
 p {
-  color: #aaaaaa;
+  color: #aaa;
   line-height: 1.7;
 }
 
@@ -647,83 +754,149 @@ p {
   text-decoration: none;
   font-weight: 700;
 }
+
 </style>
+
 </head>
 
 <body>
-  <main class="card">
-    <div class="brand">TATO COFFEE</div>
-    <h1>ขอบคุณที่สนใจ TATO Coffee</h1>
-    <p>
-      ขอบคุณที่สนใจ TATO Coffee
-    </p>
-    <a class="back" href="/api/content-feed">
-      ← กลับไปดู Content
-    </a>
-  </main>
+
+<main class="card">
+
+  <div class="brand">
+    TATO COFFEE
+  </div>
+
+  <h1>
+    ขอบคุณที่สนใจ TATO Coffee
+  </h1>
+
+  <p>
+    ขอบคุณที่สนใจ TATO Coffee
+  </p>
+
+  <a
+    class="back"
+    href="/api/content-feed"
+  >
+    ← กลับไปดู Content
+  </a>
+
+</main>
+
 </body>
+
 </html>`;
 }
 
 export async function onRequest(context) {
-  const { request, env } = context;
 
-  if (!env?.DB) {
-    return json({
-      success: false,
-      error: "D1 binding DB is not available"
-    }, 500);
+  const {
+    request,
+    env
+  } = context;
+
+  if (!env || !env.DB) {
+
+    return json(
+      {
+        success: false,
+        error: "D1 binding DB is not available"
+      },
+      500
+    );
+
   }
 
   const db = env.DB;
 
   try {
+
     await ensureTables(db);
 
-    const url = new URL(request.url);
-    const mode = url.searchParams.get("mode");
-    const contentId = url.searchParams.get("content_id");
-    const distributionId = url.searchParams.get("distribution_id");
+    const url =
+      new URL(request.url);
 
-    // ---------------------------------------------------------
-    // POST — behavior event
-    // ---------------------------------------------------------
+    const mode =
+      url.searchParams.get("mode");
+
+    const contentId =
+      url.searchParams.get("content_id");
+
+    const distributionId =
+      url.searchParams.get("distribution_id");
+
+    // --------------------------------------------------
+    // POST — Behavior Event
+    // --------------------------------------------------
+
     if (request.method === "POST") {
+
       let body = {};
 
       try {
-        body = await request.json();
+
+        body =
+          await request.json();
+
       } catch (_) {
-        return json({
-          success: false,
-          error: "Invalid JSON body"
-        }, 400);
+
+        return json(
+          {
+            success: false,
+            error: "Invalid JSON body"
+          },
+          400
+        );
+
       }
 
       if (body.mode !== "event") {
-        return json({
-          success: false,
-          error: "Unsupported POST mode"
-        }, 400);
+
+        return json(
+          {
+            success: false,
+            error: "Unsupported POST mode"
+          },
+          400
+        );
+
       }
 
-      const eventType = String(body.event_type || "").trim();
+      const eventType =
+        String(
+          body.event_type || ""
+        ).trim();
 
       if (!eventType) {
-        return json({
-          success: false,
-          error: "event_type is required"
-        }, 400);
+
+        return json(
+          {
+            success: false,
+            error: "event_type is required"
+          },
+          400
+        );
+
       }
 
-      const event = await recordEvent(db, {
-        eventType,
-        contentId: body.content_id || null,
-        distributionId: body.distribution_id || null,
-        sessionId: body.session_id || null,
-        metadata: body.metadata || {},
-        customerId: body.customer_id || null
-      });
+      const event =
+        await recordEvent(
+          db,
+          {
+            eventType,
+            contentId:
+              body.content_id || null,
+            distributionId:
+              body.distribution_id || null,
+            sessionId:
+              body.session_id || null,
+            metadata:
+              body.metadata || {},
+            customerId:
+              body.customer_id || null
+          }
+        );
 
       return json({
         success: true,
@@ -732,13 +905,17 @@ export async function onRequest(context) {
         status: "RECORDED",
         event
       });
+
     }
 
-    // ---------------------------------------------------------
-    // GET — feed JSON
-    // ---------------------------------------------------------
+    // --------------------------------------------------
+    // GET — Feed JSON
+    // --------------------------------------------------
+
     if (mode === "feed") {
-      const content = await getFeed(db);
+
+      const content =
+        await getFeed(db);
 
       return json({
         success: true,
@@ -747,52 +924,81 @@ export async function onRequest(context) {
         count: content.length,
         content
       });
+
     }
 
-    // ---------------------------------------------------------
-    // GET — thank you
-    // ---------------------------------------------------------
+    // --------------------------------------------------
+    // GET — Thank You
+    // --------------------------------------------------
+
     if (mode === "thank_you") {
-      return new Response(renderThankYou(), {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store"
+
+      return new Response(
+        renderThankYou(),
+        {
+          status: 200,
+          headers: {
+            "Content-Type":
+              "text/html; charset=utf-8",
+            "Cache-Control":
+              "no-store"
+          }
         }
-      });
+      );
+
     }
 
-    // ---------------------------------------------------------
-    // GET — public content page
-    // ---------------------------------------------------------
-    const content = await getPublishedContent(
-      db,
-      contentId,
-      distributionId
-    );
+    // --------------------------------------------------
+    // GET — Public Content
+    // --------------------------------------------------
+
+    const content =
+      await getPublishedContent(
+        db,
+        contentId,
+        distributionId
+      );
 
     if (!content) {
-      return json({
-        success: false,
-        layer: "CONTENT_FEED_V1",
-        error: "Published content not found"
-      }, 404);
+
+      return json(
+        {
+          success: false,
+          layer: "CONTENT_FEED_V1",
+          error:
+            "Published content not found"
+        },
+        404
+      );
+
     }
 
-    return new Response(renderPage(content), {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store"
+    return new Response(
+      renderPage(content),
+      {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "text/html; charset=utf-8",
+          "Cache-Control":
+            "no-store"
+        }
       }
-    });
+    );
 
   } catch (error) {
-    return json({
-      success: false,
-      layer: "CONTENT_FEED_V1",
-      error: error?.message || String(error)
-    }, 500);
+
+    return json(
+      {
+        success: false,
+        layer: "CONTENT_FEED_V1",
+        error:
+          error?.message ||
+          String(error)
+      },
+      500
+    );
+
   }
 }
 ```
