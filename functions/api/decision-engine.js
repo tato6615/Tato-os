@@ -1,19 +1,26 @@
-const LAYER = "DECISION_ENGINE_V1.4";
-const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
+const LAYER = "DECISION_ENGINE_V1.5";
+
+const DEFAULT_LEARNING_RUN_ID =
+  "52afcbac-8ae2-4344-90d3-55e49a90a872";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
-      "content-type": "application/json; charset=utf-8"
+      "content-type": "application/json; charset=UTF-8",
+      "cache-control": "no-store"
     }
   });
 }
 
-function safeJsonParse(value, fallback = null) {
-  if (value === null || value === undefined) return fallback;
+function safeJson(value, fallback = {}) {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
 
-  if (typeof value === "object") return value;
+  if (typeof value === "object") {
+    return value;
+  }
 
   try {
     return JSON.parse(value);
@@ -22,412 +29,424 @@ function safeJsonParse(value, fallback = null) {
   }
 }
 
-function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+function normalizePriority(value) {
+  const v = String(value || "").toUpperCase();
+
+  if (v === "HIGH") return "HIGH";
+  if (v === "LOW") return "LOW";
+
+  return "MEDIUM";
 }
 
-function uuid() {
-  return crypto.randomUUID();
-}
-
-async function getLatestMeasurement(db) {
-  const result = await db.prepare(`
-    SELECT *
-    FROM content_measurements
-    WHERE attribution_mode = ?
-    ORDER BY measured_at DESC, created_at DESC
-    LIMIT 1
-  `).bind(ATTRIBUTION_MODE).all();
-
-  return result.results && result.results.length
-    ? result.results[0]
-    : null;
-}
-
-function normalizeMeasurement(row) {
-  if (!row) return null;
-
+function getMetrics(measurement) {
   return {
-    id: row.id || null,
-    content_id: row.content_id || null,
-    status: row.status || null,
-    attribution_mode: row.attribution_mode || null,
-    measured_at: row.measured_at || null,
-    measurement_start: row.measurement_start || null,
-
-    attention: toNumber(row.attention),
-    product_views: toNumber(row.product_views),
-    clicks: toNumber(row.clicks),
-    engagements: toNumber(row.engagements),
-    customers: toNumber(row.customers),
-    orders: toNumber(row.orders),
-    revenue: toNumber(row.revenue),
-
-    attention_to_view: toNumber(row.attention_to_view),
-    view_to_click: toNumber(row.view_to_click),
-    click_to_customer: toNumber(row.click_to_customer),
-    customer_to_order: toNumber(row.customer_to_order)
+    attention: Number(measurement?.attention || 0),
+    product_views: Number(
+      measurement?.product_views || 0
+    ),
+    clicks: Number(measurement?.clicks || 0),
+    engagements: Number(
+      measurement?.engagements || 0
+    ),
+    customers: Number(
+      measurement?.customers || 0
+    ),
+    orders: Number(
+      measurement?.orders || 0
+    ),
+    revenue: Number(
+      measurement?.revenue || 0
+    )
   };
 }
 
-async function findLearningRun(db, measurement) {
-  if (!measurement) {
-    return {
-      run: null,
-      input: null,
-      output: null
-    };
-  }
-
-  const measurementId = String(measurement.id || "");
-  const contentId = String(measurement.content_id || "");
-
-  const result = await db.prepare(`
+async function loadLearningRun(env, runId) {
+  const row = await env.DB.prepare(`
     SELECT *
     FROM ai_runs
-    WHERE run_type = 'LEARNING'
-    ORDER BY created_at DESC
-    LIMIT 100
-  `).all();
+    WHERE id = ?
+      AND run_type = 'LEARNING'
+    LIMIT 1
+  `)
+    .bind(runId)
+    .first();
 
-  const rows = result.results || [];
-
-  for (const row of rows) {
-    const input = safeJsonParse(row.input_data, {});
-    const inputMeasurement = input && input.measurement
-      ? input.measurement
-      : {};
-
-    const inputMeasurementId = String(inputMeasurement.id || "");
-    const inputContentId = String(inputMeasurement.content_id || "");
-
-    if (
-      (measurementId && inputMeasurementId === measurementId) ||
-      (contentId && inputContentId === contentId)
-    ) {
-      return {
-        run: row,
-        input,
-        output: safeJsonParse(row.output_data, {})
-      };
-    }
-  }
-
-  return {
-    run: null,
-    input: null,
-    output: null
-  };
-}
-
-async function findLearningInsight(db, learningRun, measurement) {
-  if (!learningRun || !measurement) return null;
-
-  const runId = String(learningRun.id || "");
-  const measurementId = String(measurement.id || "");
-  const contentId = String(measurement.content_id || "");
-
-  const result = await db.prepare(`
-    SELECT *
-    FROM ai_insights
-    ORDER BY created_at DESC
-    LIMIT 100
-  `).all();
-
-  const rows = result.results || [];
-
-  for (const row of rows) {
-    const rowRunId = String(
-      row.run_id ||
-      row.learning_run_id ||
-      ""
+  if (!row) {
+    throw new Error(
+      `Learning run not found: ${runId}`
     );
-
-    if (runId && rowRunId === runId) {
-      return row;
-    }
-
-    const evidence = safeJsonParse(row.evidence, {});
-    const evidenceText = JSON.stringify(evidence || {});
-
-    if (
-      (measurementId && evidenceText.includes(measurementId)) ||
-      (contentId && evidenceText.includes(contentId))
-    ) {
-      return row;
-    }
   }
 
-  return null;
+  return row;
 }
 
-function extractLearning(learningRun, learningInsight) {
-  if (!learningRun && !learningInsight) {
-    return null;
+async function loadMeasurement(env, measurementId) {
+  if (!measurementId) {
+    throw new Error(
+      "Measurement ID is missing from Learning Run"
+    );
   }
 
-  const output = learningRun
-    ? safeJsonParse(learningRun.output_data, {})
-    : {};
+  const row = await env.DB.prepare(`
+    SELECT *
+    FROM content_measurements
+    WHERE id = ?
+    LIMIT 1
+  `)
+    .bind(measurementId)
+    .first();
 
-  const analysis = output && output.analysis
-    ? output.analysis
-    : output;
+  if (!row) {
+    throw new Error(
+      `Measurement not found: ${measurementId}`
+    );
+  }
+
+  return row;
+}
+
+async function loadContent(env, contentId) {
+  if (!contentId) return null;
+
+  const row = await env.DB.prepare(`
+    SELECT *
+    FROM content_engine
+    WHERE id = ?
+    LIMIT 1
+  `)
+    .bind(contentId)
+    .first();
+
+  return row || null;
+}
+
+function extractLearning(run) {
+  const inputData = safeJson(
+    run.input_data,
+    {}
+  );
+
+  const outputData = safeJson(
+    run.output_data,
+    {}
+  );
+
+  const analysis =
+    outputData?.analysis ||
+    outputData?.output?.analysis ||
+    {};
+
+  const measurementId =
+    outputData?.measurement_id ||
+    inputData?.measurement?.id ||
+    null;
+
+  const contentId =
+    outputData?.content_id ||
+    inputData?.measurement?.content_id ||
+    null;
 
   return {
-    source: "LEARNING_AI_V1.9",
-    run_id: learningRun ? learningRun.id : null,
-    insight_id: learningInsight ? learningInsight.id : null,
-    status: learningRun ? learningRun.status : null,
-    analysis: analysis || {}
+    inputData,
+    outputData,
+    analysis,
+    measurementId,
+    contentId
   };
 }
 
-function calculateDecision(measurement, learning) {
-  const m = measurement;
+function makeDecision(
+  measurement,
+  learning,
+  content
+) {
+  const metrics = getMetrics(
+    measurement
+  );
 
-  if (!m) {
-    return {
-      decision_type: "NO_DATA",
-      decision_status: "WAITING",
-      priority: "LOW",
-      reason: "ยังไม่มี Measurement สำหรับตัดสินใจ",
-      evidence: {},
-      recommendation: "สร้าง Measurement ก่อน",
-      action_required: 0,
-      requires_approval: 0
+  const analysis =
+    learning.analysis || {};
+
+  const hasAttention =
+    metrics.attention > 0;
+
+  const hasTraffic =
+    metrics.clicks > 0;
+
+  const hasProductView =
+    metrics.product_views > 0;
+
+  const hasEngagement =
+    metrics.engagements > 0;
+
+  const hasCustomer =
+    metrics.customers > 0;
+
+  const hasOrder =
+    metrics.orders > 0;
+
+  const hasRevenue =
+    metrics.revenue > 0;
+
+  /*
+   * Decision hierarchy
+   *
+   * Conversion exists:
+   * monitor / continue based on actual result.
+   *
+   * Traffic exists but downstream does not:
+   * continue measurement.
+   *
+   * Attention exists but no traffic:
+   * optimize CTA/content.
+   *
+   * No meaningful signal:
+   * hold / collect more evidence.
+   */
+
+  let decisionType;
+  let decisionStatus = "PENDING_APPROVAL";
+  let priority = normalizePriority(
+    analysis.priority
+  );
+  let reason;
+  let recommendation;
+  let actionRequired = 1;
+  let requiresApproval = 1;
+
+  if (hasRevenue || hasOrder) {
+    decisionType =
+      "CONTINUE_CONVERSION_SIGNAL";
+
+    reason =
+      "Measurement พบ Order หรือ Revenue จริง จึงควรรักษาการวัดผลและติดตาม Conversion ต่อ";
+
+    recommendation = {
+      action:
+        "CONTINUE_MEASUREMENT",
+      direction:
+        "ติดตาม Conversion และ Revenue ต่อ",
+      evidence_required:
+        "Repeat Measurement",
+      do_not_change_strategy_yet:
+        false
     };
+
+    priority = hasRevenue
+      ? "HIGH"
+      : "MEDIUM";
+  } else if (
+    hasTraffic &&
+    !hasProductView &&
+    !hasCustomer
+  ) {
+    decisionType =
+      "CONTINUE_TRAFFIC_SIGNAL";
+
+    reason =
+      "Content สร้าง Attention และ Click แล้ว แต่ยังไม่มี Product View หรือ Customer จึงยังมีข้อมูลปลายทางไม่เพียงพอสำหรับเปลี่ยนกลยุทธ์";
+
+    recommendation = {
+      action:
+        "CONTINUE_MEASUREMENT",
+      direction:
+        "เก็บ Measurement และตรวจเส้นทาง Click → Product View → Customer",
+      evidence_required:
+        "Product View และ Customer",
+      do_not_change_strategy_yet:
+        true
+    };
+
+    priority = "MEDIUM";
+  } else if (
+    hasProductView &&
+    !hasCustomer
+  ) {
+    decisionType =
+      "OPTIMIZE_CONVERSION_PATH";
+
+    reason =
+      "Content สามารถสร้าง Product View ได้ แต่ยังไม่เกิด Customer จึงควรตรวจและปรับเส้นทางจาก Product View ไป Customer";
+
+    recommendation = {
+      action:
+        "OPTIMIZE_CONVERSION_PATH",
+      direction:
+        "ตรวจ Product Page, Offer และ CTA",
+      evidence_required:
+        "Customer และ Order",
+      do_not_change_strategy_yet:
+        false
+    };
+
+    priority = "MEDIUM";
+  } else if (
+    hasAttention &&
+    !hasTraffic
+  ) {
+    decisionType =
+      "OPTIMIZE_CONTENT_CTA";
+
+    reason =
+      "Content มี Attention แต่ยังไม่เกิด Click จึงควรปรับ Content หรือ CTA เพื่อเพิ่มการเคลื่อนจาก Attention ไป Traffic";
+
+    recommendation = {
+      action:
+        "OPTIMIZE_CONTENT",
+      direction:
+        "ปรับ Hook, Angle และ CTA",
+      evidence_required:
+        "Click",
+      do_not_change_strategy_yet:
+        false
+    };
+
+    priority = "MEDIUM";
+  } else if (
+    hasEngagement &&
+    !hasCustomer
+  ) {
+    decisionType =
+      "OPTIMIZE_NEXT_STEP";
+
+    reason =
+      "Content มี Engagement แต่ยังไม่เกิด Customer จึงควรตรวจเส้นทางจาก Engagement ไป Conversion";
+
+    recommendation = {
+      action:
+        "OPTIMIZE_NEXT_STEP",
+      direction:
+        "ตรวจ CTA และ Conversion Path",
+      evidence_required:
+        "Customer และ Order",
+      do_not_change_strategy_yet:
+        false
+    };
+
+    priority = "MEDIUM";
+  } else {
+    decisionType =
+      "HOLD_COLLECT_MORE_DATA";
+
+    reason =
+      "Measurement ยังมีหลักฐานไม่เพียงพอสำหรับการเปลี่ยนกลยุทธ์ จึงควรเก็บข้อมูลเพิ่ม";
+
+    recommendation = {
+      action:
+        "CONTINUE_MEASUREMENT",
+      direction:
+        "เก็บ Behavior และ Measurement เพิ่ม",
+      evidence_required:
+        "Attention, Click, Product View และ Conversion",
+      do_not_change_strategy_yet:
+        true
+    };
+
+    priority = "LOW";
   }
 
-  if (!learning) {
-    return {
-      decision_type: "WAIT_FOR_LEARNING",
-      decision_status: "WAITING",
-      priority: "LOW",
-      reason: "มี Measurement แล้ว แต่ยังไม่มี Learning AI ที่เชื่อมกับ Measurement นี้",
-      evidence: {
-        measurement_id: m.id,
-        content_id: m.content_id
+  return {
+    decision_type: decisionType,
+    decision_status: decisionStatus,
+    priority,
+    reason,
+    recommendation,
+    action_required: actionRequired,
+    requires_approval: requiresApproval,
+
+    evidence: {
+      measurement_id:
+        measurement.id,
+
+      content_id:
+        measurement.content_id,
+
+      learning_run_id:
+        learning.run_id,
+
+      metrics,
+
+      signals: {
+        attention: hasAttention,
+        traffic: hasTraffic,
+        product_view:
+          hasProductView,
+        engagement:
+          hasEngagement,
+        customer:
+          hasCustomer,
+        order: hasOrder,
+        revenue: hasRevenue
       },
-      recommendation: "ให้ Learning AI วิเคราะห์ Measurement ก่อน",
-      action_required: 0,
-      requires_approval: 0
-    };
-  }
 
-  const evidence = {
-    attention: m.attention,
-    product_views: m.product_views,
-    clicks: m.clicks,
-    engagements: m.engagements,
-    customers: m.customers,
-    orders: m.orders,
-    revenue: m.revenue,
-    attention_to_view: m.attention_to_view,
-    view_to_click: m.view_to_click,
-    click_to_customer: m.click_to_customer,
-    customer_to_order: m.customer_to_order
-  };
+      learning: {
+        summary:
+          analysis?.summary || "",
 
-  if (m.revenue > 0 || m.orders > 0) {
-    return {
-      decision_type: "CONTINUE_AND_SCALE_SIGNAL",
-      decision_status: "PENDING_APPROVAL",
-      priority: "HIGH",
-      reason: "Content มีสัญญาณปลายทางจากคำสั่งซื้อหรือรายได้",
-      evidence,
-      recommendation: "เก็บข้อมูลเพิ่มและพิจารณาขยายการทำงานของแนวทางนี้",
-      action_required: 1,
-      requires_approval: 1
-    };
-  }
+        what_we_learned:
+          analysis?.learning
+            ?.what_we_learned || "",
 
-  if (m.customers > 0) {
-    return {
-      decision_type: "CONTINUE_CUSTOMER_SIGNAL",
-      decision_status: "PENDING_APPROVAL",
-      priority: "MEDIUM",
-      reason: "Content สร้าง Customer ได้ แต่ยังไม่มี Order หรือ Revenue",
-      evidence,
-      recommendation: "รักษาแนวทางและเก็บข้อมูลต่อเพื่อดู Customer-to-Order",
-      action_required: 1,
-      requires_approval: 1
-    };
-  }
-
-  if (m.engagements > 0) {
-    return {
-      decision_type: "CONTINUE_ENGAGEMENT_SIGNAL",
-      decision_status: "PENDING_APPROVAL",
-      priority: "MEDIUM",
-      reason: "Content มี Engagement แต่ยังไม่เกิด Customer หรือ Order",
-      evidence,
-      recommendation: "รักษาแนวทางไว้และเก็บข้อมูลต่อ โดยเน้นการเปลี่ยน Engagement ไปสู่ Customer",
-      action_required: 1,
-      requires_approval: 1
-    };
-  }
-
-  if (m.product_views > 0 || m.clicks > 0) {
-    return {
-      decision_type: "CONTINUE_TRAFFIC_SIGNAL",
-      decision_status: "PENDING_APPROVAL",
-      priority: "LOW",
-      reason: "Content สร้างสัญญาณการสนใจระดับ Traffic แต่ยังไม่มี Customer หรือ Conversion",
-      evidence,
-      recommendation: "เก็บ Measurement เพิ่มและตรวจเส้นทางจาก Click ไป Product View และ Customer",
-      action_required: 1,
-      requires_approval: 1
-    };
-  }
-
-  if (m.attention > 0) {
-    return {
-      decision_type: "CONTINUE_MEASUREMENT",
-      decision_status: "PENDING_APPROVAL",
-      priority: "LOW",
-      reason: "Content มี Attention แต่ยังมีข้อมูลปลายทางไม่เพียงพอสำหรับการเปลี่ยนกลยุทธ์",
-      evidence,
-      recommendation: "ยังไม่ควรตัดสินว่า Content ดีหรือแย่ ให้เก็บ Behavior เพิ่มก่อน",
-      action_required: 1,
-      requires_approval: 1
-    };
-  }
-
-  return {
-    decision_type: "NO_SIGNAL",
-    decision_status: "PENDING_APPROVAL",
-    priority: "LOW",
-    reason: "ยังไม่พบสัญญาณจาก Attention หรือ Behavior",
-    evidence,
-    recommendation: "ตรวจสอบการกระจาย Content และระบบเก็บ Behavior",
-    action_required: 1,
-    requires_approval: 1
-  };
-}
-
-async function buildDecisionResult(db) {
-  const measurementRow = await getLatestMeasurement(db);
-
-  if (!measurementRow) {
-    return {
-      success: false,
-      layer: LAYER,
-      mode: "preview",
-      status: "WAITING_FOR_MEASUREMENT",
-      reason: "ยังไม่พบ CONTENT_ATTRIBUTION_V2 Measurement",
-      measurement: null,
-      learning: null,
-      decision: null,
-      winner_decision: "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
-      next_step: "Create CONTENT_ATTRIBUTION_V2 measurement first."
-    };
-  }
-
-  const measurement = normalizeMeasurement(measurementRow);
-
-  const learningResult = await findLearningRun(
-    db,
-    measurement
-  );
-
-  const learningRun = learningResult.run;
-
-  const learningInsight = await findLearningInsight(
-    db,
-    learningRun,
-    measurement
-  );
-
-  const learning = extractLearning(
-    learningRun,
-    learningInsight
-  );
-
-  const decision = calculateDecision(
-    measurement,
-    learning
-  );
-
-  return {
-    success: true,
-    layer: LAYER,
-    mode: "preview",
-    status: learning
-      ? "DECISION_READY"
-      : "WAITING_FOR_LEARNING",
-
-    measurement: {
-      id: measurement.id,
-      content_id: measurement.content_id,
-      attribution_mode: measurement.attribution_mode,
-      measured_at: measurement.measured_at,
-
-      metrics: {
-        attention: measurement.attention,
-        product_views: measurement.product_views,
-        clicks: measurement.clicks,
-        engagements: measurement.engagements,
-        customers: measurement.customers,
-        orders: measurement.orders,
-        revenue: measurement.revenue
+        confidence:
+          analysis?.learning
+            ?.confidence || "LOW"
       }
     },
 
-    learning: learning
+    content: content
       ? {
-          source: learning.source,
-          run_id: learning.run_id,
-          insight_id: learning.insight_id,
-          status: learning.status,
-          analysis: learning.analysis
+          id: content.id,
+          title: content.title,
+          objective:
+            content.objective,
+          angle: content.angle,
+          cta: content.cta
         }
-      : null,
-
-    learning_lookup: {
-      ai_run_id: learningRun
-        ? learningRun.id
-        : null,
-
-      ai_insight_id: learningInsight
-        ? learningInsight.id
-        : null,
-
-      run_type: learningRun
-        ? learningRun.run_type
-        : null,
-
-      lookup_method:
-        "ai_runs.run_type + input_data.measurement.id/content_id",
-
-      insight_method:
-        "ai_insights.run_id"
-    },
-
-    decision,
-
-    winner_decision:
-      "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
-
-    next_step: learning
-      ? "POST to save this Decision."
-      : "Learning AI V1.9 result must exist for this measurement."
+      : null
   };
 }
 
-async function saveDecision(db, result) {
-  const decision = result.decision;
-  const measurement = result.measurement;
-  const learning = result.learning;
+async function checkExistingDecision(
+  env,
+  learningRunId
+) {
+  const row = await env.DB.prepare(`
+    SELECT *
+    FROM decision_runs
+    WHERE learning_run_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `)
+    .bind(learningRunId)
+    .first();
 
-  const id = uuid();
+  return row || null;
+}
 
-  const evidence = JSON.stringify(
-    decision.evidence || {}
-  );
+async function saveDecision(
+  env,
+  decision,
+  learningRunId,
+  measurementId,
+  contentId
+) {
+  const existing =
+    await checkExistingDecision(
+      env,
+      learningRunId
+    );
 
-  await db.prepare(`
+  if (existing) {
+    return {
+      duplicate: true,
+      row: existing
+    };
+  }
+
+  const id =
+    crypto.randomUUID();
+
+  await env.DB.prepare(`
     INSERT INTO decision_runs (
       id,
       decision_type,
@@ -444,128 +463,216 @@ async function saveDecision(db, result) {
       status,
       created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    decision.decision_type,
-    decision.decision_status,
-    decision.priority,
-    measurement
-      ? measurement.content_id
-      : null,
-    measurement
-      ? measurement.id
-      : null,
-    learning
-      ? learning.run_id
-      : null,
-    decision.reason,
-    evidence,
-    decision.recommendation,
-    decision.action_required ? 1 : 0,
-    decision.requires_approval ? 1 : 0,
-    "PENDING",
-    new Date().toISOString()
-  ).run();
+    VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+    )
+  `)
+    .bind(
+      id,
+      decision.decision_type,
+      decision.decision_status,
+      decision.priority,
+      contentId,
+      measurementId,
+      learningRunId,
+      decision.reason,
+      JSON.stringify(
+        decision.evidence
+      ),
+      JSON.stringify(
+        decision.recommendation
+      ),
+      decision.action_required,
+      decision.requires_approval,
+      "PENDING"
+    )
+    .run();
 
-  return id;
+  const saved =
+    await env.DB.prepare(`
+      SELECT *
+      FROM decision_runs
+      WHERE id = ?
+      LIMIT 1
+    `)
+      .bind(id)
+      .first();
+
+  return {
+    duplicate: false,
+    row: saved
+  };
 }
 
-export async function onRequestGet(context) {
-  try {
-    const db = context.env.DB;
+async function handle(
+  request,
+  env
+) {
+  const url =
+    new URL(request.url);
 
-    if (!db) {
-      return json({
-        success: false,
-        layer: LAYER,
-        error: "D1 binding DB not found"
-      }, 500);
+  let body = {};
+
+  if (request.method === "POST") {
+    try {
+      body =
+        await request.json();
+    } catch {
+      body = {};
     }
+  }
 
+  const learningRunId =
+    url.searchParams.get(
+      "learning_run_id"
+    ) ||
+    body.learning_run_id ||
+    DEFAULT_LEARNING_RUN_ID;
+
+  const mode =
+    request.method === "POST"
+      ? "execute"
+      : "preview";
+
+  const learningRun =
+    await loadLearningRun(
+      env,
+      learningRunId
+    );
+
+  const learning =
+    extractLearning(
+      learningRun
+    );
+
+  if (!learning.measurementId) {
+    throw new Error(
+      "Learning Run does not contain measurement_id"
+    );
+  }
+
+  const measurement =
+    await loadMeasurement(
+      env,
+      learning.measurementId
+    );
+
+  const content =
+    await loadContent(
+      env,
+      learning.contentId ||
+        measurement.content_id
+    );
+
+  const decision =
+    makeDecision(
+      measurement,
+      {
+        ...learning,
+        run_id:
+          learningRun.id
+      },
+      content
+    );
+
+  const result = {
+    success: true,
+
+    layer: LAYER,
+
+    mode,
+
+    status:
+      "DECISION_ANALYZED",
+
+    learning_run_id:
+      learningRun.id,
+
+    measurement_id:
+      measurement.id,
+
+    content_id:
+      measurement.content_id,
+
+    decision,
+
+    decision_run_id: null,
+
+    winner_decision:
+      "NOT_DECLARED_IN_DECISION_ENGINE_V1.5"
+  };
+
+  if (mode === "execute") {
+    const saved =
+      await saveDecision(
+        env,
+        decision,
+        learningRun.id,
+        measurement.id,
+        measurement.content_id
+      );
+
+    result.decision_run_id =
+      saved.row?.id || null;
+
+    result.status =
+      saved.duplicate
+        ? "DECISION_ALREADY_EXISTS"
+        : "DECISION_SAVED";
+
+    result.existing =
+      saved.duplicate;
+  }
+
+  return result;
+}
+
+export async function onRequestGet(
+  context
+) {
+  try {
     return json(
-      await buildDecisionResult(db)
+      await handle(
+        context.request,
+        context.env
+      )
     );
   } catch (error) {
-    return json({
-      success: false,
-      layer: LAYER,
-      mode: "preview",
-      status: "ERROR",
-      error: error && error.message
-        ? error.message
-        : String(error)
-    }, 500);
+    return json(
+      {
+        success: false,
+        layer: LAYER,
+        error: String(
+          error?.message ||
+            error
+        )
+      },
+      500
+    );
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
-    const db = context.env.DB;
-
-    if (!db) {
-      return json({
+    return json(
+      await handle(
+        context.request,
+        context.env
+      )
+    );
+  } catch (error) {
+    return json(
+      {
         success: false,
         layer: LAYER,
-        error: "D1 binding DB not found"
-      }, 500);
-    }
-
-    const preview = await buildDecisionResult(db);
-
-    if (!preview.success) {
-      return json({
-        ...preview,
-        mode: "execute"
-      }, 400);
-    }
-
-    if (!preview.learning) {
-      return json({
-        ...preview,
-        mode: "execute",
-        status: "WAITING_FOR_LEARNING",
-        saved: false
-      }, 400);
-    }
-
-    const decisionRunId = await saveDecision(
-      db,
-      preview
-    );
-
-    return json({
-      success: true,
-      layer: LAYER,
-      mode: "execute",
-      status: "DECISION_SAVED",
-
-      measurement: preview.measurement,
-
-      learning: preview.learning,
-
-      decision: preview.decision,
-
-      saved: {
-        decision_run_id: decisionRunId,
-        status: "PENDING"
+        error: String(
+          error?.message ||
+            error
+        )
       },
-
-      winner_decision:
-        "NOT_DECLARED_IN_DECISION_ENGINE_V1.4",
-
-      next_step:
-        "Decision saved. Next layer is Action/Automation after approval."
-    });
-  } catch (error) {
-    return json({
-      success: false,
-      layer: LAYER,
-      mode: "execute",
-      status: "ERROR",
-      error: error && error.message
-        ? error.message
-        : String(error)
-    }, 500);
+      500
+    );
   }
 }
