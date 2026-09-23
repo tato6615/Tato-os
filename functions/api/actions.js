@@ -1,7 +1,3 @@
-// TATO-OS
-// AI -> ACTION ENGINE V1
-// Full replacement
-
 const LEARNING_AI_PATH = "/api/learning-ai";
 
 function json(data, status = 200) {
@@ -59,24 +55,18 @@ async function getLearningAI(context) {
       success: false,
       data: {
         success: false,
-        error:
-          error?.message ||
-          String(error)
+        error: error?.message || String(error)
       }
     };
   }
 }
 
 function buildLearningAction(learningAI) {
-  if (
-    !learningAI ||
-    learningAI.success !== true
-  ) {
+  if (!learningAI || learningAI.success !== true) {
     return {
       action_type: "SYSTEM_CHECK",
       title: "ตรวจสอบ Learning AI",
-      description:
-        "ไม่สามารถรับผลจาก Learning AI ได้",
+      description: "ไม่สามารถรับผลจาก Learning AI ได้",
       priority: "LOW",
       status: "WAITING_DATA",
       source: "LEARNING_AI",
@@ -104,8 +94,7 @@ function buildLearningAction(learningAI) {
 
   const priority =
     String(
-      ai?.priority ||
-      "LOW"
+      ai?.priority || "LOW"
     ).toUpperCase();
 
   const direction =
@@ -124,16 +113,11 @@ function buildLearningAction(learningAI) {
   ) {
     return {
       action_type: "DISTRIBUTE_CONTENT",
-
       title: "เผยแพร่ Content จาก Learning AI",
-
       description:
         "นำคำแนะนำจาก Learning AI ไปสร้าง Action สำหรับเผยแพร่ Content",
-
       priority,
-
       status: "READY",
-
       source: "LEARNING_AI",
 
       content: {
@@ -145,10 +129,8 @@ function buildLearningAction(learningAI) {
       learning: {
         signal_type:
           learning.signal_type || null,
-
         finding:
           learning.finding || null,
-
         score:
           num(learning.score)
       },
@@ -169,16 +151,11 @@ function buildLearningAction(learningAI) {
   ) {
     return {
       action_type: "ITERATE_CONTENT",
-
       title: "ปรับ Content จาก Learning AI",
-
       description:
         "นำผลการเรียนรู้ไปปรับ Content รอบถัดไป",
-
       priority,
-
       status: "READY",
-
       source: "LEARNING_AI",
 
       content: {
@@ -190,10 +167,8 @@ function buildLearningAction(learningAI) {
       learning: {
         signal_type:
           learning.signal_type || null,
-
         finding:
           learning.finding || null,
-
         score:
           num(learning.score)
       },
@@ -210,16 +185,11 @@ function buildLearningAction(learningAI) {
 
   return {
     action_type: "WAIT",
-
     title: "รอข้อมูลเพิ่มเติมจาก Learning",
-
     description:
       "Learning AI ยังไม่แนะนำ Action ที่ต้องดำเนินการ",
-
     priority: "LOW",
-
     status: "WAITING_DATA",
-
     source: "LEARNING_AI",
 
     content: {
@@ -231,10 +201,8 @@ function buildLearningAction(learningAI) {
     learning: {
       signal_type:
         learning.signal_type || null,
-
       finding:
         learning.finding || null,
-
       score:
         num(learning.score)
     },
@@ -267,14 +235,9 @@ async function executeAction(
     "DISTRIBUTE_CONTENT"
   ) {
     output = {
-      action:
-        "DISTRIBUTE_CONTENT",
-
-      status:
-        "READY_TO_DISTRIBUTE",
-
-      source:
-        "LEARNING_AI",
+      action: "DISTRIBUTE_CONTENT",
+      status: "READY_TO_DISTRIBUTE",
+      source: "LEARNING_AI",
 
       content: {
         id:
@@ -290,9 +253,11 @@ async function executeAction(
           "READY_TO_DISTRIBUTE"
       },
 
-      learning: action.learning,
+      learning:
+        action.learning,
 
-      ai: action.ai,
+      ai:
+        action.ai,
 
       next_step:
         "ส่ง Content เข้า Automation / Distribution Engine"
@@ -304,14 +269,9 @@ async function executeAction(
     "ITERATE_CONTENT"
   ) {
     output = {
-      action:
-        "ITERATE_CONTENT",
-
-      status:
-        "READY_TO_ITERATE",
-
-      source:
-        "LEARNING_AI",
+      action: "ITERATE_CONTENT",
+      status: "READY_TO_ITERATE",
+      source: "LEARNING_AI",
 
       content: {
         id:
@@ -321,9 +281,11 @@ async function executeAction(
           action.content?.title || null
       },
 
-      learning: action.learning,
+      learning:
+        action.learning,
 
-      ai: action.ai,
+      ai:
+        action.ai,
 
       next_step:
         "ส่ง Content เข้า Content Engine เพื่อสร้างรอบใหม่"
@@ -336,12 +298,8 @@ async function executeAction(
   ) {
     output = {
       action: "WAIT",
-
-      status:
-        "WAITING_DATA",
-
-      source:
-        "LEARNING_AI",
+      status: "WAITING_DATA",
+      source: "LEARNING_AI",
 
       learning:
         action.learning,
@@ -359,11 +317,9 @@ async function executeAction(
       action:
         action.action_type,
 
-      status:
-        "READY",
+      status: "READY",
 
-      source:
-        "LEARNING_AI",
+      source: "LEARNING_AI",
 
       next_step:
         "รอ Action Engine ดำเนินการต่อ"
@@ -375,12 +331,9 @@ async function executeAction(
 
   const inputData = {
     source: "LEARNING_AI",
-
-    action: action,
-
+    action,
     learning_ai_status:
-      learningAI?.data?.ai?.status ||
-      null
+      learningAI?.data?.ai?.status || null
   };
 
   await db.prepare(`
@@ -411,14 +364,19 @@ async function executeAction(
 
   return {
     id: runId,
+
     action_type:
       action.action_type,
+
     source:
       "LEARNING_AI",
+
     status:
       output.status,
+
     started_at:
       startedAt,
+
     completed_at:
       completedAt
   };
@@ -467,11 +425,133 @@ async function buildPreview(context) {
   };
 }
 
+async function buildExecute(context) {
+  const learningAI =
+    await getLearningAI(context);
+
+  const action =
+    buildLearningAction(
+      learningAI
+    );
+
+  const execution =
+    await executeAction(
+      context,
+      action,
+      learningAI
+    );
+
+  return {
+    success: true,
+
+    layer:
+      "AI_ACTION_ENGINE_V1",
+
+    mode:
+      "execute",
+
+    source:
+      "LEARNING_AI",
+
+    learning_ai: {
+      success:
+        learningAI.success,
+
+      status:
+        learningAI.data?.ai?.status ||
+        null,
+
+      signal:
+        learningAI.data?.learning?.signal_type ||
+        null
+    },
+
+    action,
+
+    execution,
+
+    result:
+      execution.status ===
+      "READY_TO_DISTRIBUTE"
+        ? {
+            action:
+              "DISTRIBUTE_CONTENT",
+
+            status:
+              "READY_TO_DISTRIBUTE",
+
+            content_id:
+              action.content?.id ||
+              null,
+
+            next_step:
+              "ส่งเข้า Automation / Distribution Engine"
+          }
+
+        : execution.status ===
+          "READY_TO_ITERATE"
+          ? {
+              action:
+                "ITERATE_CONTENT",
+
+              status:
+                "READY_TO_ITERATE",
+
+              content_id:
+                action.content?.id ||
+                null,
+
+              next_step:
+                "ส่งเข้า Content Engine"
+            }
+
+          : {
+              action:
+                "WAIT",
+
+              status:
+                "WAITING_DATA",
+
+              next_step:
+                "รอข้อมูลเพิ่มเติม"
+            }
+  };
+}
+
 export async function onRequestGet(context) {
   try {
+    const url =
+      new URL(context.request.url);
+
+    const mode =
+      String(
+        url.searchParams.get("mode") ||
+        "preview"
+      ).toLowerCase();
+
+    if (mode === "execute") {
+      return json(
+        await buildExecute(context)
+      );
+    }
+
+    if (mode !== "preview") {
+      return json(
+        {
+          success: false,
+          layer:
+            "AI_ACTION_ENGINE_V1",
+          error:
+            `Unknown action mode: ${mode}`
+        },
+        400
+      );
+    }
+
     return json(
       await buildPreview(context)
     );
+
   } catch (error) {
     return json(
       {
@@ -499,116 +579,28 @@ export async function onRequestPost(context) {
         body.mode || "preview"
       ).toLowerCase();
 
-    const learningAI =
-      await getLearningAI(context);
-
-    const action =
-      buildLearningAction(
-        learningAI
+    if (mode === "preview") {
+      return json(
+        await buildPreview(context)
       );
+    }
 
-    if (
-      mode === "preview"
-    ) {
-      return json({
-        success: true,
+    if (mode === "execute") {
+      return json(
+        await buildExecute(context)
+      );
+    }
 
+    return json(
+      {
+        success: false,
         layer:
           "AI_ACTION_ENGINE_V1",
-
-        mode:
-          "preview",
-
-        source:
-          "LEARNING_AI",
-
-        learning_ai:
-          learningAI.data,
-
-        action
-      });
-    }
-
-    if (
-      mode !== "execute"
-    ) {
-      return json(
-        {
-          success: false,
-          error:
-            `Unknown action mode: ${mode}`
-        },
-        400
-      );
-    }
-
-    const execution =
-      await executeAction(
-        context,
-        action,
-        learningAI
-      );
-
-    return json({
-      success: true,
-
-      layer:
-        "AI_ACTION_ENGINE_V1",
-
-      mode:
-        "execute",
-
-      source:
-        "LEARNING_AI",
-
-      action,
-
-      execution,
-
-      result:
-        execution.status ===
-        "READY_TO_DISTRIBUTE"
-          ? {
-              action:
-                "DISTRIBUTE_CONTENT",
-
-              status:
-                "READY_TO_DISTRIBUTE",
-
-              content_id:
-                action.content?.id ||
-                null,
-
-              next_step:
-                "ส่งเข้า Automation / Distribution Engine"
-            }
-          : execution.status ===
-            "READY_TO_ITERATE"
-            ? {
-                action:
-                  "ITERATE_CONTENT",
-
-                status:
-                  "READY_TO_ITERATE",
-
-                content_id:
-                  action.content?.id ||
-                  null,
-
-                next_step:
-                  "ส่งเข้า Content Engine"
-              }
-            : {
-                action:
-                  "WAIT",
-
-                status:
-                  "WAITING_DATA",
-
-                next_step:
-                  "รอข้อมูลเพิ่มเติม"
-              }
-    });
+        error:
+          `Unknown action mode: ${mode}`
+      },
+      400
+    );
 
   } catch (error) {
     return json(
