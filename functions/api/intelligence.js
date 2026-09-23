@@ -26,6 +26,11 @@ function s(value) {
 return value == null ? "" : String(value);
 }
 
+function pct(a, b) {
+if (!b) return 0;
+return Number(((a / b) * 100).toFixed(2));
+}
+
 function parseJSON(value, fallback = {}) {
 if (!value) return fallback;
 
@@ -37,11 +42,6 @@ return parsed && typeof parsed === "object"
 } catch (_) {
 return fallback;
 }
-}
-
-function pct(a, b) {
-if (!b) return 0;
-return Number(((a / b) * 100).toFixed(2));
 }
 
 async function getContent(db, contentId) {
@@ -70,7 +70,7 @@ const result = await db.prepare(`     SELECT *
 return result.results || [];
 }
 
-function getTotals(rows) {
+function calculateTotals(rows) {
 const totals = {
 rounds: rows.length,
 attention: 0,
@@ -125,25 +125,40 @@ revenue: n(row.revenue)
 };
 }
 
-function getRates(totals) {
+function calculateRates(totals) {
 return {
 click_from_attention_pct:
-pct(totals.clicks, totals.attention),
+pct(
+totals.clicks,
+totals.attention
+),
 
 ```
 product_view_from_click_pct:
-  pct(totals.product_views, totals.clicks),
+  pct(
+    totals.product_views,
+    totals.clicks
+  ),
 
 customer_from_product_view_pct:
-  pct(totals.customers, totals.product_views),
+  pct(
+    totals.customers,
+    totals.product_views
+  ),
 
 order_from_customer_pct:
-  pct(totals.orders, totals.customers),
+  pct(
+    totals.orders,
+    totals.customers
+  ),
 
 revenue_per_order:
   totals.orders > 0
     ? Number(
-        (totals.revenue / totals.orders).toFixed(2)
+        (
+          totals.revenue /
+          totals.orders
+        ).toFixed(2)
       )
     : 0
 ```
@@ -151,7 +166,11 @@ revenue_per_order:
 };
 }
 
-function detectPatterns(rows, totals, latest) {
+function detectPatterns(
+rows,
+totals,
+latest
+) {
 const patterns = [];
 
 if (
@@ -166,7 +185,8 @@ severity: "HIGH",
 evidence: {
 rounds: totals.rounds,
 attention: totals.attention,
-product_views: totals.product_views
+product_views:
+totals.product_views
 }
 });
 }
@@ -176,11 +196,13 @@ totals.clicks > 0 &&
 totals.product_views === 0
 ) {
 patterns.push({
-code: "CLICK_WITHOUT_PRODUCT_VIEW",
+code:
+"CLICK_WITHOUT_PRODUCT_VIEW",
 severity: "HIGH",
 evidence: {
 clicks: totals.clicks,
-product_views: totals.product_views
+product_views:
+totals.product_views
 }
 });
 }
@@ -197,7 +219,8 @@ severity: "MEDIUM",
 evidence: {
 rounds: totals.rounds,
 attention: totals.attention,
-customers: totals.customers
+customers:
+totals.customers
 }
 });
 }
@@ -241,8 +264,8 @@ code:
 "CURRENT_FUNNEL_BLOCK_CLICK_TO_PRODUCT_VIEW",
 severity: "HIGH",
 evidence: {
-latest_clicks: latest.clicks,
-latest_product_views:
+clicks: latest.clicks,
+product_views:
 latest.product_views
 }
 });
@@ -251,7 +274,11 @@ latest.product_views
 return patterns;
 }
 
-function determineState(rows, totals, patterns) {
+function determineState(
+rows,
+totals,
+patterns
+) {
 if (!rows.length) {
 return "NO_DATA";
 }
@@ -280,11 +307,7 @@ if (patterns.length > 0) {
 return "PATTERN_DETECTED";
 }
 
-if (totals.rounds >= 1) {
 return "OBSERVING";
-}
-
-return "NO_DATA";
 }
 
 function calculateTrend(rows) {
@@ -315,15 +338,22 @@ const fields = [
 const changes = {};
 
 for (const field of fields) {
-const before = n(previous[field]);
-const after = n(latest[field]);
+const before = n(
+previous[field]
+);
 
 ```
+const after = n(
+  latest[field]
+);
+
 changes[field] = {
   previous: before,
   latest: after,
   delta: Number(
-    (after - before).toFixed(2)
+    (
+      after - before
+    ).toFixed(2)
   )
 };
 ```
@@ -332,13 +362,15 @@ changes[field] = {
 
 const positive =
 Object.values(changes)
-.filter(item => item.delta > 0)
-.length;
+.filter(
+item => item.delta > 0
+).length;
 
 const negative =
 Object.values(changes)
-.filter(item => item.delta < 0)
-.length;
+.filter(
+item => item.delta < 0
+).length;
 
 let direction = "STABLE";
 
@@ -360,49 +392,50 @@ changes
 function buildRecommendation(
 state,
 patterns,
-totals,
-latest
+totals
 ) {
 if (state === "NO_DATA") {
 return {
 type: "WAIT",
 priority: "LOW",
 reason:
-"ยังไม่มีข้อมูล Measurement เพียงพอ",
+"ยังไม่มี Measurement ของ Content",
 next_step:
 "COLLECT_MEASUREMENT"
 };
 }
 
-if (
+const funnelBlock =
 patterns.some(
 pattern =>
 pattern.code ===
 "CURRENT_FUNNEL_BLOCK_CLICK_TO_PRODUCT_VIEW"
-)
-) {
+);
+
+if (funnelBlock) {
 return {
 type: "INVESTIGATE_FUNNEL",
 priority: "HIGH",
 reason:
-"มี Click แต่ยังไม่พบ Product View",
+"มี Click แต่ไม่พบ Product View",
 next_step:
 "INSPECT_CLICK_TO_PRODUCT_VIEW_PATH"
 };
 }
 
-if (
+const noCustomer =
 patterns.some(
 pattern =>
 pattern.code ===
 "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT"
-)
-) {
+);
+
+if (noCustomer) {
 return {
 type: "INVESTIGATE_CONVERSION",
 priority: "MEDIUM",
 reason:
-"มี Attention แต่ยังไม่เกิด Customer หลังวัดซ้ำ",
+"มี Attention แต่ยังไม่มี Customer หลังวัดซ้ำ",
 next_step:
 "INSPECT_PRODUCT_VIEW_TO_CUSTOMER_PATH"
 };
@@ -412,32 +445,33 @@ return {
 type: "CONTINUE_MEASUREMENT",
 priority: "MEDIUM",
 reason:
-"ข้อมูลปัจจุบันยังไม่เพียงพอสำหรับเปลี่ยน Strategy",
+"ข้อมูลยังไม่เพียงพอสำหรับเปลี่ยน Strategy",
 next_step:
 "MEASURE_AGAIN"
 };
 }
 
-async function getContradictions(
+async function findContradictions(
 db,
 contentId
 ) {
 if (!contentId) return [];
 
 try {
-const result = await db.prepare(`       SELECT
-        id,
-        run_type,
-        input_data,
-        output_data,
-        created_at
-      FROM ai_runs
-      WHERE
-        input_data LIKE ?
-        OR output_data LIKE ?
-      ORDER BY created_at DESC
-      LIMIT 20
-    `)
+const result =
+await db.prepare(`         SELECT
+          id,
+          run_type,
+          input_data,
+          output_data,
+          created_at
+        FROM ai_runs
+        WHERE
+          input_data LIKE ?
+          OR output_data LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 30
+      `)
 .bind(
 `%${contentId}%`,
 `%${contentId}%`
@@ -447,35 +481,52 @@ const result = await db.prepare(`       SELECT
 ```
 const contradictions = [];
 
-for (const row of result.results || []) {
+for (
+  const row
+  of result.results || []
+) {
   const input =
-    s(row.input_data).toLowerCase();
+    s(
+      row.input_data
+    ).toLowerCase();
 
   const output =
-    s(row.output_data).toLowerCase();
+    s(
+      row.output_data
+    ).toLowerCase();
 
-  const combined =
+  const text =
     `${input} ${output}`;
 
-  const saysNoClick =
-    combined.includes("no click") ||
-    combined.includes("ไม่มี click") ||
-    combined.includes("ไม่มีคลิก");
+  const noClick =
+    text.includes(
+      "no click"
+    ) ||
+    text.includes(
+      "ไม่มี click"
+    ) ||
+    text.includes(
+      "ไม่มีคลิก"
+    );
 
-  const containsClickOne =
-    combined.includes('"clicks":1') ||
-    combined.includes('"clicks": 1');
+  const clickOne =
+    text.includes(
+      '"clicks":1'
+    ) ||
+    text.includes(
+      '"clicks": 1'
+    );
 
   if (
-    saysNoClick &&
-    containsClickOne
+    noClick &&
+    clickOne
   ) {
     contradictions.push({
       run_id: row.id,
       type:
         "CLICK_COUNT_CONTRADICTION",
       description:
-        "ข้อความจาก AI ระบุว่าไม่มี Click แต่ข้อมูล Measurement มี Click",
+        "AI text conflicts with measured Click data.",
       created_at:
         row.created_at
     });
@@ -515,13 +566,19 @@ contentId
 );
 
 const totals =
-getTotals(measurements);
+calculateTotals(
+measurements
+);
 
 const latest =
-getLatest(measurements);
+getLatest(
+measurements
+);
 
 const rates =
-getRates(totals);
+calculateRates(
+totals
+);
 
 const patterns =
 detectPatterns(
@@ -546,12 +603,11 @@ const recommendation =
 buildRecommendation(
 state,
 patterns,
-totals,
-latest
+totals
 );
 
 const contradictions =
-await getContradictions(
+await findContradictions(
 db,
 contentId
 );
@@ -564,15 +620,24 @@ version: VERSION,
 content: content
   ? {
       id: content.id,
-      title: s(content.title),
-      status: s(content.status),
-      objective: s(content.objective),
+      title:
+        s(content.title),
+      status:
+        s(content.status),
+      objective:
+        s(content.objective),
       attention_type:
-        s(content.attention_type),
+        s(
+          content.attention_type
+        ),
       market_keyword:
-        s(content.market_keyword),
-      angle: s(content.angle),
-      cta: s(content.cta)
+        s(
+          content.market_keyword
+        ),
+      angle:
+        s(content.angle),
+      cta:
+        s(content.cta)
     }
   : null,
 
@@ -617,7 +682,8 @@ const now =
 new Date().toISOString();
 
 const contentId =
-intelligence.content?.id || null;
+intelligence.content?.id ||
+null;
 
 const inputData =
 JSON.stringify({
@@ -658,12 +724,16 @@ now
 .run();
 
 const state =
-intelligence.intelligence?.state ||
+intelligence
+.intelligence
+?.state ||
 "UNKNOWN";
 
 const recommendation =
-intelligence.intelligence
-?.recommendation || {};
+intelligence
+.intelligence
+?.recommendation ||
+{};
 
 const priority =
 s(
@@ -682,13 +752,16 @@ const insightContent =
 JSON.stringify({
 state,
 patterns:
-intelligence.intelligence
+intelligence
+.intelligence
 ?.patterns || [],
 recommendation,
 measurement:
-intelligence.measurement || {},
+intelligence.measurement ||
+{},
 guardrails:
-intelligence.guardrails || {}
+intelligence.guardrails ||
+{}
 });
 
 await db.prepare(`     INSERT INTO ai_insights (
