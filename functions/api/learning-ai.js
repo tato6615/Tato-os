@@ -1,5 +1,5 @@
 // TATO-OS
-// Learning AI V1.8
+// Learning AI V1.9
 // Full replacement
 
 const MODEL = "@cf/zai-org/glm-4.7-flash";
@@ -308,194 +308,124 @@ function fallback(data) {
   };
 }
 
-function normalizeContent(content) {
-  if (content === null || content === undefined) {
-    return null;
-  }
-
-  if (typeof content === "string") {
-    const text = content.trim();
-
-    if (!text) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(text);
-    } catch {}
-
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(
-          text.slice(start, end + 1)
-        );
-      } catch {}
-    }
-
-    return null;
-  }
-
-  if (typeof content === "object") {
-    return content;
-  }
-
-  return null;
-}
-
-function extractContent(result) {
-  if (!result) {
-    return {
-      content: null,
-      debug: {
-        result_type: "null",
-        keys: [],
-        reason: "AI returned no result"
-      }
-    };
-  }
-
-  const choices =
-    Array.isArray(result?.choices)
-      ? result.choices
-      : Array.isArray(result?.response?.choices)
-        ? result.response.choices
-        : Array.isArray(result?.result?.choices)
-          ? result.result.choices
-          : Array.isArray(
-              result?.result?.response?.choices
-            )
-            ? result.result.response.choices
-            : [];
+function extractAI(result) {
+  const choices = Array.isArray(result?.choices)
+    ? result.choices
+    : [];
 
   const choice = choices[0];
 
-  let rawContent = null;
+  const content =
+    choice?.message?.content ??
+    choice?.text ??
+    null;
 
-  if (choice?.message) {
-    rawContent = choice.message.content;
-  }
+  const debug = {
+    result_type: typeof result,
+    keys:
+      result && typeof result === "object"
+        ? Object.keys(result)
+        : [],
+    choice_count: choices.length,
+    finish_reason:
+      choice?.finish_reason || null,
+    content_type: typeof content,
+    content_length:
+      typeof content === "string"
+        ? content.length
+        : 0
+  };
 
   if (
-    rawContent === null ||
-    rawContent === undefined
+    content === null ||
+    content === undefined ||
+    content === ""
   ) {
-    rawContent = choice?.text;
+    return {
+      content: null,
+      debug
+    };
   }
 
-  if (
-    rawContent === null ||
-    rawContent === undefined
-  ) {
-    rawContent = result?.output_text;
+  if (typeof content === "object") {
+    return {
+      content,
+      debug
+    };
   }
 
-  if (
-    rawContent === null ||
-    rawContent === undefined
-  ) {
-    rawContent = result?.response;
-  }
+  const text = String(content).trim();
 
-  const parsed = normalizeContent(
-    rawContent
-  );
+  try {
+    return {
+      content: JSON.parse(text),
+      debug
+    };
+  } catch {}
+
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+
+  if (start >= 0 && end > start) {
+    try {
+      return {
+        content: JSON.parse(
+          text.slice(start, end + 1)
+        ),
+        debug
+      };
+    } catch {}
+  }
 
   return {
-    content: parsed,
-
-    debug: {
-      result_type: typeof result,
-
-      keys:
-        typeof result === "object"
-          ? Object.keys(result)
-          : [],
-
-      choice_count: choices.length,
-
-      has_direct_choices:
-        Array.isArray(result?.choices),
-
-      has_response_choices:
-        Array.isArray(
-          result?.response?.choices
-        ),
-
-      finish_reason:
-        choice?.finish_reason || null,
-
-      raw_content_type:
-        typeof rawContent,
-
-      content_type:
-        typeof rawContent === "object"
-          ? "object"
-          : typeof rawContent,
-
-      content_length:
-        typeof rawContent === "string"
-          ? rawContent.length
-          : 0
-    }
+    content: null,
+    debug
   };
 }
 
 async function callAI(ai, data) {
-  if (!ai) {
+  if (!ai || typeof ai.run !== "function") {
     return {
       content: null,
       debug: {
-        error: "AI binding not found"
-      }
-    };
-  }
-
-  if (typeof ai.run !== "function") {
-    return {
-      content: null,
-      debug: {
-        error:
-          "AI binding exists but ai.run is not a function"
+        error: "AI binding unavailable"
       }
     };
   }
 
   const prompt = `
-Analyze TATO Coffee learning data.
+Analyze this TATO Coffee learning data.
 
-Return ONLY valid JSON.
-No markdown.
-No explanation.
+Give a short business analysis.
 
-Required JSON structure:
+DATA:
+${JSON.stringify(data)}
+
+Return JSON only:
 
 {
-  "summary": "...",
-  "observed_signals": [],
+  "summary": "one short sentence",
+  "observed_signals": ["signal 1", "signal 2"],
   "learning": {
-    "what_we_learned": "...",
+    "what_we_learned": "one short sentence",
     "confidence": "LOW"
   },
-  "problems": [],
+  "problems": ["problem"],
   "next_content": {
-    "action": "...",
-    "direction": "...",
-    "angle": "...",
-    "cta": "...",
-    "success_metric": "..."
+    "action": "DISTRIBUTE",
+    "direction": "one short sentence",
+    "angle": "one short sentence",
+    "cta": "one short sentence",
+    "success_metric": "Product Views"
   },
   "next_action": {
-    "type": "...",
-    "reason": "..."
+    "type": "DISTRIBUTE",
+    "reason": "one short sentence"
   },
   "priority": "LOW"
 }
 
-DATA:
-${JSON.stringify(data)}
+Do not explain anything outside JSON.
 `;
 
   try {
@@ -506,19 +436,23 @@ ${JSON.stringify(data)}
           {
             role: "system",
             content:
-              "Return only valid JSON. Do not use markdown."
+              "You are a business intelligence analyst. Answer briefly."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 700,
-        temperature: 0
+
+        max_tokens: 1600,
+
+        temperature: 0,
+
+        reasoning_effort: "low"
       }
     );
 
-    return extractContent(result);
+    return extractAI(result);
 
   } catch (error) {
     return {
