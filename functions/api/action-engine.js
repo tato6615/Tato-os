@@ -1,63 +1,27 @@
-// ============================================================
-// TATO OS — ACTION ENGINE V1.2
-// Decision → Action
-//
-// Pipeline:
-// ATTENTION
-// → BEHAVIOR
-// → MEASUREMENT
-// → LEARNING
-// → DECISION
-// → ACTION  ← THIS LAYER
-// → APPROVAL
-// → EXECUTION
-// → RESULT
-//
-// IMPORTANT:
-// - Does NOT execute actions automatically
-// - Does NOT approve actions
-// - Requires explicit approval
-// - Prevents duplicate Action from the same Decision
-// - Uses LIVE action_runs schema
-// ============================================================
-
-const LAYER = "ACTION_ENGINE_V1.2";
+const LAYER = "ACTION_ENGINE_V1.3";
 
 const ACTION_MAP = {
   CONTINUE_TRAFFIC_SIGNAL: {
     action_type: "CONTINUE_MEASUREMENT",
     operation: "MEASURE_CONTENT",
-    requires_approval: 1,
   },
-
   OPTIMIZE_CONTENT: {
     action_type: "OPTIMIZE_CONTENT",
     operation: "OPTIMIZE_CONTENT",
-    requires_approval: 1,
   },
-
   CREATE_CONTENT: {
     action_type: "CREATE_CONTENT",
     operation: "CREATE_CONTENT",
-    requires_approval: 1,
   },
-
   CHANGE_STRATEGY: {
     action_type: "CHANGE_STRATEGY",
     operation: "CHANGE_STRATEGY",
-    requires_approval: 1,
   },
-
   STOP_CONTENT: {
     action_type: "STOP_CONTENT",
     operation: "STOP_CONTENT",
-    requires_approval: 1,
   },
 };
-
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -69,7 +33,7 @@ function json(data, status = 200) {
   });
 }
 
-function safeJsonParse(value, fallback = {}) {
+function parseJSON(value, fallback = {}) {
   if (!value) return fallback;
 
   if (typeof value === "object") {
@@ -87,37 +51,47 @@ function now() {
   return new Date().toISOString();
 }
 
-function id() {
+function makeId() {
   return crypto.randomUUID();
 }
 
-// ------------------------------------------------------------
-// Extract action recommendation
-// ------------------------------------------------------------
-
 function resolveAction(decision) {
-  const decisionType = String(decision.decision_type || "").trim();
+  const decisionType = String(
+    decision.decision_type || ""
+  ).trim();
 
   if (ACTION_MAP[decisionType]) {
     return {
       decision_type: decisionType,
       ...ACTION_MAP[decisionType],
+      requires_approval: 1,
     };
   }
 
-  // Fallback: inspect recommendation.action
-  const recommendation = safeJsonParse(
+  const recommendation = parseJSON(
     decision.recommendation,
     {}
   );
 
-  const recommendedAction = String(
-    recommendation.action || ""
-  )
-    .trim()
-    .toUpperCase();
+  const recommendationText =
+    typeof decision.recommendation === "string"
+      ? decision.recommendation.toUpperCase()
+      : "";
 
-  if (recommendedAction === "CONTINUE_MEASUREMENT") {
+  const candidates = [
+    recommendation.action,
+    recommendation.type,
+    recommendation.action_type,
+    recommendationText,
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).toUpperCase());
+
+  if (
+    candidates.some((v) =>
+      v.includes("CONTINUE_MEASUREMENT")
+    )
+  ) {
     return {
       decision_type: decisionType,
       action_type: "CONTINUE_MEASUREMENT",
@@ -126,7 +100,11 @@ function resolveAction(decision) {
     };
   }
 
-  if (recommendedAction === "OPTIMIZE_CONTENT") {
+  if (
+    candidates.some((v) =>
+      v.includes("OPTIMIZE_CONTENT")
+    )
+  ) {
     return {
       decision_type: decisionType,
       action_type: "OPTIMIZE_CONTENT",
@@ -135,7 +113,11 @@ function resolveAction(decision) {
     };
   }
 
-  if (recommendedAction === "CREATE_CONTENT") {
+  if (
+    candidates.some((v) =>
+      v.includes("CREATE_CONTENT")
+    )
+  ) {
     return {
       decision_type: decisionType,
       action_type: "CREATE_CONTENT",
@@ -144,7 +126,11 @@ function resolveAction(decision) {
     };
   }
 
-  if (recommendedAction === "CHANGE_STRATEGY") {
+  if (
+    candidates.some((v) =>
+      v.includes("CHANGE_STRATEGY")
+    )
+  ) {
     return {
       decision_type: decisionType,
       action_type: "CHANGE_STRATEGY",
@@ -153,7 +139,11 @@ function resolveAction(decision) {
     };
   }
 
-  if (recommendedAction === "STOP_CONTENT") {
+  if (
+    candidates.some((v) =>
+      v.includes("STOP_CONTENT")
+    )
+  ) {
     return {
       decision_type: decisionType,
       action_type: "STOP_CONTENT",
@@ -165,43 +155,47 @@ function resolveAction(decision) {
   return null;
 }
 
-// ------------------------------------------------------------
-// Build action payload
-// ------------------------------------------------------------
-
-function buildActionPayload(decision, content, measurement) {
-  const recommendation = safeJsonParse(
-    decision.recommendation,
-    {}
-  );
-
-  const evidence = safeJsonParse(
+function buildPayload(
+  decision,
+  action,
+  content,
+  measurement
+) {
+  const evidence = parseJSON(
     decision.evidence,
     {}
   );
 
-  const action = resolveAction(decision);
+  const recommendationRaw =
+    decision.recommendation;
 
-  if (!action) {
-    return null;
-  }
+  const recommendation =
+    parseJSON(recommendationRaw, {});
 
-  const payload = {
+  return {
     operation: action.operation,
 
     decision_run_id: decision.id,
 
     content_id: decision.content_id || null,
 
-    measurement_id: decision.measurement_id || null,
+    measurement_id:
+      decision.measurement_id || null,
 
-    decision_type: decision.decision_type,
+    learning_run_id:
+      decision.learning_run_id || null,
 
-    decision_status: decision.decision_status,
+    decision_type:
+      decision.decision_type,
 
-    priority: decision.priority,
+    decision_status:
+      decision.decision_status,
 
-    reason: decision.reason,
+    priority:
+      decision.priority,
+
+    reason:
+      decision.reason,
 
     evidence,
 
@@ -225,14 +219,25 @@ function buildActionPayload(decision, content, measurement) {
           id: measurement.id,
           status: measurement.status,
           measured_at: measurement.measured_at,
-          measurement_start: measurement.measurement_start,
-          metrics: safeJsonParse(measurement.metrics, {}),
-          funnel: safeJsonParse(measurement.funnel, {}),
-          attribution: safeJsonParse(
+          measurement_start:
+            measurement.measurement_start,
+
+          metrics: parseJSON(
+            measurement.metrics,
+            {}
+          ),
+
+          funnel: parseJSON(
+            measurement.funnel,
+            {}
+          ),
+
+          attribution: parseJSON(
             measurement.attribution,
             {}
           ),
-          learning_signal: safeJsonParse(
+
+          learning_signal: parseJSON(
             measurement.learning_signal,
             {}
           ),
@@ -245,18 +250,78 @@ function buildActionPayload(decision, content, measurement) {
       execution_allowed_before_approval: false,
     },
   };
-
-  return payload;
 }
 
-// ------------------------------------------------------------
-// GET
-//
-// GET /api/action-engine
-//
-// Returns the latest Decision that can be converted into Action.
-// Does NOT create an action.
-// ------------------------------------------------------------
+async function loadDecision(env, decisionRunId) {
+  return await env.DB.prepare(`
+    SELECT *
+    FROM decision_runs
+    WHERE id = ?
+    LIMIT 1
+  `)
+    .bind(decisionRunId)
+    .first();
+}
+
+async function loadLinkedData(env, decision) {
+  let content = null;
+  let measurement = null;
+
+  if (decision.content_id) {
+    content = await env.DB.prepare(`
+      SELECT *
+      FROM content_engine
+      WHERE id = ?
+      LIMIT 1
+    `)
+      .bind(decision.content_id)
+      .first();
+  }
+
+  if (decision.measurement_id) {
+    measurement = await env.DB.prepare(`
+      SELECT *
+      FROM content_measurements
+      WHERE id = ?
+      LIMIT 1
+    `)
+      .bind(decision.measurement_id)
+      .first();
+  }
+
+  return {
+    content,
+    measurement,
+  };
+}
+
+/*
+ * IMPORTANT SELECTION RULE
+ *
+ * A Decision is eligible for Action only when:
+ *
+ * 1. status = PENDING
+ * 2. decision_status = PENDING_APPROVAL
+ * 3. NO action_runs already references that decision
+ *
+ * This prevents old Decisions from re-entering the pipeline.
+ */
+
+async function getNextActionableDecision(env) {
+  return await env.DB.prepare(`
+    SELECT d.*
+    FROM decision_runs d
+    WHERE d.status = 'PENDING'
+      AND d.decision_status = 'PENDING_APPROVAL'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM action_runs a
+        WHERE a.decision_run_id = d.id
+      )
+    ORDER BY d.created_at DESC
+    LIMIT 1
+  `).first();
+}
 
 export async function onRequestGet(context) {
   const { env } = context;
@@ -273,83 +338,80 @@ export async function onRequestGet(context) {
       );
     }
 
-    const decision = await env.DB.prepare(`
-      SELECT *
-      FROM decision_runs
-      WHERE status = 'PENDING'
-        AND decision_status = 'PENDING_APPROVAL'
-      ORDER BY created_at DESC
-      LIMIT 1
-    `).first();
+    const decision =
+      await getNextActionableDecision(env);
 
     if (!decision) {
       return json({
         success: true,
         layer: LAYER,
         status: "NO_ACTION_READY",
-        message: "No pending decision is available for Action Engine.",
+        message:
+          "No pending Decision without an existing Action.",
       });
     }
 
-    const action = resolveAction(decision);
+    const action =
+      resolveAction(decision);
 
     if (!action) {
-      return json({
-        success: false,
-        layer: LAYER,
-        status: "UNSUPPORTED_DECISION",
-        decision_run_id: decision.id,
-        decision_type: decision.decision_type,
-        message:
-          "Decision exists but no Action mapping is defined.",
-      }, 422);
+      return json(
+        {
+          success: false,
+          layer: LAYER,
+          status: "UNSUPPORTED_DECISION",
+          decision_run_id: decision.id,
+          decision_type:
+            decision.decision_type,
+        },
+        422
+      );
     }
 
-    let content = null;
-    let measurement = null;
-
-    if (decision.content_id) {
-      content = await env.DB.prepare(`
-        SELECT *
-        FROM content_engine
-        WHERE id = ?
-        LIMIT 1
-      `)
-        .bind(decision.content_id)
-        .first();
-    }
-
-    if (decision.measurement_id) {
-      measurement = await env.DB.prepare(`
-        SELECT *
-        FROM content_measurements
-        WHERE id = ?
-        LIMIT 1
-      `)
-        .bind(decision.measurement_id)
-        .first();
-    }
-
-    const payload = buildActionPayload(
-      decision,
+    const {
       content,
-      measurement
-    );
+      measurement,
+    } =
+      await loadLinkedData(
+        env,
+        decision
+      );
+
+    const payload =
+      buildPayload(
+        decision,
+        action,
+        content,
+        measurement
+      );
 
     return json({
       success: true,
       layer: LAYER,
       status: "ACTION_READY",
+
       action_preview: {
-        decision_run_id: decision.id,
-        decision_type: decision.decision_type,
-        action_type: action.action_type,
-        operation: action.operation,
+        decision_run_id:
+          decision.id,
+
+        decision_type:
+          decision.decision_type,
+
+        action_type:
+          action.action_type,
+
+        operation:
+          action.operation,
+
         requires_approval: 1,
+
         automatic_execution: false,
       },
+
       decision,
-      action_payload: payload,
+
+      action_payload:
+        payload,
     });
   } catch (error) {
     return json(
@@ -362,21 +424,6 @@ export async function onRequestGet(context) {
     );
   }
 }
-
-// ------------------------------------------------------------
-// POST
-//
-// POST /api/action-engine
-//
-// Body:
-// {
-//   "decision_run_id": "..."
-// }
-//
-// Creates exactly ONE Action for the Decision.
-// Does NOT approve.
-// Does NOT execute.
-// ------------------------------------------------------------
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -401,9 +448,12 @@ export async function onRequestPost(context) {
       body = {};
     }
 
+    const url =
+      new URL(request.url);
+
     const decisionRunId =
       body.decision_run_id ||
-      new URL(request.url).searchParams.get(
+      url.searchParams.get(
         "decision_run_id"
       );
 
@@ -412,185 +462,171 @@ export async function onRequestPost(context) {
         {
           success: false,
           layer: LAYER,
-          error: "decision_run_id is required",
+          error:
+            "decision_run_id is required",
         },
         400
       );
     }
 
-    // --------------------------------------------------------
-    // 1. Load exact Decision
-    // --------------------------------------------------------
-
-    const decision = await env.DB.prepare(`
-      SELECT *
-      FROM decision_runs
-      WHERE id = ?
-      LIMIT 1
-    `)
-      .bind(decisionRunId)
-      .first();
+    const decision =
+      await loadDecision(
+        env,
+        decisionRunId
+      );
 
     if (!decision) {
       return json(
         {
           success: false,
           layer: LAYER,
-          error: "Decision not found",
-          decision_run_id: decisionRunId,
+          error:
+            "Decision not found",
+          decision_run_id:
+            decisionRunId,
         },
         404
       );
     }
 
-    // --------------------------------------------------------
-    // 2. Safety gate
-    // --------------------------------------------------------
-
-    if (decision.status !== "PENDING") {
+    if (
+      decision.status !==
+      "PENDING"
+    ) {
       return json(
         {
           success: false,
           layer: LAYER,
-          status: "DECISION_NOT_PENDING",
-          decision_run_id: decision.id,
-          decision_status: decision.decision_status,
-          status_value: decision.status,
-          message:
-            "Only PENDING decisions can create a new Action.",
+          status:
+            "DECISION_NOT_PENDING",
+          decision_run_id:
+            decision.id,
+          decision_status:
+            decision.decision_status,
+          status_value:
+            decision.status,
         },
         409
       );
     }
 
-    // --------------------------------------------------------
-    // 3. Prevent duplicate Action
-    // --------------------------------------------------------
+    /*
+     * HARD DUPLICATE SAFETY
+     *
+     * Even if POST is called directly with an old
+     * Decision ID, it cannot create another Action.
+     */
 
-    const existing = await env.DB.prepare(`
-      SELECT *
-      FROM action_runs
-      WHERE decision_run_id = ?
-      ORDER BY created_at DESC
-      LIMIT 1
-    `)
-      .bind(decision.id)
-      .first();
+    const existing =
+      await env.DB.prepare(`
+        SELECT *
+        FROM action_runs
+        WHERE decision_run_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)
+        .bind(decision.id)
+        .first();
 
     if (existing) {
       return json({
         success: true,
         layer: LAYER,
-        status: "ACTION_ALREADY_EXISTS",
+        status:
+          "ACTION_ALREADY_EXISTS",
         existing: true,
-        decision_run_id: decision.id,
-        action_run_id: existing.id,
-        action_type: existing.action_type,
-        action_status: existing.action_status,
-        status_value: existing.status,
-        requires_approval: existing.requires_approval,
-        automatic_execution: false,
+
+        decision_run_id:
+          decision.id,
+
+        action_run_id:
+          existing.id,
+
+        action_type:
+          existing.action_type,
+
+        action_status:
+          existing.action_status,
+
+        status_value:
+          existing.status,
+
+        requires_approval:
+          existing.requires_approval,
+
+        automatic_execution:
+          false,
+
+        message:
+          "This Decision already has an Action. No duplicate Action was created.",
       });
     }
 
-    // --------------------------------------------------------
-    // 4. Resolve Action
-    // --------------------------------------------------------
-
-    const action = resolveAction(decision);
+    const action =
+      resolveAction(decision);
 
     if (!action) {
       return json(
         {
           success: false,
           layer: LAYER,
-          status: "UNSUPPORTED_DECISION",
-          decision_run_id: decision.id,
-          decision_type: decision.decision_type,
-          message:
-            "No Action mapping exists for this Decision.",
+          status:
+            "UNSUPPORTED_DECISION",
+          decision_run_id:
+            decision.id,
+          decision_type:
+            decision.decision_type,
         },
         422
       );
     }
 
-    // --------------------------------------------------------
-    // 5. Load linked data
-    // --------------------------------------------------------
-
-    let content = null;
-    let measurement = null;
-
-    if (decision.content_id) {
-      content = await env.DB.prepare(`
-        SELECT *
-        FROM content_engine
-        WHERE id = ?
-        LIMIT 1
-      `)
-        .bind(decision.content_id)
-        .first();
-    }
-
-    if (decision.measurement_id) {
-      measurement = await env.DB.prepare(`
-        SELECT *
-        FROM content_measurements
-        WHERE id = ?
-        LIMIT 1
-      `)
-        .bind(decision.measurement_id)
-        .first();
-    }
-
-    // --------------------------------------------------------
-    // 6. Build Action Payload
-    // --------------------------------------------------------
-
-    const actionPayload = buildActionPayload(
-      decision,
+    const {
       content,
-      measurement
-    );
-
-    if (!actionPayload) {
-      return json(
-        {
-          success: false,
-          layer: LAYER,
-          status: "ACTION_PAYLOAD_FAILED",
-          decision_run_id: decision.id,
-        },
-        422
+      measurement,
+    } =
+      await loadLinkedData(
+        env,
+        decision
       );
-    }
 
-    // --------------------------------------------------------
-    // 7. Create Action
-    // --------------------------------------------------------
+    const payload =
+      buildPayload(
+        decision,
+        action,
+        content,
+        measurement
+      );
 
-    const actionRunId = id();
-    const createdAt = now();
+    const actionRunId =
+      makeId();
 
-    const source = LAYER;
+    const createdAt =
+      now();
 
-    const actionReason =
-      decision.reason ||
-      "Action generated from Decision Engine.";
+    const inputData =
+      JSON.stringify({
+        decision_run_id:
+          decision.id,
 
-    const priority =
-      decision.priority ||
-      "MEDIUM";
+        decision_type:
+          decision.decision_type,
 
-    const actionPayloadJson =
-      JSON.stringify(actionPayload);
+        content_id:
+          decision.content_id ||
+          null,
 
-    const inputData = JSON.stringify({
-      decision_run_id: decision.id,
-      decision_type: decision.decision_type,
-      content_id: decision.content_id || null,
-      measurement_id: decision.measurement_id || null,
-    });
+        measurement_id:
+          decision.measurement_id ||
+          null,
+
+        learning_run_id:
+          decision.learning_run_id ||
+          null,
+      });
+
+    const actionPayload =
+      JSON.stringify(payload);
 
     await env.DB.prepare(`
       INSERT INTO action_runs (
@@ -615,25 +651,30 @@ export async function onRequestPost(context) {
         result
       )
       VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?
       )
     `)
       .bind(
         actionRunId,
         action.action_type,
-        source,
+        LAYER,
         "PENDING",
         inputData,
         null,
         createdAt,
         null,
         decision.id,
-        decision.measurement_id || null,
-        decision.content_id || null,
+        decision.measurement_id ||
+          null,
+        decision.content_id ||
+          null,
         "PENDING_APPROVAL",
-        priority,
-        actionReason,
-        actionPayloadJson,
+        decision.priority ||
+          "MEDIUM",
+        decision.reason ||
+          "Action generated from Decision Engine.",
+        actionPayload,
         1,
         null,
         null,
@@ -641,18 +682,15 @@ export async function onRequestPost(context) {
       )
       .run();
 
-    // --------------------------------------------------------
-    // 8. Verify saved Action
-    // --------------------------------------------------------
-
-    const saved = await env.DB.prepare(`
-      SELECT *
-      FROM action_runs
-      WHERE id = ?
-      LIMIT 1
-    `)
-      .bind(actionRunId)
-      .first();
+    const saved =
+      await env.DB.prepare(`
+        SELECT *
+        FROM action_runs
+        WHERE id = ?
+        LIMIT 1
+      `)
+        .bind(actionRunId)
+        .first();
 
     return json({
       success: true,
@@ -661,26 +699,48 @@ export async function onRequestPost(context) {
       existing: false,
 
       decision: {
-        decision_run_id: decision.id,
-        decision_type: decision.decision_type,
-        decision_status: decision.decision_status,
-        priority: decision.priority,
+        decision_run_id:
+          decision.id,
+
+        decision_type:
+          decision.decision_type,
+
+        decision_status:
+          decision.decision_status,
+
+        priority:
+          decision.priority,
       },
 
       action: {
-        action_run_id: actionRunId,
-        action_type: action.action_type,
-        operation: action.operation,
-        status: saved?.status || "PENDING",
+        action_run_id:
+          actionRunId,
+
+        action_type:
+          action.action_type,
+
+        operation:
+          action.operation,
+
+        status:
+          saved?.status ||
+          "PENDING",
+
         action_status:
           saved?.action_status ||
           "PENDING_APPROVAL",
+
         requires_approval: 1,
-        automatic_execution: false,
-        execution_allowed: false,
+
+        automatic_execution:
+          false,
+
+        execution_allowed:
+          false,
       },
 
-      next_stage: "APPROVAL_ENGINE",
+      next_stage:
+        "APPROVAL_ENGINE",
 
       message:
         "Action created successfully. Approval is required before execution.",
