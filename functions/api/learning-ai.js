@@ -1,9 +1,9 @@
 // TATO-OS
-// Learning AI V1.6
+// Learning AI V1.7
 // Purpose: Learn from CONTENT_ATTRIBUTION_V2 measurement
 // No winner decision
 
-const LAYER = "LEARNING_AI_V1.6";
+const LAYER = "LEARNING_AI_V1.7";
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
 
@@ -92,16 +92,17 @@ function buildPrompt(measurement, content, metrics, conversion) {
   return `
 You are the Learning AI for TATO Coffee.
 
-Analyze ONLY the supplied CONTENT_ATTRIBUTION_V2 measurement.
+Analyze ONLY this CONTENT_ATTRIBUTION_V2 measurement.
 
-Do NOT use old measurements.
-Do NOT use AGGREGATE_V1.
-Do NOT declare a winner.
-Do NOT invent data.
+Rules:
+- Do NOT use old measurements.
+- Do NOT use AGGREGATE_V1.
+- Do NOT declare a winner.
+- Do NOT invent data.
+- Base conclusions only on the supplied evidence.
 
-Return ONLY valid JSON.
+Return one JSON object matching this structure:
 
-Required JSON structure:
 {
   "summary": "short factual summary",
   "observed_signals": [],
@@ -138,81 +139,77 @@ ${JSON.stringify(conversion, null, 2)}
 `;
 }
 
-function extractResponseText(response) {
-  if (response == null) return "";
+function collectText(value, depth = 0, visited = new Set()) {
+  if (depth > 8 || value == null) return "";
 
-  if (typeof response === "string") {
-    return response;
-  }
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) return "";
 
-  if (typeof response.response === "string") {
-    return response.response;
-  }
-
-  if (typeof response.output_text === "string") {
-    return response.output_text;
-  }
-
-  if (typeof response.result === "string") {
-    return response.result;
-  }
-
-  if (response.result && typeof response.result.response === "string") {
-    return response.result.response;
-  }
-
-  if (Array.isArray(response.content)) {
-    const text = response.content
-      .map(item => {
-        if (typeof item === "string") return item;
-        if (typeof item?.text === "string") return item.text;
-        if (typeof item?.content === "string") return item.content;
-        return "";
-      })
-      .join("");
-
-    if (text.trim()) return text;
-  }
-
-  if (Array.isArray(response.choices)) {
-    for (const choice of response.choices) {
-      if (!choice) continue;
-
-      if (typeof choice.text === "string" && choice.text.trim()) {
-        return choice.text;
-      }
-
-      if (typeof choice.content === "string" && choice.content.trim()) {
-        return choice.content;
-      }
-
-      if (
-        choice.message &&
-        typeof choice.message.content === "string" &&
-        choice.message.content.trim()
-      ) {
-        return choice.message.content;
-      }
-
-      if (Array.isArray(choice.message?.content)) {
-        const text = choice.message.content
-          .map(item => {
-            if (typeof item === "string") return item;
-            if (typeof item?.text === "string") return item.text;
-            return "";
-          })
-          .join("");
-
-        if (text.trim()) return text;
-      }
-
-      if (choice.delta && typeof choice.delta.content === "string") {
-        return choice.delta.content;
-      }
+    if (
+      text.startsWith("{") ||
+      text.startsWith("[") ||
+      text.includes('"summary"') ||
+      text.includes('"learning"') ||
+      text.includes('"next_content"')
+    ) {
+      return text;
     }
+
+    return text;
+  }
+
+  if (typeof value !== "object") return "";
+
+  if (visited.has(value)) return "";
+  visited.add(value);
+
+  const preferredKeys = [
+    "response",
+    "output_text",
+    "text",
+    "content",
+    "message",
+    "choices",
+    "result"
+  ];
+
+  for (const key of preferredKeys) {
+    if (!(key in value)) continue;
+
+    const found = collectText(
+      value[key],
+      depth + 1,
+      visited
+    );
+
+    if (found) return found;
+  }
+
+  for (const key of Object.keys(value)) {
+    if (
+      key === "usage" ||
+      key === "prompt_token_ids" ||
+      key === "kv_transfer_params" ||
+      key === "prompt_logprobs"
+    ) {
+      continue;
+    }
+
+    const found = collectText(
+      value[key],
+      depth + 1,
+      visited
+    );
+
+    if (found) return found;
   }
 
   return "";
+}
+
+function extractResponseText(response) {
+  return collectText(response);
 }
 
 function cleanJSON(text) {
@@ -246,7 +243,7 @@ function parseJSON(text) {
   }
 }
 
-function fallbackAnalysis(metrics, conversion) {
+function fallbackAnalysis(metrics) {
   let summary = "ยังมีข้อมูลไม่เพียงพอสำหรับการเรียนรู้";
   let whatWeLearned = "ต้องเก็บพฤติกรรมเพิ่มเติมก่อนตัดสินใจ";
   let action = "WAIT";
@@ -259,11 +256,15 @@ function fallbackAnalysis(metrics, conversion) {
   let confidence = "LOW";
   const problems = [];
 
-  if (metrics.customers > 0 || metrics.orders > 0 || metrics.revenue > 0) {
+  if (
+    metrics.customers > 0 ||
+    metrics.orders > 0 ||
+    metrics.revenue > 0
+  ) {
     summary = "Content มีสัญญาณ Conversion จากพฤติกรรมจริง";
     whatWeLearned = "พบพฤติกรรมที่เชื่อมต่อไปถึง Customer หรือ Order";
     action = "TEST";
-    direction = "ทดสอบและขยายรูปแบบ Content ที่สร้าง Conversion";
+    direction = "ทดสอบรูปแบบ Content ที่สร้าง Conversion";
     angle = "ใช้รูปแบบและเส้นทางที่นำไปสู่ Conversion มาทดสอบต่อ";
     cta = "ดูรายละเอียดและทดลอง TATO";
     successMetric = metrics.revenue > 0 ? "Revenue" : "Orders";
@@ -281,10 +282,7 @@ function fallbackAnalysis(metrics, conversion) {
     reason = "Content สร้าง Click แล้ว แต่ยังต้องเพิ่ม Conversion";
     priority = "MEDIUM";
     confidence = "MEDIUM";
-
-    if (metrics.customers === 0) {
-      problems.push("ยังไม่มี Customer");
-    }
+    problems.push("ยังไม่มี Customer");
   } else if (metrics.attention > 0) {
     summary = "Content ได้รับ Attention แต่ยังไม่มี Click";
     whatWeLearned = "มี Attention แต่ยังไม่พบพฤติกรรมต่อเนื่องถึง Click";
@@ -296,10 +294,7 @@ function fallbackAnalysis(metrics, conversion) {
     reason = "มี Attention แต่ยังไม่มี Click";
     priority = "MEDIUM";
     confidence = "MEDIUM";
-
-    if (metrics.clicks === 0) {
-      problems.push("ยังไม่มี Click");
-    }
+    problems.push("ยังไม่มี Click");
   }
 
   return {
@@ -334,7 +329,7 @@ function fallbackAnalysis(metrics, conversion) {
   };
 }
 
-async function analyzeAI(env, promptText, metrics, conversion) {
+async function analyzeAI(env, promptText, metrics) {
   const debug = {
     ai_called: false,
     response_text_received: false,
@@ -342,6 +337,7 @@ async function analyzeAI(env, promptText, metrics, conversion) {
     error: null,
     raw_response_type: null,
     raw_response_keys: [],
+    raw_choice_keys: [],
     provider_status: null
   };
 
@@ -352,14 +348,17 @@ async function analyzeAI(env, promptText, metrics, conversion) {
       messages: [
         {
           role: "system",
-          content: "Return ONLY valid JSON. No markdown. No explanation."
+          content: "Return ONLY one valid JSON object. No markdown. No explanation."
         },
         {
           role: "user",
           content: promptText
         }
       ],
-      max_tokens: 1200,
+      response_format: {
+        type: "json_object"
+      },
+      max_completion_tokens: 1200,
       temperature: 0.1
     });
 
@@ -367,6 +366,13 @@ async function analyzeAI(env, promptText, metrics, conversion) {
 
     if (response && typeof response === "object") {
       debug.raw_response_keys = Object.keys(response);
+
+      if (Array.isArray(response.choices) && response.choices[0]) {
+        debug.raw_choice_keys =
+          typeof response.choices[0] === "object"
+            ? Object.keys(response.choices[0])
+            : [];
+      }
     }
 
     const responseText = extractResponseText(response);
@@ -392,7 +398,7 @@ async function analyzeAI(env, promptText, metrics, conversion) {
 
     return {
       status: "FALLBACK_ANALYZED",
-      analysis: fallbackAnalysis(metrics, conversion),
+      analysis: fallbackAnalysis(metrics),
       debug
     };
   } catch (error) {
@@ -401,13 +407,20 @@ async function analyzeAI(env, promptText, metrics, conversion) {
 
     return {
       status: "FALLBACK_ANALYZED",
-      analysis: fallbackAnalysis(metrics, conversion),
+      analysis: fallbackAnalysis(metrics),
       debug
     };
   }
 }
 
-async function saveLearning(env, measurement, content, metrics, conversion, aiResult) {
+async function saveLearning(
+  env,
+  measurement,
+  content,
+  metrics,
+  conversion,
+  aiResult
+) {
   const runId = crypto.randomUUID();
   const insightId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -518,29 +531,7 @@ async function handlePreview(env) {
       ai: {
         status: "WAITING_FOR_MEASUREMENT",
         model: MODEL,
-        analysis: {
-          summary: "ยังไม่มี CONTENT_ATTRIBUTION_V2 measurement",
-          observed_signals: [],
-          learning: {
-            what_we_learned: "ต้องสร้าง Measurement V2 ก่อน",
-            confidence: "LOW"
-          },
-          problems: [
-            "ไม่มี CONTENT_ATTRIBUTION_V2 measurement"
-          ],
-          next_content: {
-            action: "WAIT",
-            direction: "รอ Measurement V2",
-            angle: "ยังไม่ตัดสินจากข้อมูลเก่า",
-            cta: "รอข้อมูล",
-            success_metric: "Attention"
-          },
-          next_action: {
-            type: "WAIT",
-            reason: "ยังไม่มีข้อมูล Measurement V2"
-          },
-          priority: "LOW"
-        },
+        analysis: null,
         debug: {
           ai_called: false,
           response_text_received: false,
@@ -548,10 +539,11 @@ async function handlePreview(env) {
           error: null,
           raw_response_type: null,
           raw_response_keys: [],
+          raw_choice_keys: [],
           provider_status: "WAITING_FOR_MEASUREMENT"
         }
       },
-      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.6",
+      winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
       next_step: "Create CONTENT_ATTRIBUTION_V2 measurement first."
     });
   }
@@ -570,8 +562,7 @@ async function handlePreview(env) {
   const aiResult = await analyzeAI(
     env,
     promptText,
-    metrics,
-    conversion
+    metrics
   );
 
   return json({
@@ -614,7 +605,7 @@ async function handlePreview(env) {
       debug: aiResult.debug
     },
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.6",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
@@ -650,8 +641,7 @@ async function handleExecute(env) {
   const aiResult = await analyzeAI(
     env,
     promptText,
-    metrics,
-    conversion
+    metrics
   );
 
   const saved = await saveLearning(
@@ -687,7 +677,7 @@ async function handleExecute(env) {
 
     saved,
 
-    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.6",
+    winner_decision: "NOT_DECLARED_IN_LEARNING_AI_V1.7",
 
     next_step:
       aiResult.status === "AI_ANALYZED"
