@@ -1,546 +1,1236 @@
-// TATO-OS
-// Learning AI V1.9
-// Full replacement
+// functions/api/learning-ai.js
+// TATO OS — Learning AI V1.4
+// Route: /api/learning-ai
+//
+// Flow:
+// CONTENT
+// → MEASUREMENT V2
+// → LEARNING AI
+// → INSIGHT
+// → NEXT ACTION
+//
+// V1.4:
+// - Uses content_measurements as the primary learning source
+// - Keeps content attribution from Measurement V2
+// - AI analyzes measured evidence instead of mixing global behavior
+// - AI failure automatically falls back to deterministic analysis
+// - GET = preview only
+// - POST mode=execute = save learning result
+// - Does NOT declare a WINNER
+// - Parser-safe: avoids unnecessary template literals
 
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 
+const HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store"
+};
+
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
+  return new Response(
+    JSON.stringify(data, null, 2),
+    {
+      status,
+      headers: HEADERS
     }
-  });
+  );
 }
 
-function num(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function pct(a, b) {
-  return b > 0
-    ? Math.round((a / b) * 10000) / 100
-    : 0;
-}
-
-async function ensureTables(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS learning_signals (
-      id TEXT PRIMARY KEY,
-      content_id TEXT,
-      signal_type TEXT,
-      title TEXT,
-      finding TEXT,
-      recommendation TEXT,
-      score REAL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
-}
-
-async function loadData(db) {
-  const content = await db.prepare(`
-    SELECT *
-    FROM content_engine
-    ORDER BY datetime(created_at) DESC
-    LIMIT 1
-  `).first();
-
-  if (!content) {
-    return {
-      content: null,
-      metrics: {
-        attention: 0,
-        product_views: 0,
-        clicks: 0,
-        engagements: 0,
-        customers: 0,
-        orders: 0,
-        revenue: 0
-      },
-      conversion: {
-        attention_to_view: 0,
-        view_to_click: 0,
-        click_to_customer: 0,
-        customer_to_order: 0,
-        engagement_to_order: 0
-      },
-      learning: {
-        signal_type: "NO_CONTENT",
-        title: "ยังไม่มี Content",
-        finding: "ยังไม่มี Content สำหรับวิเคราะห์",
-        recommendation: "สร้าง Content ก่อนเริ่ม Learning",
-        score: 0,
-        status: "LEARNED"
-      }
-    };
-  }
-
-  const start = content.created_at;
-
-  const attention = await db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM behavior_events
-    WHERE created_at >= ?
-  `).bind(start).first();
-
-  const views = await db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM behavior_events
-    WHERE event_type = 'product_view'
-    AND created_at >= ?
-  `).bind(start).first();
-
-  const clicks = await db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM behavior_events
-    WHERE event_type IN (
-      'click',
-      'cta_click',
-      'product_click'
-    )
-    AND created_at >= ?
-  `).bind(start).first();
-
-  const engagements = await db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM behavior_events
-    WHERE event_type IN (
-      'engagement',
-      'like',
-      'comment',
-      'share',
-      'save'
-    )
-    AND created_at >= ?
-  `).bind(start).first();
-
-  const customers = await db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM customers
-    WHERE created_at >= ?
-  `).bind(start).first();
-
-  const sales = await db.prepare(`
-    SELECT
-      COUNT(*) AS orders,
-      COALESCE(SUM(amount), 0) AS revenue
-    FROM orders
-    WHERE created_at >= ?
-  `).bind(start).first();
-
-  const metrics = {
-    attention: num(attention?.total),
-    product_views: num(views?.total),
-    clicks: num(clicks?.total),
-    engagements: num(engagements?.total),
-    customers: num(customers?.total),
-    orders: num(sales?.orders),
-    revenue: num(sales?.revenue)
-  };
-
-  let learning;
-
-  if (metrics.orders > 0) {
-    learning = {
-      signal_type: "CONVERSION",
-      title: "เกิด Conversion",
-      finding: "พบคำสั่งซื้อหลังช่วงเริ่มวัดผล",
-      recommendation:
-        "วิเคราะห์องค์ประกอบของ Content ที่นำไปสู่การซื้อและนำไปทำซ้ำ",
-      score: 100,
-      status: "LEARNED"
-    };
-  } else if (metrics.customers > 0) {
-    learning = {
-      signal_type: "CUSTOMER",
-      title: "เกิด Customer Signal",
-      finding: "พบลูกค้าใหม่ แต่ยังไม่พบคำสั่งซื้อ",
-      recommendation:
-        "ติดตาม Customer Journey และปรับ CTA เพื่อเพิ่ม Conversion",
-      score: 75,
-      status: "LEARNED"
-    };
-  } else if (metrics.engagements > 0) {
-    learning = {
-      signal_type: "ENGAGEMENT",
-      title: "เกิด Engagement",
-      finding: "Content เริ่มสร้าง Engagement",
-      recommendation:
-        "ทดลองต่อยอดมุม Content เดิมและติดตาม Product View",
-      score: 60,
-      status: "LEARNED"
-    };
-  } else if (
-    metrics.product_views > 0 ||
-    metrics.clicks > 0
+function id() {
+  if (
+    typeof crypto !== "undefined" &&
+    crypto.randomUUID
   ) {
-    learning = {
-      signal_type: "TRAFFIC",
-      title: "เกิด Traffic",
-      finding: "เริ่มมีพฤติกรรมเข้าชมหรือคลิก",
-      recommendation:
-        "เก็บข้อมูลต่อและปรับ CTA เพื่อเพิ่ม Conversion",
-      score: 45,
-      status: "LEARNED"
-    };
-  } else {
-    learning = {
-      signal_type: "NO_TRAFFIC",
-      title: "ยังไม่มี Traffic",
-      finding:
-        "ยังไม่พบกิจกรรมที่ใช้เรียนรู้จาก Content",
-      recommendation:
-        "เผยแพร่ Content และรอข้อมูลพฤติกรรมก่อนตัดสินผล",
-      score: 20,
-      status: "LEARNED"
-    };
+    return crypto.randomUUID();
+  }
+
+  return String(Date.now()) + "-" +
+    Math.random().toString(36).slice(2);
+}
+
+function n(value) {
+  const x = Number(value);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function s(value) {
+  return value == null ? "" : String(value);
+}
+
+function extractText(response) {
+  if (!response) {
+    return null;
+  }
+
+  if (typeof response === "string") {
+    return response.trim() || null;
+  }
+
+  if (
+    typeof response.response === "string"
+  ) {
+    return response.response.trim() || null;
+  }
+
+  if (
+    response.result &&
+    typeof response.result.response === "string"
+  ) {
+    return response.result.response.trim() || null;
+  }
+
+  if (
+    typeof response.content === "string"
+  ) {
+    return response.content.trim() || null;
+  }
+
+  if (Array.isArray(response.content)) {
+    const value = response.content
+      .map(function(item) {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (
+          item &&
+          typeof item.text === "string"
+        ) {
+          return item.text;
+        }
+
+        if (
+          item &&
+          typeof item.content === "string"
+        ) {
+          return item.content;
+        }
+
+        return "";
+      })
+      .join("\n")
+      .trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  const message =
+    response?.choices?.[0]?.message;
+
+  if (message) {
+    if (
+      typeof message.content === "string"
+    ) {
+      return (
+        message.content.trim() || null
+      );
+    }
+
+    if (
+      Array.isArray(message.content)
+    ) {
+      const value = message.content
+        .map(function(item) {
+          if (typeof item === "string") {
+            return item;
+          }
+
+          if (
+            item &&
+            typeof item.text === "string"
+          ) {
+            return item.text;
+          }
+
+          return "";
+        })
+        .join("\n")
+        .trim();
+
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  if (
+    typeof response.output_text === "string"
+  ) {
+    return (
+      response.output_text.trim() || null
+    );
+  }
+
+  return null;
+}
+
+function parseJSON(value) {
+  if (!value) {
+    return null;
+  }
+
+  let text = value
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    const parsed = JSON.parse(text);
+
+    if (
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      return parsed;
+    }
+  } catch (_) {}
+
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+
+  if (
+    start >= 0 &&
+    end > start
+  ) {
+    try {
+      const parsed = JSON.parse(
+        text.slice(start, end + 1)
+      );
+
+      if (
+        parsed &&
+        typeof parsed === "object"
+      ) {
+        return parsed;
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+function normalizeAction(value) {
+  const action = s(value)
+    .toUpperCase()
+    .trim();
+
+  if (
+    action === "DISTRIBUTE" ||
+    action === "OPTIMIZE" ||
+    action === "SCALE" ||
+    action === "WAIT"
+  ) {
+    return action;
+  }
+
+  return "WAIT";
+}
+
+function normalizePriority(value) {
+  const priority = s(value)
+    .toUpperCase()
+    .trim();
+
+  if (
+    priority === "LOW" ||
+    priority === "MEDIUM" ||
+    priority === "HIGH"
+  ) {
+    return priority;
+  }
+
+  return "LOW";
+}
+
+function normalizeAnalysis(
+  analysis,
+  fallback
+) {
+  if (
+    !analysis ||
+    typeof analysis !== "object"
+  ) {
+    return fallback;
   }
 
   return {
-    content: {
-      id: content.id,
-      title: content.title,
-      status: content.status,
-      objective: content.objective,
-      attention_type: content.attention_type,
-      market_keyword: content.market_keyword,
-      angle: content.angle,
-      cta: content.cta
-    },
+    summary:
+      s(analysis.summary) ||
+      fallback.summary,
 
-    metrics,
-
-    conversion: {
-      attention_to_view: pct(
-        metrics.product_views,
-        metrics.attention
-      ),
-      view_to_click: pct(
-        metrics.clicks,
-        metrics.product_views
-      ),
-      click_to_customer: pct(
-        metrics.customers,
-        metrics.clicks
-      ),
-      customer_to_order: pct(
-        metrics.orders,
-        metrics.customers
-      ),
-      engagement_to_order: pct(
-        metrics.orders,
-        metrics.engagements
+    observed_signals:
+      Array.isArray(
+        analysis.observed_signals
       )
-    },
-
-    learning
-  };
-}
-
-function fallback(data) {
-  return {
-    summary: data.learning.finding,
-
-    observed_signals: [
-      `Learning signal คือ ${data.learning.signal_type}`,
-      `Attention ${data.metrics.attention}`,
-      `Product Views ${data.metrics.product_views}`,
-      `Clicks ${data.metrics.clicks}`,
-      `Engagements ${data.metrics.engagements}`,
-      `Customers ${data.metrics.customers}`,
-      `Orders ${data.metrics.orders}`,
-      `Revenue ${data.metrics.revenue}`
-    ],
+        ? analysis.observed_signals
+        : fallback.observed_signals,
 
     learning: {
-      what_we_learned: data.learning.finding,
+      what_we_learned:
+        s(
+          analysis.learning?.what_we_learned
+        ) ||
+        fallback.learning.what_we_learned,
+
       confidence:
-        data.metrics.orders > 0
+        normalizePriority(
+          analysis.learning?.confidence
+        ) === "HIGH"
           ? "HIGH"
-          : data.metrics.product_views > 0
+          : normalizePriority(
+              analysis.learning?.confidence
+            ) === "MEDIUM"
             ? "MEDIUM"
             : "LOW"
     },
 
     problems:
-      data.metrics.attention === 0
-        ? ["ยังไม่มี Traffic"]
-        : data.metrics.orders === 0
-          ? ["ยังไม่มี Conversion"]
-          : [],
+      Array.isArray(analysis.problems)
+        ? analysis.problems
+        : fallback.problems,
 
     next_content: {
       action:
-        data.metrics.orders > 0
-          ? "ITERATE"
-          : "DISTRIBUTE",
+        normalizeAction(
+          analysis.next_content?.action
+        ),
 
-      direction: data.learning.recommendation,
+      direction:
+        s(
+          analysis.next_content?.direction
+        ) ||
+        fallback.next_content.direction,
 
-      angle: data.content?.angle || "",
+      angle:
+        s(
+          analysis.next_content?.angle
+        ) ||
+        fallback.next_content.angle,
 
-      cta: data.content?.cta || "",
+      cta:
+        s(
+          analysis.next_content?.cta
+        ) ||
+        fallback.next_content.cta,
 
       success_metric:
-        data.metrics.orders > 0
-          ? "Revenue"
-          : "Product Views"
+        s(
+          analysis.next_content?.success_metric
+        ) ||
+        fallback.next_content.success_metric
     },
 
     next_action: {
       type:
-        data.metrics.orders > 0
-          ? "ITERATE"
-          : "DISTRIBUTE",
+        normalizeAction(
+          analysis.next_action?.type
+        ),
 
-      reason: data.learning.recommendation
+      reason:
+        s(
+          analysis.next_action?.reason
+        ) ||
+        fallback.next_action.reason
     },
 
     priority:
-      data.metrics.orders > 0
-        ? "HIGH"
-        : data.metrics.product_views > 0
-          ? "MEDIUM"
-          : "LOW"
+      normalizePriority(
+        analysis.priority
+      )
   };
 }
 
-function extractAI(result) {
-  const choices = Array.isArray(result?.choices)
-    ? result.choices
-    : [];
+async function ensureTables(db) {
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS ai_runs (" +
+    "id TEXT PRIMARY KEY," +
+    "customer_id TEXT," +
+    "run_type TEXT," +
+    "model TEXT," +
+    "input_data TEXT," +
+    "output_data TEXT," +
+    "status TEXT," +
+    "tokens_used INTEGER," +
+    "created_at TEXT" +
+    ")"
+  ).run();
 
-  const choice = choices[0];
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS ai_insights (" +
+    "id TEXT PRIMARY KEY," +
+    "customer_id TEXT," +
+    "run_id TEXT," +
+    "insight_type TEXT," +
+    "title TEXT," +
+    "content TEXT," +
+    "score REAL," +
+    "priority TEXT," +
+    "status TEXT," +
+    "created_at TEXT" +
+    ")"
+  ).run();
+}
 
-  const content =
-    choice?.message?.content ??
-    choice?.text ??
-    null;
-
-  const debug = {
-    result_type: typeof result,
-    keys:
-      result && typeof result === "object"
-        ? Object.keys(result)
-        : [],
-    choice_count: choices.length,
-    finish_reason:
-      choice?.finish_reason || null,
-    content_type: typeof content,
-    content_length:
-      typeof content === "string"
-        ? content.length
-        : 0
-  };
-
-  if (
-    content === null ||
-    content === undefined ||
-    content === ""
-  ) {
-    return {
-      content: null,
-      debug
-    };
+async function getLatestMeasurement(db) {
+  try {
+    return await db
+      .prepare(
+        "SELECT * " +
+        "FROM content_measurements " +
+        "ORDER BY measured_at DESC " +
+        "LIMIT 1"
+      )
+      .first();
+  } catch (_) {
+    return null;
   }
+}
 
-  if (typeof content === "object") {
-    return {
-      content,
-      debug
-    };
+async function getContent(
+  db,
+  contentId
+) {
+  if (!contentId) {
+    try {
+      return await db
+        .prepare(
+          "SELECT * " +
+          "FROM content_engine " +
+          "ORDER BY created_at DESC " +
+          "LIMIT 1"
+        )
+        .first();
+    } catch (_) {
+      return null;
+    }
   }
-
-  const text = String(content).trim();
 
   try {
+    return await db
+      .prepare(
+        "SELECT * " +
+        "FROM content_engine " +
+        "WHERE id = ? " +
+        "LIMIT 1"
+      )
+      .bind(contentId)
+      .first();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getLearningSource(db) {
+  const measurement =
+    await getLatestMeasurement(db);
+
+  if (measurement) {
     return {
-      content: JSON.parse(text),
-      debug
+      source: "CONTENT_MEASUREMENT_V2",
+      measurement: measurement,
+      signal_type:
+        measurement.status ===
+        "WAITING_FOR_TRAFFIC"
+          ? "NO_TRAFFIC"
+          : measurement.status ===
+            "CONVERTING"
+            ? "CONVERSION"
+            : "MEASUREMENT",
+      measurement_start:
+        measurement.measurement_start,
+      created_at:
+        measurement.created_at ||
+        measurement.measured_at
     };
-  } catch {}
-
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-
-  if (start >= 0 && end > start) {
-    try {
-      return {
-        content: JSON.parse(
-          text.slice(start, end + 1)
-        ),
-        debug
-      };
-    } catch {}
   }
 
   return {
-    content: null,
-    debug
+    source: "NO_MEASUREMENT",
+    measurement: null,
+    signal_type: "NO_TRAFFIC",
+    measurement_start: null,
+    created_at: null
   };
 }
 
-async function callAI(ai, data) {
-  if (!ai || typeof ai.run !== "function") {
+function buildMetrics(measurement) {
+  if (!measurement) {
     return {
-      content: null,
-      debug: {
-        error: "AI binding unavailable"
-      }
+      attention: 0,
+      product_views: 0,
+      clicks: 0,
+      engagements: 0,
+      customers: 0,
+      orders: 0,
+      revenue: 0
     };
   }
 
-  const prompt = `
-Analyze this TATO Coffee learning data.
+  return {
+    attention: n(
+      measurement.attention
+    ),
 
-Give a short business analysis.
+    product_views: n(
+      measurement.product_views
+    ),
 
-DATA:
-${JSON.stringify(data)}
+    clicks: n(
+      measurement.clicks
+    ),
 
-Return JSON only:
+    engagements: n(
+      measurement.engagements
+    ),
 
-{
-  "summary": "one short sentence",
-  "observed_signals": ["signal 1", "signal 2"],
-  "learning": {
-    "what_we_learned": "one short sentence",
-    "confidence": "LOW"
-  },
-  "problems": ["problem"],
-  "next_content": {
-    "action": "DISTRIBUTE",
-    "direction": "one short sentence",
-    "angle": "one short sentence",
-    "cta": "one short sentence",
-    "success_metric": "Product Views"
-  },
-  "next_action": {
-    "type": "DISTRIBUTE",
-    "reason": "one short sentence"
-  },
-  "priority": "LOW"
+    customers: n(
+      measurement.customers
+    ),
+
+    orders: n(
+      measurement.orders
+    ),
+
+    revenue: n(
+      measurement.revenue
+    )
+  };
 }
 
-Do not explain anything outside JSON.
-`;
+function conversions(metrics) {
+  function rate(a, b) {
+    if (b <= 0) {
+      return 0;
+    }
 
-  try {
-    const result = await ai.run(
-      MODEL,
-      {
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a business intelligence analyst. Answer briefly."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+    return Number(
+      ((a / b) * 100).toFixed(2)
+    );
+  }
 
-        max_tokens: 1600,
+  return {
+    attention_to_view:
+      rate(
+        metrics.product_views,
+        metrics.attention
+      ),
 
-        temperature: 0,
+    view_to_click:
+      rate(
+        metrics.clicks,
+        metrics.product_views
+      ),
 
-        reasoning_effort: "low"
-      }
+    click_to_customer:
+      rate(
+        metrics.customers,
+        metrics.clicks
+      ),
+
+    customer_to_order:
+      rate(
+        metrics.orders,
+        metrics.customers
+      ),
+
+    engagement_to_order:
+      rate(
+        metrics.orders,
+        metrics.engagements
+      )
+  };
+}
+
+function fallback(
+  learning,
+  content,
+  metrics,
+  conversion
+) {
+  const hasAttention =
+    metrics.attention > 0;
+
+  const hasTraffic =
+    metrics.product_views > 0 ||
+    metrics.clicks > 0;
+
+  const hasEngagement =
+    metrics.engagements > 0;
+
+  const hasCustomer =
+    metrics.customers > 0;
+
+  const hasOrder =
+    metrics.orders > 0;
+
+  let action = "WAIT";
+  let priority = "LOW";
+  let successMetric = "Attention";
+
+  if (hasOrder) {
+    action = "SCALE";
+    priority = "HIGH";
+    successMetric = "Orders";
+  } else if (hasCustomer) {
+    action = "OPTIMIZE";
+    priority = "MEDIUM";
+    successMetric = "Customers";
+  } else if (hasEngagement) {
+    action = "OPTIMIZE";
+    priority = "MEDIUM";
+    successMetric = "Engagements";
+  } else if (hasTraffic) {
+    action = "OPTIMIZE";
+    priority = "MEDIUM";
+    successMetric = "Product Views";
+  } else if (hasAttention) {
+    action = "OPTIMIZE";
+    priority = "MEDIUM";
+    successMetric = "Product Views";
+  } else {
+    action = "DISTRIBUTE";
+    priority = "LOW";
+    successMetric = "Attention";
+  }
+
+  let learned =
+    "ยังไม่มี behavioral evidence เพียงพอสำหรับการเรียนรู้";
+
+  if (hasOrder) {
+    learned =
+      "Content มีหลักฐานเชื่อมโยงกับ Conversion และ Revenue";
+  } else if (hasCustomer) {
+    learned =
+      "Content สามารถสร้าง Customer ได้ แต่ยังไม่มี Order ที่ยืนยัน";
+  } else if (hasEngagement) {
+    learned =
+      "Content สามารถสร้าง Engagement แต่ยังไม่พบ Conversion";
+  } else if (hasTraffic) {
+    learned =
+      "Content สามารถสร้าง Traffic แต่ยังไม่พบ Customer";
+  } else if (hasAttention) {
+    learned =
+      "Content เริ่มได้รับ Attention แต่ยังไม่มี Traffic ต่อเนื่อง";
+  }
+
+  let summary =
+    "ยังไม่มีข้อมูลเพียงพอสำหรับประเมิน Content";
+
+  if (hasOrder) {
+    summary =
+      "พบ Conversion จาก Content และควรนำข้อมูลไปต่อยอด";
+  } else if (hasCustomer) {
+    summary =
+      "Content เริ่มสร้าง Customer แต่ควรเก็บข้อมูล Conversion เพิ่ม";
+  } else if (hasTraffic) {
+    summary =
+      "Content สร้าง Traffic แล้ว แต่ยังต้องเพิ่ม Conversion";
+  } else if (hasAttention) {
+    summary =
+      "Content เริ่มได้รับ Attention แต่ยังต้องสร้าง Traffic";
+  }
+
+  const confidence =
+    hasOrder
+      ? "HIGH"
+      : hasCustomer ||
+        hasTraffic
+        ? "MEDIUM"
+        : "LOW";
+
+  const problems = [];
+
+  if (!hasAttention) {
+    problems.push(
+      "ยังไม่มี Attention"
+    );
+  }
+
+  if (
+    hasAttention &&
+    !hasTraffic
+  ) {
+    problems.push(
+      "Attention ยังไม่เปลี่ยนเป็น Traffic"
+    );
+  }
+
+  if (
+    hasTraffic &&
+    !hasCustomer
+  ) {
+    problems.push(
+      "ยังไม่มี Customer"
+    );
+  }
+
+  if (
+    hasCustomer &&
+    !hasOrder
+  ) {
+    problems.push(
+      "ยังไม่มี Order"
+    );
+  }
+
+  return {
+    summary: summary,
+
+    observed_signals: [
+      "Signal: " +
+        s(
+          learning.signal_type
+        ),
+
+      "Attention: " +
+        String(metrics.attention),
+
+      "Product Views: " +
+        String(metrics.product_views),
+
+      "Clicks: " +
+        String(metrics.clicks),
+
+      "Engagements: " +
+        String(metrics.engagements),
+
+      "Customers: " +
+        String(metrics.customers),
+
+      "Orders: " +
+        String(metrics.orders),
+
+      "Revenue: " +
+        String(metrics.revenue)
+    ],
+
+    learning: {
+      what_we_learned:
+        learned,
+
+      confidence:
+        confidence
+    },
+
+    problems: problems,
+
+    next_content: {
+      action: action,
+
+      direction:
+        hasTraffic
+          ? "ปรับ Content จากพฤติกรรมจริงเพื่อเพิ่ม Conversion"
+          : "กระจาย Content เพื่อสร้างพฤติกรรมและ Traffic",
+
+      angle:
+        content?.angle ||
+        "เชื่อมความสนใจของลูกค้ากับความต้องการเรื่องกาแฟ",
+
+      cta:
+        content?.cta ||
+        "ดูรายละเอียดและทดลอง TATO",
+
+      success_metric:
+        successMetric
+    },
+
+    next_action: {
+      type: action,
+
+      reason:
+        hasOrder
+          ? "พบ Order จาก Content"
+          : hasCustomer
+            ? "พบ Customer จาก Content"
+            : hasTraffic
+              ? "พบ Traffic แต่ยังไม่มี Conversion"
+              : "ยังต้องสร้าง Traffic"
+    },
+
+    priority: priority
+  };
+}
+
+function buildPrompt(
+  learning,
+  content,
+  metrics,
+  conversion
+) {
+  const payload = {
+    learning: learning,
+    content: content
+      ? {
+          id: content.id || null,
+          title:
+            content.title || null,
+          status:
+            content.status || null,
+          objective:
+            content.objective || null,
+          attention_type:
+            content.attention_type ||
+            null,
+          market_keyword:
+            content.market_keyword ||
+            null,
+          angle:
+            content.angle || null,
+          cta:
+            content.cta || null
+        }
+      : null,
+    metrics: metrics,
+    conversion: conversion
+  };
+
+  return (
+    "วิเคราะห์ข้อมูล Learning ของ TATO Coffee " +
+    "จากข้อมูลที่ให้เท่านั้น " +
+    "ตอบเป็น JSON เท่านั้น " +
+    "ห้ามอธิบายเหตุผล " +
+    "ห้ามใช้ Markdown " +
+    "ห้ามประกาศ Winner " +
+    "\n\nDATA:\n" +
+    JSON.stringify(payload) +
+    "\n\n" +
+    "คืนโครงสร้างนี้เท่านั้น:\n" +
+    "{\n" +
+    '  "summary": "สรุปสั้นภาษาไทย",' +
+    "\n" +
+    '  "observed_signals": ["สัญญาณ"],' +
+    "\n" +
+    '  "learning": {' +
+    "\n" +
+    '    "what_we_learned": "สิ่งที่เรียนรู้",' +
+    "\n" +
+    '    "confidence": "LOW"' +
+    "\n" +
+    "  },\n" +
+    '  "problems": ["ปัญหา"],' +
+    "\n" +
+    '  "next_content": {' +
+    "\n" +
+    '    "action": "DISTRIBUTE",' +
+    "\n" +
+    '    "direction": "ทิศทาง Content",' +
+    "\n" +
+    '    "angle": "มุม Content",' +
+    "\n" +
+    '    "cta": "CTA",' +
+    "\n" +
+    '    "success_metric": "Product Views"' +
+    "\n" +
+    "  },\n" +
+    '  "next_action": {' +
+    "\n" +
+    '    "type": "DISTRIBUTE",' +
+    "\n" +
+    '    "reason": "เหตุผล"' +
+    "\n" +
+    "  },\n" +
+    '  "priority": "LOW"' +
+    "\n" +
+    "}\n\n" +
+    "Allowed action: " +
+    "DISTRIBUTE, OPTIMIZE, SCALE, WAIT\n" +
+    "Allowed priority: " +
+    "LOW, MEDIUM, HIGH"
+  );
+}
+
+async function analyze(env, contentId) {
+  if (!env.DB) {
+    throw new Error(
+      "D1 binding DB is missing"
+    );
+  }
+
+  if (!env.AI) {
+    throw new Error(
+      "Workers AI binding AI is missing"
+    );
+  }
+
+  await ensureTables(env.DB);
+
+  const learning =
+    await getLearningSource(
+      env.DB
     );
 
-    return extractAI(result);
+  const measurement =
+    learning.measurement;
 
+  const content =
+    await getContent(
+      env.DB,
+      contentId ||
+        measurement?.content_id ||
+        null
+    );
+
+  const metrics =
+    buildMetrics(
+      measurement
+    );
+
+  const conversion =
+    measurement
+      ? {
+          attention_to_view:
+            n(
+              measurement.attention_to_view
+            ),
+
+          view_to_click:
+            n(
+              measurement.view_to_click
+            ),
+
+          click_to_customer:
+            n(
+              measurement.click_to_customer
+            ),
+
+          customer_to_order:
+            n(
+              measurement.customer_to_order
+            ),
+
+          engagement_to_order:
+            conversionFromMetrics(
+              metrics
+            ).engagement_to_order
+        }
+      : conversionFromMetrics(
+          metrics
+        );
+
+  const fallbackAnalysis =
+    fallback(
+      learning,
+      content,
+      metrics,
+      conversion
+    );
+
+  let aiStatus =
+    "FALLBACK_ANALYZED";
+
+  let aiText = null;
+  let analysis = null;
+  let aiError = null;
+
+  try {
+    const response =
+      await env.AI.run(
+        MODEL,
+        {
+          messages: [
+            {
+              role: "system",
+              content:
+                "Return ONLY valid JSON. " +
+                "No reasoning. " +
+                "No markdown. " +
+                "Do not declare a winner."
+            },
+            {
+              role: "user",
+              content:
+                buildPrompt(
+                  learning,
+                  content,
+                  metrics,
+                  conversion
+                )
+            }
+          ],
+          reasoning_effort: "low",
+          max_completion_tokens: 1200,
+          temperature: 0.1,
+          response_format: {
+            type: "json_object"
+          }
+        }
+      );
+
+    aiText =
+      extractText(
+        response
+      );
+
+    analysis =
+      parseJSON(
+        aiText
+      );
+
+    if (analysis) {
+      aiStatus =
+        "AI_ANALYZED";
+    }
   } catch (error) {
-    return {
-      content: null,
-      debug: {
-        error:
-          error?.message ||
-          String(error)
-      }
-    };
+    aiError =
+      error?.message ||
+      String(error);
   }
+
+  analysis =
+    normalizeAnalysis(
+      analysis,
+      fallbackAnalysis
+    );
+
+  return {
+    learning: learning,
+    measurement: measurement,
+    content: content,
+    metrics: metrics,
+    conversion: conversion,
+
+    ai: {
+      status: aiStatus,
+      model: MODEL,
+      analysis: analysis,
+
+      debug: {
+        ai_called:
+          aiText !== null,
+
+        response_text_received:
+          !!aiText,
+
+        parsed_json:
+          aiStatus ===
+          "AI_ANALYZED",
+
+        error:
+          aiError
+      }
+    }
+  };
 }
 
-async function handle(context) {
-  const db = context.env.DB;
+function conversionFromMetrics(
+  metrics
+) {
+  return conversions(
+    metrics
+  );
+}
 
-  if (!db) {
-    return {
-      success: false,
-      error: "D1 binding DB not found"
-    };
+async function save(
+  env,
+  result
+) {
+  const runId = id();
+  const insightId = id();
+  const createdAt =
+    new Date().toISOString();
+
+  const input =
+    JSON.stringify({
+      learning:
+        result.learning,
+
+      measurement:
+        result.measurement,
+
+      content:
+        result.content,
+
+      metrics:
+        result.metrics,
+
+      conversion:
+        result.conversion
+    });
+
+  const output =
+    JSON.stringify(
+      result.ai.analysis
+    );
+
+  await env.DB
+    .prepare(
+      "INSERT INTO ai_runs (" +
+      "id," +
+      "customer_id," +
+      "run_type," +
+      "model," +
+      "input_data," +
+      "output_data," +
+      "status," +
+      "tokens_used," +
+      "created_at" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(
+      runId,
+      null,
+      "LEARNING_ANALYSIS",
+      MODEL,
+      input,
+      output,
+      result.ai.status,
+      null,
+      createdAt
+    )
+    .run();
+
+  const priority =
+    normalizePriority(
+      result.ai.analysis?.priority
+    );
+
+  let score = 30;
+
+  if (priority === "MEDIUM") {
+    score = 60;
   }
 
-  await ensureTables(db);
+  if (priority === "HIGH") {
+    score = 90;
+  }
 
-  const data = await loadData(db);
+  await env.DB
+    .prepare(
+      "INSERT INTO ai_insights (" +
+      "id," +
+      "customer_id," +
+      "run_id," +
+      "insight_type," +
+      "title," +
+      "content," +
+      "score," +
+      "priority," +
+      "status," +
+      "created_at" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(
+      insightId,
+      null,
+      runId,
+      "LEARNING",
+      "LEARNING",
+      "Learning AI Analysis",
+      output,
+      score,
+      priority,
+      "NEW",
+      createdAt
+    )
+    .run();
 
-  const aiResult = await callAI(
-    context.env.AI,
-    data
-  );
+  result.ai.run_id =
+    runId;
 
-  const analysis =
-    aiResult.content ||
-    fallback(data);
+  result.ai.insight_id =
+    insightId;
 
+  return result;
+}
+
+function responsePayload(
+  result,
+  mode,
+  nextStep
+) {
   return {
     success: true,
 
-    layer: "LEARNING_AI_V1",
+    layer:
+      "LEARNING_AI_V1.4",
 
-    mode: "preview",
+    mode: mode,
 
-    status: "ANALYZED",
+    status:
+      mode === "execute"
+        ? "EXECUTED"
+        : "ANALYZED",
 
-    learning: data.learning,
+    learning:
+      result.learning,
 
-    content: data.content,
+    measurement:
+      result.measurement
+        ? {
+            id:
+              result.measurement.id,
 
-    metrics: data.metrics,
+            content_id:
+              result.measurement.content_id,
 
-    conversion: data.conversion,
+            status:
+              result.measurement.status,
 
-    ai: {
-      status:
-        aiResult.content
-          ? "AI_ANALYZED"
-          : "FALLBACK_ANALYZED",
+            measured_at:
+              result.measurement.measured_at
+          }
+        : null,
 
-      model: MODEL,
+    content:
+      result.content
+        ? {
+            id:
+              result.content.id,
 
-      analysis,
+            title:
+              result.content.title,
 
-      debug:
-        aiResult.content
-          ? null
-          : aiResult.debug || null,
+            status:
+              result.content.status
+          }
+        : null,
 
-      run_id: null,
+    metrics:
+      result.metrics,
 
-      insight_id: null
-    },
+    conversion:
+      result.conversion,
+
+    ai:
+      result.ai,
+
+    winner_decision:
+      "NOT_DECLARED_IN_LEARNING_AI_V1.4",
 
     next_step:
-      "AI Learning analysis ready for review."
+      nextStep
   };
 }
 
-export async function onRequestGet(context) {
+export async function onRequestGet(
+  context
+) {
   try {
+    const result =
+      await analyze(
+        context.env,
+        null
+      );
+
     return json(
-      await handle(context)
+      responsePayload(
+        result,
+        "preview",
+        result.ai.status ===
+          "AI_ANALYZED"
+          ? "AI Learning analysis ready. Run POST execute to save."
+          : "Fallback Learning analysis returned."
+      )
     );
   } catch (error) {
     return json(
       {
         success: false,
-        layer: "LEARNING_AI_V1",
+        layer:
+          "LEARNING_AI_V1.4",
         error:
           error?.message ||
           String(error)
@@ -550,20 +1240,77 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
-    const result =
-      await handle(context);
+    let body = {};
 
-    return json({
-      ...result,
-      mode: "execute"
-    });
+    try {
+      body =
+        await context.request.json();
+    } catch (_) {
+      body = {};
+    }
+
+    const mode =
+      body?.mode ||
+      "preview";
+
+    if (
+      mode !== "preview" &&
+      mode !== "execute"
+    ) {
+      return json(
+        {
+          success: false,
+          layer:
+            "LEARNING_AI_V1.4",
+          error:
+            "Invalid mode. Use 'preview' or 'execute'."
+        },
+        400
+      );
+    }
+
+    const result =
+      await analyze(
+        context.env,
+        body?.content_id ||
+          null
+      );
+
+    if (
+      mode === "execute"
+    ) {
+      const saved =
+        await save(
+          context.env,
+          result
+        );
+
+      return json(
+        responsePayload(
+          saved,
+          "execute",
+          "Learning AI saved. Next stage: AI → Action Engine."
+        )
+      );
+    }
+
+    return json(
+      responsePayload(
+        result,
+        "preview",
+        "AI Learning analysis ready."
+      )
+    );
   } catch (error) {
     return json(
       {
         success: false,
-        layer: "LEARNING_AI_V1",
+        layer:
+          "LEARNING_AI_V1.4",
         error:
           error?.message ||
           String(error)
