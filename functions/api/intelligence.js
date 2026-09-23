@@ -1,10 +1,15 @@
 const LAYER = "INTELLIGENCE_LAYER_V2";
 const VERSION = "2.0";
 
+const HEADERS = {
+"Content-Type": "application/json; charset=utf-8",
+"Cache-Control": "no-store"
+};
+
 function json(data, status = 200) {
 return new Response(JSON.stringify(data, null, 2), {
 status,
-headers: { "content-type": "application/json; charset=utf-8" }
+headers: HEADERS
 });
 }
 
@@ -21,28 +26,32 @@ function s(value) {
 return value == null ? "" : String(value);
 }
 
+function parseJSON(value, fallback = {}) {
+if (!value) return fallback;
+
+try {
+const parsed = JSON.parse(value);
+return parsed && typeof parsed === "object"
+? parsed
+: fallback;
+} catch (_) {
+return fallback;
+}
+}
+
 function pct(a, b) {
 if (!b) return 0;
 return Number(((a / b) * 100).toFixed(2));
 }
 
-function parseJSON(value, fallback = {}) {
-try {
-return value ? JSON.parse(value) : fallback;
-} catch {
-return fallback;
-}
-}
-
 async function getContent(db, contentId) {
 if (!contentId) return null;
 
-return await db
-.prepare(`       SELECT *
-      FROM content_engine
-      WHERE id = ?
-      LIMIT 1
-    `)
+return await db.prepare(`     SELECT *
+    FROM content_engine
+    WHERE id = ?
+    LIMIT 1
+  `)
 .bind(contentId)
 .first();
 }
@@ -50,19 +59,18 @@ return await db
 async function getMeasurements(db, contentId) {
 if (!contentId) return [];
 
-const result = await db
-.prepare(`       SELECT *
-      FROM content_measurements
-      WHERE content_id = ?
-      ORDER BY measured_at ASC, created_at ASC
-    `)
+const result = await db.prepare(`     SELECT *
+    FROM content_measurements
+    WHERE content_id = ?
+    ORDER BY measured_at ASC, created_at ASC
+  `)
 .bind(contentId)
 .all();
 
 return result.results || [];
 }
 
-function measurementMetrics(rows) {
+function getTotals(rows) {
 const totals = {
 rounds: rows.length,
 attention: 0,
@@ -84,12 +92,14 @@ totals.orders += n(row.orders);
 totals.revenue += n(row.revenue);
 }
 
-totals.revenue = Number(totals.revenue.toFixed(2));
+totals.revenue = Number(
+totals.revenue.toFixed(2)
+);
 
 return totals;
 }
 
-function latestMetrics(rows) {
+function getLatest(rows) {
 if (!rows.length) {
 return {
 attention: 0,
@@ -115,32 +125,27 @@ revenue: n(row.revenue)
 };
 }
 
-function calculateRates(metrics) {
+function getRates(totals) {
 return {
-click_from_attention_pct: pct(
-metrics.clicks,
-metrics.attention
-),
+click_from_attention_pct:
+pct(totals.clicks, totals.attention),
 
 ```
-product_view_from_click_pct: pct(
-  metrics.product_views,
-  metrics.clicks
-),
+product_view_from_click_pct:
+  pct(totals.product_views, totals.clicks),
 
-customer_from_product_view_pct: pct(
-  metrics.customers,
-  metrics.product_views
-),
+customer_from_product_view_pct:
+  pct(totals.customers, totals.product_views),
 
-order_from_customer_pct: pct(
-  metrics.orders,
-  metrics.customers
-),
+order_from_customer_pct:
+  pct(totals.orders, totals.customers),
 
-revenue_per_order: metrics.orders
-  ? Number((metrics.revenue / metrics.orders).toFixed(2))
-  : 0
+revenue_per_order:
+  totals.orders > 0
+    ? Number(
+        (totals.revenue / totals.orders).toFixed(2)
+      )
+    : 0
 ```
 
 };
@@ -155,7 +160,8 @@ totals.attention > 0 &&
 totals.product_views === 0
 ) {
 patterns.push({
-code: "PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW",
+code:
+"PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW",
 severity: "HIGH",
 evidence: {
 rounds: totals.rounds,
@@ -185,7 +191,8 @@ totals.attention > 0 &&
 totals.customers === 0
 ) {
 patterns.push({
-code: "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT",
+code:
+"NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT",
 severity: "MEDIUM",
 evidence: {
 rounds: totals.rounds,
@@ -200,7 +207,8 @@ totals.rounds >= 2 &&
 totals.orders === 0
 ) {
 patterns.push({
-code: "NO_ORDER_AFTER_REPEATED_MEASUREMENT",
+code:
+"NO_ORDER_AFTER_REPEATED_MEASUREMENT",
 severity: "MEDIUM",
 evidence: {
 rounds: totals.rounds,
@@ -214,7 +222,8 @@ totals.rounds >= 2 &&
 totals.revenue === 0
 ) {
 patterns.push({
-code: "NO_REVENUE_AFTER_REPEATED_MEASUREMENT",
+code:
+"NO_REVENUE_AFTER_REPEATED_MEASUREMENT",
 severity: "MEDIUM",
 evidence: {
 rounds: totals.rounds,
@@ -228,11 +237,13 @@ latest.clicks > 0 &&
 latest.product_views === 0
 ) {
 patterns.push({
-code: "CURRENT_FUNNEL_BLOCK_CLICK_TO_PRODUCT_VIEW",
+code:
+"CURRENT_FUNNEL_BLOCK_CLICK_TO_PRODUCT_VIEW",
 severity: "HIGH",
 evidence: {
 latest_clicks: latest.clicks,
-latest_product_views: latest.product_views
+latest_product_views:
+latest.product_views
 }
 });
 }
@@ -247,8 +258,8 @@ return "NO_DATA";
 
 if (
 patterns.some(
-p =>
-p.code ===
+pattern =>
+pattern.code ===
 "PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW"
 )
 ) {
@@ -257,15 +268,15 @@ return "PERSISTENT_FUNNEL_BLOCK";
 
 if (
 patterns.some(
-p =>
-p.code ===
+pattern =>
+pattern.code ===
 "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT"
 )
 ) {
 return "PERSISTENT_NO_CUSTOMER";
 }
 
-if (patterns.length) {
+if (patterns.length > 0) {
 return "PATTERN_DETECTED";
 }
 
@@ -276,21 +287,26 @@ return "OBSERVING";
 return "NO_DATA";
 }
 
-function trend(rows) {
+function calculateTrend(rows) {
 if (rows.length < 2) {
 return {
 direction: "INSUFFICIENT_DATA",
-compared_rounds: rows.length
+compared_rounds: rows.length,
+changes: {}
 };
 }
 
-const previous = rows[rows.length - 2];
-const latest = rows[rows.length - 1];
+const previous =
+rows[rows.length - 2];
+
+const latest =
+rows[rows.length - 1];
 
 const fields = [
 "attention",
 "clicks",
 "product_views",
+"engagements",
 "customers",
 "orders",
 "revenue"
@@ -306,23 +322,31 @@ const after = n(latest[field]);
 changes[field] = {
   previous: before,
   latest: after,
-  delta: Number((after - before).toFixed(2))
+  delta: Number(
+    (after - before).toFixed(2)
+  )
 };
 ```
 
 }
 
-const positive = Object.values(changes)
-.filter(x => x.delta > 0).length;
+const positive =
+Object.values(changes)
+.filter(item => item.delta > 0)
+.length;
 
-const negative = Object.values(changes)
-.filter(x => x.delta < 0).length;
+const negative =
+Object.values(changes)
+.filter(item => item.delta < 0)
+.length;
 
 let direction = "STABLE";
 
 if (positive > negative) {
 direction = "IMPROVING";
-} else if (negative > positive) {
+}
+
+if (negative > positive) {
 direction = "DECLINING";
 }
 
@@ -343,15 +367,17 @@ if (state === "NO_DATA") {
 return {
 type: "WAIT",
 priority: "LOW",
-reason: "No measurement data available yet.",
-next_step: "COLLECT_MEASUREMENT"
+reason:
+"ยังไม่มีข้อมูล Measurement เพียงพอ",
+next_step:
+"COLLECT_MEASUREMENT"
 };
 }
 
 if (
 patterns.some(
-p =>
-p.code ===
+pattern =>
+pattern.code ===
 "CURRENT_FUNNEL_BLOCK_CLICK_TO_PRODUCT_VIEW"
 )
 ) {
@@ -359,7 +385,7 @@ return {
 type: "INVESTIGATE_FUNNEL",
 priority: "HIGH",
 reason:
-"Attention and Click exist, but Product View remains zero.",
+"มี Click แต่ยังไม่พบ Product View",
 next_step:
 "INSPECT_CLICK_TO_PRODUCT_VIEW_PATH"
 };
@@ -367,8 +393,8 @@ next_step:
 
 if (
 patterns.some(
-p =>
-p.code ===
+pattern =>
+pattern.code ===
 "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT"
 )
 ) {
@@ -376,7 +402,7 @@ return {
 type: "INVESTIGATE_CONVERSION",
 priority: "MEDIUM",
 reason:
-"Repeated measurements show attention but no customer acquisition.",
+"มี Attention แต่ยังไม่เกิด Customer หลังวัดซ้ำ",
 next_step:
 "INSPECT_PRODUCT_VIEW_TO_CUSTOMER_PATH"
 };
@@ -386,16 +412,20 @@ return {
 type: "CONTINUE_MEASUREMENT",
 priority: "MEDIUM",
 reason:
-"Current evidence is not sufficient to justify a strategy change.",
-next_step: "MEASURE_AGAIN"
+"ข้อมูลปัจจุบันยังไม่เพียงพอสำหรับเปลี่ยน Strategy",
+next_step:
+"MEASURE_AGAIN"
 };
 }
 
-async function getContradictions(db, contentId) {
+async function getContradictions(
+db,
+contentId
+) {
 if (!contentId) return [];
 
-const result = await db
-.prepare(`       SELECT
+try {
+const result = await db.prepare(`       SELECT
         id,
         run_type,
         input_data,
@@ -414,65 +444,106 @@ const result = await db
 )
 .all();
 
+```
 const contradictions = [];
 
 for (const row of result.results || []) {
-const input = s(row.input_data).toLowerCase();
-const output = s(row.output_data).toLowerCase();
+  const input =
+    s(row.input_data).toLowerCase();
 
-```
-const combined = `${input} ${output}`;
+  const output =
+    s(row.output_data).toLowerCase();
 
-if (
-  combined.includes("no click") &&
-  (
+  const combined =
+    `${input} ${output}`;
+
+  const saysNoClick =
+    combined.includes("no click") ||
+    combined.includes("ไม่มี click") ||
+    combined.includes("ไม่มีคลิก");
+
+  const containsClickOne =
     combined.includes('"clicks":1') ||
-    combined.includes('"clicks": 1')
-  )
-) {
-  contradictions.push({
-    run_id: row.id,
-    type: "CLICK_COUNT_CONTRADICTION",
-    description:
-      "AI text appears to describe no click while measured data contains a click.",
-    created_at: row.created_at
-  });
-}
-```
+    combined.includes('"clicks": 1');
 
+  if (
+    saysNoClick &&
+    containsClickOne
+  ) {
+    contradictions.push({
+      run_id: row.id,
+      type:
+        "CLICK_COUNT_CONTRADICTION",
+      description:
+        "ข้อความจาก AI ระบุว่าไม่มี Click แต่ข้อมูล Measurement มี Click",
+      created_at:
+        row.created_at
+    });
+  }
 }
 
 return contradictions;
+```
+
+} catch (_) {
+return [];
+}
 }
 
-async function buildIntelligence(env, contentId) {
+async function buildIntelligence(
+env,
+contentId
+) {
+if (!env.DB) {
+throw new Error(
+"D1 binding DB is missing"
+);
+}
+
 const db = env.DB;
 
-const content = await getContent(db, contentId);
-const measurements = await getMeasurements(
+const content =
+await getContent(
 db,
 contentId
 );
 
-const totals = measurementMetrics(measurements);
-const latest = latestMetrics(measurements);
-const rates = calculateRates(totals);
+const measurements =
+await getMeasurements(
+db,
+contentId
+);
 
-const patterns = detectPatterns(
+const totals =
+getTotals(measurements);
+
+const latest =
+getLatest(measurements);
+
+const rates =
+getRates(totals);
+
+const patterns =
+detectPatterns(
 measurements,
 totals,
 latest
 );
 
-const state = determineState(
+const state =
+determineState(
 measurements,
 totals,
 patterns
 );
 
-const measurementTrend = trend(measurements);
+const trend =
+calculateTrend(
+measurements
+);
 
-const recommendation = buildRecommendation(
+const recommendation =
+buildRecommendation(
 state,
 patterns,
 totals,
@@ -493,15 +564,15 @@ version: VERSION,
 content: content
   ? {
       id: content.id,
-      title: content.title || "",
-      status: content.status || "",
-      objective: content.objective || "",
+      title: s(content.title),
+      status: s(content.status),
+      objective: s(content.objective),
       attention_type:
-        content.attention_type || "",
+        s(content.attention_type),
       market_keyword:
-        content.market_keyword || "",
-      angle: content.angle || "",
-      cta: content.cta || ""
+        s(content.market_keyword),
+      angle: s(content.angle),
+      cta: s(content.cta)
     }
   : null,
 
@@ -510,16 +581,13 @@ measurement: {
   totals,
   latest,
   rates,
-  trend: measurementTrend
+  trend
 },
 
 intelligence: {
   state,
-
   patterns,
-
   recommendation,
-
   contradictions
 },
 
@@ -545,42 +613,47 @@ const db = env.DB;
 
 const runId = id();
 const insightId = id();
+const now =
+new Date().toISOString();
 
 const contentId =
 intelligence.content?.id || null;
 
-const payload = JSON.stringify(
+const inputData =
+JSON.stringify({
+layer: LAYER,
+version: VERSION,
+content_id: contentId
+});
+
+const outputData =
+JSON.stringify(
 intelligence
 );
 
-await db
-.prepare(`       INSERT INTO ai_runs (
-        id,
-        customer_id,
-        run_type,
-        model,
-        input_data,
-        output_data,
-        status,
-        tokens_used,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
+await db.prepare(`     INSERT INTO ai_runs (
+      id,
+      customer_id,
+      run_type,
+      model,
+      input_data,
+      output_data,
+      status,
+      tokens_used,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
 .bind(
 runId,
 null,
 "INTELLIGENCE",
 "RULE_BASED_V2",
-JSON.stringify({
-layer: LAYER,
-version: VERSION,
-content_id: contentId
-}),
-payload,
+inputData,
+outputData,
 "COMPLETED",
 0,
-new Date().toISOString()
+now
 )
 .run();
 
@@ -589,49 +662,60 @@ intelligence.intelligence?.state ||
 "UNKNOWN";
 
 const recommendation =
-intelligence.intelligence?.recommendation;
+intelligence.intelligence
+?.recommendation || {};
 
-const title =
-`Intelligence: ${state}`;
+const priority =
+s(
+recommendation.priority
+).toUpperCase() ||
+"LOW";
 
-const content = JSON.stringify({
+const score =
+priority === "HIGH"
+? 90
+: priority === "MEDIUM"
+? 60
+: 30;
+
+const insightContent =
+JSON.stringify({
 state,
 patterns:
-intelligence.intelligence?.patterns || [],
-recommendation:
-recommendation || {},
+intelligence.intelligence
+?.patterns || [],
+recommendation,
 measurement:
 intelligence.measurement || {},
 guardrails:
 intelligence.guardrails || {}
 });
 
-await db
-.prepare(`       INSERT INTO ai_insights (
-        id,
-        customer_id,
-        run_id,
-        insight_type,
-        title,
-        content,
-        score,
-        priority,
-        status,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
+await db.prepare(`     INSERT INTO ai_insights (
+      id,
+      customer_id,
+      run_id,
+      insight_type,
+      title,
+      content,
+      score,
+      priority,
+      status,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
 .bind(
 insightId,
 null,
 runId,
 "INTELLIGENCE",
-title,
-content,
-0,
-recommendation?.priority || "normal",
+`Intelligence: ${state}`,
+insightContent,
+score,
+priority,
 "NEW",
-new Date().toISOString()
+now
 )
 .run();
 
@@ -641,95 +725,131 @@ insight_id: insightId
 };
 }
 
-export async function onRequest(context) {
-const { request, env } = context;
-
+export async function onRequestGet(
+context
+) {
 try {
-const url = new URL(request.url);
+const url =
+new URL(
+context.request.url
+);
 
 ```
-let contentId =
-  url.searchParams.get("content_id");
+const contentId =
+  url.searchParams.get(
+    "content_id"
+  );
 
-if (request.method === "GET") {
-  if (!contentId) {
-    return json({
+if (!contentId) {
+  return json(
+    {
       success: false,
       layer: LAYER,
       version: VERSION,
       error:
         "content_id is required"
-    }, 400);
-  }
-
-  const intelligence =
-    await buildIntelligence(
-      env,
-      contentId
-    );
-
-  return json({
-    success: true,
-    mode: "preview",
-    ...intelligence
-  });
+    },
+    400
+  );
 }
 
-if (request.method === "POST") {
-  let body = {};
-
-  try {
-    body = await request.json();
-  } catch {
-    body = {};
-  }
-
-  contentId =
-    body.content_id ||
-    contentId;
-
-  if (!contentId) {
-    return json({
-      success: false,
-      layer: LAYER,
-      version: VERSION,
-      error:
-        "content_id is required"
-    }, 400);
-  }
-
-  const intelligence =
-    await buildIntelligence(
-      env,
-      contentId
-    );
-
-  const saved =
-    await saveIntelligence(
-      env,
-      intelligence
-    );
-
-  return json({
-    success: true,
-    mode: "execute",
-    ...intelligence,
-    saved
-  });
-}
+const intelligence =
+  await buildIntelligence(
+    context.env,
+    contentId
+  );
 
 return json({
-  success: false,
-  error: "Method not allowed"
-}, 405);
+  success: true,
+  mode: "preview",
+  ...intelligence
+});
 ```
 
 } catch (error) {
-return json({
+return json(
+{
 success: false,
 layer: LAYER,
 version: VERSION,
-error: error.message
-}, 500);
+error:
+error?.message ||
+String(error)
+},
+500
+);
+}
+}
+
+export async function onRequestPost(
+context
+) {
+try {
+let body = {};
+
+```
+try {
+  body =
+    await context.request.json();
+} catch (_) {
+  body = {};
+}
+
+const url =
+  new URL(
+    context.request.url
+  );
+
+const contentId =
+  body?.content_id ||
+  url.searchParams.get(
+    "content_id"
+  );
+
+if (!contentId) {
+  return json(
+    {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error:
+        "content_id is required"
+    },
+    400
+  );
+}
+
+const intelligence =
+  await buildIntelligence(
+    context.env,
+    contentId
+  );
+
+const saved =
+  await saveIntelligence(
+    context.env,
+    intelligence
+  );
+
+return json({
+  success: true,
+  mode: "execute",
+  ...intelligence,
+  saved
+});
+```
+
+} catch (error) {
+return json(
+{
+success: false,
+layer: LAYER,
+version: VERSION,
+error:
+error?.message ||
+String(error)
+},
+500
+);
 }
 }
