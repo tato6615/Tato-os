@@ -1,32 +1,24 @@
 ```javascript
 // TATO OS — Public Content Feed + Tracking V1.1
-// Route: /api/content-feed
+// Parser-safe version
 //
-// GET
-//   /api/content-feed
-//   /api/content-feed?content_id=...
-//   /api/content-feed?distribution_id=...
-//   /api/content-feed?mode=feed
-//   /api/content-feed?mode=thank_you&content_id=...
-//
-// POST
-//   { mode: "event", event_type, content_id, distribution_id,
-//     session_id, metadata }
-//
-// V1.1
-// - One page open = one content_view
-// - No server-side duplicate content_view
-// - content_click remains browser tracked
-// - content_id + distribution_id + session_id preserved
+// FIX:
+// 1. One page open = one content_view
+// 2. No server-side duplicate content_view
+// 3. content_click remains browser tracked
+// 4. No template literals used for SQL strings
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
+  return new Response(
+    JSON.stringify(data, null, 2),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
     }
-  });
+  );
 }
 
 function uid() {
@@ -34,7 +26,7 @@ function uid() {
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -42,209 +34,167 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-async function first(db, sql, ...params) {
-  const result = await db.prepare(sql).bind(...params).first();
+async function first(db, sql) {
+  var args = Array.prototype.slice.call(arguments, 2);
+  var result = await db.prepare(sql).bind.apply(db.prepare(sql), args).first();
   return result || null;
 }
 
-async function all(db, sql, ...params) {
-  const result = await db.prepare(sql).bind(...params).all();
-  return result?.results || [];
+async function all(db, sql) {
+  var args = Array.prototype.slice.call(arguments, 2);
+  var result = await db.prepare(sql).bind.apply(db.prepare(sql), args).all();
+  return result && result.results ? result.results : [];
 }
 
 async function ensureTables(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS behavior_events (
-      id TEXT PRIMARY KEY,
-      customer_id TEXT,
-      session_id TEXT,
-      event_type TEXT,
-      page TEXT,
-      product_id TEXT,
-      metadata TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
 
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS content_distributions (
-      id TEXT PRIMARY KEY,
-      content_id TEXT,
-      channel TEXT,
-      status TEXT,
-      source TEXT,
-      payload TEXT,
-      result TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      completed_at TEXT
-    )
-  `).run();
+  var behaviorSQL =
+    "CREATE TABLE IF NOT EXISTS behavior_events (" +
+    "id TEXT PRIMARY KEY," +
+    "customer_id TEXT," +
+    "session_id TEXT," +
+    "event_type TEXT," +
+    "page TEXT," +
+    "product_id TEXT," +
+    "metadata TEXT," +
+    "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+    ")";
+
+  await db.prepare(behaviorSQL).run();
+
+  var distributionSQL =
+    "CREATE TABLE IF NOT EXISTS content_distributions (" +
+    "id TEXT PRIMARY KEY," +
+    "content_id TEXT," +
+    "channel TEXT," +
+    "status TEXT," +
+    "source TEXT," +
+    "payload TEXT," +
+    "result TEXT," +
+    "created_at TEXT DEFAULT CURRENT_TIMESTAMP," +
+    "completed_at TEXT" +
+    ")";
+
+  await db.prepare(distributionSQL).run();
 }
 
-async function getPublishedContent(
-  db,
-  contentId = null,
-  distributionId = null
-) {
+async function getPublishedContent(db, contentId, distributionId) {
+
   if (distributionId) {
-    return await first(
-      db,
-      `
-      SELECT
-        d.id AS distribution_id,
-        d.content_id,
-        d.channel,
-        d.status AS distribution_status,
-        d.created_at AS distributed_at,
-        c.id,
-        c.source,
-        c.status,
-        c.title,
-        c.objective,
-        c.attention_type,
-        c.market_keyword,
-        c.angle,
-        c.direction,
-        c.cta,
-        c.content_text,
-        c.created_at
-      FROM content_distributions d
-      JOIN content_engine c ON c.id = d.content_id
-      WHERE d.id = ?
-        AND d.status = 'PUBLISHED'
-      LIMIT 1
-      `,
-      distributionId
-    );
+
+    var sql1 =
+      "SELECT " +
+      "d.id AS distribution_id, " +
+      "d.content_id, " +
+      "d.channel, " +
+      "d.status AS distribution_status, " +
+      "d.created_at AS distributed_at, " +
+      "c.id, c.source, c.status, c.title, c.objective, " +
+      "c.attention_type, c.market_keyword, c.angle, " +
+      "c.direction, c.cta, c.content_text, c.created_at " +
+      "FROM content_distributions d " +
+      "JOIN content_engine c ON c.id = d.content_id " +
+      "WHERE d.id = ? AND d.status = 'PUBLISHED' " +
+      "LIMIT 1";
+
+    return await first(db, sql1, distributionId);
   }
 
   if (contentId) {
-    return await first(
-      db,
-      `
-      SELECT
-        d.id AS distribution_id,
-        d.content_id,
-        d.channel,
-        d.status AS distribution_status,
-        d.created_at AS distributed_at,
-        c.id,
-        c.source,
-        c.status,
-        c.title,
-        c.objective,
-        c.attention_type,
-        c.market_keyword,
-        c.angle,
-        c.direction,
-        c.cta,
-        c.content_text,
-        c.created_at
-      FROM content_distributions d
-      JOIN content_engine c ON c.id = d.content_id
-      WHERE d.content_id = ?
-        AND d.status = 'PUBLISHED'
-      ORDER BY datetime(d.created_at) DESC
-      LIMIT 1
-      `,
-      contentId
-    );
+
+    var sql2 =
+      "SELECT " +
+      "d.id AS distribution_id, " +
+      "d.content_id, " +
+      "d.channel, " +
+      "d.status AS distribution_status, " +
+      "d.created_at AS distributed_at, " +
+      "c.id, c.source, c.status, c.title, c.objective, " +
+      "c.attention_type, c.market_keyword, c.angle, " +
+      "c.direction, c.cta, c.content_text, c.created_at " +
+      "FROM content_distributions d " +
+      "JOIN content_engine c ON c.id = d.content_id " +
+      "WHERE d.content_id = ? AND d.status = 'PUBLISHED' " +
+      "ORDER BY datetime(d.created_at) DESC " +
+      "LIMIT 1";
+
+    return await first(db, sql2, contentId);
   }
 
-  return await first(
-    db,
-    `
-    SELECT
-      d.id AS distribution_id,
-      d.content_id,
-      d.channel,
-      d.status AS distribution_status,
-      d.created_at AS distributed_at,
-      c.id,
-      c.source,
-      c.status,
-      c.title,
-      c.objective,
-      c.attention_type,
-      c.market_keyword,
-      c.angle,
-      c.direction,
-      c.cta,
-      c.content_text,
-      c.created_at
-    FROM content_distributions d
-    JOIN content_engine c ON c.id = d.content_id
-    WHERE d.status = 'PUBLISHED'
-    ORDER BY datetime(d.created_at) DESC
-    LIMIT 1
-    `
-  );
+  var sql3 =
+    "SELECT " +
+    "d.id AS distribution_id, " +
+    "d.content_id, " +
+    "d.channel, " +
+    "d.status AS distribution_status, " +
+    "d.created_at AS distributed_at, " +
+    "c.id, c.source, c.status, c.title, c.objective, " +
+    "c.attention_type, c.market_keyword, c.angle, " +
+    "c.direction, c.cta, c.content_text, c.created_at " +
+    "FROM content_distributions d " +
+    "JOIN content_engine c ON c.id = d.content_id " +
+    "WHERE d.status = 'PUBLISHED' " +
+    "ORDER BY datetime(d.created_at) DESC " +
+    "LIMIT 1";
+
+  return await first(db, sql3);
 }
 
 async function getFeed(db) {
-  return await all(
-    db,
-    `
-    SELECT
-      d.id AS distribution_id,
-      d.content_id,
-      d.channel,
-      d.status,
-      d.created_at,
-      d.completed_at,
-      c.title,
-      c.objective,
-      c.attention_type,
-      c.market_keyword,
-      c.angle,
-      c.direction,
-      c.cta,
-      c.content_text
-    FROM content_distributions d
-    JOIN content_engine c ON c.id = d.content_id
-    WHERE d.status = 'PUBLISHED'
-    ORDER BY datetime(d.created_at) DESC
-    `
-  );
+
+  var sql =
+    "SELECT " +
+    "d.id AS distribution_id, " +
+    "d.content_id, " +
+    "d.channel, " +
+    "d.status, " +
+    "d.created_at, " +
+    "d.completed_at, " +
+    "c.title, c.objective, c.attention_type, " +
+    "c.market_keyword, c.angle, c.direction, c.cta, " +
+    "c.content_text " +
+    "FROM content_distributions d " +
+    "JOIN content_engine c ON c.id = d.content_id " +
+    "WHERE d.status = 'PUBLISHED' " +
+    "ORDER BY datetime(d.created_at) DESC";
+
+  return await all(db, sql);
 }
 
 async function recordEvent(db, options) {
-  const {
-    eventType,
-    contentId = null,
-    distributionId = null,
-    sessionId = null,
-    metadata = {},
-    customerId = null
-  } = options;
 
-  const id = uid();
+  var eventType = options.eventType;
+  var contentId = options.contentId || null;
+  var distributionId = options.distributionId || null;
+  var sessionId = options.sessionId || null;
+  var metadata = options.metadata || {};
+  var customerId = options.customerId || null;
 
-  const eventMetadata = {
-    ...(metadata && typeof metadata === "object" ? metadata : {}),
-    ...(contentId ? { content_id: contentId } : {}),
-    ...(distributionId ? { distribution_id: distributionId } : {}),
-    source: "PUBLIC_CONTENT_FEED"
-  };
+  var id = uid();
+  var finalSessionId = sessionId || uid();
 
-  const finalSessionId = sessionId || uid();
+  var eventMetadata = {};
 
-  await db
-    .prepare(`
-      INSERT INTO behavior_events
-        (
-          id,
-          customer_id,
-          session_id,
-          event_type,
-          page,
-          product_id,
-          metadata,
-          created_at
-        )
-      VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
+  if (metadata && typeof metadata === "object") {
+    eventMetadata = metadata;
+  }
+
+  if (contentId) {
+    eventMetadata.content_id = contentId;
+  }
+
+  if (distributionId) {
+    eventMetadata.distribution_id = distributionId;
+  }
+
+  eventMetadata.source = "PUBLIC_CONTENT_FEED";
+
+  var sql =
+    "INSERT INTO behavior_events " +
+    "(id, customer_id, session_id, event_type, page, product_id, metadata, created_at) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+  await db.prepare(sql)
     .bind(
       id,
       customerId,
@@ -258,7 +208,7 @@ async function recordEvent(db, options) {
     .run();
 
   return {
-    id,
+    id: id,
     event_type: eventType,
     content_id: contentId,
     distribution_id: distributionId,
@@ -266,22 +216,23 @@ async function recordEvent(db, options) {
   };
 }
 
-function parseContentText(contentText) {
-  const raw = String(contentText || "");
+function parseContentText(text) {
 
-  let hook = "";
-  let body = "";
-  let cta = "";
+  var raw = String(text || "");
 
-  const hookMatch = raw.match(
+  var hook = "";
+  var body = "";
+  var cta = "";
+
+  var hookMatch = raw.match(
     /HOOK\s*([\s\S]*?)(?=\n\s*BODY|\n\s*CTA|$)/i
   );
 
-  const bodyMatch = raw.match(
+  var bodyMatch = raw.match(
     /BODY\s*([\s\S]*?)(?=\n\s*CTA|$)/i
   );
 
-  const ctaMatch = raw.match(
+  var ctaMatch = raw.match(
     /CTA\s*([\s\S]*)$/i
   );
 
@@ -302,703 +253,68 @@ function parseContentText(contentText) {
   }
 
   return {
-    hook,
-    body,
-    cta
+    hook: hook,
+    body: body,
+    cta: cta
   };
 }
 
 function renderPage(content) {
-  const contentId = content.content_id || content.id || "";
-  const distributionId = content.distribution_id || "";
 
-  const title = escapeHtml(
+  var contentId = content.content_id || content.id || "";
+  var distributionId = content.distribution_id || "";
+
+  var title = escapeHtml(
     content.title || "TATO Coffee"
   );
 
-  const objective = escapeHtml(
+  var objective = escapeHtml(
     content.objective || ""
   );
 
-  const attentionType = escapeHtml(
+  var attentionType = escapeHtml(
     content.attention_type || ""
   );
 
-  const marketKeyword = escapeHtml(
+  var marketKeyword = escapeHtml(
     content.market_keyword || ""
   );
 
-  const angle = escapeHtml(
+  var angle = escapeHtml(
     content.angle || ""
   );
 
-  const direction = escapeHtml(
+  var direction = escapeHtml(
     content.direction || ""
   );
 
-  const cta = escapeHtml(
+  var cta = escapeHtml(
     content.cta || "ดูรายละเอียดและทดลอง TATO"
   );
 
-  const parsed = parseContentText(
+  var parsed = parseContentText(
     content.content_text
   );
 
-  const hook = escapeHtml(parsed.hook);
-  const body = escapeHtml(parsed.body);
-  const contentCta = escapeHtml(
+  var hook = escapeHtml(parsed.hook);
+  var body = escapeHtml(parsed.body);
+  var contentCta = escapeHtml(
     parsed.cta || content.cta || ""
   );
 
-  return `<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>${title} — TATO Coffee</title>
-
-<style>
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: #111;
-  color: #f5f5f5;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Arial,
-    sans-serif;
-}
-
-.page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 16px;
-}
-
-.card {
-  width: 100%;
-  max-width: 720px;
-  background: #181818;
-  border: 1px solid #333;
-  border-radius: 20px;
-  padding: 28px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.35);
-}
-
-.brand {
-  font-size: 13px;
-  letter-spacing: 3px;
-  color: #ff8a00;
-  font-weight: 800;
-  margin-bottom: 24px;
-}
-
-h1 {
-  margin: 0 0 24px;
-  font-size: 32px;
-  line-height: 1.25;
-}
-
-.section {
-  margin-top: 24px;
-}
-
-.label {
-  color: #888;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.text {
-  white-space: pre-line;
-  color: #ddd;
-  font-size: 16px;
-  line-height: 1.8;
-}
-
-.meta {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 24px;
-}
-
-.meta-box {
-  border: 1px solid #303030;
-  background: #141414;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.meta-value {
-  color: #ddd;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.cta {
-  display: block;
-  width: 100%;
-  margin-top: 28px;
-  border: 0;
-  border-radius: 12px;
-  padding: 15px 18px;
-  background: #ff8a00;
-  color: #111;
-  font-size: 16px;
-  font-weight: 800;
-  text-align: center;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.cta:hover {
-  opacity: .92;
-}
-
-.footer {
-  margin-top: 22px;
-  text-align: center;
-  color: #666;
-  font-size: 11px;
-}
-
-@media(max-width:600px) {
-  .card {
-    padding: 20px;
-  }
-
-  h1 {
-    font-size: 26px;
-  }
-
-  .meta {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
-</head>
-
-<body>
-
-<div class="page">
-
-  <main class="card">
-
-    <div class="brand">
-      TATO COFFEE
-    </div>
-
-    <h1>${title}</h1>
-
-    ${
-      hook
-        ? `
-    <section class="section">
-      <div class="label">Hook</div>
-      <div class="text">${hook}</div>
-    </section>
-    `
-        : ""
-    }
-
-    ${
-      body
-        ? `
-    <section class="section">
-      <div class="label">Content</div>
-      <div class="text">${body}</div>
-    </section>
-    `
-        : ""
-    }
-
-    ${
-      contentCta
-        ? `
-    <section class="section">
-      <div class="label">CTA</div>
-      <div class="text">${contentCta}</div>
-    </section>
-    `
-        : ""
-    }
-
-    <div class="meta">
-
-      ${
-        objective
-          ? `
-      <div class="meta-box">
-        <div class="label">Objective</div>
-        <div class="meta-value">${objective}</div>
-      </div>
-      `
-          : ""
-      }
-
-      ${
-        attentionType
-          ? `
-      <div class="meta-box">
-        <div class="label">Attention</div>
-        <div class="meta-value">${attentionType}</div>
-      </div>
-      `
-          : ""
-      }
-
-      ${
-        marketKeyword
-          ? `
-      <div class="meta-box">
-        <div class="label">Market</div>
-        <div class="meta-value">${marketKeyword}</div>
-      </div>
-      `
-          : ""
-      }
-
-      ${
-        angle
-          ? `
-      <div class="meta-box">
-        <div class="label">Angle</div>
-        <div class="meta-value">${angle}</div>
-      </div>
-      `
-          : ""
-      }
-
-      ${
-        direction
-          ? `
-      <div class="meta-box">
-        <div class="label">Direction</div>
-        <div class="meta-value">${direction}</div>
-      </div>
-      `
-          : ""
-      }
-
-    </div>
-
-    <a
-      id="cta"
-      class="cta"
-      href="/api/content-feed?mode=thank_you&content_id=${encodeURIComponent(contentId)}"
-    >
-      ${cta}
-    </a>
-
-    <div class="footer">
-      TATO Coffee · Arabica 100% · Single Origin
-    </div>
-
-  </main>
-
-</div>
-
-<script>
-(function () {
-
-  const contentId = ${JSON.stringify(contentId)};
-  const distributionId = ${JSON.stringify(distributionId)};
-
-  let sessionId =
-    sessionStorage.getItem("tato_content_session");
-
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-
-    sessionStorage.setItem(
-      "tato_content_session",
-      sessionId
-    );
-  }
-
-  async function track(eventType, metadata) {
-
-    try {
-
-      await fetch("/api/content-feed", {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          mode: "event",
-          event_type: eventType,
-          content_id: contentId,
-          distribution_id: distributionId,
-          session_id: sessionId,
-          metadata: metadata || {}
-        }),
-
-        keepalive: true
-      });
-
-    } catch (_) {
-      // Tracking must never block the visitor.
-    }
-  }
-
-  // IMPORTANT:
-  // content_view is recorded ONLY here.
-  // No server-side content_view exists.
-  track("content_view", {
-    page_type: "public_content"
-  });
-
-  const cta =
-    document.getElementById("cta");
-
-  if (cta) {
-
-    cta.addEventListener(
-      "click",
-      function () {
-
-        track("content_click", {
-          cta: true
-        });
-
-      }
-    );
-
-  }
-
-})();
-</script>
-
-</body>
-</html>`;
-}
-
-function renderThankYou() {
-  return `<!DOCTYPE html>
-<html lang="th">
-
-<head>
-
-<meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
->
-
-<title>TATO Coffee</title>
-
-<style>
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #111;
-  color: #f5f5f5;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Arial,
-    sans-serif;
-}
-
-.card {
-  width: calc(100% - 32px);
-  max-width: 520px;
-  padding: 36px 24px;
-  background: #181818;
-  border: 1px solid #333;
-  border-radius: 20px;
-  text-align: center;
-}
-
-.brand {
-  color: #ff8a00;
-  font-weight: 800;
-  letter-spacing: 3px;
-  margin-bottom: 24px;
-}
-
-h1 {
-  font-size: 28px;
-  margin: 0 0 14px;
-}
-
-p {
-  color: #aaa;
-  line-height: 1.7;
-}
-
-.back {
-  display: inline-block;
-  margin-top: 20px;
-  color: #ff8a00;
-  text-decoration: none;
-  font-weight: 700;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<main class="card">
-
-  <div class="brand">
-    TATO COFFEE
-  </div>
-
-  <h1>
-    ขอบคุณที่สนใจ TATO Coffee
-  </h1>
-
-  <p>
-    ขอบคุณที่สนใจ TATO Coffee
-  </p>
-
-  <a
-    class="back"
-    href="/api/content-feed"
-  >
-    ← กลับไปดู Content
-  </a>
-
-</main>
-
-</body>
-
-</html>`;
-}
-
-export async function onRequest(context) {
-
-  const {
-    request,
-    env
-  } = context;
-
-  if (!env || !env.DB) {
-
-    return json(
-      {
-        success: false,
-        error: "D1 binding DB is not available"
-      },
-      500
-    );
-
-  }
-
-  const db = env.DB;
-
-  try {
-
-    await ensureTables(db);
-
-    const url =
-      new URL(request.url);
-
-    const mode =
-      url.searchParams.get("mode");
-
-    const contentId =
-      url.searchParams.get("content_id");
-
-    const distributionId =
-      url.searchParams.get("distribution_id");
-
-    // --------------------------------------------------
-    // POST — Behavior Event
-    // --------------------------------------------------
-
-    if (request.method === "POST") {
-
-      let body = {};
-
-      try {
-
-        body =
-          await request.json();
-
-      } catch (_) {
-
-        return json(
-          {
-            success: false,
-            error: "Invalid JSON body"
-          },
-          400
-        );
-
-      }
-
-      if (body.mode !== "event") {
-
-        return json(
-          {
-            success: false,
-            error: "Unsupported POST mode"
-          },
-          400
-        );
-
-      }
-
-      const eventType =
-        String(
-          body.event_type || ""
-        ).trim();
-
-      if (!eventType) {
-
-        return json(
-          {
-            success: false,
-            error: "event_type is required"
-          },
-          400
-        );
-
-      }
-
-      const event =
-        await recordEvent(
-          db,
-          {
-            eventType,
-            contentId:
-              body.content_id || null,
-            distributionId:
-              body.distribution_id || null,
-            sessionId:
-              body.session_id || null,
-            metadata:
-              body.metadata || {},
-            customerId:
-              body.customer_id || null
-          }
-        );
-
-      return json({
-        success: true,
-        layer: "CONTENT_FEED_V1",
-        mode: "event",
-        status: "RECORDED",
-        event
-      });
-
-    }
-
-    // --------------------------------------------------
-    // GET — Feed JSON
-    // --------------------------------------------------
-
-    if (mode === "feed") {
-
-      const content =
-        await getFeed(db);
-
-      return json({
-        success: true,
-        layer: "CONTENT_FEED_V1",
-        mode: "feed",
-        count: content.length,
-        content
-      });
-
-    }
-
-    // --------------------------------------------------
-    // GET — Thank You
-    // --------------------------------------------------
-
-    if (mode === "thank_you") {
-
-      return new Response(
-        renderThankYou(),
-        {
-          status: 200,
-          headers: {
-            "Content-Type":
-              "text/html; charset=utf-8",
-            "Cache-Control":
-              "no-store"
-          }
-        }
-      );
-
-    }
-
-    // --------------------------------------------------
-    // GET — Public Content
-    // --------------------------------------------------
-
-    const content =
-      await getPublishedContent(
-        db,
-        contentId,
-        distributionId
-      );
-
-    if (!content) {
-
-      return json(
-        {
-          success: false,
-          layer: "CONTENT_FEED_V1",
-          error:
-            "Published content not found"
-        },
-        404
-      );
-
-    }
-
-    return new Response(
-      renderPage(content),
-      {
-        status: 200,
-        headers: {
-          "Content-Type":
-            "text/html; charset=utf-8",
-          "Cache-Control":
-            "no-store"
-        }
-      }
-    );
-
-  } catch (error) {
-
-    return json(
-      {
-        success: false,
-        layer: "CONTENT_FEED_V1",
-        error:
-          error?.message ||
-          String(error)
-      },
-      500
-    );
-
-  }
-}
+  var html = "";
+
+  html += "<!DOCTYPE html>";
+  html += '<html lang="th">';
+  html += "<head>";
+  html += '<meta charset="UTF-8">';
+  html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+  html += "<title>" + title + " — TATO Coffee</title>";
+
+  html += "<style>";
+
+  html += "*{box-sizing:border-box}";
+  html += "body{margin:0;background:#111;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}";
+  html += ".page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px 16px}";
+  html += ".card{width:100%;max-width:720px;background:#181818;border:1px solid #333;border-radius:20px;padding:28px;box
 ```
