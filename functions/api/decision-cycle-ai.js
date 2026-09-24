@@ -1,9 +1,12 @@
 // TATO-OS
-// DECISION CYCLE V1.1
+// Decision Cycle V1.1
 // Route: /api/decision-cycle-ai
 //
 // Purpose:
-// FEEDBACK → DECISION CYCLE → DECISION V1
+// FEEDBACK → DECISION CYCLE → DECISION V1.1
+//
+// Source of Truth:
+// Learning Layer V1
 //
 // Guardrails:
 // - Does NOT change strategy
@@ -12,6 +15,9 @@
 // - Does NOT mutate business data
 // - Human approval remains required
 // ============================================================
+
+const LAYER = "DECISION_CYCLE_V1";
+const VERSION = "1.1";
 
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -75,13 +81,6 @@ function parseJSON(value) {
 // ------------------------------------------------------------
 // Extract content_id recursively
 // ------------------------------------------------------------
-//
-// IMPORTANT:
-// Decision Cycle V1 stores content_id at:
-// $.cycle.content_id
-//
-// Therefore "cycle" MUST be included in recursive traversal.
-// ------------------------------------------------------------
 
 function extractContentId(value) {
   if (!value) return null;
@@ -131,9 +130,6 @@ function extractContentId(value) {
       "execution",
       "learning",
       "decision",
-
-      // FIX:
-      // Decision Cycle stores content_id here.
       "cycle"
     ];
 
@@ -224,20 +220,6 @@ async function getLatestFeedback(
 // ------------------------------------------------------------
 // Find latest Decision Cycle result
 // ------------------------------------------------------------
-//
-// IMPORTANT:
-// content_id is stored inside JSON:
-//
-// {
-//   "cycle": {
-//     "content_id": "..."
-//   }
-// }
-//
-// We intentionally read rows first and resolve content_id
-// in JavaScript so older records without content_id do not
-// break the lookup.
-// ------------------------------------------------------------
 
 async function getLatestCycle(
   db,
@@ -304,7 +286,17 @@ async function getLatestCycle(
 }
 
 // ------------------------------------------------------------
-// Call existing Decision Layer V1
+// Call Decision Layer V1.1
+//
+// IMPORTANT:
+// Decision Cycle does NOT calculate Measurement.
+// Decision Layer V1.1 must use Learning V1 as the
+// aggregation source of truth.
+//
+// Required contract:
+// - version = 1.1
+// - source_of_truth.type = LEARNING_LAYER_V1
+// - source_of_truth.aggregation_owner = LEARNING_LAYER_V1
 // ------------------------------------------------------------
 
 async function callDecisionLayer(
@@ -340,14 +332,83 @@ async function callDecisionLayer(
     data = null;
   }
 
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      data,
+      contract_valid: false,
+      contract_error: "DECISION_LAYER_REQUEST_FAILED"
+    };
+  }
+
+  if (!data?.success) {
+    return {
+      ok: false,
+      status: response.status,
+      data,
+      contract_valid: false,
+      contract_error: "DECISION_LAYER_UNSUCCESSFUL"
+    };
+  }
+
+  const version =
+    String(data.version || "");
+
+  if (version !== "1.1") {
+    return {
+      ok: false,
+      status: 409,
+      data,
+      contract_valid: false,
+      contract_error:
+        "DECISION_LAYER_VERSION_MISMATCH",
+      expected_version: "1.1",
+      received_version: version || null
+    };
+  }
+
+  const source =
+    data.source_of_truth || {};
+
+  const sourceType =
+    String(source.type || "");
+
+  const aggregationOwner =
+    String(
+      source.aggregation_owner || ""
+    );
+
+  if (
+    sourceType !==
+      "LEARNING_LAYER_V1" ||
+    aggregationOwner !==
+      "LEARNING_LAYER_V1"
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      data,
+      contract_valid: false,
+      contract_error:
+        "DECISION_LAYER_SOURCE_OF_TRUTH_INVALID",
+      expected_source_of_truth: {
+        type:
+          "LEARNING_LAYER_V1",
+
+        aggregation_owner:
+          "LEARNING_LAYER_V1"
+      },
+      received_source_of_truth:
+        source
+    };
+  }
+
   return {
-    ok:
-      response.ok,
-
-    status:
-      response.status,
-
-    data
+    ok: true,
+    status: response.status,
+    data,
+    contract_valid: true
   };
 }
 
@@ -412,7 +473,7 @@ async function buildCycle(
     );
 
   // ----------------------------------------------------------
-  // 3. Call Decision Layer V1
+  // 3. Re-enter Decision Layer V1.1
   // ----------------------------------------------------------
 
   const decisionResult =
@@ -447,7 +508,30 @@ async function buildCycle(
           true,
 
         decision_layer_status:
-          decisionResult.status
+          decisionResult.status,
+
+        decision_layer_contract_valid:
+          decisionResult.contract_valid,
+
+        decision_layer_contract_error:
+          decisionResult.contract_error ||
+          null,
+
+        expected_version:
+          decisionResult.expected_version ||
+          "1.1",
+
+        expected_source_of_truth: {
+          type:
+            "LEARNING_LAYER_V1",
+
+          aggregation_owner:
+            "LEARNING_LAYER_V1"
+        },
+
+        received_source_of_truth:
+          decisionResult.received_source_of_truth ||
+          null
       }
     };
   }
@@ -470,6 +554,12 @@ async function buildCycle(
 
   const learningSignal =
     feedbackData.learning_signal || {};
+
+  const decisionSourceOfTruth =
+    decision.source_of_truth || {};
+
+  const decisionMeasurement =
+    decision.measurement || {};
 
   const cycle = {
     state:
@@ -541,6 +631,75 @@ async function buildCycle(
       reason:
         decision.decision?.reason ||
         null
+    },
+
+    // --------------------------------------------------------
+    // Source of Truth
+    // --------------------------------------------------------
+
+    source_of_truth: {
+      type:
+        decisionSourceOfTruth.type ||
+        null,
+
+      learning_run_id:
+        decisionSourceOfTruth.learning_run_id ||
+        null,
+
+      learning_created_at:
+        decisionSourceOfTruth.learning_created_at ||
+        null,
+
+      attention_type:
+        decisionSourceOfTruth.attention_type ||
+        null,
+
+      aggregation_owner:
+        decisionSourceOfTruth.aggregation_owner ||
+        null
+    },
+
+    // --------------------------------------------------------
+    // Measurement Snapshot
+    //
+    // This is only the snapshot supplied by Decision V1.1.
+    // Decision Cycle does NOT aggregate measurements itself.
+    // --------------------------------------------------------
+
+    measurement: {
+      rounds:
+        n(decisionMeasurement.rounds),
+
+      attention:
+        n(decisionMeasurement.attention),
+
+      clicks:
+        n(decisionMeasurement.clicks),
+
+      product_views:
+        n(
+          decisionMeasurement.product_views
+        ),
+
+      engagements:
+        n(
+          decisionMeasurement.engagements
+        ),
+
+      customers:
+        n(
+          decisionMeasurement.customers
+        ),
+
+      orders:
+        n(
+          decisionMeasurement.orders
+        ),
+
+      revenue:
+        n(
+          decisionMeasurement.revenue
+        )
     },
 
     // --------------------------------------------------------
@@ -638,6 +797,12 @@ async function saveCycle(
 
   const inputData =
     JSON.stringify({
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
       content_id:
         result.cycle.content_id,
 
@@ -647,8 +812,17 @@ async function saveCycle(
       feedback:
         result.feedback,
 
+      learning_signal:
+        result.cycle.learning_signal,
+
       decision:
         result.decision,
+
+      source_of_truth:
+        result.cycle.source_of_truth,
+
+      measurement:
+        result.cycle.measurement,
 
       previous_cycle:
         result.cycle.previous_cycle
@@ -656,6 +830,12 @@ async function saveCycle(
 
   const outputData =
     JSON.stringify({
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
       cycle:
         result.cycle
     });
@@ -677,7 +857,7 @@ async function saveCycle(
     runId,
     null,
     "DECISION_CYCLE",
-    "TATO_OS_DECISION_CYCLE_V1",
+    "TATO_OS_DECISION_CYCLE_V1.1",
     inputData,
     outputData,
     "COMPLETED",
@@ -704,7 +884,7 @@ async function saveCycle(
     null,
     runId,
     "DECISION_CYCLE_RESULT",
-    "Decision Cycle V1",
+    "Decision Cycle V1.1",
     outputData,
     0,
     result.cycle.decision?.priority ||
@@ -747,10 +927,10 @@ export async function onRequestGet(
           false,
 
         layer:
-          "DECISION_CYCLE_V1",
+          LAYER,
 
         version:
-          "1.0",
+          VERSION,
 
         error:
           "content_id is required"
@@ -769,10 +949,10 @@ export async function onRequestGet(
           false,
 
         layer:
-          "DECISION_CYCLE_V1",
+          LAYER,
 
         version:
-          "1.0",
+          VERSION,
 
         status:
           result.status,
@@ -802,10 +982,10 @@ export async function onRequestGet(
         true,
 
       layer:
-        "DECISION_CYCLE_V1",
+        LAYER,
 
       version:
-        "1.0",
+        VERSION,
 
       mode:
         "preview",
@@ -827,10 +1007,10 @@ export async function onRequestGet(
           "LEARNING_LAYER_V1",
 
         decision:
-          "DECISION_LAYER_V1",
+          "DECISION_LAYER_V1.1",
 
         action:
-          "ACTION_LAYER_V1",
+          "ACTION_LAYER_V1.1",
 
         execution:
           "EXECUTION_LAYER_V1",
@@ -839,8 +1019,14 @@ export async function onRequestGet(
           "FEEDBACK_LOOP_V1",
 
         decision_cycle:
-          "DECISION_CYCLE_V1"
+          "DECISION_CYCLE_V1.1"
       },
+
+      source_of_truth:
+        result.cycle.source_of_truth,
+
+      measurement:
+        result.cycle.measurement,
 
       feedback: {
         insight_id:
@@ -878,6 +1064,15 @@ export async function onRequestGet(
         decision_layer_reentered:
           true,
 
+        decision_layer_version:
+          "1.1",
+
+        decision_source_of_truth_valid:
+          true,
+
+        aggregation_owner:
+          "LEARNING_LAYER_V1",
+
         previous_cycle_found:
           !!result.cycle.previous_cycle,
 
@@ -891,7 +1086,7 @@ export async function onRequestGet(
       },
 
       next_step:
-        "Decision Cycle preview ready. POST approved:true to persist the cycle."
+        "Decision Cycle V1.1 preview ready. POST approved:true to persist the cycle."
     });
 
   } catch (error) {
@@ -900,10 +1095,10 @@ export async function onRequestGet(
         false,
 
       layer:
-        "DECISION_CYCLE_V1",
+        LAYER,
 
       version:
-        "1.0",
+        VERSION,
 
       status:
         "ERROR",
@@ -937,10 +1132,10 @@ export async function onRequestPost(
           false,
 
         layer:
-          "DECISION_CYCLE_V1",
+          LAYER,
 
         version:
-          "1.0",
+          VERSION,
 
         error:
           "content_id is required"
@@ -962,10 +1157,10 @@ export async function onRequestPost(
           false,
 
         layer:
-          "DECISION_CYCLE_V1",
+          LAYER,
 
         version:
-          "1.0",
+          VERSION,
 
         status:
           "APPROVAL_REQUIRED",
@@ -987,10 +1182,10 @@ export async function onRequestPost(
           false,
 
         layer:
-          "DECISION_CYCLE_V1",
+          LAYER,
 
         version:
-          "1.0",
+          VERSION,
 
         status:
           result.status,
@@ -1022,10 +1217,10 @@ export async function onRequestPost(
         true,
 
       layer:
-        "DECISION_CYCLE_V1",
+        LAYER,
 
       version:
-        "1.0",
+        VERSION,
 
       mode:
         "execute",
@@ -1047,10 +1242,10 @@ export async function onRequestPost(
           "LEARNING_LAYER_V1",
 
         decision:
-          "DECISION_LAYER_V1",
+          "DECISION_LAYER_V1.1",
 
         action:
-          "ACTION_LAYER_V1",
+          "ACTION_LAYER_V1.1",
 
         execution:
           "EXECUTION_LAYER_V1",
@@ -1059,8 +1254,14 @@ export async function onRequestPost(
           "FEEDBACK_LOOP_V1",
 
         decision_cycle:
-          "DECISION_CYCLE_V1"
+          "DECISION_CYCLE_V1.1"
       },
+
+      source_of_truth:
+        result.cycle.source_of_truth,
+
+      measurement:
+        result.cycle.measurement,
 
       feedback:
         result.feedback,
@@ -1080,7 +1281,7 @@ export async function onRequestPost(
         result.cycle.guardrails,
 
       next_step:
-        "Decision Cycle completed. Human approval is required before any Action or Execution."
+        "Decision Cycle V1.1 completed. Human approval is required before any Action or Execution."
     });
 
   } catch (error) {
@@ -1089,10 +1290,10 @@ export async function onRequestPost(
         false,
 
       layer:
-        "DECISION_CYCLE_V1",
+        LAYER,
 
       version:
-        "1.0",
+        VERSION,
 
       status:
         "ERROR",
