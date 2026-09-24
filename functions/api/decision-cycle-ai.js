@@ -1,5 +1,5 @@
 // TATO-OS
-// DECISION CYCLE V1.0
+// DECISION CYCLE V1.1
 // Route: /api/decision-cycle-ai
 //
 // Purpose:
