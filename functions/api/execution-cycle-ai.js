@@ -2,9 +2,9 @@
 // TATO-OS
 // EXECUTION CYCLE V1.1
 //
-// Action Cycle
+// Action Cycle V1.1
 //      ↓
-// Execution Layer
+// Execution Layer V1
 //      ↓
 // Human Approval
 //      ↓
@@ -19,6 +19,9 @@
 // Learning V1
 //
 // V1.1:
+// - Requires ACTION_CYCLE_V1.1
+// - Requires DECISION_CYCLE_V1.1
+// - Never falls back to old Action Cycle V1
 // - Automatically re-enters Feedback Loop after successful execution
 // - Passes exact execution_run_id / execution_insight_id
 // - Preserves human approval boundary
@@ -29,6 +32,12 @@ const LAYER =
   "EXECUTION_CYCLE_V1";
 
 const VERSION =
+  "1.1";
+
+const REQUIRED_ACTION_CYCLE_VERSION =
+  "1.1";
+
+const REQUIRED_DECISION_CYCLE_VERSION =
   "1.1";
 
 function json(
@@ -198,10 +207,183 @@ function extractContentId(
   return null;
 }
 
+function extractVersion(
+  value,
+  depth = 0
+) {
+  if (
+    !value ||
+    depth > 12
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value === "string"
+  ) {
+    const parsed =
+      parseJSON(value);
+
+    if (
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      return extractVersion(
+        parsed,
+        depth + 1
+      );
+    }
+
+    return null;
+  }
+
+  if (
+    typeof value !== "object"
+  ) {
+    return null;
+  }
+
+  if (
+    value.version !== undefined &&
+    value.version !== null
+  ) {
+    return String(
+      value.version
+    );
+  }
+
+  const versionKeys = [
+    "input_data",
+    "output_data",
+    "content",
+    "data",
+    "payload",
+    "result",
+    "cycle",
+    "action",
+    "source_action_cycle",
+    "source_decision_cycle"
+  ];
+
+  for (
+    const key of versionKeys
+  ) {
+    if (
+      value[key] !== undefined &&
+      value[key] !== null
+    ) {
+      const found =
+        extractVersion(
+          value[key],
+          depth + 1
+        );
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractDecisionCycleVersion(
+  value,
+  depth = 0
+) {
+  if (
+    !value ||
+    depth > 12
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value === "string"
+  ) {
+    const parsed =
+      parseJSON(value);
+
+    if (
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      return extractDecisionCycleVersion(
+        parsed,
+        depth + 1
+      );
+    }
+
+    return null;
+  }
+
+  if (
+    typeof value !== "object"
+  ) {
+    return null;
+  }
+
+  if (
+    value.source_decision_cycle
+  ) {
+    const source =
+      value.source_decision_cycle;
+
+    if (
+      source.version !== undefined &&
+      source.version !== null
+    ) {
+      return String(
+        source.version
+      );
+    }
+
+    if (
+      source.cycle?.version !== undefined &&
+      source.cycle?.version !== null
+    ) {
+      return String(
+        source.cycle.version
+      );
+    }
+  }
+
+  const nestedKeys = [
+    "input_data",
+    "output_data",
+    "content",
+    "data",
+    "payload",
+    "result",
+    "cycle",
+    "action",
+    "source_action_cycle"
+  ];
+
+  for (
+    const key of nestedKeys
+  ) {
+    if (value[key]) {
+      const found =
+        extractDecisionCycleVersion(
+          value[key],
+          depth + 1
+        );
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
 async function getLatestInsight(
   db,
   insightType,
-  contentId
+  contentId,
+  validator = null
 ) {
   const result =
     await db.prepare(`
@@ -218,7 +400,7 @@ async function getLatestInsight(
       FROM ai_insights
       WHERE insight_type = ?
       ORDER BY created_at DESC
-      LIMIT 100
+      LIMIT 200
     `)
       .bind(
         insightType
@@ -244,39 +426,48 @@ async function getLatestInsight(
       );
 
     if (
-      rowContentId &&
-      String(rowContentId) ===
+      !rowContentId ||
+      String(rowContentId) !==
         String(contentId)
     ) {
-      return {
-        insight_id:
-          row.id,
-
-        run_id:
-          row.run_id,
-
-        insight_type:
-          row.insight_type,
-
-        title:
-          row.title,
-
-        content:
-          parsed,
-
-        score:
-          row.score,
-
-        priority:
-          row.priority,
-
-        status:
-          row.status,
-
-        created_at:
-          row.created_at
-      };
+      continue;
     }
+
+    if (
+      validator &&
+      !validator(parsed, row)
+    ) {
+      continue;
+    }
+
+    return {
+      insight_id:
+        row.id,
+
+      run_id:
+        row.run_id,
+
+      insight_type:
+        row.insight_type,
+
+      title:
+        row.title,
+
+      content:
+        parsed,
+
+      score:
+        row.score,
+
+      priority:
+        row.priority,
+
+      status:
+        row.status,
+
+      created_at:
+        row.created_at
+    };
   }
 
   return null;
@@ -289,7 +480,47 @@ async function getLatestActionCycle(
   return getLatestInsight(
     db,
     "ACTION_CYCLE_RESULT",
-    contentId
+    contentId,
+    (parsed) => {
+      const version =
+        extractVersion(
+          parsed
+        );
+
+      if (
+        String(version) !==
+        REQUIRED_ACTION_CYCLE_VERSION
+      ) {
+        return false;
+      }
+
+      const decisionCycleVersion =
+        extractDecisionCycleVersion(
+          parsed
+        );
+
+      if (
+        decisionCycleVersion &&
+        String(decisionCycleVersion) !==
+          REQUIRED_DECISION_CYCLE_VERSION
+      ) {
+        return false;
+      }
+
+      const actionCycle =
+        parsed.action_cycle ||
+        parsed.cycle ||
+        parsed;
+
+      const action =
+        actionCycle.action ||
+        parsed.action ||
+        null;
+
+      return (
+        action !== null
+      );
+    }
   );
 }
 
@@ -304,6 +535,48 @@ async function getLatestExecutionCycle(
   );
 }
 
+async function getContent(
+  db,
+  contentId
+) {
+  try {
+    const result =
+      await db.prepare(`
+        SELECT
+          id,
+          title,
+          status
+        FROM content_engine
+        WHERE id = ?
+        LIMIT 1
+      `)
+        .bind(
+          contentId
+        )
+        .first();
+
+    return (
+      result || {
+        id:
+          contentId,
+        title:
+          null,
+        status:
+          null
+      }
+    );
+  } catch {
+    return {
+      id:
+        contentId,
+      title:
+        null,
+      status:
+        null
+    };
+  }
+}
+
 function findActionCyclePayload(
   actionCycle
 ) {
@@ -315,23 +588,40 @@ function findActionCyclePayload(
     actionCycle.content ||
     {};
 
+  const cycle =
+    root.cycle ||
+    root.action_cycle ||
+    null;
+
+  const action =
+    root.action ||
+    cycle?.action ||
+    null;
+
+  const decision =
+    root.source_decision_cycle
+      ?.decision ||
+    cycle?.source_decision_cycle
+      ?.decision ||
+    null;
+
+  const sourceDecisionCycle =
+    root.source_decision_cycle ||
+    cycle?.source_decision_cycle ||
+    null;
+
   return {
     cycle:
-      root.cycle ||
-      null,
+      cycle,
 
     action:
-      root.action ||
-      null,
+      action,
 
     decision:
-      root.source_decision_cycle
-        ?.decision ||
-      null,
+      decision,
 
     source_decision_cycle:
-      root.source_decision_cycle ||
-      null
+      sourceDecisionCycle
   };
 }
 
@@ -604,6 +894,18 @@ async function buildPreview(
   const db =
     env.DB;
 
+  const content =
+    await getContent(
+      db,
+      contentId
+    );
+
+  // ----------------------------------------------------------
+  // IMPORTANT:
+  // Only ACTION CYCLE V1.1 is allowed.
+  // Old V1 action cycles are intentionally ignored.
+  // ----------------------------------------------------------
+
   const actionCycle =
     await getLatestActionCycle(
       db,
@@ -625,15 +927,50 @@ async function buildPreview(
         "preview",
 
       status:
-        "WAITING_FOR_ACTION_CYCLE",
+        "WAITING_FOR_ACTION_CYCLE_V1_1",
 
-      content: {
-        id:
-          contentId
+      content,
+
+      source_chain: {
+        measurement:
+          "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+        intelligence:
+          "INTELLIGENCE_LAYER_V2.1",
+
+        learning:
+          "LEARNING_LAYER_V1",
+
+        decision:
+          "DECISION_LAYER_V1.1",
+
+        action:
+          "ACTION_LAYER_V1.1",
+
+        execution:
+          "EXECUTION_LAYER_V1",
+
+        feedback:
+          "FEEDBACK_LOOP_V1.5",
+
+        decision_cycle:
+          "DECISION_CYCLE_V1.1",
+
+        action_cycle:
+          "ACTION_CYCLE_V1.1",
+
+        execution_cycle:
+          "EXECUTION_CYCLE_V1.1"
       },
 
       diagnostics: {
         action_cycle_found:
+          false,
+
+        required_action_cycle_version:
+          REQUIRED_ACTION_CYCLE_VERSION,
+
+        old_action_cycle_fallback:
           false,
 
         execution_layer_reentered:
@@ -673,7 +1010,7 @@ async function buildPreview(
       },
 
       next_step:
-        "Action Cycle result is required before Execution Cycle."
+        "ACTION_CYCLE_V1.1 is required. Old ACTION_CYCLE_V1 is intentionally rejected."
     };
   }
 
@@ -721,18 +1058,7 @@ async function buildPreview(
     status:
       "READY",
 
-    content: {
-      id:
-        contentId,
-
-      title:
-        executionPreview.content?.title ||
-        null,
-
-      status:
-        executionPreview.content?.status ||
-        null
-    },
+    content,
 
     source_chain: {
       measurement:
@@ -745,10 +1071,10 @@ async function buildPreview(
         "LEARNING_LAYER_V1",
 
       decision:
-        "DECISION_LAYER_V1",
+        "DECISION_LAYER_V1.1",
 
       action:
-        "ACTION_LAYER_V1",
+        "ACTION_LAYER_V1.1",
 
       execution:
         "EXECUTION_LAYER_V1",
@@ -757,10 +1083,10 @@ async function buildPreview(
         "FEEDBACK_LOOP_V1.5",
 
       decision_cycle:
-        "DECISION_CYCLE_V1",
+        "DECISION_CYCLE_V1.1",
 
       action_cycle:
-        "ACTION_CYCLE_V1",
+        "ACTION_CYCLE_V1.1",
 
       execution_cycle:
         "EXECUTION_CYCLE_V1.1"
@@ -776,11 +1102,20 @@ async function buildPreview(
       created_at:
         actionCycle.created_at,
 
+      version:
+        REQUIRED_ACTION_CYCLE_VERSION,
+
       cycle:
         actionPayload.cycle,
 
       action:
-        actionPayload.action
+        actionPayload.action,
+
+      decision:
+        actionPayload.decision,
+
+      source_decision_cycle:
+        actionPayload.source_decision_cycle
     },
 
     execution: {
@@ -810,6 +1145,12 @@ async function buildPreview(
 
       content_id:
         contentId,
+
+      source_action_cycle_version:
+        REQUIRED_ACTION_CYCLE_VERSION,
+
+      source_decision_cycle_version:
+        REQUIRED_DECISION_CYCLE_VERSION,
 
       action: {
         action_type:
@@ -919,6 +1260,15 @@ async function buildPreview(
       action_cycle_found:
         true,
 
+      action_cycle_version:
+        REQUIRED_ACTION_CYCLE_VERSION,
+
+      decision_cycle_version:
+        REQUIRED_DECISION_CYCLE_VERSION,
+
+      old_action_cycle_rejected:
+        true,
+
       execution_layer_reentered:
         true,
 
@@ -938,7 +1288,7 @@ async function buildPreview(
     },
 
     next_step:
-      "Execution Cycle preview ready. POST approved:true to execute through Execution Layer and re-enter Feedback Loop."
+      "Execution Cycle V1.1 preview ready. POST approved:true to execute through Execution Layer and re-enter Feedback Loop."
   };
 }
 
@@ -1293,12 +1643,6 @@ export async function onRequest(
 
     // --------------------------------------------------------
     // 5. Persist Feedback Loop
-    //
-    // Human approval is inherited from the explicit
-    // Execution Cycle approval.
-    //
-    // This is data/learning persistence only.
-    // No business action is executed here.
     // --------------------------------------------------------
 
     const feedback =
@@ -1362,6 +1706,9 @@ export async function onRequest(
         source_action_cycle:
           preview.action_cycle,
 
+        source_chain:
+          preview.source_chain,
+
         approved:
           true,
 
@@ -1396,6 +1743,9 @@ export async function onRequest(
 
         cycle:
           preview.cycle,
+
+        source_chain:
+          preview.source_chain,
 
         guardrails: {
           execution_ready:
@@ -1465,6 +1815,9 @@ export async function onRequest(
 
     const insightContent =
       JSON.stringify({
+        version:
+          VERSION,
+
         cycle: {
           ...preview.cycle,
 
@@ -1488,6 +1841,9 @@ export async function onRequest(
 
         source_action_cycle:
           preview.action_cycle,
+
+        source_chain:
+          preview.source_chain,
 
         execution:
           execution,
@@ -1699,6 +2055,15 @@ export async function onRequest(
 
       diagnostics: {
         action_cycle_found:
+          true,
+
+        action_cycle_version:
+          REQUIRED_ACTION_CYCLE_VERSION,
+
+        decision_cycle_version:
+          REQUIRED_DECISION_CYCLE_VERSION,
+
+        old_action_cycle_rejected:
           true,
 
         execution_layer_reentered:
