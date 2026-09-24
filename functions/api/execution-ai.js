@@ -11,31 +11,43 @@
 // -> Execution V1
 //
 // V1 Execution:
-// Executes FUNNEL_PATH_AUDIT only.
-// This is a READ-ONLY diagnostic action.
-// No content mutation.
+// FUNNEL_PATH_AUDIT only.
+// Read-only diagnostic execution.
+// No business mutation.
 // No customer contact.
 // No payment.
 // No strategy change.
-// No external side effects.
 
 const LAYER = "EXECUTION_LAYER_V1";
 const VERSION = "1.0";
 
-const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.2";
-const INTELLIGENCE_SOURCE = "INTELLIGENCE_LAYER_V2.1";
-const LEARNING_SOURCE = "LEARNING_LAYER_V1";
-const DECISION_SOURCE = "DECISION_LAYER_V1";
-const ACTION_SOURCE = "ACTION_LAYER_V1";
+const MEASUREMENT_SOURCE =
+  "CONTENT_MEASUREMENT_ENGINE_V2.2";
+
+const INTELLIGENCE_SOURCE =
+  "INTELLIGENCE_LAYER_V2.1";
+
+const LEARNING_SOURCE =
+  "LEARNING_LAYER_V1";
+
+const DECISION_SOURCE =
+  "DECISION_LAYER_V1";
+
+const ACTION_SOURCE =
+  "ACTION_LAYER_V1";
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
+  return new Response(
+    JSON.stringify(data, null, 2),
+    {
+      status,
+      headers: {
+        "Content-Type":
+          "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
     }
-  });
+  );
 }
 
 function num(value) {
@@ -44,48 +56,48 @@ function num(value) {
 }
 
 function normalizeEvent(row) {
-  const event = {};
-
-  for (const [key, value] of Object.entries(row || {})) {
-    event[key] = value;
-  }
-
-  return event;
+  return {
+    ...row
+  };
 }
 
 function eventType(event) {
   return String(
-    event.event_type ||
-    event.type ||
-    event.event ||
+    event.event_type ??
+    event.type ??
+    event.event ??
+    event.name ??
     ""
   ).toLowerCase();
 }
 
 function contentIdOf(event) {
   return (
-    event.content_id ||
-    event.contentId ||
-    event.content ||
+    event.content_id ??
+    event.contentId ??
+    event.content ??
+    event.contentID ??
+    event.entity_id ??
+    event.entityId ??
     null
   );
 }
 
 function sessionIdOf(event) {
   return (
-    event.session_id ||
-    event.sessionId ||
-    event.session ||
+    event.session_id ??
+    event.sessionId ??
+    event.session ??
     null
   );
 }
 
 function createdAtOf(event) {
   return (
-    event.created_at ||
-    event.createdAt ||
-    event.timestamp ||
-    event.time ||
+    event.created_at ??
+    event.createdAt ??
+    event.timestamp ??
+    event.time ??
     null
   );
 }
@@ -102,124 +114,255 @@ function isContentView(event) {
   return eventType(event) === "content_view";
 }
 
-async function getBehaviorEvents(db, contentId) {
-  /*
-   * SELECT * is intentional in V1.
-   * The diagnostic layer must tolerate the current
-   * behavior_events schema without assuming optional
-   * column names.
-   */
-
+/*
+ * IMPORTANT
+ *
+ * behavior_events does NOT assume a content_id column.
+ * We therefore read the table without a WHERE content_id
+ * clause and identify content-related rows in JavaScript.
+ */
+async function getBehaviorEvents(db) {
   const result = await db
     .prepare(`
       SELECT *
       FROM behavior_events
-      WHERE content_id = ?
-      ORDER BY created_at ASC
-      LIMIT 1000
+      ORDER BY rowid ASC
+      LIMIT 2000
     `)
-    .bind(contentId)
     .all();
 
-  return (result?.results || []).map(normalizeEvent);
+  return (result?.results || [])
+    .map(normalizeEvent);
 }
 
-function findDownstreamEvents(events, click) {
-  const clickTimeRaw = createdAtOf(click);
+function belongsToContent(event, contentId) {
+  const eventContentId =
+    contentIdOf(event);
+
+  if (
+    eventContentId !== null &&
+    eventContentId !== undefined &&
+    String(eventContentId) ===
+      String(contentId)
+  ) {
+    return true;
+  }
+
+  /*
+   * Some event schemas may store the content ID
+   * inside a JSON metadata/data/payload field.
+   */
+  const jsonFields = [
+    event.metadata,
+    event.meta,
+    event.data,
+    event.payload,
+    event.properties
+  ];
+
+  for (const field of jsonFields) {
+    if (!field) continue;
+
+    let parsed = field;
+
+    if (typeof field === "string") {
+      try {
+        parsed = JSON.parse(field);
+      } catch {
+        continue;
+      }
+    }
+
+    if (
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      const nestedId =
+        parsed.content_id ??
+        parsed.contentId ??
+        parsed.contentID;
+
+      if (
+        nestedId !== null &&
+        nestedId !== undefined &&
+        String(nestedId) ===
+          String(contentId)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function filterContentEvents(
+  events,
+  contentId
+) {
+  return events.filter((event) =>
+    belongsToContent(
+      event,
+      contentId
+    )
+  );
+}
+
+function findDownstreamEvents(
+  events,
+  click
+) {
+  const clickTimeRaw =
+    createdAtOf(click);
+
   const clickTime = clickTimeRaw
     ? new Date(clickTimeRaw).getTime()
     : NaN;
 
-  const clickSession = sessionIdOf(click);
+  const clickSession =
+    sessionIdOf(click);
 
-  return events.filter((event) => {
-    if (!isProductView(event)) {
+  return events.filter(
+    (event) => {
+      if (!isProductView(event)) {
+        return false;
+      }
+
+      const productSession =
+        sessionIdOf(event);
+
+      /*
+       * Strongest attribution:
+       * same session.
+       */
+      if (
+        clickSession &&
+        productSession &&
+        String(clickSession) ===
+          String(productSession)
+      ) {
+        return true;
+      }
+
+      /*
+       * Secondary attribution:
+       * Product View occurs after Click
+       * within 24 hours.
+       */
+      const productTimeRaw =
+        createdAtOf(event);
+
+      const productTime =
+        productTimeRaw
+          ? new Date(
+              productTimeRaw
+            ).getTime()
+          : NaN;
+
+      if (
+        Number.isFinite(
+          clickTime
+        ) &&
+        Number.isFinite(
+          productTime
+        ) &&
+        productTime >= clickTime &&
+        productTime <=
+          clickTime +
+            24 * 60 * 60 * 1000
+      ) {
+        return true;
+      }
+
       return false;
     }
-
-    const productSession = sessionIdOf(event);
-
-    if (
-      clickSession &&
-      productSession &&
-      clickSession === productSession
-    ) {
-      return true;
-    }
-
-    const productTimeRaw = createdAtOf(event);
-    const productTime = productTimeRaw
-      ? new Date(productTimeRaw).getTime()
-      : NaN;
-
-    if (
-      Number.isFinite(clickTime) &&
-      Number.isFinite(productTime) &&
-      productTime >= clickTime &&
-      productTime <= clickTime + 24 * 60 * 60 * 1000
-    ) {
-      return true;
-    }
-
-    return false;
-  });
+  );
 }
 
-function auditClickToProduct(events) {
-  const clicks = events.filter(isClick);
-  const productViews = events.filter(isProductView);
+function auditClickToProduct(
+  events
+) {
+  const clicks =
+    events.filter(isClick);
+
+  const productViews =
+    events.filter(isProductView);
 
   const matched = [];
 
   for (const click of clicks) {
-    const downstream = findDownstreamEvents(
-      events,
-      click
-    );
+    const downstream =
+      findDownstreamEvents(
+        events,
+        click
+      );
 
-    if (downstream.length > 0) {
+    if (
+      downstream.length > 0
+    ) {
       matched.push({
         click: {
-          event_type: eventType(click),
-          session_id: sessionIdOf(click),
-          created_at: createdAtOf(click)
+          event_type:
+            eventType(click),
+
+          session_id:
+            sessionIdOf(click),
+
+          created_at:
+            createdAtOf(click)
         },
-        product_views: downstream.map((event) => ({
-          event_type: eventType(event),
-          session_id: sessionIdOf(event),
-          created_at: createdAtOf(event),
-          product_id:
-            event.product_id ||
-            event.productId ||
-            null
-        }))
+
+        product_views:
+          downstream.map(
+            (event) => ({
+              event_type:
+                eventType(event),
+
+              session_id:
+                sessionIdOf(event),
+
+              created_at:
+                createdAtOf(event),
+
+              product_id:
+                event.product_id ??
+                event.productId ??
+                null
+            })
+          )
       });
     }
   }
 
   return {
-    content_events: events.length,
+    content_events:
+      events.length,
 
-    content_views: events.filter(
-      isContentView
-    ).length,
+    content_views:
+      events.filter(
+        isContentView
+      ).length,
 
-    clicks: clicks.length,
+    clicks:
+      clicks.length,
 
-    product_views: productViews.length,
+    product_views:
+      productViews.length,
 
     matched_click_to_product_view:
       matched.length,
 
     unmatched_clicks:
       Math.max(
-        clicks.length - matched.length,
+        clicks.length -
+          matched.length,
         0
       ),
 
     conversion:
       clicks.length > 0
-        ? matched.length / clicks.length
+        ? matched.length /
+          clicks.length
         : 0,
 
     matched,
@@ -234,7 +377,6 @@ function auditClickToProduct(events) {
 }
 
 function buildExecutionResult(
-  contentId,
   audit
 ) {
   if (
@@ -302,21 +444,37 @@ async function saveExecution(
   audit,
   executionResult
 ) {
-  const runId = crypto.randomUUID();
-  const insightId = crypto.randomUUID();
+  const runId =
+    crypto.randomUUID();
+
+  const insightId =
+    crypto.randomUUID();
+
   const createdAt =
     new Date().toISOString();
 
   const inputData = {
-    content_id: contentId,
+    content_id:
+      contentId,
 
     source_chain: {
-      measurement: MEASUREMENT_SOURCE,
-      intelligence: INTELLIGENCE_SOURCE,
-      learning: LEARNING_SOURCE,
-      decision: DECISION_SOURCE,
-      action: ACTION_SOURCE,
-      execution: LAYER
+      measurement:
+        MEASUREMENT_SOURCE,
+
+      intelligence:
+        INTELLIGENCE_SOURCE,
+
+      learning:
+        LEARNING_SOURCE,
+
+      decision:
+        DECISION_SOURCE,
+
+      action:
+        ACTION_SOURCE,
+
+      execution:
+        LAYER
     },
 
     execution_type:
@@ -327,17 +485,34 @@ async function saveExecution(
 
   const outputData = {
     audit,
-    execution: executionResult,
+
+    execution:
+      executionResult,
 
     guardrails: {
-      automatic_execution: false,
-      action_executed: true,
-      business_data_mutation: false,
-      content_mutation: false,
-      customer_contact: false,
-      payment_action: false,
-      strategy_change: false,
-      winner_declared: false
+      automatic_execution:
+        false,
+
+      action_executed:
+        true,
+
+      business_data_mutation:
+        false,
+
+      content_mutation:
+        false,
+
+      customer_contact:
+        false,
+
+      payment_action:
+        false,
+
+      strategy_change:
+        false,
+
+      winner_declared:
+        false
     }
   };
 
@@ -361,8 +536,12 @@ async function saveExecution(
       null,
       "EXECUTION_LAYER_V1",
       "TATO-EXECUTION-ENGINE-V1",
-      JSON.stringify(inputData),
-      JSON.stringify(outputData),
+      JSON.stringify(
+        inputData
+      ),
+      JSON.stringify(
+        outputData
+      ),
       "COMPLETED",
       0,
       createdAt
@@ -388,9 +567,12 @@ async function saveExecution(
     .bind(
       insightId,
       null,
+      runId,
       "EXECUTION_RESULT",
       executionResult.result_type,
-      JSON.stringify(outputData),
+      JSON.stringify(
+        outputData
+      ),
       1,
       "HIGH",
       "COMPLETED",
@@ -399,9 +581,14 @@ async function saveExecution(
     .run();
 
   return {
-    run_id: runId,
-    insight_id: insightId,
-    saved_at: createdAt
+    run_id:
+      runId,
+
+    insight_id:
+      insightId,
+
+    saved_at:
+      createdAt
   };
 }
 
@@ -419,16 +606,23 @@ async function analyze(
   }
 
   const url =
-    new URL(request.url);
+    new URL(
+      request.url
+    );
 
   let body = {};
 
-  if (request.method === "POST") {
+  if (
+    request.method ===
+    "POST"
+  ) {
     body =
       await request
         .clone()
         .json()
-        .catch(() => ({}));
+        .catch(
+          () => ({})
+        );
   }
 
   const contentId =
@@ -443,9 +637,24 @@ async function analyze(
     );
   }
 
-  const events =
+  /*
+   * Read the whole behavior_events table
+   * because the schema does not guarantee
+   * a content_id SQL column.
+   */
+  const allEvents =
     await getBehaviorEvents(
-      db,
+      db
+    );
+
+  /*
+   * Filter content events in application
+   * logic using all supported content-id
+   * representations.
+   */
+  const events =
+    filterContentEvents(
+      allEvents,
       contentId
     );
 
@@ -456,13 +665,14 @@ async function analyze(
 
   const executionResult =
     buildExecutionResult(
-      contentId,
       audit
     );
 
   let persistence = null;
 
-  if (mode === "execute") {
+  if (
+    mode === "execute"
+  ) {
     persistence =
       await saveExecution(
         db,
@@ -475,9 +685,11 @@ async function analyze(
   return {
     success: true,
 
-    layer: LAYER,
+    layer:
+      LAYER,
 
-    version: VERSION,
+    version:
+      VERSION,
 
     mode,
 
@@ -487,28 +699,36 @@ async function analyze(
         : "PREVIEW",
 
     content: {
-      id: contentId
+      id:
+        contentId
     },
 
     source_chain: {
       measurement:
         MEASUREMENT_SOURCE,
+
       intelligence:
         INTELLIGENCE_SOURCE,
+
       learning:
         LEARNING_SOURCE,
+
       decision:
         DECISION_SOURCE,
+
       action:
         ACTION_SOURCE,
+
       execution:
         LAYER
     },
 
     execution: {
-      type: "FUNNEL_PATH_AUDIT",
+      type:
+        "FUNNEL_PATH_AUDIT",
 
-      read_only: true,
+      read_only:
+        true,
 
       audit,
 
@@ -527,23 +747,41 @@ async function analyze(
             }
     },
 
+    diagnostics: {
+      behavior_events_scanned:
+        allEvents.length,
+
+      content_events_matched:
+        events.length,
+
+      content_id_filter:
+        contentId
+    },
+
     guardrails: {
-      automatic_execution: false,
+      automatic_execution:
+        false,
 
       action_executed:
         mode === "execute",
 
-      business_data_mutation: false,
+      business_data_mutation:
+        false,
 
-      content_mutation: false,
+      content_mutation:
+        false,
 
-      customer_contact: false,
+      customer_contact:
+        false,
 
-      payment_action: false,
+      payment_action:
+        false,
 
-      strategy_change: false,
+      strategy_change:
+        false,
 
-      winner_declared: false
+      winner_declared:
+        false
     },
 
     persistence,
@@ -551,7 +789,7 @@ async function analyze(
     next_step:
       mode === "execute"
         ? "Execution completed. Feed execution result back into Measurement and Learning."
-        : "Execution preview ready. POST mode=execute to run the read-only funnel audit."
+        : "Execution preview ready. POST approved:true to execute the read-only funnel audit."
   };
 }
 
@@ -572,11 +810,18 @@ export async function onRequestGet(
     if (!contentId) {
       return json(
         {
-          success: false,
-          layer: LAYER,
-          version: VERSION,
+          success:
+            false,
+
+          layer:
+            LAYER,
+
+          version:
+            VERSION,
+
           error:
             "content_id is required",
+
           example:
             "/api/execution-ai?content_id=YOUR_CONTENT_ID"
         },
@@ -591,14 +836,22 @@ export async function onRequestGet(
         "preview"
       );
 
-    return json(result);
+    return json(
+      result
+    );
 
   } catch (error) {
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
         error:
           error?.message ||
           String(error)
@@ -616,20 +869,26 @@ export async function onRequestPost(
       await context.request
         .clone()
         .json()
-        .catch(() => ({}));
+        .catch(
+          () => ({})
+        );
 
     /*
-     * Explicit approval is required.
-     * This prevents accidental execution.
+     * Explicit human approval is mandatory.
      */
-    if (body?.approved !== true) {
+    if (
+      body?.approved !== true
+    ) {
       return json(
         {
-          success: false,
+          success:
+            false,
 
-          layer: LAYER,
+          layer:
+            LAYER,
 
-          version: VERSION,
+          version:
+            VERSION,
 
           status:
             "APPROVAL_REQUIRED",
@@ -638,9 +897,14 @@ export async function onRequestPost(
             "approved:true is required before execution",
 
           guardrails: {
-            automatic_execution: false,
-            action_executed: false,
-            human_approval_required: true
+            automatic_execution:
+              false,
+
+            action_executed:
+              false,
+
+            human_approval_required:
+              true
           }
         },
         403
@@ -654,14 +918,22 @@ export async function onRequestPost(
         "execute"
       );
 
-    return json(result);
+    return json(
+      result
+    );
 
   } catch (error) {
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
         error:
           error?.message ||
           String(error)
