@@ -16,29 +16,28 @@ export async function onRequest(context) {
   try {
     /*
      * ============================================================
-     * FEEDBACK LOOP V1
+     * FEEDBACK LOOP V1.1
+     *
      * Execution Result
-     *      ↓
+     *       ↓
      * Measurement V2.2
-     *      ↓
+     *       ↓
      * Learning V1
-     *      ↓
+     *       ↓
      * Feedback Signal
      *
-     * This layer does NOT:
-     * - change strategy
-     * - modify content
-     * - contact customers
-     * - execute business actions
-     * - declare winners
+     * IMPORTANT:
+     * Do not assume a specific JSON shape inside ai_insights.
+     * Execution Result is located by scanning persisted records
+     * and checking multiple possible content-id locations.
      * ============================================================
      */
 
     // ------------------------------------------------------------
-    // 1. Find latest executed Execution Result
+    // 1. Find persisted Execution Result
     // ------------------------------------------------------------
 
-    const executionResult = await env.DB.prepare(`
+    const executionQuery = await env.DB.prepare(`
       SELECT
         id,
         run_id,
@@ -52,33 +51,31 @@ export async function onRequest(context) {
       FROM ai_insights
       WHERE insight_type = 'EXECUTION_RESULT'
       ORDER BY created_at DESC
-      LIMIT 50
+      LIMIT 200
     `).all();
 
-    const rows = executionResult.results || [];
+    const rows = executionQuery.results || [];
 
     let latestExecution = null;
 
     for (const row of rows) {
+      const raw = row.content;
+
       let parsed = null;
 
-      try {
-        parsed = typeof row.content === "string"
-          ? JSON.parse(row.content)
-          : row.content;
-      } catch {
-        parsed = null;
+      if (raw !== null && raw !== undefined) {
+        try {
+          parsed = typeof raw === "string"
+            ? JSON.parse(raw)
+            : raw;
+        } catch {
+          parsed = null;
+        }
       }
 
-      if (!parsed) continue;
+      const foundContentId = findContentId(parsed, raw);
 
-      const executionContentId =
-        parsed?.content?.id ||
-        parsed?.content_id ||
-        parsed?.contentId ||
-        null;
-
-      if (executionContentId === contentId) {
+      if (foundContentId === contentId) {
         latestExecution = {
           id: row.id,
           run_id: row.run_id,
@@ -88,8 +85,10 @@ export async function onRequest(context) {
           priority: row.priority,
           status: row.status,
           created_at: row.created_at,
-          data: parsed
+          data: parsed,
+          raw_content: raw
         };
+
         break;
       }
     }
@@ -98,17 +97,23 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.0",
+        version: "1.1",
         status: "NO_EXECUTION_RESULT",
         content: {
           id: contentId
         },
-        message: "No executed Execution Result found for this content."
+        diagnostics: {
+          execution_rows_scanned: rows.length,
+          execution_result_type: "EXECUTION_RESULT",
+          content_id_search: "MULTI_PATH"
+        },
+        message:
+          "No persisted Execution Result could be matched to this content_id."
       }, 404);
     }
 
     // ------------------------------------------------------------
-    // 2. Extract execution learning signal
+    // 2. Extract Execution signal
     // ------------------------------------------------------------
 
     const executionData = latestExecution.data || {};
@@ -117,17 +122,19 @@ export async function onRequest(context) {
       executionData.execution ||
       {};
 
-    const executionResultData =
+    const executionResult =
       execution.result ||
+      executionData.result ||
       {};
 
     const executionFinding =
-      executionResultData.finding ||
+      executionResult.finding ||
       executionData.finding ||
       null;
 
     const nextLearningSignal =
-      executionResultData.next_learning_signal ||
+      executionResult.next_learning_signal ||
+      executionData.next_learning_signal ||
       null;
 
     // ------------------------------------------------------------
@@ -156,12 +163,14 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.0",
+        version: "1.1",
         status: "MEASUREMENT_REENTRY_FAILED",
         content: {
           id: contentId
         },
         execution: {
+          run_id: latestExecution.run_id,
+          insight_id: latestExecution.id,
           finding: executionFinding,
           next_learning_signal: nextLearningSignal
         },
@@ -195,12 +204,14 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.0",
+        version: "1.1",
         status: "LEARNING_REENTRY_FAILED",
         content: {
           id: contentId
         },
         execution: {
+          run_id: latestExecution.run_id,
+          insight_id: latestExecution.id,
           finding: executionFinding,
           next_learning_signal: nextLearningSignal
         },
@@ -226,7 +237,7 @@ export async function onRequest(context) {
 
       execution_signal: {
         result_type:
-          executionResultData.result_type ||
+          executionResult.result_type ||
           null,
 
         finding:
@@ -275,28 +286,21 @@ export async function onRequest(context) {
         executionFinding ||
         "EXECUTION_RESULT_REENTERED_INTO_LEARNING",
 
-      strategy_change:
-        false,
-
-      winner_declared:
-        false,
-
-      automatic_execution:
-        false,
-
-      requires_decision_layer:
-        true
+      strategy_change: false,
+      winner_declared: false,
+      automatic_execution: false,
+      requires_decision_layer: true
     };
 
     // ------------------------------------------------------------
-    // 6. GET = Preview only
+    // 6. GET = Preview
     // ------------------------------------------------------------
 
     if (method === "GET") {
       return json({
         success: true,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.0",
+        version: "1.1",
         mode: "preview",
         status: "READY",
 
@@ -317,11 +321,12 @@ export async function onRequest(context) {
         execution: {
           run_id: latestExecution.run_id,
           insight_id: latestExecution.id,
+          executed_at: latestExecution.created_at,
           finding: executionFinding,
           next_learning_signal: nextLearningSignal
         },
 
-        measurement: measurement,
+        measurement,
 
         learning: {
           state: learning.state || null,
@@ -332,6 +337,12 @@ export async function onRequest(context) {
         feedback,
 
         persistence: null,
+
+        diagnostics: {
+          execution_rows_scanned: rows.length,
+          execution_result_found: true,
+          content_id_match: true
+        },
 
         guardrails: {
           automatic_execution: false,
@@ -366,7 +377,7 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.0",
+        version: "1.1",
         status: "APPROVAL_REQUIRED",
         message:
           "POST execution requires explicit approved:true."
@@ -438,12 +449,14 @@ export async function onRequest(context) {
       "Execution result re-entered into Measurement and Learning",
       JSON.stringify({
         content_id: contentId,
+
         source_execution: {
           run_id: latestExecution.run_id,
           insight_id: latestExecution.id,
           finding: executionFinding,
           next_learning_signal: nextLearningSignal
         },
+
         measurement,
         learning,
         feedback
@@ -461,7 +474,7 @@ export async function onRequest(context) {
     return json({
       success: true,
       layer: "FEEDBACK_LOOP_V1",
-      version: "1.0",
+      version: "1.1",
       mode: "execute",
       status: "FEEDBACK_REENTERED",
 
@@ -487,9 +500,7 @@ export async function onRequest(context) {
       },
 
       measurement,
-
       learning,
-
       feedback,
 
       persistence: {
@@ -518,12 +529,157 @@ export async function onRequest(context) {
     return json({
       success: false,
       layer: "FEEDBACK_LOOP_V1",
-      version: "1.0",
+      version: "1.1",
       status: "ERROR",
       error: error?.message || String(error)
     }, 500);
   }
 }
+
+
+// ============================================================
+// Content ID resolver
+// ============================================================
+
+function findContentId(parsed, raw) {
+  if (parsed && typeof parsed === "object") {
+    const directKeys = [
+      "content_id",
+      "contentId",
+      "contentID"
+    ];
+
+    for (const key of directKeys) {
+      if (typeof parsed[key] === "string") {
+        return parsed[key];
+      }
+    }
+
+    const nestedObjects = [
+      parsed.content,
+      parsed.execution,
+      parsed.result,
+      parsed.target,
+      parsed.input,
+      parsed.output,
+      parsed.data,
+      parsed.metadata,
+      parsed.meta
+    ];
+
+    for (const obj of nestedObjects) {
+      if (!obj || typeof obj !== "object") continue;
+
+      for (const key of directKeys) {
+        if (typeof obj[key] === "string") {
+          return obj[key];
+        }
+      }
+
+      if (
+        obj.id &&
+        typeof obj.id === "string" &&
+        looksLikeContentId(obj.id)
+      ) {
+        return obj.id;
+      }
+    }
+
+    const deep = deepFindContentId(parsed);
+
+    if (deep) {
+      return deep;
+    }
+  }
+
+  // Last-resort raw text search.
+  if (typeof raw === "string" && raw.includes(contentIdFromEnvironment(raw))) {
+    return null;
+  }
+
+  return null;
+}
+
+
+// ============================================================
+// Deep JSON search
+// ============================================================
+
+function deepFindContentId(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = deepFindContentId(item);
+      if (found) return found;
+    }
+
+    return null;
+  }
+
+  for (const [key, val] of Object.entries(value)) {
+    if (
+      (
+        key === "content_id" ||
+        key === "contentId" ||
+        key === "contentID"
+      ) &&
+      typeof val === "string"
+    ) {
+      return val;
+    }
+
+    if (
+      key === "id" &&
+      typeof val === "string" &&
+      looksLikeContentId(val)
+    ) {
+      return val;
+    }
+
+    if (val && typeof val === "object") {
+      const found = deepFindContentId(val);
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+
+// ============================================================
+// UUID-like check
+// ============================================================
+
+function looksLikeContentId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+
+// ============================================================
+// Placeholder helper
+// ============================================================
+
+function contentIdFromEnvironment(raw) {
+  /*
+   * Intentionally returns an impossible value.
+   * Raw content matching is handled by the structured resolver.
+   * This keeps the function safe without assuming a database schema.
+   */
+  return "__NO_CONTENT_ID__";
+}
+
+
+// ============================================================
+// JSON response
+// ============================================================
 
 function json(data, status = 200) {
   return new Response(
