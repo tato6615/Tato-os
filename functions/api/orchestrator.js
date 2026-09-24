@@ -1,7 +1,9 @@
 // ============================================================
 // TATO-OS
-// ORCHESTRATOR V1.0
-// Measurement → Learning → Decision → Action → Execution Preview
+// ORCHESTRATOR V1.1
+//
+// Measurement → Learning → Decision Cycle V1.1
+// → Action Cycle V1.1 → Execution Cycle V1.1
 //
 // Purpose:
 // - Run the existing TATO OS layers in the correct order.
@@ -13,16 +15,21 @@
 // Execution policy:
 // 1. Measurement = execute
 // 2. Learning = execute
-// 3. Decision Cycle = preview
-// 4. Action Cycle = preview
-// 5. Execution Cycle = preview
+// 3. Decision Cycle V1.1 = preview
+// 4. Action Cycle V1.1 = preview
+// 5. Execution Cycle V1.1 = preview
 // 6. Stop at human approval boundary.
 //
-// This is the safe autonomous analysis loop.
+// Version policy:
+// - Decision Cycle must be V1.1
+// - Action Cycle must be V1.1
+// - Execution Cycle must be V1.1
+// - Old V1.0 cycle results are rejected.
+//
 // ============================================================
 
 const LAYER = "TATO_OS_ORCHESTRATOR";
-const VERSION = "1.0";
+const VERSION = "1.1";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -127,17 +134,14 @@ async function callGET(request, path, params = {}) {
 
   const text = await response.text();
 
-  const data =
-    parseJSON(
-      text,
-      {
-        success: false,
-        error:
-          "Invalid JSON response",
-        http_status:
-          response.status
-      }
-    );
+  const data = parseJSON(
+    text,
+    {
+      success: false,
+      error: "Invalid JSON response",
+      http_status: response.status
+    }
+  );
 
   return {
     ok: response.ok,
@@ -155,49 +159,122 @@ async function callPOST(
   path,
   body
 ) {
-  const url =
-    new URL(
-      path,
-      request.url
-    );
+  const url = new URL(
+    path,
+    request.url
+  );
 
-  const response =
-    await fetch(
-      url.toString(),
-      {
-        method: "POST",
-        headers: {
-          "content-type":
-            "application/json",
-          accept:
-            "application/json"
-        },
-        body:
-          JSON.stringify(body)
-      }
-    );
+  const response = await fetch(
+    url.toString(),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json"
+      },
+      body: JSON.stringify(body)
+    }
+  );
 
-  const text =
-    await response.text();
+  const text = await response.text();
 
-  const data =
-    parseJSON(
-      text,
-      {
-        success: false,
-        error:
-          "Invalid JSON response",
-        http_status:
-          response.status
-      }
-    );
+  const data = parseJSON(
+    text,
+    {
+      success: false,
+      error: "Invalid JSON response",
+      http_status: response.status
+    }
+  );
 
   return {
-    ok:
-      response.ok,
-    status:
-      response.status,
+    ok: response.ok,
+    status: response.status,
     data
+  };
+}
+
+// ------------------------------------------------------------
+// Extract version safely
+// ------------------------------------------------------------
+
+function extractVersion(data) {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  return (
+    data.version ||
+    data.cycle?.version ||
+    data.action_cycle?.version ||
+    data.execution_cycle?.version ||
+    data.result?.version ||
+    null
+  );
+}
+
+// ------------------------------------------------------------
+// Validate exact layer version
+// ------------------------------------------------------------
+
+function validateLayerVersion(
+  result,
+  expectedLayer,
+  expectedVersion
+) {
+  const data = result?.data;
+
+  if (!data || data.success === false) {
+    return {
+      valid: false,
+      reason: "LAYER_FAILED",
+      actual_layer:
+        data?.layer || null,
+      actual_version:
+        extractVersion(data)
+    };
+  }
+
+  const actualLayer =
+    data.layer || null;
+
+  const actualVersion =
+    extractVersion(data);
+
+  if (
+    actualLayer !== expectedLayer
+  ) {
+    return {
+      valid: false,
+      reason: "INVALID_LAYER",
+      actual_layer:
+        actualLayer,
+      actual_version:
+        actualVersion
+    };
+  }
+
+  if (
+    String(actualVersion) !==
+    String(expectedVersion)
+  ) {
+    return {
+      valid: false,
+      reason: "OLD_OR_INVALID_VERSION",
+      actual_layer:
+        actualLayer,
+      actual_version:
+        actualVersion
+    };
+  }
+
+  return {
+    valid: true,
+    reason: null,
+    actual_layer:
+      actualLayer,
+    actual_version:
+      actualVersion
   };
 }
 
@@ -205,7 +282,7 @@ async function callPOST(
 // Measurement
 //
 // Existing Measurement GET performs a real measurement.
-// We intentionally reuse it instead of duplicating logic.
+// Reuse existing logic.
 // ------------------------------------------------------------
 
 async function runMeasurement(
@@ -225,9 +302,7 @@ async function runMeasurement(
 // ------------------------------------------------------------
 // Learning
 //
-// Learning POST execute persists Learning into
-// ai_runs + ai_insights.
-// It does NOT execute business action.
+// Learning POST execute persists Learning.
 // ------------------------------------------------------------
 
 async function runLearning(
@@ -246,10 +321,9 @@ async function runLearning(
 }
 
 // ------------------------------------------------------------
-// Decision Cycle
+// Decision Cycle V1.1
 //
 // Preview only.
-// Decision layer remains human-controlled.
 // ------------------------------------------------------------
 
 async function runDecisionCycle(
@@ -267,10 +341,9 @@ async function runDecisionCycle(
 }
 
 // ------------------------------------------------------------
-// Action Cycle
+// Action Cycle V1.1
 //
 // Preview only.
-// Does NOT execute the action.
 // ------------------------------------------------------------
 
 async function runActionCycle(
@@ -288,10 +361,10 @@ async function runActionCycle(
 }
 
 // ------------------------------------------------------------
-// Execution Cycle
+// Execution Cycle V1.1
 //
 // Preview only.
-// This is the hard approval boundary.
+// Human approval remains mandatory.
 // ------------------------------------------------------------
 
 async function runExecutionCycle(
@@ -346,13 +419,9 @@ async function saveOrchestratorRun(
     .bind(
       runId,
       "ORCHESTRATOR",
-      "TATO_OS_ORCHESTRATOR_V1",
-      JSON.stringify(
-        inputData
-      ),
-      JSON.stringify(
-        outputData
-      ),
+      "TATO_OS_ORCHESTRATOR_V1.1",
+      JSON.stringify(inputData),
+      JSON.stringify(outputData),
       status,
       0,
       now
@@ -378,10 +447,8 @@ async function saveOrchestratorRun(
       insightId,
       runId,
       "ORCHESTRATOR_RESULT",
-      "TATO OS Orchestrator V1",
-      JSON.stringify(
-        outputData
-      ),
+      "TATO OS Orchestrator V1.1",
+      JSON.stringify(outputData),
       1,
       priority,
       status,
@@ -443,7 +510,7 @@ async function runOrchestrator(
     new Date().toISOString();
 
   // ----------------------------------------------------------
-  // 1. MEASUREMENT
+  // 1. MEASUREMENT V2.2
   // ----------------------------------------------------------
 
   const measurement =
@@ -499,7 +566,7 @@ async function runOrchestrator(
   }
 
   // ----------------------------------------------------------
-  // 2. LEARNING
+  // 2. LEARNING V1
   // ----------------------------------------------------------
 
   const learning =
@@ -558,7 +625,7 @@ async function runOrchestrator(
   }
 
   // ----------------------------------------------------------
-  // 3. DECISION CYCLE PREVIEW
+  // 3. DECISION CYCLE V1.1 PREVIEW
   // ----------------------------------------------------------
 
   const decision =
@@ -567,8 +634,76 @@ async function runOrchestrator(
       targetContentId
     );
 
+  const decisionValidation =
+    validateLayerVersion(
+      decision,
+      "DECISION_CYCLE_V1",
+      "1.1"
+    );
+
+  if (
+    !decisionValidation.valid
+  ) {
+    const result = {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      status:
+        "DECISION_CYCLE_VERSION_INVALID",
+
+      content: {
+        id:
+          targetContentId,
+        title:
+          content.title || "",
+        status:
+          content.status || ""
+      },
+
+      failed_layer:
+        "DECISION_CYCLE",
+
+      expected: {
+        layer:
+          "DECISION_CYCLE_V1",
+        version:
+          "1.1"
+      },
+
+      actual:
+        decisionValidation,
+
+      measurement:
+        measurement.data,
+
+      learning:
+        learning.data,
+
+      decision:
+        decision.data
+    };
+
+    const persistence =
+      await saveOrchestratorRun(
+        env.DB,
+        targetContentId,
+        {
+          content_id:
+            targetContentId
+        },
+        result,
+        "FAILED",
+        "HIGH"
+      );
+
+    return {
+      ...result,
+      persistence
+    };
+  }
+
   // ----------------------------------------------------------
-  // 4. ACTION CYCLE PREVIEW
+  // 4. ACTION CYCLE V1.1 PREVIEW
   // ----------------------------------------------------------
 
   const action =
@@ -577,8 +712,79 @@ async function runOrchestrator(
       targetContentId
     );
 
+  const actionValidation =
+    validateLayerVersion(
+      action,
+      "ACTION_CYCLE_V1",
+      "1.1"
+    );
+
+  if (
+    !actionValidation.valid
+  ) {
+    const result = {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      status:
+        "ACTION_CYCLE_VERSION_INVALID",
+
+      content: {
+        id:
+          targetContentId,
+        title:
+          content.title || "",
+        status:
+          content.status || ""
+      },
+
+      failed_layer:
+        "ACTION_CYCLE",
+
+      expected: {
+        layer:
+          "ACTION_CYCLE_V1",
+        version:
+          "1.1"
+      },
+
+      actual:
+        actionValidation,
+
+      measurement:
+        measurement.data,
+
+      learning:
+        learning.data,
+
+      decision:
+        decision.data,
+
+      action:
+        action.data
+    };
+
+    const persistence =
+      await saveOrchestratorRun(
+        env.DB,
+        targetContentId,
+        {
+          content_id:
+            targetContentId
+        },
+        result,
+        "FAILED",
+        "HIGH"
+      );
+
+    return {
+      ...result,
+      persistence
+    };
+  }
+
   // ----------------------------------------------------------
-  // 5. EXECUTION CYCLE PREVIEW
+  // 5. EXECUTION CYCLE V1.1 PREVIEW
   // ----------------------------------------------------------
 
   const execution =
@@ -586,6 +792,84 @@ async function runOrchestrator(
       request,
       targetContentId
     );
+
+  const executionValidation =
+    validateLayerVersion(
+      execution,
+      "EXECUTION_CYCLE_V1",
+      "1.1"
+    );
+
+  if (
+    !executionValidation.valid
+  ) {
+    const result = {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      status:
+        "EXECUTION_CYCLE_VERSION_INVALID",
+
+      content: {
+        id:
+          targetContentId,
+        title:
+          content.title || "",
+        status:
+          content.status || ""
+      },
+
+      failed_layer:
+        "EXECUTION_CYCLE",
+
+      expected: {
+        layer:
+          "EXECUTION_CYCLE_V1",
+        version:
+          "1.1"
+      },
+
+      actual:
+        executionValidation,
+
+      measurement:
+        measurement.data,
+
+      learning:
+        learning.data,
+
+      decision:
+        decision.data,
+
+      action:
+        action.data,
+
+      execution:
+        execution.data
+    };
+
+    const persistence =
+      await saveOrchestratorRun(
+        env.DB,
+        targetContentId,
+        {
+          content_id:
+            targetContentId
+        },
+        result,
+        "FAILED",
+        "HIGH"
+      );
+
+    return {
+      ...result,
+      persistence
+    };
+  }
+
+  // ----------------------------------------------------------
+  // Determine orchestrator state
+  // ----------------------------------------------------------
 
   const executionStatus =
     execution.data?.status ||
@@ -619,6 +903,8 @@ async function runOrchestrator(
   }
 
   if (
+    decisionStatus ===
+      "WAITING_FOR_FEEDBACK" ||
     decision.data?.success === false
   ) {
     orchestratorStatus =
@@ -626,7 +912,7 @@ async function runOrchestrator(
   }
 
   if (
-    action.data?.status ===
+    actionStatus ===
       "WAITING_FOR_DECISION_CYCLE"
   ) {
     orchestratorStatus =
@@ -635,6 +921,10 @@ async function runOrchestrator(
 
   const completedAt =
     new Date().toISOString();
+
+  // ----------------------------------------------------------
+  // Final orchestrator output
+  // ----------------------------------------------------------
 
   const output = {
     success: true,
@@ -663,20 +953,48 @@ async function runOrchestrator(
     source_chain: {
       measurement:
         "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
       intelligence:
         "INTELLIGENCE_LAYER_V2.1",
+
       learning:
         "LEARNING_LAYER_V1",
+
       decision:
-        "DECISION_CYCLE_V1.0",
+        "DECISION_CYCLE_V1.1",
+
       action:
-        "ACTION_CYCLE_V1.0",
+        "ACTION_CYCLE_V1.1",
+
       execution:
-        "EXECUTION_CYCLE_V1.1"
+        "EXECUTION_CYCLE_V1.1",
+
+      feedback:
+        "FEEDBACK_LOOP_V1.5"
+    },
+
+    version_validation: {
+      decision_cycle:
+        decisionValidation,
+
+      action_cycle:
+        actionValidation,
+
+      execution_cycle:
+        executionValidation
     },
 
     pipeline: {
       measurement: {
+        layer:
+          "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+        version:
+          "2.2",
+
+        mode:
+          "execute",
+
         status:
           measurement.data?.status ||
           "COMPLETED",
@@ -687,6 +1005,15 @@ async function runOrchestrator(
       },
 
       learning: {
+        layer:
+          "LEARNING_LAYER_V1",
+
+        version:
+          "1.0",
+
+        mode:
+          "execute",
+
         status:
           learning.data?.status ||
           "COMPLETED",
@@ -701,6 +1028,15 @@ async function runOrchestrator(
       },
 
       decision: {
+        layer:
+          "DECISION_CYCLE_V1",
+
+        version:
+          "1.1",
+
+        mode:
+          "preview",
+
         status:
           decisionStatus,
 
@@ -711,6 +1047,15 @@ async function runOrchestrator(
       },
 
       action: {
+        layer:
+          "ACTION_CYCLE_V1",
+
+        version:
+          "1.1",
+
+        mode:
+          "preview",
+
         status:
           actionStatus,
 
@@ -721,6 +1066,15 @@ async function runOrchestrator(
       },
 
       execution: {
+        layer:
+          "EXECUTION_CYCLE_V1",
+
+        version:
+          "1.1",
+
+        mode:
+          "preview",
+
         status:
           executionStatus
       }
@@ -746,6 +1100,7 @@ async function runOrchestrator(
     timing: {
       started_at:
         startedAt,
+
       completed_at:
         completedAt
     },
@@ -779,9 +1134,13 @@ async function runOrchestrator(
     next_step:
       orchestratorStatus ===
         "WAITING_FOR_HUMAN_APPROVAL"
-        ? "Execution is ready. Human approval is required before Execution Cycle POST."
+        ? "Execution Cycle V1.1 is ready. Human approval is required before Execution Cycle POST."
         : "Continue monitoring the pipeline."
   };
+
+  // ----------------------------------------------------------
+  // Persist orchestrator trace
+  // ----------------------------------------------------------
 
   const persistence =
     await saveOrchestratorRun(
@@ -793,6 +1152,9 @@ async function runOrchestrator(
 
         trigger:
           "ORCHESTRATOR_RUN",
+
+        orchestrator_version:
+          VERSION,
 
         started_at:
           startedAt
@@ -813,7 +1175,7 @@ async function runOrchestrator(
 // GET
 //
 // Preview only.
-// Does NOT run the pipeline.
+// Does NOT execute the pipeline.
 // ------------------------------------------------------------
 
 export async function onRequestGet(
@@ -887,8 +1249,10 @@ export async function onRequestGet(
       content: {
         id:
           content.id,
+
         title:
           content.title || "",
+
         status:
           content.status || ""
       },
@@ -898,6 +1262,8 @@ export async function onRequestGet(
           order: 1,
           layer:
             "CONTENT_MEASUREMENT_ENGINE_V2.2",
+          version:
+            "2.2",
           mode:
             "execute"
         },
@@ -905,31 +1271,62 @@ export async function onRequestGet(
           order: 2,
           layer:
             "LEARNING_LAYER_V1",
+          version:
+            "1.0",
           mode:
             "execute"
         },
         {
           order: 3,
           layer:
-            "DECISION_CYCLE_V1.0",
+            "DECISION_CYCLE_V1",
+          version:
+            "1.1",
           mode:
             "preview"
         },
         {
           order: 4,
           layer:
-            "ACTION_CYCLE_V1.0",
+            "ACTION_CYCLE_V1",
+          version:
+            "1.1",
           mode:
             "preview"
         },
         {
           order: 5,
           layer:
-            "EXECUTION_CYCLE_V1.1",
+            "EXECUTION_CYCLE_V1",
+          version:
+            "1.1",
           mode:
             "preview"
         }
       ],
+
+      source_chain: {
+        measurement:
+          "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+        intelligence:
+          "INTELLIGENCE_LAYER_V2.1",
+
+        learning:
+          "LEARNING_LAYER_V1",
+
+        decision:
+          "DECISION_CYCLE_V1.1",
+
+        action:
+          "ACTION_CYCLE_V1.1",
+
+        execution:
+          "EXECUTION_CYCLE_V1.1",
+
+        feedback:
+          "FEEDBACK_LOOP_V1.5"
+      },
 
       guardrails: {
         automatic_business_execution:
@@ -939,6 +1336,15 @@ export async function onRequestGet(
           false,
 
         business_data_mutation:
+          false,
+
+        content_mutation:
+          false,
+
+        customer_contact:
+          false,
+
+        payment_action:
           false,
 
         human_approval_required:
@@ -973,11 +1379,11 @@ export async function onRequestGet(
 // Runs:
 // Measurement
 // → Learning
-// → Decision Preview
-// → Action Preview
-// → Execution Preview
+// → Decision Cycle V1.1 Preview
+// → Action Cycle V1.1 Preview
+// → Execution Cycle V1.1 Preview
 //
-// It NEVER bypasses human approval.
+// NEVER bypasses human approval.
 // ------------------------------------------------------------
 
 export async function onRequestPost(
