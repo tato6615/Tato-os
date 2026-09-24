@@ -2,38 +2,14 @@
 // TATO-OS
 // Content Measurement Engine V2.2
 // Route: /api/content-measurement
-//
-// FLOW:
-// ATTENTION → CONTENT VIEW → CLICK → DOWNSTREAM BEHAVIOR
-// → CUSTOMER → ORDER → REVENUE
-//
-// V2.2:
-// - CONTENT_ATTRIBUTION_V2 only
-// - Content-specific measurement
-// - Session-based downstream attribution
-// - Behavioral Attention Score
-// - Attention is NOT equal to content_view count
-// - Diagnostic output
-// - Never declares WINNER
-//
-// ATTENTION SCORE:
-//
-// content_view        = 1
-// content_click       = 3
-// product_view        = 4
-// engagement          = 5
-// customer            = 10
-// order               = 20
-//
-// IMPORTANT:
-// - Content events are identified by metadata.content_id
-// - Downstream events must occur in the same session
-// - Downstream events must occur at or after the content click
-// - Customer/order signals are attributed only through that path
-// - Legacy measurements are never used
 
 const LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.2";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
+
+const HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store"
+};
 
 const ATTENTION_WEIGHTS = {
   content_view: 1,
@@ -44,346 +20,413 @@ const ATTENTION_WEIGHTS = {
   order: 20
 };
 
-const HEADERS = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store"
-};
-
 function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data, null, 2),
-    {
-      status,
-      headers: HEADERS
-    }
-  );
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: HEADERS
+  });
 }
 
-function now() {
-  return new Date().toISOString();
+function id() {
+  return crypto.randomUUID();
 }
 
-function makeId() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return (
-    String(Date.now()) +
-    "-" +
-    Math.random().toString(36).slice(2)
-  );
+function n(value) {
+  const x = Number(value);
+  return Number.isFinite(x) ? x : 0;
 }
 
-function num(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function str(value) {
+function s(value) {
   return value == null ? "" : String(value);
 }
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
+function normalizeEventType(value) {
+  return s(value).trim().toLowerCase();
 }
 
-function eventType(event) {
-  return str(event?.event_type).toLowerCase();
-}
+function eventContentId(row) {
+  if (!row) return null;
 
-function isEngagementEvent(event) {
-  const type = eventType(event);
-
-  return (
-    type === "engagement" ||
-    type === "content_engagement" ||
-    type === "share" ||
-    type === "save" ||
-    type === "comment" ||
-    type === "like"
-  );
-}
-
-function isValidDate(value) {
-  const time = new Date(value).getTime();
-  return Number.isFinite(time);
-}
-
-function isAtOrAfter(eventTime, referenceTime) {
-  if (
-    !isValidDate(eventTime) ||
-    !isValidDate(referenceTime)
-  ) {
-    return false;
+  if (row.content_id) {
+    return s(row.content_id);
   }
 
-  return (
-    new Date(eventTime).getTime() >=
-    new Date(referenceTime).getTime()
-  );
+  try {
+    const metadata =
+      typeof row.metadata === "string"
+        ? JSON.parse(row.metadata)
+        : row.metadata;
+
+    return metadata?.content_id
+      ? s(metadata.content_id)
+      : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function eventSessionId(row) {
+  return row?.session_id ? s(row.session_id) : null;
+}
+
+function eventCreatedAt(row) {
+  return row?.created_at
+    ? new Date(row.created_at).getTime()
+    : 0;
+}
+
+function calculateAttentionScore(events) {
+  let score = 0;
+
+  for (const event of events) {
+    const type = normalizeEventType(event.event_type);
+
+    if (type === "content_view") {
+      score += ATTENTION_WEIGHTS.content_view;
+    } else if (type === "content_click") {
+      score += ATTENTION_WEIGHTS.content_click;
+    } else if (type === "product_view") {
+      score += ATTENTION_WEIGHTS.product_view;
+    } else if (
+      type === "engagement" ||
+      type === "like" ||
+      type === "comment" ||
+      type === "share"
+    ) {
+      score += ATTENTION_WEIGHTS.engagement;
+    }
+  }
+
+  return score;
+}
+
+function buildAttentionBreakdown(events) {
+  const counts = {
+    content_view: 0,
+    content_click: 0,
+    product_view: 0,
+    engagement: 0,
+    customer: 0,
+    order: 0
+  };
+
+  for (const event of events) {
+    const type = normalizeEventType(event.event_type);
+
+    if (type === "content_view") {
+      counts.content_view++;
+    } else if (type === "content_click") {
+      counts.content_click++;
+    } else if (type === "product_view") {
+      counts.product_view++;
+    } else if (
+      type === "engagement" ||
+      type === "like" ||
+      type === "comment" ||
+      type === "share"
+    ) {
+      counts.engagement++;
+    }
+  }
+
+  const scores = {
+    content_view:
+      counts.content_view * ATTENTION_WEIGHTS.content_view,
+
+    content_click:
+      counts.content_click * ATTENTION_WEIGHTS.content_click,
+
+    product_view:
+      counts.product_view * ATTENTION_WEIGHTS.product_view,
+
+    engagement:
+      counts.engagement * ATTENTION_WEIGHTS.engagement
+  };
+
+  return {
+    counts,
+    weights: ATTENTION_WEIGHTS,
+    scores,
+    total_attention:
+      scores.content_view +
+      scores.content_click +
+      scores.product_view +
+      scores.engagement
+  };
 }
 
 async function ensureTable(db) {
-  await db
-    .prepare(
-      "CREATE TABLE IF NOT EXISTS content_measurements (" +
-      "id TEXT PRIMARY KEY," +
-      "content_id TEXT," +
-      "measured_at TEXT," +
-      "measurement_start TEXT," +
-      "attention INTEGER DEFAULT 0," +
-      "product_views INTEGER DEFAULT 0," +
-      "clicks INTEGER DEFAULT 0," +
-      "engagements INTEGER DEFAULT 0," +
-      "customers INTEGER DEFAULT 0," +
-      "orders INTEGER DEFAULT 0," +
-      "revenue REAL DEFAULT 0," +
-      "attention_to_view REAL DEFAULT 0," +
-      "view_to_click REAL DEFAULT 0," +
-      "click_to_customer REAL DEFAULT 0," +
-      "customer_to_order REAL DEFAULT 0," +
-      "status TEXT," +
-      "attribution_mode TEXT," +
-      "created_at TEXT" +
-      ")"
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS content_measurements (
+      id TEXT PRIMARY KEY,
+      content_id TEXT,
+      measured_at TEXT,
+      measurement_start TEXT,
+      attention INTEGER DEFAULT 0,
+      product_views INTEGER DEFAULT 0,
+      clicks INTEGER DEFAULT 0,
+      engagements INTEGER DEFAULT 0,
+      customers INTEGER DEFAULT 0,
+      orders INTEGER DEFAULT 0,
+      revenue REAL DEFAULT 0,
+      attention_to_view REAL DEFAULT 0,
+      view_to_click REAL DEFAULT 0,
+      click_to_customer REAL DEFAULT 0,
+      customer_to_order REAL DEFAULT 0,
+      status TEXT,
+      attribution_mode TEXT,
+      created_at TEXT
     )
-    .run();
+  `).run();
 }
 
-async function getContent(db, requestedId) {
-  if (requestedId) {
-    return await db
-      .prepare(
-        "SELECT * FROM content_engine " +
-        "WHERE id = ? " +
-        "LIMIT 1"
-      )
-      .bind(requestedId)
-      .first();
-  }
-
-  return await db
-    .prepare(
-      "SELECT * FROM content_engine " +
-      "WHERE status IN (" +
-      "'READY_TO_PUBLISH'," +
-      "'PUBLISHED'," +
-      "'GENERATED'," +
-      "'TEST'," +
-      "'WINNER'," +
-      "'REUSE'" +
-      ") " +
-      "ORDER BY created_at DESC " +
-      "LIMIT 1"
-    )
-    .first();
-}
-
-async function getMeasurementStart(db, content) {
-  if (!content) {
-    return now();
-  }
-
+async function getContent(db, requestedContentId = null) {
   try {
-    const table = await db
-      .prepare(
-        "SELECT name FROM sqlite_master " +
-        "WHERE type = 'table' " +
-        "AND name = 'content_decision_runs' " +
-        "LIMIT 1"
-      )
+    if (requestedContentId) {
+      return await db.prepare(`
+        SELECT *
+        FROM content_engine
+        WHERE id = ?
+        LIMIT 1
+      `)
+        .bind(requestedContentId)
+        .first();
+    }
+
+    return await db.prepare(`
+      SELECT *
+      FROM content_engine
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).first();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getMeasurementStart(db, contentId) {
+  try {
+    const row = await db.prepare(`
+      SELECT *
+      FROM content_decision_runs
+      WHERE content_id = ?
+      ORDER BY created_at ASC
+      LIMIT 1
+    `)
+      .bind(contentId)
       .first();
 
-    if (table) {
-      const rows = await db
-        .prepare(
-          "SELECT * FROM content_decision_runs " +
-          "ORDER BY created_at DESC " +
-          "LIMIT 50"
-        )
-        .all();
-
-      for (const row of rows.results || []) {
-        const raw = JSON.stringify(row);
-
-        if (
-          raw.includes(str(content.id)) ||
-          raw.includes(str(content.title))
-        ) {
-          return (
-            row.created_at ||
-            row.started_at ||
-            row.executed_at ||
-            content.created_at ||
-            now()
-          );
-        }
-      }
+    if (row?.created_at) {
+      return row.created_at;
     }
   } catch (_) {}
 
-  return content.created_at || now();
+  return "1970-01-01T00:00:00.000Z";
 }
 
-async function getContentEvents(
-  db,
-  eventTypeValue,
-  start,
-  contentId
-) {
+async function getContentEvents(db, contentId, measurementStart) {
   try {
-    const result = await db
-      .prepare(
-        "SELECT " +
-        "id, " +
-        "session_id, " +
-        "customer_id, " +
-        "event_type, " +
-        "product_id, " +
-        "page, " +
-        "metadata, " +
-        "created_at " +
-        "FROM behavior_events " +
-        "WHERE created_at >= ? " +
-        "AND event_type = ? " +
-        "ORDER BY created_at ASC"
-      )
-      .bind(start, eventTypeValue)
+    const rows = await db.prepare(`
+      SELECT *
+      FROM behavior_events
+      WHERE created_at >= ?
+      ORDER BY created_at ASC
+    `)
+      .bind(measurementStart)
       .all();
 
-    return (result.results || []).filter((row) => {
-      try {
-        const metadata = JSON.parse(
-          row.metadata || "{}"
-        );
-
-        return (
-          str(metadata.content_id) ===
-          str(contentId)
-        );
-      } catch (_) {
-        return false;
-      }
+    return (rows.results || []).filter(row => {
+      return eventContentId(row) === s(contentId);
     });
   } catch (_) {
     return [];
   }
 }
 
-async function getDownstreamEvents(
-  db,
-  clickRows
-) {
-  if (!clickRows.length) {
-    return [];
-  }
-
-  const sessions = unique(
-    clickRows
-      .map((row) => row.session_id)
-      .filter(Boolean)
-  );
-
-  if (!sessions.length) {
-    return [];
-  }
-
-  const placeholders = sessions
-    .map(() => "?")
-    .join(",");
-
+async function getAllBehaviorEvents(db, measurementStart) {
   try {
-    const result = await db
-      .prepare(
-        "SELECT " +
-        "id, " +
-        "session_id, " +
-        "customer_id, " +
-        "event_type, " +
-        "product_id, " +
-        "page, " +
-        "metadata, " +
-        "created_at " +
-        "FROM behavior_events " +
-        "WHERE session_id IN (" +
-        placeholders +
-        ") " +
-        "ORDER BY created_at ASC"
-      )
-      .bind(...sessions)
+    const rows = await db.prepare(`
+      SELECT *
+      FROM behavior_events
+      WHERE created_at >= ?
+      ORDER BY created_at ASC
+    `)
+      .bind(measurementStart)
       .all();
 
-    return result.results || [];
+    return rows.results || [];
   } catch (_) {
     return [];
   }
 }
 
-function isAfterClick(event, clicks) {
-  if (!event?.session_id) {
+function getClicks(events) {
+  return events.filter(
+    event =>
+      normalizeEventType(event.event_type) === "content_click"
+  );
+}
+
+function isAfterClick(event, click) {
+  const eventTime = eventCreatedAt(event);
+  const clickTime = eventCreatedAt(click);
+
+  if (!eventTime || !clickTime) {
     return false;
   }
 
-  const eventTime =
-    new Date(event.created_at).getTime();
+  const eventSession = eventSessionId(event);
+  const clickSession = eventSessionId(click);
 
-  if (!Number.isFinite(eventTime)) {
+  if (!eventSession || !clickSession) {
     return false;
   }
 
-  return clicks.some((click) => {
-    if (
-      click.session_id !==
-      event.session_id
-    ) {
-      return false;
-    }
+  return (
+    eventSession === clickSession &&
+    eventTime >= clickTime
+  );
+}
 
-    const clickTime =
-      new Date(click.created_at).getTime();
+function getAttributedDownstreamEvents(allEvents, clicks) {
+  if (!clicks.length) {
+    return [];
+  }
 
-    if (!Number.isFinite(clickTime)) {
-      return false;
-    }
-
-    return eventTime >= clickTime;
+  return allEvents.filter(event => {
+    return clicks.some(click =>
+      isAfterClick(event, click)
+    );
   });
 }
 
-function calculateRate(
-  numerator,
-  denominator
-) {
-  if (!denominator) {
-    return 0;
+function uniqueValues(values) {
+  return [
+    ...new Set(
+      values
+        .filter(value => value != null && s(value) !== "")
+        .map(value => s(value))
+    )
+  ];
+}
+
+function getAttributedCustomers(downstreamEvents) {
+  const ids = [];
+
+  for (const event of downstreamEvents) {
+    const type = normalizeEventType(event.event_type);
+
+    if (
+      type === "customer" ||
+      type === "customer_created" ||
+      type === "lead_created"
+    ) {
+      if (event.customer_id) {
+        ids.push(event.customer_id);
+      }
+    }
   }
 
-  return Number(
-    (
-      (numerator / denominator) *
-      100
-    ).toFixed(2)
+  return uniqueValues(ids);
+}
+
+async function getCustomersFromEvents(
+  db,
+  downstreamEvents,
+  clicks
+) {
+  const eventCustomerIds = getAttributedCustomers(
+    downstreamEvents
   );
+
+  if (eventCustomerIds.length) {
+    return eventCustomerIds;
+  }
+
+  const clickSessions = uniqueValues(
+    clicks.map(event => eventSessionId(event))
+  );
+
+  if (!clickSessions.length) {
+    return [];
+  }
+
+  try {
+    const placeholders = clickSessions
+      .map(() => "?")
+      .join(",");
+
+    const rows = await db.prepare(`
+      SELECT id
+      FROM customers
+      WHERE session_id IN (${placeholders})
+    `)
+      .bind(...clickSessions)
+      .all();
+
+    return uniqueValues(
+      (rows.results || []).map(row => row.id)
+    );
+  } catch (_) {
+    return [];
+  }
+}
+
+async function getOrders(db, customerIds, measurementStart) {
+  if (!customerIds.length) {
+    return {
+      orders: 0,
+      revenue: 0
+    };
+  }
+
+  try {
+    const placeholders = customerIds
+      .map(() => "?")
+      .join(",");
+
+    const row = await db.prepare(`
+      SELECT
+        COUNT(*) AS orders,
+        COALESCE(SUM(amount), 0) AS revenue
+      FROM orders
+      WHERE customer_id IN (${placeholders})
+        AND created_at >= ?
+    `)
+      .bind(...customerIds, measurementStart)
+      .first();
+
+    return {
+      orders: n(row?.orders),
+      revenue: n(row?.revenue)
+    };
+  } catch (_) {
+    return {
+      orders: 0,
+      revenue: 0
+    };
+  }
+}
+
+function calculateRate(a, b) {
+  return b > 0
+    ? Number(((a / b) * 100).toFixed(2))
+    : 0;
 }
 
 function determineStatus(metrics) {
   if (
-    metrics.orders > 0 &&
-    metrics.revenue > 0
+    n(metrics.orders) > 0 &&
+    n(metrics.revenue) > 0
   ) {
     return "CONVERTING";
   }
 
   if (
-    metrics.attention > 0 ||
-    metrics.product_views > 0 ||
-    metrics.clicks > 0 ||
-    metrics.engagements > 0 ||
-    metrics.customers > 0
+    n(metrics.attention) > 0 ||
+    n(metrics.clicks) > 0 ||
+    n(metrics.product_views) > 0 ||
+    n(metrics.engagements) > 0
   ) {
     return "MEASURED";
   }
@@ -391,343 +434,151 @@ function determineStatus(metrics) {
   return "WAITING_FOR_TRAFFIC";
 }
 
-function getUniqueCustomerIds(events) {
-  return unique(
-    events
-      .map((event) => event.customer_id)
-      .filter(Boolean)
-  );
-}
-
-async function getAttributedCustomers(
-  downstream,
-  clicks
-) {
-  const ids = [];
-
-  for (const event of downstream) {
-    if (!event.customer_id) {
-      continue;
-    }
-
-    if (
-      !isAfterClick(
-        event,
-        clicks
-      )
-    ) {
-      continue;
-    }
-
-    ids.push(event.customer_id);
-  }
-
-  return unique(ids);
-}
-
-async function getOrders(
-  db,
-  customerIds,
-  clicks
-) {
-  if (
-    !customerIds.length ||
-    !clicks.length
-  ) {
-    return {
-      orders: 0,
-      revenue: 0
-    };
-  }
-
-  const placeholders =
-    customerIds
-      .map(() => "?")
-      .join(",");
-
-  const clickTimes = clicks
-    .map((row) => row.created_at)
-    .filter(Boolean)
-    .sort();
-
-  const earliestClick =
-    clickTimes[0];
-
-  if (!earliestClick) {
-    return {
-      orders: 0,
-      revenue: 0
-    };
-  }
-
-  try {
-    const row = await db
-      .prepare(
-        "SELECT " +
-        "COUNT(*) AS orders, " +
-        "COALESCE(SUM(amount), 0) AS revenue " +
-        "FROM orders " +
-        "WHERE customer_id IN (" +
-        placeholders +
-        ") " +
-        "AND created_at >= ? " +
-        "AND (" +
-        "status IS NULL " +
-        "OR LOWER(status) NOT IN (" +
-        "'cancelled'," +
-        "'canceled'," +
-        "'failed'," +
-        "'refunded'" +
-        ")" +
-        ")"
-      )
-      .bind(
-        ...customerIds,
-        earliestClick
-      )
-      .first();
-
-    return {
-      orders: num(row?.orders),
-      revenue: num(row?.revenue)
-    };
-  } catch (_) {
-    return {
-      orders: 0,
-      revenue: 0
-    };
-  }
-}
-
-function calculateAttentionScore({
-  views,
-  clicks,
-  productViews,
-  engagements,
-  customers,
-  orders
-}) {
-  return (
-    views.length *
-      ATTENTION_WEIGHTS.content_view +
-
-    clicks.length *
-      ATTENTION_WEIGHTS.content_click +
-
-    productViews.length *
-      ATTENTION_WEIGHTS.product_view +
-
-    engagements.length *
-      ATTENTION_WEIGHTS.engagement +
-
-    customers.length *
-      ATTENTION_WEIGHTS.customer +
-
-    orders *
-      ATTENTION_WEIGHTS.order
-  );
-}
-
-function buildAttentionBreakdown({
-  views,
-  clicks,
-  productViews,
-  engagements,
-  customers,
-  orders
-}) {
-  return {
-    content_view: {
-      count: views.length,
-      weight:
-        ATTENTION_WEIGHTS.content_view,
-      score:
-        views.length *
-        ATTENTION_WEIGHTS.content_view
-    },
-
-    content_click: {
-      count: clicks.length,
-      weight:
-        ATTENTION_WEIGHTS.content_click,
-      score:
-        clicks.length *
-        ATTENTION_WEIGHTS.content_click
-    },
-
-    product_view: {
-      count: productViews.length,
-      weight:
-        ATTENTION_WEIGHTS.product_view,
-      score:
-        productViews.length *
-        ATTENTION_WEIGHTS.product_view
-    },
-
-    engagement: {
-      count: engagements.length,
-      weight:
-        ATTENTION_WEIGHTS.engagement,
-      score:
-        engagements.length *
-        ATTENTION_WEIGHTS.engagement
-    },
-
-    customer: {
-      count: customers.length,
-      weight:
-        ATTENTION_WEIGHTS.customer,
-      score:
-        customers.length *
-        ATTENTION_WEIGHTS.customer
-    },
-
-    order: {
-      count: orders,
-      weight:
-        ATTENTION_WEIGHTS.order,
-      score:
-        orders *
-        ATTENTION_WEIGHTS.order
-    }
-  };
-}
-
-async function measure(
-  db,
-  requestedContentId
-) {
+async function measure(db, requestedContentId = null) {
   await ensureTable(db);
 
-  const content =
-    await getContent(
-      db,
-      requestedContentId
-    );
+  const content = await getContent(
+    db,
+    requestedContentId
+  );
 
   if (!content) {
-    return {
-      success: false,
-      layer: LAYER,
-      error:
-        "No measurable content found."
-    };
+    throw new Error(
+      "No content found in content_engine"
+    );
   }
 
-  const start =
-    await getMeasurementStart(
-      db,
-      content
-    );
+  const contentId = s(content.id);
 
-  const views =
+  const measurementStart =
+    await getMeasurementStart(db, contentId);
+
+  /*
+   * Content events:
+   * These are the events directly belonging to this content.
+   */
+  const contentEvents =
     await getContentEvents(
       db,
-      "content_view",
-      start,
-      content.id
+      contentId,
+      measurementStart
     );
 
-  const clicks =
-    await getContentEvents(
+  /*
+   * All events:
+   * Needed for same-session downstream attribution.
+   */
+  const allEvents =
+    await getAllBehaviorEvents(
       db,
-      "content_click",
-      start,
-      content.id
+      measurementStart
     );
 
-  const downstream =
-    await getDownstreamEvents(
-      db,
+  const views = contentEvents.filter(
+    event =>
+      normalizeEventType(event.event_type) ===
+      "content_view"
+  );
+
+  const clicks = getClicks(contentEvents);
+
+  const engagements = contentEvents.filter(event => {
+    const type = normalizeEventType(
+      event.event_type
+    );
+
+    return (
+      type === "engagement" ||
+      type === "like" ||
+      type === "comment" ||
+      type === "share"
+    );
+  });
+
+  /*
+   * Downstream starts at Content Click.
+   * Same session + event time >= click time.
+   */
+  const downstreamEvents =
+    getAttributedDownstreamEvents(
+      allEvents,
       clicks
     );
 
-  const attributed =
-    downstream.filter(
-      (event) =>
-        isAfterClick(
-          event,
-          clicks
-        )
-    );
-
-  const productViews =
-    attributed.filter(
-      (event) =>
-        eventType(event) ===
+  const attributedProductViews =
+    downstreamEvents.filter(
+      event =>
+        normalizeEventType(event.event_type) ===
         "product_view"
     );
 
-  const engagements =
-    attributed.filter(
-      (event) =>
-        isEngagementEvent(event)
-    );
+  const attributedEngagements =
+    downstreamEvents.filter(event => {
+      const type = normalizeEventType(
+        event.event_type
+      );
 
-  const customers =
-    await getAttributedCustomers(
-      attributed,
+      return (
+        type === "engagement" ||
+        type === "like" ||
+        type === "comment" ||
+        type === "share"
+      );
+    });
+
+  const customerIds =
+    await getCustomersFromEvents(
+      db,
+      downstreamEvents,
       clicks
     );
+
+  const customerCount = customerIds.length;
 
   const orderData =
     await getOrders(
       db,
-      customers,
-      clicks
+      customerIds,
+      measurementStart
     );
 
-  const metricsBeforeAttention = {
-    product_views:
-      productViews.length,
-
-    clicks:
-      clicks.length,
-
-    engagements:
-      engagements.length,
-
-    customers:
-      customers.length,
-
-    orders:
-      orderData.orders
-  };
-
+  /*
+   * IMPORTANT:
+   * Attention is NOT content_view count.
+   *
+   * Attention is a weighted behavioral score:
+   *
+   * content_view   × 1
+   * content_click  × 3
+   * product_view   × 4
+   * engagement     × 5
+   *
+   * Customer / Order are downstream conversion
+   * signals and are not double-counted here.
+   */
   const attention =
-    calculateAttentionScore({
-      views,
-      clicks,
-      productViews,
-      engagements,
-      customers,
-      orders:
-        orderData.orders
-    });
+    calculateAttentionScore(contentEvents);
+
+  const attentionBreakdown =
+    buildAttentionBreakdown(contentEvents);
 
   const metrics = {
     attention,
-
     product_views:
-      productViews.length,
-
-    clicks:
-      clicks.length,
-
+      attributedProductViews.length,
+    clicks: clicks.length,
     engagements:
-      engagements.length,
-
-    customers:
-      customers.length,
-
-    orders:
-      orderData.orders,
-
-    revenue:
-      orderData.revenue
+      engagements.length +
+      attributedEngagements.length,
+    customers: customerCount,
+    orders: orderData.orders,
+    revenue: orderData.revenue
   };
 
-  const funnel = {
+  const status =
+    determineStatus(metrics);
+
+  const conversions = {
     attention_to_view:
       calculateRate(
         metrics.product_views,
@@ -753,32 +604,39 @@ async function measure(
       )
   };
 
-  const status =
-    determineStatus(metrics);
+  const measuredAt =
+    new Date().toISOString();
 
-  const measuredAt = now();
-  const measurementId = makeId();
+  const measurementId = id();
 
-  await db
-    .prepare(
-      "INSERT INTO content_measurements (" +
-      "id, content_id, measured_at, " +
-      "measurement_start, attention, " +
-      "product_views, clicks, engagements, " +
-      "customers, orders, revenue, " +
-      "attention_to_view, view_to_click, " +
-      "click_to_customer, customer_to_order, " +
-      "status, attribution_mode, created_at" +
-      ") VALUES (" +
-      "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
-      "?, ?, ?, ?, ?, ?, ?" +
-      ")"
+  await db.prepare(`
+    INSERT INTO content_measurements (
+      id,
+      content_id,
+      measured_at,
+      measurement_start,
+      attention,
+      product_views,
+      clicks,
+      engagements,
+      customers,
+      orders,
+      revenue,
+      attention_to_view,
+      view_to_click,
+      click_to_customer,
+      customer_to_order,
+      status,
+      attribution_mode,
+      created_at
     )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
     .bind(
       measurementId,
-      content.id,
+      contentId,
       measuredAt,
-      start,
+      measurementStart,
       metrics.attention,
       metrics.product_views,
       metrics.clicks,
@@ -786,339 +644,145 @@ async function measure(
       metrics.customers,
       metrics.orders,
       metrics.revenue,
-      funnel.attention_to_view,
-      funnel.view_to_click,
-      funnel.click_to_customer,
-      funnel.customer_to_order,
+      conversions.attention_to_view,
+      conversions.view_to_click,
+      conversions.click_to_customer,
+      conversions.customer_to_order,
       status,
       ATTRIBUTION_MODE,
       measuredAt
     )
     .run();
 
-  const attentionBreakdown =
-    buildAttentionBreakdown({
-      views,
-      clicks,
-      productViews,
-      engagements,
-      customers,
-      orders:
-        orderData.orders
-    });
-
   return {
     success: true,
+
     layer: LAYER,
-    mode: "measure",
+
+    version: "2.2",
+
+    content: {
+      id: content.id,
+      title: content.title || null,
+      status: content.status || null
+    },
 
     measurement: {
       id: measurementId,
-      content_id: content.id,
-      status,
+      content_id: contentId,
       measured_at: measuredAt,
-      measurement_start: start,
+      measurement_start: measurementStart,
+
+      /*
+       * THIS IS THE VALUE LEARNING / INTELLIGENCE
+       * SHOULD READ.
+       */
+      attention: metrics.attention,
+
+      product_views:
+        metrics.product_views,
+
+      clicks:
+        metrics.clicks,
+
+      engagements:
+        metrics.engagements,
+
+      customers:
+        metrics.customers,
+
+      orders:
+        metrics.orders,
+
+      revenue:
+        metrics.revenue,
+
+      attention_to_view:
+        conversions.attention_to_view,
+
+      view_to_click:
+        conversions.view_to_click,
+
+      click_to_customer:
+        conversions.click_to_customer,
+
+      customer_to_order:
+        conversions.customer_to_order,
+
+      status,
+
       attribution_mode:
         ATTRIBUTION_MODE
     },
 
-    content: {
-      id: content.id,
-      title: content.title || "",
-      status: content.status || "",
-      objective:
-        content.objective || "",
-      attention_type:
-        content.attention_type || "",
-      market_keyword:
-        content.market_keyword || "",
-      angle:
-        content.angle || "",
-      cta:
-        content.cta || ""
-    },
-
-    metrics,
-
     attention: {
-      score:
-        metrics.attention,
-
       definition:
-        "Behavioral Attention Score",
+        "Weighted behavioral signal, not content_view count",
 
       weights:
         ATTENTION_WEIGHTS,
 
       breakdown:
-        attentionBreakdown
+        attentionBreakdown,
+
+      formula:
+        "content_view×1 + content_click×3 + product_view×4 + engagement×5"
     },
 
-    funnel,
+    diagnostics: {
+      content_events:
+        contentEvents.length,
 
-    attribution: {
       content_views:
         views.length,
 
       content_clicks:
         clicks.length,
 
-      click_sessions:
-        unique(
-          clicks
-            .map(
-              (row) =>
-                row.session_id
-            )
-            .filter(Boolean)
-        ).length,
-
       downstream_events:
-        attributed.length,
+        downstreamEvents.length,
 
       attributed_product_views:
-        productViews.length,
-
-      attributed_engagements:
-        engagements.length,
+        attributedProductViews.length,
 
       attributed_customers:
-        customers.length,
+        customerCount,
 
       attributed_orders:
-        orderData.orders
-    },
+        orderData.orders,
 
-    diagnostic: {
-      measurement_source:
-        "content_engine",
-
-      content_id_used:
-        content.id,
-
-      measurement_start:
-        start,
+      attribution_mode:
+        ATTRIBUTION_MODE,
 
       attention_definition:
         "Weighted behavioral signal, not content_view count",
 
-      attention_weights:
-        ATTENTION_WEIGHTS,
-
-      attention_formula:
-        "content_view*1 + content_click*3 + product_view*4 + engagement*5 + customer*10 + order*20",
-
-      view_query:
-        "content_view + metadata.content_id",
-
-      click_query:
-        "content_click + metadata.content_id",
-
-      downstream_query:
-        "same session after content_click",
-
-      product_view_attribution:
-        "product_view must occur in the same click session at or after content_click",
-
-      customer_attribution:
-        "customer_id from downstream behavior",
-
-      order_attribution:
-        "attributed customer_id after earliest content click",
-
-      attribution_mode_written:
-        ATTRIBUTION_MODE,
-
-      legacy_measurements_used:
-        false,
-
-      raw_event_counts: {
-        content_view:
-          views.length,
-
-        content_click:
-          clicks.length,
-
-        attributed_product_view:
-          productViews.length,
-
-        attributed_engagement:
-          engagements.length,
-
-        attributed_customer:
-          customers.length,
-
-        attributed_order:
-          orderData.orders
-      },
-
-      metrics_before_attention:
-        metricsBeforeAttention
-    },
-
-    learning_signal: {
-      has_attention:
-        metrics.attention > 0,
-
-      has_traffic:
-        metrics.product_views > 0 ||
-        metrics.clicks > 0,
-
-      has_engagement:
-        metrics.engagements > 0,
-
-      has_customer:
-        metrics.customers > 0,
-
-      has_conversion:
-        metrics.orders > 0,
-
-      revenue_generated:
-        metrics.revenue > 0
-    },
-
-    winner_decision:
-      "NOT_DECLARED_IN_V2.2",
-
-    next_step:
-      "Send this CONTENT_ATTRIBUTION_V2 measurement to Learning AI V1.5."
+      winner_decision:
+        "NOT_DECLARED_IN_V2.2"
+    }
   };
 }
 
-async function preview(
-  db,
-  requestedContentId
-) {
-  const content =
-    await getContent(
-      db,
-      requestedContentId
-    );
-
-  if (!content) {
-    return json(
-      {
-        success: false,
-        layer: LAYER,
-        mode: "preview",
-        error:
-          "No measurable content found."
-      },
-      404
-    );
-  }
-
-  const start =
-    await getMeasurementStart(
-      db,
-      content
-    );
-
-  return json({
-    success: true,
-    layer: LAYER,
-    mode: "preview",
-
-    content: {
-      id: content.id,
-      title: content.title || "",
-      status: content.status || "",
-      created_at:
-        content.created_at || null
-    },
-
-    measurement_start:
-      start,
-
-    attribution_mode:
-      ATTRIBUTION_MODE,
-
-    attention_definition:
-      "Behavioral Attention Score",
-
-    attention_weights:
-      ATTENTION_WEIGHTS,
-
-    attention_formula:
-      "content_view*1 + content_click*3 + product_view*4 + engagement*5 + customer*10 + order*20",
-
-    attribution_path: [
-      "content_view",
-      "content_click",
-      "same_session_behavior",
-      "customer",
-      "order",
-      "revenue"
-    ],
-
-    diagnostic: {
-      source:
-        "content_measurement_engine_v2.2",
-
-      legacy_measurements:
-        "ignored by Learning AI V1.5",
-
-      measurement_created:
-        false,
-
-      winner_decision:
-        "NOT_DECLARED_IN_V2.2"
-    },
-
-    winner_decision:
-      "NOT_DECLARED_IN_V2.2"
-  });
-}
-
-export async function onRequestGet(
-  context
-) {
+export async function onRequestGet(context) {
   try {
-    const {
-      env,
-      request
-    } = context;
-
-    if (!env?.DB) {
-      return json(
-        {
-          success: false,
-          layer: LAYER,
-          error:
-            "D1 binding DB is not available."
-        },
-        500
-      );
-    }
-
     const url =
-      new URL(request.url);
+      new URL(context.request.url);
 
     const contentId =
       url.searchParams.get(
         "content_id"
-      ) ||
-      url.searchParams.get("id") ||
-      null;
+      );
 
-    const mode =
-      url.searchParams.get(
-        "mode"
-      ) || "measure";
-
-    if (mode === "preview") {
-      return await preview(
-        env.DB,
+    const result =
+      await measure(
+        context.env.DB,
         contentId
       );
-    }
 
-    return json(
-      await measure(
-        env.DB,
-        contentId
-      )
-    );
+    return json({
+      ...result,
+      mode: "preview"
+    });
   } catch (error) {
     return json(
       {
@@ -1133,68 +797,28 @@ export async function onRequestGet(
   }
 }
 
-export async function onRequestPost(
-  context
-) {
+export async function onRequestPost(context) {
   try {
-    const {
-      env,
-      request
-    } = context;
-
-    if (!env?.DB) {
-      return json(
-        {
-          success: false,
-          layer: LAYER,
-          error:
-            "D1 binding DB is not available."
-        },
-        500
-      );
-    }
-
     let body = {};
 
     try {
       body =
-        await request.json();
-    } catch (_) {
-      body = {};
-    }
-
-    const mode =
-      body?.mode || "measure";
+        await context.request.json();
+    } catch (_) {}
 
     const contentId =
-      body?.content_id ||
-      null;
+      body?.content_id || null;
 
-    if (mode === "preview") {
-      return await preview(
-        env.DB,
-        contentId
-      );
-    }
-
-    if (mode !== "measure") {
-      return json(
-        {
-          success: false,
-          layer: LAYER,
-          error:
-            "Invalid mode. Use 'measure' or 'preview'."
-        },
-        400
-      );
-    }
-
-    return json(
+    const result =
       await measure(
-        env.DB,
+        context.env.DB,
         contentId
-      )
-    );
+      );
+
+    return json({
+      ...result,
+      mode: "execute"
+    });
   } catch (error) {
     return json(
       {
