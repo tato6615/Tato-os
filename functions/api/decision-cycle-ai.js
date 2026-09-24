@@ -1,3 +1,4 @@
+````javascript
 // ============================================================
 // TATO-OS
 // DECISION CYCLE V1.0
@@ -31,10 +32,6 @@ function json(data, status = 200) {
 
 function id() {
   return crypto.randomUUID();
-}
-
-function s(value) {
-  return value == null ? "" : String(value);
 }
 
 function n(value) {
@@ -80,6 +77,13 @@ function parseJSON(value) {
 // ------------------------------------------------------------
 // Extract content_id recursively
 // ------------------------------------------------------------
+//
+// IMPORTANT:
+// Decision Cycle V1 stores content_id at:
+// $.cycle.content_id
+//
+// Therefore "cycle" MUST be included in recursive traversal.
+// ------------------------------------------------------------
 
 function extractContentId(value) {
   if (!value) return null;
@@ -96,9 +100,12 @@ function extractContentId(value) {
 
   if (Array.isArray(value)) {
     for (const item of value) {
-      const found = extractContentId(item);
+      const found =
+        extractContentId(item);
 
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
 
     return null;
@@ -125,7 +132,11 @@ function extractContentId(value) {
       "feedback",
       "execution",
       "learning",
-      "decision"
+      "decision",
+
+      // FIX:
+      // Decision Cycle stores content_id here.
+      "cycle"
     ];
 
     for (const key of keys) {
@@ -133,7 +144,9 @@ function extractContentId(value) {
         const found =
           extractContentId(value[key]);
 
-        if (found) return found;
+        if (found) {
+          return found;
+        }
       }
     }
   }
@@ -145,24 +158,28 @@ function extractContentId(value) {
 // Find latest Feedback Loop result for content
 // ------------------------------------------------------------
 
-async function getLatestFeedback(db, contentId) {
-  const rows = await db.prepare(`
-    SELECT
-      id,
-      customer_id,
-      run_id,
-      insight_type,
-      title,
-      content,
-      score,
-      priority,
-      status,
-      created_at
-    FROM ai_insights
-    WHERE insight_type = 'FEEDBACK_LOOP_RESULT'
-    ORDER BY created_at DESC
-    LIMIT 200
-  `).all();
+async function getLatestFeedback(
+  db,
+  contentId
+) {
+  const rows =
+    await db.prepare(`
+      SELECT
+        id,
+        customer_id,
+        run_id,
+        insight_type,
+        title,
+        content,
+        score,
+        priority,
+        status,
+        created_at
+      FROM ai_insights
+      WHERE insight_type = 'FEEDBACK_LOOP_RESULT'
+      ORDER BY created_at DESC
+      LIMIT 200
+    `).all();
 
   for (const row of rows.results || []) {
     const parsedContent =
@@ -173,15 +190,32 @@ async function getLatestFeedback(db, contentId) {
 
     if (foundContentId === contentId) {
       return {
-        id: row.id,
-        run_id: row.run_id,
-        insight_type: row.insight_type,
-        title: row.title,
-        content: parsedContent,
-        score: n(row.score),
-        priority: row.priority,
-        status: row.status,
-        created_at: row.created_at
+        id:
+          row.id,
+
+        run_id:
+          row.run_id,
+
+        insight_type:
+          row.insight_type,
+
+        title:
+          row.title,
+
+        content:
+          parsedContent,
+
+        score:
+          n(row.score),
+
+        priority:
+          row.priority,
+
+        status:
+          row.status,
+
+        created_at:
+          row.created_at
       };
     }
   }
@@ -192,24 +226,42 @@ async function getLatestFeedback(db, contentId) {
 // ------------------------------------------------------------
 // Find latest Decision Cycle result
 // ------------------------------------------------------------
+//
+// IMPORTANT:
+// content_id is stored inside JSON:
+//
+// {
+//   "cycle": {
+//     "content_id": "..."
+//   }
+// }
+//
+// We intentionally read rows first and resolve content_id
+// in JavaScript so older records without content_id do not
+// break the lookup.
+// ------------------------------------------------------------
 
-async function getLatestCycle(db, contentId) {
-  const rows = await db.prepare(`
-    SELECT
-      id,
-      run_id,
-      insight_type,
-      title,
-      content,
-      score,
-      priority,
-      status,
-      created_at
-    FROM ai_insights
-    WHERE insight_type = 'DECISION_CYCLE_RESULT'
-    ORDER BY created_at DESC
-    LIMIT 200
-  `).all();
+async function getLatestCycle(
+  db,
+  contentId
+) {
+  const rows =
+    await db.prepare(`
+      SELECT
+        id,
+        run_id,
+        insight_type,
+        title,
+        content,
+        score,
+        priority,
+        status,
+        created_at
+      FROM ai_insights
+      WHERE insight_type = 'DECISION_CYCLE_RESULT'
+      ORDER BY created_at DESC
+      LIMIT 200
+    `).all();
 
   for (const row of rows.results || []) {
     const parsed =
@@ -220,13 +272,32 @@ async function getLatestCycle(db, contentId) {
 
     if (foundContentId === contentId) {
       return {
-        id: row.id,
-        run_id: row.run_id,
-        title: row.title,
-        content: parsed,
-        priority: row.priority,
-        status: row.status,
-        created_at: row.created_at
+        id:
+          row.id,
+
+        run_id:
+          row.run_id,
+
+        insight_type:
+          row.insight_type,
+
+        title:
+          row.title,
+
+        content:
+          parsed,
+
+        score:
+          n(row.score),
+
+        priority:
+          row.priority,
+
+        status:
+          row.status,
+
+        created_at:
+          row.created_at
       };
     }
   }
@@ -252,7 +323,8 @@ async function callDecisionLayer(
     await fetch(
       decisionUrl,
       {
-        method: "GET",
+        method:
+          "GET",
 
         headers: {
           "Accept":
@@ -310,7 +382,8 @@ async function buildCycle(
 
   if (!feedback) {
     return {
-      success: false,
+      success:
+        false,
 
       status:
         "NO_FEEDBACK",
@@ -355,7 +428,8 @@ async function buildCycle(
     !decisionResult.data?.success
   ) {
     return {
-      success: false,
+      success:
+        false,
 
       status:
         "DECISION_REENTRY_FAILED",
@@ -391,16 +465,13 @@ async function buildCycle(
     feedback.content || {};
 
   const feedbackData =
-    feedbackContent.feedback ||
-    {};
+    feedbackContent.feedback || {};
 
   const sourceExecution =
-    feedbackData.source_execution ||
-    {};
+    feedbackData.source_execution || {};
 
   const learningSignal =
-    feedbackData.learning_signal ||
-    {};
+    feedbackData.learning_signal || {};
 
   const cycle = {
     state:
@@ -474,18 +545,23 @@ async function buildCycle(
         null
     },
 
-    previous_cycle: previousCycle
-      ? {
-          insight_id:
-            previousCycle.id,
+    // --------------------------------------------------------
+    // Previous Cycle
+    // --------------------------------------------------------
 
-          run_id:
-            previousCycle.run_id,
+    previous_cycle:
+      previousCycle
+        ? {
+            insight_id:
+              previousCycle.id,
 
-          created_at:
-            previousCycle.created_at
-        }
-      : null,
+            run_id:
+              previousCycle.run_id,
+
+            created_at:
+              previousCycle.created_at
+          }
+        : null,
 
     guardrails: {
       winner_declared:
@@ -518,7 +594,8 @@ async function buildCycle(
   };
 
   return {
-    success: true,
+    success:
+      true,
 
     status:
       "READY",
@@ -654,7 +731,9 @@ async function saveCycle(
 // GET = PREVIEW
 // ============================================================
 
-export async function onRequestGet(context) {
+export async function onRequestGet(
+  context
+) {
   try {
     const url =
       new URL(context.request.url);
@@ -666,7 +745,8 @@ export async function onRequestGet(context) {
 
     if (!contentId) {
       return json({
-        success: false,
+        success:
+          false,
 
         layer:
           "DECISION_CYCLE_V1",
@@ -687,7 +767,8 @@ export async function onRequestGet(context) {
 
     if (!result.success) {
       return json({
-        success: false,
+        success:
+          false,
 
         layer:
           "DECISION_CYCLE_V1",
@@ -702,20 +783,25 @@ export async function onRequestGet(context) {
           result.content,
 
         feedback:
-          result.feedback || null,
+          result.feedback ||
+          null,
 
         diagnostics:
-          result.diagnostics || null,
+          result.diagnostics ||
+          null,
 
         decision_response:
-          result.decision_response || null
-      }, result.status === "NO_FEEDBACK"
+          result.decision_response ||
+          null
+      },
+      result.status === "NO_FEEDBACK"
         ? 404
         : 500);
     }
 
     return json({
-      success: true,
+      success:
+        true,
 
       layer:
         "DECISION_CYCLE_V1",
@@ -795,7 +881,15 @@ export async function onRequestGet(context) {
           true,
 
         previous_cycle_found:
-          !!result.cycle.previous_cycle
+          !!result.cycle.previous_cycle,
+
+        previous_cycle_id:
+          result.cycle.previous_cycle?.insight_id ||
+          null,
+
+        previous_cycle_run_id:
+          result.cycle.previous_cycle?.run_id ||
+          null
       },
 
       next_step:
@@ -804,7 +898,8 @@ export async function onRequestGet(context) {
 
   } catch (error) {
     return json({
-      success: false,
+      success:
+        false,
 
       layer:
         "DECISION_CYCLE_V1",
@@ -826,7 +921,9 @@ export async function onRequestGet(context) {
 // POST = EXECUTE / PERSIST
 // ============================================================
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
     const url =
       new URL(context.request.url);
@@ -838,7 +935,8 @@ export async function onRequestPost(context) {
 
     if (!contentId) {
       return json({
-        success: false,
+        success:
+          false,
 
         layer:
           "DECISION_CYCLE_V1",
@@ -862,7 +960,8 @@ export async function onRequestPost(context) {
 
     if (body.approved !== true) {
       return json({
-        success: false,
+        success:
+          false,
 
         layer:
           "DECISION_CYCLE_V1",
@@ -886,7 +985,8 @@ export async function onRequestPost(context) {
 
     if (!result.success) {
       return json({
-        success: false,
+        success:
+          false,
 
         layer:
           "DECISION_CYCLE_V1",
@@ -901,11 +1001,14 @@ export async function onRequestPost(context) {
           result.content,
 
         diagnostics:
-          result.diagnostics || null,
+          result.diagnostics ||
+          null,
 
         decision_response:
-          result.decision_response || null
-      }, result.status === "NO_FEEDBACK"
+          result.decision_response ||
+          null
+      },
+      result.status === "NO_FEEDBACK"
         ? 404
         : 500);
     }
@@ -917,7 +1020,8 @@ export async function onRequestPost(context) {
       );
 
     return json({
-      success: true,
+      success:
+        true,
 
       layer:
         "DECISION_CYCLE_V1",
@@ -983,7 +1087,8 @@ export async function onRequestPost(context) {
 
   } catch (error) {
     return json({
-      success: false,
+      success:
+        false,
 
       layer:
         "DECISION_CYCLE_V1",
@@ -1000,3 +1105,4 @@ export async function onRequestPost(context) {
     }, 500);
   }
 }
+````
