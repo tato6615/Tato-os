@@ -15,9 +15,7 @@ const ATTENTION_WEIGHTS = {
   content_view: 1,
   content_click: 3,
   product_view: 4,
-  engagement: 5,
-  customer: 10,
-  order: 20
+  engagement: 5
 };
 
 function json(data, status = 200) {
@@ -70,9 +68,11 @@ function eventSessionId(row) {
 }
 
 function eventCreatedAt(row) {
-  return row?.created_at
-    ? new Date(row.created_at).getTime()
-    : 0;
+  if (!row?.created_at) return 0;
+
+  const time = new Date(row.created_at).getTime();
+
+  return Number.isFinite(time) ? time : 0;
 }
 
 function calculateAttentionScore(events) {
@@ -105,9 +105,7 @@ function buildAttentionBreakdown(events) {
     content_view: 0,
     content_click: 0,
     product_view: 0,
-    engagement: 0,
-    customer: 0,
-    order: 0
+    engagement: 0
   };
 
   for (const event of events) {
@@ -156,7 +154,7 @@ function buildAttentionBreakdown(events) {
 }
 
 async function ensureTable(db) {
-  await db.prepare(`
+  const sql = `
     CREATE TABLE IF NOT EXISTS content_measurements (
       id TEXT PRIMARY KEY,
       content_id TEXT,
@@ -177,28 +175,33 @@ async function ensureTable(db) {
       attribution_mode TEXT,
       created_at TEXT
     )
-  `).run();
+  `;
+
+  await db.prepare(sql).run();
 }
 
 async function getContent(db, requestedContentId = null) {
   try {
     if (requestedContentId) {
-      return await db.prepare(`
-        SELECT *
-        FROM content_engine
-        WHERE id = ?
-        LIMIT 1
-      `)
+      return await db
+        .prepare(`
+          SELECT *
+          FROM content_engine
+          WHERE id = ?
+          LIMIT 1
+        `)
         .bind(requestedContentId)
         .first();
     }
 
-    return await db.prepare(`
-      SELECT *
-      FROM content_engine
-      ORDER BY created_at DESC
-      LIMIT 1
-    `).first();
+    return await db
+      .prepare(`
+        SELECT *
+        FROM content_engine
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)
+      .first();
   } catch (_) {
     return null;
   }
@@ -206,13 +209,14 @@ async function getContent(db, requestedContentId = null) {
 
 async function getMeasurementStart(db, contentId) {
   try {
-    const row = await db.prepare(`
-      SELECT *
-      FROM content_decision_runs
-      WHERE content_id = ?
-      ORDER BY created_at ASC
-      LIMIT 1
-    `)
+    const row = await db
+      .prepare(`
+        SELECT *
+        FROM content_decision_runs
+        WHERE content_id = ?
+        ORDER BY created_at ASC
+        LIMIT 1
+      `)
       .bind(contentId)
       .first();
 
@@ -224,47 +228,34 @@ async function getMeasurementStart(db, contentId) {
   return "1970-01-01T00:00:00.000Z";
 }
 
-async function getContentEvents(db, contentId, measurementStart) {
+async function getBehaviorEvents(db, measurementStart) {
   try {
-    const rows = await db.prepare(`
-      SELECT *
-      FROM behavior_events
-      WHERE created_at >= ?
-      ORDER BY created_at ASC
-    `)
+    const result = await db
+      .prepare(`
+        SELECT *
+        FROM behavior_events
+        WHERE created_at >= ?
+        ORDER BY created_at ASC
+      `)
       .bind(measurementStart)
       .all();
 
-    return (rows.results || []).filter(row => {
-      return eventContentId(row) === s(contentId);
-    });
+    return result.results || [];
   } catch (_) {
     return [];
   }
 }
 
-async function getAllBehaviorEvents(db, measurementStart) {
-  try {
-    const rows = await db.prepare(`
-      SELECT *
-      FROM behavior_events
-      WHERE created_at >= ?
-      ORDER BY created_at ASC
-    `)
-      .bind(measurementStart)
-      .all();
-
-    return rows.results || [];
-  } catch (_) {
-    return [];
-  }
+function getContentEvents(events, contentId) {
+  return events.filter(event => {
+    return eventContentId(event) === s(contentId);
+  });
 }
 
 function getClicks(events) {
-  return events.filter(
-    event =>
-      normalizeEventType(event.event_type) === "content_click"
-  );
+  return events.filter(event => {
+    return normalizeEventType(event.event_type) === "content_click";
+  });
 }
 
 function isAfterClick(event, click) {
@@ -288,15 +279,15 @@ function isAfterClick(event, click) {
   );
 }
 
-function getAttributedDownstreamEvents(allEvents, clicks) {
+function getDownstreamEvents(allEvents, clicks) {
   if (!clicks.length) {
     return [];
   }
 
   return allEvents.filter(event => {
-    return clicks.some(click =>
-      isAfterClick(event, click)
-    );
+    return clicks.some(click => {
+      return isAfterClick(event, click);
+    });
   });
 }
 
@@ -310,10 +301,10 @@ function uniqueValues(values) {
   ];
 }
 
-function getAttributedCustomers(downstreamEvents) {
+function getCustomerIdsFromEvents(events) {
   const ids = [];
 
-  for (const event of downstreamEvents) {
+  for (const event of events) {
     const type = normalizeEventType(event.event_type);
 
     if (
@@ -330,14 +321,9 @@ function getAttributedCustomers(downstreamEvents) {
   return uniqueValues(ids);
 }
 
-async function getCustomersFromEvents(
-  db,
-  downstreamEvents,
-  clicks
-) {
-  const eventCustomerIds = getAttributedCustomers(
-    downstreamEvents
-  );
+async function getCustomerIds(db, downstreamEvents, clicks) {
+  const eventCustomerIds =
+    getCustomerIdsFromEvents(downstreamEvents);
 
   if (eventCustomerIds.length) {
     return eventCustomerIds;
@@ -356,16 +342,17 @@ async function getCustomersFromEvents(
       .map(() => "?")
       .join(",");
 
-    const rows = await db.prepare(`
-      SELECT id
-      FROM customers
-      WHERE session_id IN (${placeholders})
-    `)
+    const result = await db
+      .prepare(`
+        SELECT id
+        FROM customers
+        WHERE session_id IN (${placeholders})
+      `)
       .bind(...clickSessions)
       .all();
 
     return uniqueValues(
-      (rows.results || []).map(row => row.id)
+      (result.results || []).map(row => row.id)
     );
   } catch (_) {
     return [];
@@ -385,14 +372,15 @@ async function getOrders(db, customerIds, measurementStart) {
       .map(() => "?")
       .join(",");
 
-    const row = await db.prepare(`
-      SELECT
-        COUNT(*) AS orders,
-        COALESCE(SUM(amount), 0) AS revenue
-      FROM orders
-      WHERE customer_id IN (${placeholders})
-        AND created_at >= ?
-    `)
+    const row = await db
+      .prepare(`
+        SELECT
+          COUNT(*) AS orders,
+          COALESCE(SUM(amount), 0) AS revenue
+        FROM orders
+        WHERE customer_id IN (${placeholders})
+          AND created_at >= ?
+      `)
       .bind(...customerIds, measurementStart)
       .first();
 
@@ -408,7 +396,7 @@ async function getOrders(db, customerIds, measurementStart) {
   }
 }
 
-function calculateRate(a, b) {
+function rate(a, b) {
   return b > 0
     ? Number(((a / b) * 100).toFixed(2))
     : 0;
@@ -416,17 +404,17 @@ function calculateRate(a, b) {
 
 function determineStatus(metrics) {
   if (
-    n(metrics.orders) > 0 &&
-    n(metrics.revenue) > 0
+    metrics.orders > 0 &&
+    metrics.revenue > 0
   ) {
     return "CONVERTING";
   }
 
   if (
-    n(metrics.attention) > 0 ||
-    n(metrics.clicks) > 0 ||
-    n(metrics.product_views) > 0 ||
-    n(metrics.engagements) > 0
+    metrics.attention > 0 ||
+    metrics.clicks > 0 ||
+    metrics.product_views > 0 ||
+    metrics.engagements > 0
   ) {
     return "MEASURED";
   }
@@ -437,10 +425,8 @@ function determineStatus(metrics) {
 async function measure(db, requestedContentId = null) {
   await ensureTable(db);
 
-  const content = await getContent(
-    db,
-    requestedContentId
-  );
+  const content =
+    await getContent(db, requestedContentId);
 
   if (!content) {
     throw new Error(
@@ -451,72 +437,57 @@ async function measure(db, requestedContentId = null) {
   const contentId = s(content.id);
 
   const measurementStart =
-    await getMeasurementStart(db, contentId);
-
-  /*
-   * Content events:
-   * These are the events directly belonging to this content.
-   */
-  const contentEvents =
-    await getContentEvents(
+    await getMeasurementStart(
       db,
-      contentId,
-      measurementStart
+      contentId
     );
 
-  /*
-   * All events:
-   * Needed for same-session downstream attribution.
-   */
   const allEvents =
-    await getAllBehaviorEvents(
+    await getBehaviorEvents(
       db,
       measurementStart
     );
 
-  const views = contentEvents.filter(
-    event =>
-      normalizeEventType(event.event_type) ===
-      "content_view"
-  );
-
-  const clicks = getClicks(contentEvents);
-
-  const engagements = contentEvents.filter(event => {
-    const type = normalizeEventType(
-      event.event_type
+  const contentEvents =
+    getContentEvents(
+      allEvents,
+      contentId
     );
 
-    return (
-      type === "engagement" ||
-      type === "like" ||
-      type === "comment" ||
-      type === "share"
-    );
-  });
+  const clicks =
+    getClicks(contentEvents);
 
-  /*
-   * Downstream starts at Content Click.
-   * Same session + event time >= click time.
-   */
   const downstreamEvents =
-    getAttributedDownstreamEvents(
+    getDownstreamEvents(
       allEvents,
       clicks
     );
 
-  const attributedProductViews =
-    downstreamEvents.filter(
-      event =>
+  const productViews =
+    downstreamEvents.filter(event => {
+      return (
         normalizeEventType(event.event_type) ===
         "product_view"
-    );
-
-  const attributedEngagements =
-    downstreamEvents.filter(event => {
-      const type = normalizeEventType(
-        event.event_type
       );
+    });
+
+  const engagements =
+    contentEvents.filter(event => {
+      const type =
+        normalizeEventType(event.event_type);
+
+      return (
+        type === "engagement" ||
+        type === "like" ||
+        type === "comment" ||
+        type === "share"
+      );
+    });
+
+  const downstreamEngagements =
+    downstreamEvents.filter(event => {
+      const type =
+        normalizeEventType(event.event_type);
 
       return (
         type === "engagement" ||
@@ -527,13 +498,11 @@ async function measure(db, requestedContentId = null) {
     });
 
   const customerIds =
-    await getCustomersFromEvents(
+    await getCustomerIds(
       db,
       downstreamEvents,
       clicks
     );
-
-  const customerCount = customerIds.length;
 
   const orderData =
     await getOrders(
@@ -543,95 +512,104 @@ async function measure(db, requestedContentId = null) {
     );
 
   /*
-   * IMPORTANT:
-   * Attention is NOT content_view count.
+   * ATTENTION V2.2
    *
-   * Attention is a weighted behavioral score:
+   * content_view  = 1
+   * content_click = 3
+   * product_view  = 4
+   * engagement    = 5
    *
-   * content_view   × 1
-   * content_click  × 3
-   * product_view   × 4
-   * engagement     × 5
-   *
-   * Customer / Order are downstream conversion
-   * signals and are not double-counted here.
+   * Attention is a weighted behavioral score.
    */
   const attention =
-    calculateAttentionScore(contentEvents);
+    calculateAttentionScore(
+      contentEvents
+    );
 
   const attentionBreakdown =
-    buildAttentionBreakdown(contentEvents);
+    buildAttentionBreakdown(
+      contentEvents
+    );
 
   const metrics = {
     attention,
     product_views:
-      attributedProductViews.length,
-    clicks: clicks.length,
+      productViews.length,
+    clicks:
+      clicks.length,
     engagements:
       engagements.length +
-      attributedEngagements.length,
-    customers: customerCount,
-    orders: orderData.orders,
-    revenue: orderData.revenue
+      downstreamEngagements.length,
+    customers:
+      customerIds.length,
+    orders:
+      orderData.orders,
+    revenue:
+      orderData.revenue
   };
-
-  const status =
-    determineStatus(metrics);
 
   const conversions = {
     attention_to_view:
-      calculateRate(
+      rate(
         metrics.product_views,
         metrics.attention
       ),
 
     view_to_click:
-      calculateRate(
+      rate(
         metrics.clicks,
         metrics.product_views
       ),
 
     click_to_customer:
-      calculateRate(
+      rate(
         metrics.customers,
         metrics.clicks
       ),
 
     customer_to_order:
-      calculateRate(
+      rate(
         metrics.orders,
         metrics.customers
       )
   };
 
+  const status =
+    determineStatus(metrics);
+
   const measuredAt =
     new Date().toISOString();
 
-  const measurementId = id();
+  const measurementId =
+    id();
 
-  await db.prepare(`
-    INSERT INTO content_measurements (
-      id,
-      content_id,
-      measured_at,
-      measurement_start,
-      attention,
-      product_views,
-      clicks,
-      engagements,
-      customers,
-      orders,
-      revenue,
-      attention_to_view,
-      view_to_click,
-      click_to_customer,
-      customer_to_order,
-      status,
-      attribution_mode,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
+  await db
+    .prepare(`
+      INSERT INTO content_measurements (
+        id,
+        content_id,
+        measured_at,
+        measurement_start,
+        attention,
+        product_views,
+        clicks,
+        engagements,
+        customers,
+        orders,
+        revenue,
+        attention_to_view,
+        view_to_click,
+        click_to_customer,
+        customer_to_order,
+        status,
+        attribution_mode,
+        created_at
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?
+      )
+    `)
     .bind(
       measurementId,
       contentId,
@@ -656,9 +634,7 @@ async function measure(db, requestedContentId = null) {
 
   return {
     success: true,
-
     layer: LAYER,
-
     version: "2.2",
 
     content: {
@@ -672,45 +648,22 @@ async function measure(db, requestedContentId = null) {
       content_id: contentId,
       measured_at: measuredAt,
       measurement_start: measurementStart,
-
-      /*
-       * THIS IS THE VALUE LEARNING / INTELLIGENCE
-       * SHOULD READ.
-       */
       attention: metrics.attention,
-
-      product_views:
-        metrics.product_views,
-
-      clicks:
-        metrics.clicks,
-
-      engagements:
-        metrics.engagements,
-
-      customers:
-        metrics.customers,
-
-      orders:
-        metrics.orders,
-
-      revenue:
-        metrics.revenue,
-
+      product_views: metrics.product_views,
+      clicks: metrics.clicks,
+      engagements: metrics.engagements,
+      customers: metrics.customers,
+      orders: metrics.orders,
+      revenue: metrics.revenue,
       attention_to_view:
         conversions.attention_to_view,
-
       view_to_click:
         conversions.view_to_click,
-
       click_to_customer:
         conversions.click_to_customer,
-
       customer_to_order:
         conversions.customer_to_order,
-
       status,
-
       attribution_mode:
         ATTRIBUTION_MODE
     },
@@ -719,22 +672,30 @@ async function measure(db, requestedContentId = null) {
       definition:
         "Weighted behavioral signal, not content_view count",
 
+      formula:
+        "content_view×1 + content_click×3 + product_view×4 + engagement×5",
+
       weights:
         ATTENTION_WEIGHTS,
 
       breakdown:
-        attentionBreakdown,
-
-      formula:
-        "content_view×1 + content_click×3 + product_view×4 + engagement×5"
+        attentionBreakdown
     },
 
     diagnostics: {
+      total_behavior_events:
+        allEvents.length,
+
       content_events:
         contentEvents.length,
 
       content_views:
-        views.length,
+        contentEvents.filter(
+          event =>
+            normalizeEventType(
+              event.event_type
+            ) === "content_view"
+        ).length,
 
       content_clicks:
         clicks.length,
@@ -743,19 +704,16 @@ async function measure(db, requestedContentId = null) {
         downstreamEvents.length,
 
       attributed_product_views:
-        attributedProductViews.length,
+        productViews.length,
 
       attributed_customers:
-        customerCount,
+        customerIds.length,
 
       attributed_orders:
         orderData.orders,
 
       attribution_mode:
         ATTRIBUTION_MODE,
-
-      attention_definition:
-        "Weighted behavioral signal, not content_view count",
 
       winner_decision:
         "NOT_DECLARED_IN_V2.2"
