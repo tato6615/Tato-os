@@ -1,20 +1,48 @@
+```javascript
 // TATO-OS
-// Content Measurement Engine V2.1
+// Content Measurement Engine V2.2
 // Route: /api/content-measurement
 //
 // FLOW:
 // ATTENTION → CONTENT VIEW → CLICK → DOWNSTREAM BEHAVIOR
 // → CUSTOMER → ORDER → REVENUE
 //
-// V2.1:
+// V2.2:
 // - CONTENT_ATTRIBUTION_V2 only
 // - Content-specific measurement
 // - Session-based downstream attribution
+// - Behavioral Attention Score
+// - Attention is NOT equal to content_view count
 // - Diagnostic output
 // - Never declares WINNER
+//
+// ATTENTION SCORE:
+//
+// content_view        = 1
+// content_click       = 3
+// product_view        = 4
+// engagement          = 5
+// customer            = 10
+// order               = 20
+//
+// IMPORTANT:
+// - Content events are identified by metadata.content_id
+// - Downstream events must occur in the same session
+// - Downstream events must occur at or after the content click
+// - Customer/order signals are attributed only through that path
+// - Legacy measurements are never used
 
-const LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.1";
+const LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.2";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
+
+const ATTENTION_WEIGHTS = {
+  content_view: 1,
+  content_click: 3,
+  product_view: 4,
+  engagement: 5,
+  customer: 10,
+  order: 20
+};
 
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -63,29 +91,67 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function eventType(event) {
+  return str(event?.event_type).toLowerCase();
+}
+
+function isEngagementEvent(event) {
+  const type = eventType(event);
+
+  return (
+    type === "engagement" ||
+    type === "content_engagement" ||
+    type === "share" ||
+    type === "save" ||
+    type === "comment" ||
+    type === "like"
+  );
+}
+
+function isValidDate(value) {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time);
+}
+
+function isAtOrAfter(eventTime, referenceTime) {
+  if (
+    !isValidDate(eventTime) ||
+    !isValidDate(referenceTime)
+  ) {
+    return false;
+  }
+
+  return (
+    new Date(eventTime).getTime() >=
+    new Date(referenceTime).getTime()
+  );
+}
+
 async function ensureTable(db) {
-  await db.prepare(
-    "CREATE TABLE IF NOT EXISTS content_measurements (" +
-    "id TEXT PRIMARY KEY," +
-    "content_id TEXT," +
-    "measured_at TEXT," +
-    "measurement_start TEXT," +
-    "attention INTEGER DEFAULT 0," +
-    "product_views INTEGER DEFAULT 0," +
-    "clicks INTEGER DEFAULT 0," +
-    "engagements INTEGER DEFAULT 0," +
-    "customers INTEGER DEFAULT 0," +
-    "orders INTEGER DEFAULT 0," +
-    "revenue REAL DEFAULT 0," +
-    "attention_to_view REAL DEFAULT 0," +
-    "view_to_click REAL DEFAULT 0," +
-    "click_to_customer REAL DEFAULT 0," +
-    "customer_to_order REAL DEFAULT 0," +
-    "status TEXT," +
-    "attribution_mode TEXT," +
-    "created_at TEXT" +
-    ")"
-  ).run();
+  await db
+    .prepare(
+      "CREATE TABLE IF NOT EXISTS content_measurements (" +
+      "id TEXT PRIMARY KEY," +
+      "content_id TEXT," +
+      "measured_at TEXT," +
+      "measurement_start TEXT," +
+      "attention INTEGER DEFAULT 0," +
+      "product_views INTEGER DEFAULT 0," +
+      "clicks INTEGER DEFAULT 0," +
+      "engagements INTEGER DEFAULT 0," +
+      "customers INTEGER DEFAULT 0," +
+      "orders INTEGER DEFAULT 0," +
+      "revenue REAL DEFAULT 0," +
+      "attention_to_view REAL DEFAULT 0," +
+      "view_to_click REAL DEFAULT 0," +
+      "click_to_customer REAL DEFAULT 0," +
+      "customer_to_order REAL DEFAULT 0," +
+      "status TEXT," +
+      "attribution_mode TEXT," +
+      "created_at TEXT" +
+      ")"
+    )
+    .run();
 }
 
 async function getContent(db, requestedId) {
@@ -165,7 +231,7 @@ async function getMeasurementStart(db, content) {
 
 async function getContentEvents(
   db,
-  eventType,
+  eventTypeValue,
   start,
   contentId
 ) {
@@ -186,7 +252,7 @@ async function getContentEvents(
         "AND event_type = ? " +
         "ORDER BY created_at ASC"
       )
-      .bind(start, eventType)
+      .bind(start, eventTypeValue)
       .all();
 
     return (result.results || []).filter((row) => {
@@ -258,7 +324,7 @@ async function getDownstreamEvents(
 }
 
 function isAfterClick(event, clicks) {
-  if (!event.session_id) {
+  if (!event?.session_id) {
     return false;
   }
 
@@ -323,6 +389,14 @@ function determineStatus(metrics) {
   }
 
   return "WAITING_FOR_TRAFFIC";
+}
+
+function getUniqueCustomerIds(events) {
+  return unique(
+    events
+      .map((event) => event.customer_id)
+      .filter(Boolean)
+  );
 }
 
 async function getAttributedCustomers(
@@ -425,6 +499,100 @@ async function getOrders(
   }
 }
 
+function calculateAttentionScore({
+  views,
+  clicks,
+  productViews,
+  engagements,
+  customers,
+  orders
+}) {
+  return (
+    views.length *
+      ATTENTION_WEIGHTS.content_view +
+
+    clicks.length *
+      ATTENTION_WEIGHTS.content_click +
+
+    productViews.length *
+      ATTENTION_WEIGHTS.product_view +
+
+    engagements.length *
+      ATTENTION_WEIGHTS.engagement +
+
+    customers.length *
+      ATTENTION_WEIGHTS.customer +
+
+    orders *
+      ATTENTION_WEIGHTS.order
+  );
+}
+
+function buildAttentionBreakdown({
+  views,
+  clicks,
+  productViews,
+  engagements,
+  customers,
+  orders
+}) {
+  return {
+    content_view: {
+      count: views.length,
+      weight:
+        ATTENTION_WEIGHTS.content_view,
+      score:
+        views.length *
+        ATTENTION_WEIGHTS.content_view
+    },
+
+    content_click: {
+      count: clicks.length,
+      weight:
+        ATTENTION_WEIGHTS.content_click,
+      score:
+        clicks.length *
+        ATTENTION_WEIGHTS.content_click
+    },
+
+    product_view: {
+      count: productViews.length,
+      weight:
+        ATTENTION_WEIGHTS.product_view,
+      score:
+        productViews.length *
+        ATTENTION_WEIGHTS.product_view
+    },
+
+    engagement: {
+      count: engagements.length,
+      weight:
+        ATTENTION_WEIGHTS.engagement,
+      score:
+        engagements.length *
+        ATTENTION_WEIGHTS.engagement
+    },
+
+    customer: {
+      count: customers.length,
+      weight:
+        ATTENTION_WEIGHTS.customer,
+      score:
+        customers.length *
+        ATTENTION_WEIGHTS.customer
+    },
+
+    order: {
+      count: orders,
+      weight:
+        ATTENTION_WEIGHTS.order,
+      score:
+        orders *
+        ATTENTION_WEIGHTS.order
+    }
+  };
+}
+
 async function measure(
   db,
   requestedContentId
@@ -486,28 +654,14 @@ async function measure(
   const productViews =
     attributed.filter(
       (event) =>
-        event.event_type ===
+        eventType(event) ===
         "product_view"
     );
 
   const engagements =
     attributed.filter(
-      (event) => {
-        const type =
-          str(
-            event.event_type
-          ).toLowerCase();
-
-        return (
-          type === "engagement" ||
-          type ===
-            "content_engagement" ||
-          type === "share" ||
-          type === "save" ||
-          type === "comment" ||
-          type === "like"
-        );
-      }
+      (event) =>
+        isEngagementEvent(event)
     );
 
   const customers =
@@ -523,17 +677,52 @@ async function measure(
       clicks
     );
 
-  const metrics = {
-    attention: views.length,
+  const metricsBeforeAttention = {
     product_views:
       productViews.length,
-    clicks: clicks.length,
+
+    clicks:
+      clicks.length,
+
     engagements:
       engagements.length,
+
     customers:
       customers.length,
+
+    orders:
+      orderData.orders
+  };
+
+  const attention =
+    calculateAttentionScore({
+      views,
+      clicks,
+      productViews,
+      engagements,
+      customers,
+      orders:
+        orderData.orders
+    });
+
+  const metrics = {
+    attention,
+
+    product_views:
+      productViews.length,
+
+    clicks:
+      clicks.length,
+
+    engagements:
+      engagements.length,
+
+    customers:
+      customers.length,
+
     orders:
       orderData.orders,
+
     revenue:
       orderData.revenue
   };
@@ -607,6 +796,17 @@ async function measure(
     )
     .run();
 
+  const attentionBreakdown =
+    buildAttentionBreakdown({
+      views,
+      clicks,
+      productViews,
+      engagements,
+      customers,
+      orders:
+        orderData.orders
+    });
+
   return {
     success: true,
     layer: LAYER,
@@ -640,11 +840,26 @@ async function measure(
 
     metrics,
 
+    attention: {
+      score:
+        metrics.attention,
+
+      definition:
+        "Behavioral Attention Score",
+
+      weights:
+        ATTENTION_WEIGHTS,
+
+      breakdown:
+        attentionBreakdown
+    },
+
     funnel,
 
     attribution: {
       content_views:
         views.length,
+
       content_clicks:
         clicks.length,
 
@@ -684,6 +899,15 @@ async function measure(
       measurement_start:
         start,
 
+      attention_definition:
+        "Weighted behavioral signal, not content_view count",
+
+      attention_weights:
+        ATTENTION_WEIGHTS,
+
+      attention_formula:
+        "content_view*1 + content_click*3 + product_view*4 + engagement*5 + customer*10 + order*20",
+
       view_query:
         "content_view + metadata.content_id",
 
@@ -692,6 +916,9 @@ async function measure(
 
       downstream_query:
         "same session after content_click",
+
+      product_view_attribution:
+        "product_view must occur in the same click session at or after content_click",
 
       customer_attribution:
         "customer_id from downstream behavior",
@@ -703,7 +930,30 @@ async function measure(
         ATTRIBUTION_MODE,
 
       legacy_measurements_used:
-        false
+        false,
+
+      raw_event_counts: {
+        content_view:
+          views.length,
+
+        content_click:
+          clicks.length,
+
+        attributed_product_view:
+          productViews.length,
+
+        attributed_engagement:
+          engagements.length,
+
+        attributed_customer:
+          customers.length,
+
+        attributed_order:
+          orderData.orders
+      },
+
+      metrics_before_attention:
+        metricsBeforeAttention
     },
 
     learning_signal: {
@@ -728,7 +978,7 @@ async function measure(
     },
 
     winner_decision:
-      "NOT_DECLARED_IN_V2.1",
+      "NOT_DECLARED_IN_V2.2",
 
     next_step:
       "Send this CONTENT_ATTRIBUTION_V2 measurement to Learning AI V1.5."
@@ -783,6 +1033,15 @@ async function preview(
     attribution_mode:
       ATTRIBUTION_MODE,
 
+    attention_definition:
+      "Behavioral Attention Score",
+
+    attention_weights:
+      ATTENTION_WEIGHTS,
+
+    attention_formula:
+      "content_view*1 + content_click*3 + product_view*4 + engagement*5 + customer*10 + order*20",
+
     attribution_path: [
       "content_view",
       "content_click",
@@ -794,15 +1053,20 @@ async function preview(
 
     diagnostic: {
       source:
-        "content_measurement_engine_v2.1",
+        "content_measurement_engine_v2.2",
+
       legacy_measurements:
         "ignored by Learning AI V1.5",
+
       measurement_created:
-        false
+        false,
+
+      winner_decision:
+        "NOT_DECLARED_IN_V2.2"
     },
 
     winner_decision:
-      "NOT_DECLARED_IN_V2.1"
+      "NOT_DECLARED_IN_V2.2"
   });
 }
 
@@ -944,3 +1208,4 @@ export async function onRequestPost(
     );
   }
 }
+```
