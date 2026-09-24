@@ -1,4 +1,3 @@
-```javascript
 // TATO-OS
 // Content Measurement Engine V2.2
 // Route: /api/content-measurement
@@ -25,28 +24,30 @@ function json(data, status = 200) {
   });
 }
 
-function id() {
+function makeId() {
   return crypto.randomUUID();
 }
 
-function n(value) {
-  const x = Number(value);
-  return Number.isFinite(x) ? x : 0;
+function numberValue(value) {
+  const valueNumber = Number(value);
+  return Number.isFinite(valueNumber) ? valueNumber : 0;
 }
 
-function s(value) {
+function stringValue(value) {
   return value == null ? "" : String(value);
 }
 
 function normalizeEventType(value) {
-  return s(value).trim().toLowerCase();
+  return stringValue(value).trim().toLowerCase();
 }
 
-function eventContentId(row) {
-  if (!row) return null;
+function getEventContentId(row) {
+  if (!row) {
+    return null;
+  }
 
   if (row.content_id) {
-    return s(row.content_id);
+    return stringValue(row.content_id);
   }
 
   try {
@@ -55,24 +56,39 @@ function eventContentId(row) {
         ? JSON.parse(row.metadata)
         : row.metadata;
 
-    return metadata?.content_id
-      ? s(metadata.content_id)
-      : null;
-  } catch (_) {
+    if (metadata && metadata.content_id) {
+      return stringValue(metadata.content_id);
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+function getEventSessionId(row) {
+  if (!row || !row.session_id) {
     return null;
   }
+
+  return stringValue(row.session_id);
 }
 
-function eventSessionId(row) {
-  return row?.session_id ? s(row.session_id) : null;
-}
-
-function eventCreatedAt(row) {
-  if (!row?.created_at) return 0;
+function getEventTime(row) {
+  if (!row || !row.created_at) {
+    return 0;
+  }
 
   const time = new Date(row.created_at).getTime();
 
   return Number.isFinite(time) ? time : 0;
+}
+
+function isEngagementType(type) {
+  return (
+    type === "engagement" ||
+    type === "like" ||
+    type === "comment" ||
+    type === "share"
+  );
 }
 
 function calculateAttentionScore(events) {
@@ -87,12 +103,7 @@ function calculateAttentionScore(events) {
       score += ATTENTION_WEIGHTS.content_click;
     } else if (type === "product_view") {
       score += ATTENTION_WEIGHTS.product_view;
-    } else if (
-      type === "engagement" ||
-      type === "like" ||
-      type === "comment" ||
-      type === "share"
-    ) {
+    } else if (isEngagementType(type)) {
       score += ATTENTION_WEIGHTS.engagement;
     }
   }
@@ -112,33 +123,32 @@ function buildAttentionBreakdown(events) {
     const type = normalizeEventType(event.event_type);
 
     if (type === "content_view") {
-      counts.content_view++;
+      counts.content_view += 1;
     } else if (type === "content_click") {
-      counts.content_click++;
+      counts.content_click += 1;
     } else if (type === "product_view") {
-      counts.product_view++;
-    } else if (
-      type === "engagement" ||
-      type === "like" ||
-      type === "comment" ||
-      type === "share"
-    ) {
-      counts.engagement++;
+      counts.product_view += 1;
+    } else if (isEngagementType(type)) {
+      counts.engagement += 1;
     }
   }
 
   const scores = {
     content_view:
-      counts.content_view * ATTENTION_WEIGHTS.content_view,
+      counts.content_view *
+      ATTENTION_WEIGHTS.content_view,
 
     content_click:
-      counts.content_click * ATTENTION_WEIGHTS.content_click,
+      counts.content_click *
+      ATTENTION_WEIGHTS.content_click,
 
     product_view:
-      counts.product_view * ATTENTION_WEIGHTS.product_view,
+      counts.product_view *
+      ATTENTION_WEIGHTS.product_view,
 
     engagement:
-      counts.engagement * ATTENTION_WEIGHTS.engagement
+      counts.engagement *
+      ATTENTION_WEIGHTS.engagement
   };
 
   return {
@@ -153,54 +163,21 @@ function buildAttentionBreakdown(events) {
   };
 }
 
-async function ensureTable(db) {
-  const sql = `
-    CREATE TABLE IF NOT EXISTS content_measurements (
-      id TEXT PRIMARY KEY,
-      content_id TEXT,
-      measured_at TEXT,
-      measurement_start TEXT,
-      attention INTEGER DEFAULT 0,
-      product_views INTEGER DEFAULT 0,
-      clicks INTEGER DEFAULT 0,
-      engagements INTEGER DEFAULT 0,
-      customers INTEGER DEFAULT 0,
-      orders INTEGER DEFAULT 0,
-      revenue REAL DEFAULT 0,
-      attention_to_view REAL DEFAULT 0,
-      view_to_click REAL DEFAULT 0,
-      click_to_customer REAL DEFAULT 0,
-      customer_to_order REAL DEFAULT 0,
-      status TEXT,
-      attribution_mode TEXT,
-      created_at TEXT
-    )
-  `;
-
-  await db.prepare(sql).run();
-}
-
-async function getContent(db, requestedContentId = null) {
+async function getContent(db, requestedContentId) {
   try {
     if (requestedContentId) {
       return await db
-        .prepare(`
-          SELECT *
-          FROM content_engine
-          WHERE id = ?
-          LIMIT 1
-        `)
+        .prepare(
+          "SELECT * FROM content_engine WHERE id = ? LIMIT 1"
+        )
         .bind(requestedContentId)
         .first();
     }
 
     return await db
-      .prepare(`
-        SELECT *
-        FROM content_engine
-        ORDER BY created_at DESC
-        LIMIT 1
-      `)
+      .prepare(
+        "SELECT * FROM content_engine ORDER BY created_at DESC LIMIT 1"
+      )
       .first();
   } catch (_) {
     return null;
@@ -210,17 +187,17 @@ async function getContent(db, requestedContentId = null) {
 async function getMeasurementStart(db, contentId) {
   try {
     const row = await db
-      .prepare(`
-        SELECT *
-        FROM content_decision_runs
-        WHERE content_id = ?
-        ORDER BY created_at ASC
-        LIMIT 1
-      `)
+      .prepare(
+        `SELECT *
+         FROM content_decision_runs
+         WHERE content_id = ?
+         ORDER BY created_at ASC
+         LIMIT 1`
+      )
       .bind(contentId)
       .first();
 
-    if (row?.created_at) {
+    if (row && row.created_at) {
       return row.created_at;
     }
   } catch (_) {}
@@ -231,12 +208,12 @@ async function getMeasurementStart(db, contentId) {
 async function getBehaviorEvents(db, measurementStart) {
   try {
     const result = await db
-      .prepare(`
-        SELECT *
-        FROM behavior_events
-        WHERE created_at >= ?
-        ORDER BY created_at ASC
-      `)
+      .prepare(
+        `SELECT *
+         FROM behavior_events
+         WHERE created_at >= ?
+         ORDER BY created_at ASC`
+      )
       .bind(measurementStart)
       .all();
 
@@ -247,27 +224,32 @@ async function getBehaviorEvents(db, measurementStart) {
 }
 
 function getContentEvents(events, contentId) {
-  return events.filter(event => {
-    return eventContentId(event) === s(contentId);
+  const targetContentId = stringValue(contentId);
+
+  return events.filter((event) => {
+    return getEventContentId(event) === targetContentId;
   });
 }
 
 function getClicks(events) {
-  return events.filter(event => {
-    return normalizeEventType(event.event_type) === "content_click";
+  return events.filter((event) => {
+    return (
+      normalizeEventType(event.event_type) ===
+      "content_click"
+    );
   });
 }
 
 function isAfterClick(event, click) {
-  const eventTime = eventCreatedAt(event);
-  const clickTime = eventCreatedAt(click);
+  const eventTime = getEventTime(event);
+  const clickTime = getEventTime(click);
 
   if (!eventTime || !clickTime) {
     return false;
   }
 
-  const eventSession = eventSessionId(event);
-  const clickSession = eventSessionId(click);
+  const eventSession = getEventSessionId(event);
+  const clickSession = getEventSessionId(click);
 
   if (!eventSession || !clickSession) {
     return false;
@@ -284,8 +266,8 @@ function getDownstreamEvents(allEvents, clicks) {
     return [];
   }
 
-  return allEvents.filter(event => {
-    return clicks.some(click => {
+  return allEvents.filter((event) => {
+    return clicks.some((click) => {
       return isAfterClick(event, click);
     });
   });
@@ -295,8 +277,13 @@ function uniqueValues(values) {
   return [
     ...new Set(
       values
-        .filter(value => value != null && s(value) !== "")
-        .map(value => s(value))
+        .filter(
+          (value) =>
+            value !== null &&
+            value !== undefined &&
+            stringValue(value) !== ""
+        )
+        .map((value) => stringValue(value))
     )
   ];
 }
@@ -330,7 +317,9 @@ async function getCustomerIds(db, downstreamEvents, clicks) {
   }
 
   const clickSessions = uniqueValues(
-    clicks.map(event => eventSessionId(event))
+    clicks.map((event) =>
+      getEventSessionId(event)
+    )
   );
 
   if (!clickSessions.length) {
@@ -343,23 +332,27 @@ async function getCustomerIds(db, downstreamEvents, clicks) {
       .join(",");
 
     const result = await db
-      .prepare(`
-        SELECT id
-        FROM customers
-        WHERE session_id IN (${placeholders})
-      `)
+      .prepare(
+        `SELECT id
+         FROM customers
+         WHERE session_id IN (${placeholders})`
+      )
       .bind(...clickSessions)
       .all();
 
     return uniqueValues(
-      (result.results || []).map(row => row.id)
+      (result.results || []).map((row) => row.id)
     );
   } catch (_) {
     return [];
   }
 }
 
-async function getOrders(db, customerIds, measurementStart) {
+async function getOrders(
+  db,
+  customerIds,
+  measurementStart
+) {
   if (!customerIds.length) {
     return {
       orders: 0,
@@ -373,20 +366,20 @@ async function getOrders(db, customerIds, measurementStart) {
       .join(",");
 
     const row = await db
-      .prepare(`
-        SELECT
-          COUNT(*) AS orders,
-          COALESCE(SUM(amount), 0) AS revenue
-        FROM orders
-        WHERE customer_id IN (${placeholders})
-          AND created_at >= ?
-      `)
+      .prepare(
+        `SELECT
+           COUNT(*) AS orders,
+           COALESCE(SUM(amount), 0) AS revenue
+         FROM orders
+         WHERE customer_id IN (${placeholders})
+           AND created_at >= ?`
+      )
       .bind(...customerIds, measurementStart)
       .first();
 
     return {
-      orders: n(row?.orders),
-      revenue: n(row?.revenue)
+      orders: numberValue(row && row.orders),
+      revenue: numberValue(row && row.revenue)
     };
   } catch (_) {
     return {
@@ -396,10 +389,14 @@ async function getOrders(db, customerIds, measurementStart) {
   }
 }
 
-function rate(a, b) {
-  return b > 0
-    ? Number(((a / b) * 100).toFixed(2))
-    : 0;
+function percentage(numerator, denominator) {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return Number(
+    ((numerator / denominator) * 100).toFixed(2)
+  );
 }
 
 function determineStatus(metrics) {
@@ -422,11 +419,62 @@ function determineStatus(metrics) {
   return "WAITING_FOR_TRAFFIC";
 }
 
-async function measure(db, requestedContentId = null) {
-  await ensureTable(db);
+async function insertMeasurement(db, measurement) {
+  await db
+    .prepare(
+      `INSERT INTO content_measurements (
+        id,
+        content_id,
+        measured_at,
+        measurement_start,
+        attention,
+        product_views,
+        clicks,
+        engagements,
+        customers,
+        orders,
+        revenue,
+        attention_to_view,
+        view_to_click,
+        click_to_customer,
+        customer_to_order,
+        status,
+        attribution_mode,
+        created_at
+      )
+      VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?
+      )`
+    )
+    .bind(
+      measurement.id,
+      measurement.content_id,
+      measurement.measured_at,
+      measurement.measurement_start,
+      measurement.attention,
+      measurement.product_views,
+      measurement.clicks,
+      measurement.engagements,
+      measurement.customers,
+      measurement.orders,
+      measurement.revenue,
+      measurement.attention_to_view,
+      measurement.view_to_click,
+      measurement.click_to_customer,
+      measurement.customer_to_order,
+      measurement.status,
+      measurement.attribution_mode,
+      measurement.created_at
+    )
+    .run();
+}
 
-  const content =
-    await getContent(db, requestedContentId);
+async function measure(db, requestedContentId) {
+  const content = await getContent(
+    db,
+    requestedContentId
+  );
 
   if (!content) {
     throw new Error(
@@ -434,7 +482,7 @@ async function measure(db, requestedContentId = null) {
     );
   }
 
-  const contentId = s(content.id);
+  const contentId = stringValue(content.id);
 
   const measurementStart =
     await getMeasurementStart(
@@ -464,36 +512,29 @@ async function measure(db, requestedContentId = null) {
     );
 
   const productViews =
-    downstreamEvents.filter(event => {
+    downstreamEvents.filter((event) => {
       return (
-        normalizeEventType(event.event_type) ===
-        "product_view"
+        normalizeEventType(
+          event.event_type
+        ) === "product_view"
       );
     });
 
   const engagements =
-    contentEvents.filter(event => {
-      const type =
-        normalizeEventType(event.event_type);
-
-      return (
-        type === "engagement" ||
-        type === "like" ||
-        type === "comment" ||
-        type === "share"
+    contentEvents.filter((event) => {
+      return isEngagementType(
+        normalizeEventType(
+          event.event_type
+        )
       );
     });
 
   const downstreamEngagements =
-    downstreamEvents.filter(event => {
-      const type =
-        normalizeEventType(event.event_type);
-
-      return (
-        type === "engagement" ||
-        type === "like" ||
-        type === "comment" ||
-        type === "share"
+    downstreamEvents.filter((event) => {
+      return isEngagementType(
+        normalizeEventType(
+          event.event_type
+        )
       );
     });
 
@@ -521,6 +562,7 @@ async function measure(db, requestedContentId = null) {
    *
    * Attention is a weighted behavioral score.
    */
+
   const attention =
     calculateAttentionScore(
       contentEvents
@@ -533,42 +575,37 @@ async function measure(db, requestedContentId = null) {
 
   const metrics = {
     attention,
-    product_views:
-      productViews.length,
-    clicks:
-      clicks.length,
+    product_views: productViews.length,
+    clicks: clicks.length,
     engagements:
       engagements.length +
       downstreamEngagements.length,
-    customers:
-      customerIds.length,
-    orders:
-      orderData.orders,
-    revenue:
-      orderData.revenue
+    customers: customerIds.length,
+    orders: orderData.orders,
+    revenue: orderData.revenue
   };
 
   const conversions = {
     attention_to_view:
-      rate(
+      percentage(
         metrics.product_views,
         metrics.attention
       ),
 
     view_to_click:
-      rate(
+      percentage(
         metrics.clicks,
         metrics.product_views
       ),
 
     click_to_customer:
-      rate(
+      percentage(
         metrics.customers,
         metrics.clicks
       ),
 
     customer_to_order:
-      rate(
+      percentage(
         metrics.orders,
         metrics.customers
       )
@@ -581,60 +618,39 @@ async function measure(db, requestedContentId = null) {
     new Date().toISOString();
 
   const measurementId =
-    id();
+    makeId();
 
-  await db
-    .prepare(`
-      INSERT INTO content_measurements (
-        id,
-        content_id,
-        measured_at,
-        measurement_start,
-        attention,
-        product_views,
-        clicks,
-        engagements,
-        customers,
-        orders,
-        revenue,
-        attention_to_view,
-        view_to_click,
-        click_to_customer,
-        customer_to_order,
-        status,
-        attribution_mode,
-        created_at
-      )
-      VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?
-      )
-    `)
-    .bind(
-      measurementId,
-      contentId,
-      measuredAt,
-      measurementStart,
-      metrics.attention,
-      metrics.product_views,
-      metrics.clicks,
-      metrics.engagements,
-      metrics.customers,
-      metrics.orders,
-      metrics.revenue,
+  await insertMeasurement(db, {
+    id: measurementId,
+    content_id: contentId,
+    measured_at: measuredAt,
+    measurement_start: measurementStart,
+    attention: metrics.attention,
+    product_views: metrics.product_views,
+    clicks: metrics.clicks,
+    engagements: metrics.engagements,
+    customers: metrics.customers,
+    orders: metrics.orders,
+    revenue: metrics.revenue,
+    attention_to_view:
       conversions.attention_to_view,
+    view_to_click:
       conversions.view_to_click,
+    click_to_customer:
       conversions.click_to_customer,
+    customer_to_order:
       conversions.customer_to_order,
-      status,
+    status,
+    attribution_mode:
       ATTRIBUTION_MODE,
-      measuredAt
-    )
-    .run();
+    created_at: measuredAt
+  });
 
   return {
     success: true,
+
     layer: LAYER,
+
     version: "2.2",
 
     content: {
@@ -647,23 +663,44 @@ async function measure(db, requestedContentId = null) {
       id: measurementId,
       content_id: contentId,
       measured_at: measuredAt,
-      measurement_start: measurementStart,
-      attention: metrics.attention,
-      product_views: metrics.product_views,
-      clicks: metrics.clicks,
-      engagements: metrics.engagements,
-      customers: metrics.customers,
-      orders: metrics.orders,
-      revenue: metrics.revenue,
+      measurement_start:
+        measurementStart,
+
+      attention:
+        metrics.attention,
+
+      product_views:
+        metrics.product_views,
+
+      clicks:
+        metrics.clicks,
+
+      engagements:
+        metrics.engagements,
+
+      customers:
+        metrics.customers,
+
+      orders:
+        metrics.orders,
+
+      revenue:
+        metrics.revenue,
+
       attention_to_view:
         conversions.attention_to_view,
+
       view_to_click:
         conversions.view_to_click,
+
       click_to_customer:
         conversions.click_to_customer,
+
       customer_to_order:
         conversions.customer_to_order,
+
       status,
+
       attribution_mode:
         ATTRIBUTION_MODE
     },
@@ -691,7 +728,7 @@ async function measure(db, requestedContentId = null) {
 
       content_views:
         contentEvents.filter(
-          event =>
+          (event) =>
             normalizeEventType(
               event.event_type
             ) === "content_view"
@@ -747,8 +784,9 @@ export async function onRequestGet(context) {
         success: false,
         layer: LAYER,
         error:
-          error?.message ||
-          String(error)
+          error && error.message
+            ? error.message
+            : String(error)
       },
       500
     );
@@ -765,7 +803,9 @@ export async function onRequestPost(context) {
     } catch (_) {}
 
     const contentId =
-      body?.content_id || null;
+      body && body.content_id
+        ? body.content_id
+        : null;
 
     const result =
       await measure(
@@ -783,11 +823,11 @@ export async function onRequestPost(context) {
         success: false,
         layer: LAYER,
         error:
-          error?.message ||
-          String(error)
+          error && error.message
+            ? error.message
+            : String(error)
       },
       500
     );
   }
 }
-```
