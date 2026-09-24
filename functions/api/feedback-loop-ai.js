@@ -15,21 +15,26 @@ export async function onRequest(context) {
 
   try {
     // ============================================================
-    // FEEDBACK LOOP V1.2
+    // FEEDBACK LOOP V1.3
+    //
     // Execution Result
-    //        ↓
+    //      ↓
+    // ai_insights.run_id
+    //      ↓
+    // ai_runs.input.content_id
+    //      ↓
     // Measurement V2.2
-    //        ↓
+    //      ↓
     // Learning V1
-    //        ↓
+    //      ↓
     // Feedback Signal
     // ============================================================
 
     // ------------------------------------------------------------
-    // 1. Find persisted Execution Result
+    // 1. Find latest Execution Result
     // ------------------------------------------------------------
 
-    const result = await env.DB.prepare(`
+    const executionQuery = await env.DB.prepare(`
       SELECT
         id,
         run_id,
@@ -46,44 +51,85 @@ export async function onRequest(context) {
       LIMIT 200
     `).all();
 
-    const rows = result.results || [];
+    const executionRows =
+      executionQuery.results || [];
 
     let latestExecution = null;
 
-    for (const row of rows) {
-      const rawContent =
-        row.content === null || row.content === undefined
-          ? ""
-          : String(row.content);
+    // ------------------------------------------------------------
+    // 2. Resolve content_id through ai_runs
+    // ------------------------------------------------------------
 
-      /*
-       * IMPORTANT:
-       * Match the actual persisted content directly.
-       * No assumption about JSON structure.
-       */
-      if (!rawContent.includes(contentId)) {
+    for (const row of executionRows) {
+      if (!row.run_id) continue;
+
+      const runQuery = await env.DB.prepare(`
+        SELECT
+          id,
+          run_type,
+          model,
+          input,
+          output,
+          status,
+          created_at
+        FROM ai_runs
+        WHERE id = ?
+        LIMIT 1
+      `).bind(row.run_id).first();
+
+      if (!runQuery) continue;
+
+      let input = null;
+
+      try {
+        input =
+          typeof runQuery.input === "string"
+            ? JSON.parse(runQuery.input)
+            : runQuery.input;
+      } catch {
+        input = null;
+      }
+
+      const resolvedContentId =
+        input?.content_id ||
+        input?.contentId ||
+        input?.content?.id ||
+        null;
+
+      if (resolvedContentId !== contentId) {
         continue;
       }
 
-      let parsed = null;
+      let executionContent = null;
 
       try {
-        parsed = JSON.parse(rawContent);
+        executionContent =
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content;
       } catch {
-        parsed = null;
+        executionContent = null;
       }
 
       latestExecution = {
-        id: row.id,
+        insight_id: row.id,
         run_id: row.run_id,
-        insight_type: row.insight_type,
         title: row.title,
         score: row.score,
         priority: row.priority,
         status: row.status,
         created_at: row.created_at,
-        data: parsed,
-        raw_content: rawContent
+
+        execution: executionContent,
+
+        run: {
+          id: runQuery.id,
+          run_type: runQuery.run_type,
+          model: runQuery.model,
+          input,
+          status: runQuery.status,
+          created_at: runQuery.created_at
+        }
       };
 
       break;
@@ -93,7 +139,7 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.2",
+        version: "1.3",
         status: "NO_EXECUTION_RESULT",
 
         content: {
@@ -101,23 +147,27 @@ export async function onRequest(context) {
         },
 
         diagnostics: {
-          execution_rows_scanned: rows.length,
-          execution_result_type: "EXECUTION_RESULT",
-          content_id_search: "RAW_CONTENT_MATCH",
-          content_id_found: false
+          execution_rows_scanned:
+            executionRows.length,
+
+          resolution_path:
+            "ai_insights.run_id -> ai_runs.input.content_id",
+
+          content_id_match:
+            false
         },
 
         message:
-          "Execution Result exists, but the requested content_id was not found inside the persisted result."
+          "Execution Result exists, but its ai_runs input could not be matched to this content_id."
       }, 404);
     }
 
     // ------------------------------------------------------------
-    // 2. Extract execution result
+    // 3. Extract execution signal
     // ------------------------------------------------------------
 
     const executionData =
-      latestExecution.data || {};
+      latestExecution.execution || {};
 
     const execution =
       executionData.execution || {};
@@ -127,37 +177,42 @@ export async function onRequest(context) {
       executionData.result ||
       {};
 
+    const audit =
+      executionData.audit ||
+      execution.audit ||
+      {};
+
     const executionFinding =
       executionResult.finding ||
-      executionData.finding ||
+      execution.finding ||
+      audit.finding ||
       null;
 
     const nextLearningSignal =
       executionResult.next_learning_signal ||
-      executionData.next_learning_signal ||
+      execution.next_learning_signal ||
       null;
 
     // ------------------------------------------------------------
-    // 3. Re-enter Measurement V2.2
+    // 4. Re-enter Measurement V2.2
     // ------------------------------------------------------------
 
     const measurementUrl =
       `${url.origin}/api/content-measurement?content_id=${encodeURIComponent(contentId)}`;
 
-    const measurementResponse = await fetch(
-      measurementUrl,
-      {
+    const measurementResponse =
+      await fetch(measurementUrl, {
         method: "GET",
         headers: {
           "Accept": "application/json"
         }
-      }
-    );
+      });
 
     let measurementData = null;
 
     try {
-      measurementData = await measurementResponse.json();
+      measurementData =
+        await measurementResponse.json();
     } catch {
       measurementData = null;
     }
@@ -169,7 +224,7 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.2",
+        version: "1.3",
         status: "MEASUREMENT_REENTRY_FAILED",
 
         content: {
@@ -177,37 +232,44 @@ export async function onRequest(context) {
         },
 
         execution: {
-          run_id: latestExecution.run_id,
-          insight_id: latestExecution.id,
-          finding: executionFinding,
-          next_learning_signal: nextLearningSignal
+          run_id:
+            latestExecution.run_id,
+
+          insight_id:
+            latestExecution.insight_id,
+
+          finding:
+            executionFinding,
+
+          next_learning_signal:
+            nextLearningSignal
         },
 
-        measurement_response: measurementData
+        measurement_response:
+          measurementData
       }, 500);
     }
 
     // ------------------------------------------------------------
-    // 4. Re-enter Learning V1
+    // 5. Re-enter Learning V1
     // ------------------------------------------------------------
 
     const learningUrl =
       `${url.origin}/api/learning-ai?content_id=${encodeURIComponent(contentId)}`;
 
-    const learningResponse = await fetch(
-      learningUrl,
-      {
+    const learningResponse =
+      await fetch(learningUrl, {
         method: "GET",
         headers: {
           "Accept": "application/json"
         }
-      }
-    );
+      });
 
     let learningData = null;
 
     try {
-      learningData = await learningResponse.json();
+      learningData =
+        await learningResponse.json();
     } catch {
       learningData = null;
     }
@@ -219,7 +281,7 @@ export async function onRequest(context) {
       return json({
         success: false,
         layer: "FEEDBACK_LOOP_V1",
-        version: "1.2",
+        version: "1.3",
         status: "LEARNING_REENTRY_FAILED",
 
         content: {
@@ -227,20 +289,29 @@ export async function onRequest(context) {
         },
 
         execution: {
-          run_id: latestExecution.run_id,
-          insight_id: latestExecution.id,
-          finding: executionFinding,
-          next_learning_signal: nextLearningSignal
+          run_id:
+            latestExecution.run_id,
+
+          insight_id:
+            latestExecution.insight_id,
+
+          finding:
+            executionFinding,
+
+          next_learning_signal:
+            nextLearningSignal
         },
 
-        measurement: measurementData,
+        measurement:
+          measurementData,
 
-        learning_response: learningData
+        learning_response:
+          learningData
       }, 500);
     }
 
     // ------------------------------------------------------------
-    // 5. Build feedback signal
+    // 6. Build Feedback Signal
     // ------------------------------------------------------------
 
     const measurement =
@@ -250,11 +321,20 @@ export async function onRequest(context) {
       learningData.learning || {};
 
     const feedback = {
-      state: "FEEDBACK_REENTERED",
+      state:
+        "FEEDBACK_REENTERED",
 
-      execution_signal: {
+      source_execution: {
+        run_id:
+          latestExecution.run_id,
+
+        insight_id:
+          latestExecution.insight_id,
+
         result_type:
-          executionResult.result_type || null,
+          executionResult.result_type ||
+          execution.result_type ||
+          null,
 
         finding:
           executionFinding,
@@ -299,28 +379,42 @@ export async function onRequest(context) {
         executionFinding ||
         "EXECUTION_RESULT_REENTERED_INTO_LEARNING",
 
-      strategy_change: false,
-      winner_declared: false,
-      automatic_execution: false,
-      requires_decision_layer: true
+      strategy_change:
+        false,
+
+      winner_declared:
+        false,
+
+      automatic_execution:
+        false,
+
+      requires_decision_layer:
+        true
     };
 
     // ------------------------------------------------------------
-    // 6. GET = Preview only
+    // 7. GET = Preview only
     // ------------------------------------------------------------
 
     if (method === "GET") {
       return json({
         success: true,
 
-        layer: "FEEDBACK_LOOP_V1",
-        version: "1.2",
+        layer:
+          "FEEDBACK_LOOP_V1",
 
-        mode: "preview",
-        status: "READY",
+        version:
+          "1.3",
+
+        mode:
+          "preview",
+
+        status:
+          "READY",
 
         content: {
-          id: contentId
+          id:
+            contentId
         },
 
         source_chain: {
@@ -351,7 +445,7 @@ export async function onRequest(context) {
             latestExecution.run_id,
 
           insight_id:
-            latestExecution.id,
+            latestExecution.insight_id,
 
           executed_at:
             latestExecution.created_at,
@@ -378,11 +472,9 @@ export async function onRequest(context) {
 
         feedback,
 
-        persistence: null,
-
         diagnostics: {
           execution_rows_scanned:
-            rows.length,
+            executionRows.length,
 
           execution_result_found:
             true,
@@ -390,20 +482,40 @@ export async function onRequest(context) {
           content_id_match:
             true,
 
-          match_method:
-            "RAW_PERSISTED_CONTENT"
+          resolution_path:
+            "ai_insights.run_id -> ai_runs.input.content_id"
         },
 
+        persistence:
+          null,
+
         guardrails: {
-          automatic_execution: false,
-          action_executed: false,
-          business_data_mutation: false,
-          content_mutation: false,
-          customer_contact: false,
-          payment_action: false,
-          strategy_change: false,
-          winner_declared: false,
-          requires_human_approval: true
+          automatic_execution:
+            false,
+
+          action_executed:
+            false,
+
+          business_data_mutation:
+            false,
+
+          content_mutation:
+            false,
+
+          customer_contact:
+            false,
+
+          payment_action:
+            false,
+
+          strategy_change:
+            false,
+
+          winner_declared:
+            false,
+
+          requires_human_approval:
+            true
         },
 
         next_step:
@@ -412,7 +524,7 @@ export async function onRequest(context) {
     }
 
     // ------------------------------------------------------------
-    // 7. POST approval
+    // 8. POST approval
     // ------------------------------------------------------------
 
     let body = {};
@@ -426,16 +538,23 @@ export async function onRequest(context) {
     if (body.approved !== true) {
       return json({
         success: false,
-        layer: "FEEDBACK_LOOP_V1",
-        version: "1.2",
-        status: "APPROVAL_REQUIRED",
+
+        layer:
+          "FEEDBACK_LOOP_V1",
+
+        version:
+          "1.3",
+
+        status:
+          "APPROVAL_REQUIRED",
+
         message:
           "POST execution requires explicit approved:true."
       }, 403);
     }
 
     // ------------------------------------------------------------
-    // 8. Persist feedback run
+    // 9. Persist Feedback Run
     // ------------------------------------------------------------
 
     const runId =
@@ -466,13 +585,14 @@ export async function onRequest(context) {
       "FEEDBACK_LOOP",
       "TATO_OS_FEEDBACK_V1",
       JSON.stringify({
-        content_id: contentId,
+        content_id:
+          contentId,
 
         execution_run_id:
           latestExecution.run_id,
 
         execution_insight_id:
-          latestExecution.id
+          latestExecution.insight_id
       }),
       JSON.stringify({
         feedback
@@ -483,7 +603,7 @@ export async function onRequest(context) {
     ).run();
 
     // ------------------------------------------------------------
-    // 9. Persist feedback insight
+    // 10. Persist Feedback Insight
     // ------------------------------------------------------------
 
     await env.DB.prepare(`
@@ -507,14 +627,15 @@ export async function onRequest(context) {
       "FEEDBACK_LOOP_RESULT",
       "Execution result re-entered into Measurement and Learning",
       JSON.stringify({
-        content_id: contentId,
+        content_id:
+          contentId,
 
         source_execution: {
           run_id:
             latestExecution.run_id,
 
           insight_id:
-            latestExecution.id,
+            latestExecution.insight_id,
 
           finding:
             executionFinding,
@@ -524,7 +645,9 @@ export async function onRequest(context) {
         },
 
         measurement,
+
         learning,
+
         feedback
       }),
       1,
@@ -534,20 +657,27 @@ export async function onRequest(context) {
     ).run();
 
     // ------------------------------------------------------------
-    // 10. Final response
+    // 11. Final response
     // ------------------------------------------------------------
 
     return json({
       success: true,
 
-      layer: "FEEDBACK_LOOP_V1",
-      version: "1.2",
+      layer:
+        "FEEDBACK_LOOP_V1",
 
-      mode: "execute",
-      status: "FEEDBACK_REENTERED",
+      version:
+        "1.3",
+
+      mode:
+        "execute",
+
+      status:
+        "FEEDBACK_REENTERED",
 
       content: {
-        id: contentId
+        id:
+          contentId
       },
 
       source_chain: {
@@ -578,7 +708,7 @@ export async function onRequest(context) {
           latestExecution.run_id,
 
         insight_id:
-          latestExecution.id,
+          latestExecution.insight_id,
 
         finding:
           executionFinding,
@@ -594,21 +724,43 @@ export async function onRequest(context) {
       feedback,
 
       persistence: {
-        run_id: runId,
-        insight_id: insightId,
-        saved_at: createdAt
+        run_id:
+          runId,
+
+        insight_id:
+          insightId,
+
+        saved_at:
+          createdAt
       },
 
       guardrails: {
-        automatic_execution: false,
-        action_executed: false,
-        business_data_mutation: false,
-        content_mutation: false,
-        customer_contact: false,
-        payment_action: false,
-        strategy_change: false,
-        winner_declared: false,
-        requires_decision_layer: true
+        automatic_execution:
+          false,
+
+        action_executed:
+          false,
+
+        business_data_mutation:
+          false,
+
+        content_mutation:
+          false,
+
+        customer_contact:
+          false,
+
+        payment_action:
+          false,
+
+        strategy_change:
+          false,
+
+        winner_declared:
+          false,
+
+        requires_decision_layer:
+          true
       },
 
       next_step:
@@ -618,9 +770,16 @@ export async function onRequest(context) {
   } catch (error) {
     return json({
       success: false,
-      layer: "FEEDBACK_LOOP_V1",
-      version: "1.2",
-      status: "ERROR",
+
+      layer:
+        "FEEDBACK_LOOP_V1",
+
+      version:
+        "1.3",
+
+      status:
+        "ERROR",
+
       error:
         error?.message ||
         String(error)
@@ -630,7 +789,7 @@ export async function onRequest(context) {
 
 
 // ============================================================
-// JSON response helper
+// JSON RESPONSE
 // ============================================================
 
 function json(data, status = 200) {
@@ -638,6 +797,7 @@ function json(data, status = 200) {
     JSON.stringify(data, null, 2),
     {
       status,
+
       headers: {
         "Content-Type":
           "application/json; charset=utf-8"
