@@ -184,7 +184,22 @@ async function getContent(db, requestedContentId) {
   }
 }
 
-async function getMeasurementStart(db, contentId) {
+/*
+ * V2.2 measurement start
+ *
+ * Priority:
+ * 1. Earliest Decision Cycle / content decision timestamp
+ * 2. Content created_at
+ * 3. Current timestamp
+ *
+ * IMPORTANT:
+ * Never fall back to Unix epoch / 1970.
+ */
+async function getMeasurementStart(
+  db,
+  contentId,
+  contentCreatedAt
+) {
   try {
     const row = await db
       .prepare(
@@ -198,11 +213,25 @@ async function getMeasurementStart(db, contentId) {
       .first();
 
     if (row && row.created_at) {
-      return row.created_at;
+      const decisionTime =
+        new Date(row.created_at).getTime();
+
+      if (Number.isFinite(decisionTime)) {
+        return new Date(decisionTime).toISOString();
+      }
     }
   } catch (_) {}
 
-  return "1970-01-01T00:00:00.000Z";
+  if (contentCreatedAt) {
+    const contentTime =
+      new Date(contentCreatedAt).getTime();
+
+    if (Number.isFinite(contentTime)) {
+      return new Date(contentTime).toISOString();
+    }
+  }
+
+  return new Date().toISOString();
 }
 
 async function getBehaviorEvents(db, measurementStart) {
@@ -308,40 +337,51 @@ function getCustomerIdsFromEvents(events) {
   return uniqueValues(ids);
 }
 
-async function getCustomerIds(db, downstreamEvents, clicks) {
+async function getCustomerIds(
+  db,
+  downstreamEvents,
+  clicks
+) {
   const eventCustomerIds =
-    getCustomerIdsFromEvents(downstreamEvents);
+    getCustomerIdsFromEvents(
+      downstreamEvents
+    );
 
   if (eventCustomerIds.length) {
     return eventCustomerIds;
   }
 
-  const clickSessions = uniqueValues(
-    clicks.map((event) =>
-      getEventSessionId(event)
-    )
-  );
+  const clickSessions =
+    uniqueValues(
+      clicks.map((event) =>
+        getEventSessionId(event)
+      )
+    );
 
   if (!clickSessions.length) {
     return [];
   }
 
   try {
-    const placeholders = clickSessions
-      .map(() => "?")
-      .join(",");
+    const placeholders =
+      clickSessions
+        .map(() => "?")
+        .join(",");
 
-    const result = await db
-      .prepare(
-        `SELECT id
-         FROM customers
-         WHERE session_id IN (${placeholders})`
-      )
-      .bind(...clickSessions)
-      .all();
+    const result =
+      await db
+        .prepare(
+          `SELECT id
+           FROM customers
+           WHERE session_id IN (${placeholders})`
+        )
+        .bind(...clickSessions)
+        .all();
 
     return uniqueValues(
-      (result.results || []).map((row) => row.id)
+      (result.results || []).map(
+        (row) => row.id
+      )
     );
   } catch (_) {
     return [];
@@ -361,25 +401,36 @@ async function getOrders(
   }
 
   try {
-    const placeholders = customerIds
-      .map(() => "?")
-      .join(",");
+    const placeholders =
+      customerIds
+        .map(() => "?")
+        .join(",");
 
-    const row = await db
-      .prepare(
-        `SELECT
-           COUNT(*) AS orders,
-           COALESCE(SUM(amount), 0) AS revenue
-         FROM orders
-         WHERE customer_id IN (${placeholders})
-           AND created_at >= ?`
-      )
-      .bind(...customerIds, measurementStart)
-      .first();
+    const row =
+      await db
+        .prepare(
+          `SELECT
+             COUNT(*) AS orders,
+             COALESCE(SUM(amount), 0) AS revenue
+           FROM orders
+           WHERE customer_id IN (${placeholders})
+             AND created_at >= ?`
+        )
+        .bind(
+          ...customerIds,
+          measurementStart
+        )
+        .first();
 
     return {
-      orders: numberValue(row && row.orders),
-      revenue: numberValue(row && row.revenue)
+      orders:
+        numberValue(
+          row && row.orders
+        ),
+      revenue:
+        numberValue(
+          row && row.revenue
+        )
     };
   } catch (_) {
     return {
@@ -389,13 +440,19 @@ async function getOrders(
   }
 }
 
-function percentage(numerator, denominator) {
+function percentage(
+  numerator,
+  denominator
+) {
   if (denominator <= 0) {
     return 0;
   }
 
   return Number(
-    ((numerator / denominator) * 100).toFixed(2)
+    (
+      (numerator / denominator) *
+      100
+    ).toFixed(2)
   );
 }
 
@@ -419,7 +476,10 @@ function determineStatus(metrics) {
   return "WAITING_FOR_TRAFFIC";
 }
 
-async function insertMeasurement(db, measurement) {
+async function insertMeasurement(
+  db,
+  measurement
+) {
   await db
     .prepare(
       `INSERT INTO content_measurements (
@@ -470,11 +530,15 @@ async function insertMeasurement(db, measurement) {
     .run();
 }
 
-async function measure(db, requestedContentId) {
-  const content = await getContent(
-    db,
-    requestedContentId
-  );
+async function measure(
+  db,
+  requestedContentId
+) {
+  const content =
+    await getContent(
+      db,
+      requestedContentId
+    );
 
   if (!content) {
     throw new Error(
@@ -482,12 +546,14 @@ async function measure(db, requestedContentId) {
     );
   }
 
-  const contentId = stringValue(content.id);
+  const contentId =
+    stringValue(content.id);
 
   const measurementStart =
     await getMeasurementStart(
       db,
-      contentId
+      contentId,
+      content.created_at
     );
 
   const allEvents =
@@ -503,7 +569,9 @@ async function measure(db, requestedContentId) {
     );
 
   const clicks =
-    getClicks(contentEvents);
+    getClicks(
+      contentEvents
+    );
 
   const downstreamEvents =
     getDownstreamEvents(
@@ -512,31 +580,38 @@ async function measure(db, requestedContentId) {
     );
 
   const productViews =
-    downstreamEvents.filter((event) => {
-      return (
-        normalizeEventType(
-          event.event_type
-        ) === "product_view"
-      );
-    });
+    downstreamEvents.filter(
+      (event) => {
+        return (
+          normalizeEventType(
+            event.event_type
+          ) ===
+          "product_view"
+        );
+      }
+    );
 
   const engagements =
-    contentEvents.filter((event) => {
-      return isEngagementType(
-        normalizeEventType(
-          event.event_type
-        )
-      );
-    });
+    contentEvents.filter(
+      (event) => {
+        return isEngagementType(
+          normalizeEventType(
+            event.event_type
+          )
+        );
+      }
+    );
 
   const downstreamEngagements =
-    downstreamEvents.filter((event) => {
-      return isEngagementType(
-        normalizeEventType(
-          event.event_type
-        )
-      );
-    });
+    downstreamEvents.filter(
+      (event) => {
+        return isEngagementType(
+          normalizeEventType(
+            event.event_type
+          )
+        );
+      }
+    );
 
   const customerIds =
     await getCustomerIds(
@@ -575,14 +650,19 @@ async function measure(db, requestedContentId) {
 
   const metrics = {
     attention,
-    product_views: productViews.length,
-    clicks: clicks.length,
+    product_views:
+      productViews.length,
+    clicks:
+      clicks.length,
     engagements:
       engagements.length +
       downstreamEngagements.length,
-    customers: customerIds.length,
-    orders: orderData.orders,
-    revenue: orderData.revenue
+    customers:
+      customerIds.length,
+    orders:
+      orderData.orders,
+    revenue:
+      orderData.revenue
   };
 
   const conversions = {
@@ -612,7 +692,9 @@ async function measure(db, requestedContentId) {
   };
 
   const status =
-    determineStatus(metrics);
+    determineStatus(
+      metrics
+    );
 
   const measuredAt =
     new Date().toISOString();
@@ -620,49 +702,94 @@ async function measure(db, requestedContentId) {
   const measurementId =
     makeId();
 
-  await insertMeasurement(db, {
-    id: measurementId,
-    content_id: contentId,
-    measured_at: measuredAt,
-    measurement_start: measurementStart,
-    attention: metrics.attention,
-    product_views: metrics.product_views,
-    clicks: metrics.clicks,
-    engagements: metrics.engagements,
-    customers: metrics.customers,
-    orders: metrics.orders,
-    revenue: metrics.revenue,
-    attention_to_view:
-      conversions.attention_to_view,
-    view_to_click:
-      conversions.view_to_click,
-    click_to_customer:
-      conversions.click_to_customer,
-    customer_to_order:
-      conversions.customer_to_order,
-    status,
-    attribution_mode:
-      ATTRIBUTION_MODE,
-    created_at: measuredAt
-  });
+  await insertMeasurement(
+    db,
+    {
+      id:
+        measurementId,
+
+      content_id:
+        contentId,
+
+      measured_at:
+        measuredAt,
+
+      measurement_start:
+        measurementStart,
+
+      attention:
+        metrics.attention,
+
+      product_views:
+        metrics.product_views,
+
+      clicks:
+        metrics.clicks,
+
+      engagements:
+        metrics.engagements,
+
+      customers:
+        metrics.customers,
+
+      orders:
+        metrics.orders,
+
+      revenue:
+        metrics.revenue,
+
+      attention_to_view:
+        conversions.attention_to_view,
+
+      view_to_click:
+        conversions.view_to_click,
+
+      click_to_customer:
+        conversions.click_to_customer,
+
+      customer_to_order:
+        conversions.customer_to_order,
+
+      status,
+
+      attribution_mode:
+        ATTRIBUTION_MODE,
+
+      created_at:
+        measuredAt
+    }
+  );
 
   return {
     success: true,
 
-    layer: LAYER,
+    layer:
+      LAYER,
 
-    version: "2.2",
+    version:
+      "2.2",
 
     content: {
-      id: content.id,
-      title: content.title || null,
-      status: content.status || null
+      id:
+        content.id,
+
+      title:
+        content.title || null,
+
+      status:
+        content.status || null
     },
 
     measurement: {
-      id: measurementId,
-      content_id: contentId,
-      measured_at: measuredAt,
+      id:
+        measurementId,
+
+      content_id:
+        contentId,
+
+      measured_at:
+        measuredAt,
+
       measurement_start:
         measurementStart,
 
@@ -731,7 +858,8 @@ async function measure(db, requestedContentId) {
           (event) =>
             normalizeEventType(
               event.event_type
-            ) === "content_view"
+            ) ===
+            "content_view"
         ).length,
 
       content_clicks:
@@ -758,10 +886,14 @@ async function measure(db, requestedContentId) {
   };
 }
 
-export async function onRequestGet(context) {
+export async function onRequestGet(
+  context
+) {
   try {
     const url =
-      new URL(context.request.url);
+      new URL(
+        context.request.url
+      );
 
     const contentId =
       url.searchParams.get(
@@ -776,15 +908,18 @@ export async function onRequestGet(context) {
 
     return json({
       ...result,
-      mode: "preview"
+      mode:
+        "preview"
     });
   } catch (error) {
     return json(
       {
         success: false,
-        layer: LAYER,
+        layer:
+          LAYER,
         error:
-          error && error.message
+          error &&
+          error.message
             ? error.message
             : String(error)
       },
@@ -793,7 +928,9 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
     let body = {};
 
@@ -803,7 +940,8 @@ export async function onRequestPost(context) {
     } catch (_) {}
 
     const contentId =
-      body && body.content_id
+      body &&
+      body.content_id
         ? body.content_id
         : null;
 
@@ -815,15 +953,18 @@ export async function onRequestPost(context) {
 
     return json({
       ...result,
-      mode: "execute"
+      mode:
+        "execute"
     });
   } catch (error) {
     return json(
       {
         success: false,
-        layer: LAYER,
+        layer:
+          LAYER,
         error:
-          error && error.message
+          error &&
+          error.message
             ? error.message
             : String(error)
       },
