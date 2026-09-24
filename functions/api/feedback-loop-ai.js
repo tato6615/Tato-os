@@ -15,13 +15,13 @@ export async function onRequest(context) {
 
   try {
     // ============================================================
-    // FEEDBACK LOOP V1.3
+    // FEEDBACK LOOP V1.4
     //
     // Execution Result
     //      ↓
     // ai_insights.run_id
     //      ↓
-    // ai_runs.input.content_id
+    // ai_runs.input_data.content_id
     //      ↓
     // Measurement V2.2
     //      ↓
@@ -57,7 +57,7 @@ export async function onRequest(context) {
     let latestExecution = null;
 
     // ------------------------------------------------------------
-    // 2. Resolve content_id through ai_runs
+    // 2. Resolve content_id from ai_runs.input_data
     // ------------------------------------------------------------
 
     for (const row of executionRows) {
@@ -68,9 +68,10 @@ export async function onRequest(context) {
           id,
           run_type,
           model,
-          input,
-          output,
+          input_data,
+          output_data,
           status,
+          tokens_used,
           created_at
         FROM ai_runs
         WHERE id = ?
@@ -79,21 +80,21 @@ export async function onRequest(context) {
 
       if (!runQuery) continue;
 
-      let input = null;
+      let inputData = null;
 
       try {
-        input =
-          typeof runQuery.input === "string"
-            ? JSON.parse(runQuery.input)
-            : runQuery.input;
+        inputData =
+          typeof runQuery.input_data === "string"
+            ? JSON.parse(runQuery.input_data)
+            : runQuery.input_data;
       } catch {
-        input = null;
+        inputData = null;
       }
 
       const resolvedContentId =
-        input?.content_id ||
-        input?.contentId ||
-        input?.content?.id ||
+        inputData?.content_id ||
+        inputData?.contentId ||
+        inputData?.content?.id ||
         null;
 
       if (resolvedContentId !== contentId) {
@@ -112,23 +113,51 @@ export async function onRequest(context) {
       }
 
       latestExecution = {
-        insight_id: row.id,
-        run_id: row.run_id,
-        title: row.title,
-        score: row.score,
-        priority: row.priority,
-        status: row.status,
-        created_at: row.created_at,
+        insight_id:
+          row.id,
 
-        execution: executionContent,
+        run_id:
+          row.run_id,
+
+        title:
+          row.title,
+
+        score:
+          row.score,
+
+        priority:
+          row.priority,
+
+        status:
+          row.status,
+
+        created_at:
+          row.created_at,
+
+        execution:
+          executionContent,
 
         run: {
-          id: runQuery.id,
-          run_type: runQuery.run_type,
-          model: runQuery.model,
-          input,
-          status: runQuery.status,
-          created_at: runQuery.created_at
+          id:
+            runQuery.id,
+
+          run_type:
+            runQuery.run_type,
+
+          model:
+            runQuery.model,
+
+          input_data:
+            inputData,
+
+          status:
+            runQuery.status,
+
+          tokens_used:
+            runQuery.tokens_used,
+
+          created_at:
+            runQuery.created_at
         }
       };
 
@@ -138,12 +167,19 @@ export async function onRequest(context) {
     if (!latestExecution) {
       return json({
         success: false,
-        layer: "FEEDBACK_LOOP_V1",
-        version: "1.3",
-        status: "NO_EXECUTION_RESULT",
+
+        layer:
+          "FEEDBACK_LOOP_V1",
+
+        version:
+          "1.4",
+
+        status:
+          "NO_EXECUTION_RESULT",
 
         content: {
-          id: contentId
+          id:
+            contentId
         },
 
         diagnostics: {
@@ -151,19 +187,19 @@ export async function onRequest(context) {
             executionRows.length,
 
           resolution_path:
-            "ai_insights.run_id -> ai_runs.input.content_id",
+            "ai_insights.run_id -> ai_runs.input_data.content_id",
 
           content_id_match:
             false
         },
 
         message:
-          "Execution Result exists, but its ai_runs input could not be matched to this content_id."
+          "Execution Result exists, but ai_runs.input_data could not be matched to this content_id."
       }, 404);
     }
 
     // ------------------------------------------------------------
-    // 3. Extract execution signal
+    // 3. Extract Execution signal
     // ------------------------------------------------------------
 
     const executionData =
@@ -201,12 +237,17 @@ export async function onRequest(context) {
       `${url.origin}/api/content-measurement?content_id=${encodeURIComponent(contentId)}`;
 
     const measurementResponse =
-      await fetch(measurementUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json"
+      await fetch(
+        measurementUrl,
+        {
+          method: "GET",
+
+          headers: {
+            "Accept":
+              "application/json"
+          }
         }
-      });
+      );
 
     let measurementData = null;
 
@@ -223,12 +264,19 @@ export async function onRequest(context) {
     ) {
       return json({
         success: false,
-        layer: "FEEDBACK_LOOP_V1",
-        version: "1.3",
-        status: "MEASUREMENT_REENTRY_FAILED",
+
+        layer:
+          "FEEDBACK_LOOP_V1",
+
+        version:
+          "1.4",
+
+        status:
+          "MEASUREMENT_REENTRY_FAILED",
 
         content: {
-          id: contentId
+          id:
+            contentId
         },
 
         execution: {
@@ -258,12 +306,17 @@ export async function onRequest(context) {
       `${url.origin}/api/learning-ai?content_id=${encodeURIComponent(contentId)}`;
 
     const learningResponse =
-      await fetch(learningUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json"
+      await fetch(
+        learningUrl,
+        {
+          method: "GET",
+
+          headers: {
+            "Accept":
+              "application/json"
+          }
         }
-      });
+      );
 
     let learningData = null;
 
@@ -280,12 +333,19 @@ export async function onRequest(context) {
     ) {
       return json({
         success: false,
-        layer: "FEEDBACK_LOOP_V1",
-        version: "1.3",
-        status: "LEARNING_REENTRY_FAILED",
+
+        layer:
+          "FEEDBACK_LOOP_V1",
+
+        version:
+          "1.4",
+
+        status:
+          "LEARNING_REENTRY_FAILED",
 
         content: {
-          id: contentId
+          id:
+            contentId
         },
 
         execution: {
@@ -393,7 +453,7 @@ export async function onRequest(context) {
     };
 
     // ------------------------------------------------------------
-    // 7. GET = Preview only
+    // 7. GET = Preview
     // ------------------------------------------------------------
 
     if (method === "GET") {
@@ -404,7 +464,7 @@ export async function onRequest(context) {
           "FEEDBACK_LOOP_V1",
 
         version:
-          "1.3",
+          "1.4",
 
         mode:
           "preview",
@@ -472,6 +532,9 @@ export async function onRequest(context) {
 
         feedback,
 
+        persistence:
+          null,
+
         diagnostics: {
           execution_rows_scanned:
             executionRows.length,
@@ -483,11 +546,8 @@ export async function onRequest(context) {
             true,
 
           resolution_path:
-            "ai_insights.run_id -> ai_runs.input.content_id"
+            "ai_insights.run_id -> ai_runs.input_data.content_id"
         },
-
-        persistence:
-          null,
 
         guardrails: {
           automatic_execution:
@@ -530,7 +590,8 @@ export async function onRequest(context) {
     let body = {};
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
       body = {};
     }
@@ -543,7 +604,7 @@ export async function onRequest(context) {
           "FEEDBACK_LOOP_V1",
 
         version:
-          "1.3",
+          "1.4",
 
         status:
           "APPROVAL_REQUIRED",
@@ -572,8 +633,8 @@ export async function onRequest(context) {
         customer_id,
         run_type,
         model,
-        input,
-        output,
+        input_data,
+        output_data,
         status,
         tokens_used,
         created_at
@@ -667,7 +728,7 @@ export async function onRequest(context) {
         "FEEDBACK_LOOP_V1",
 
       version:
-        "1.3",
+        "1.4",
 
       mode:
         "execute",
@@ -775,7 +836,7 @@ export async function onRequest(context) {
         "FEEDBACK_LOOP_V1",
 
       version:
-        "1.3",
+        "1.4",
 
       status:
         "ERROR",
