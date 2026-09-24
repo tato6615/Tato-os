@@ -1,5 +1,5 @@
 // TATO-OS
-// Action Layer V1.0
+// Action Layer V1.1
 // Route: /api/action-ai
 //
 // Chain:
@@ -7,15 +7,20 @@
 // -> Intelligence V2.1
 // -> Learning V1
 // -> Decision V1
-// -> Action V1
+// -> Action V1.1
 //
 // IMPORTANT:
-// Action V1 creates an executable action proposal.
+// Action V1.1 creates an executable action proposal.
 // It does NOT execute business actions automatically.
 // Human approval is required before execution.
+//
+// SOURCE-OF-TRUTH RULE:
+// Action Layer MUST use the latest persisted Learning result.
+// It MUST NOT independently aggregate content_measurements.
+// Learning is responsible for the Intelligence/Learning aggregation.
 
 const LAYER = "ACTION_LAYER_V1";
-const VERSION = "1.0";
+const VERSION = "1.1";
 
 const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.2";
 const INTELLIGENCE_SOURCE = "INTELLIGENCE_LAYER_V2.1";
@@ -43,6 +48,45 @@ function num(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function parseJSON(value, fallback = null) {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function extractContentId(data) {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const directCandidates = [
+    data.content_id,
+    data.contentId,
+    data?.content?.id,
+    data?.learning?.content_id,
+    data?.intelligence?.content_id,
+    data?.measurement?.content_id
+  ];
+
+  for (const candidate of directCandidates) {
+    if (candidate) {
+      return String(candidate);
+    }
+  }
+
+  return null;
+}
+
 async function getContent(db, contentId) {
   return await db
     .prepare(`
@@ -63,53 +107,116 @@ async function getContent(db, contentId) {
     .first();
 }
 
-async function getMeasurements(db, contentId) {
+/*
+ * SOURCE OF TRUTH:
+ *
+ * Action Layer no longer aggregates content_measurements directly.
+ *
+ * It resolves the latest persisted LEARNING run for the requested
+ * content and uses the Learning funnel as the evidence source.
+ */
+async function getLatestLearning(db, contentId) {
   const result = await db
     .prepare(`
       SELECT
         id,
-        content_id,
-        measured_at,
-        attention,
-        product_views,
-        clicks,
-        engagements,
-        customers,
-        orders,
-        revenue
-      FROM content_measurements
-      WHERE content_id = ?
-      ORDER BY measured_at DESC
-      LIMIT 50
+        created_at,
+        input_data,
+        output_data
+      FROM ai_runs
+      WHERE run_type = 'LEARNING'
+      ORDER BY created_at DESC
+      LIMIT 100
     `)
-    .bind(contentId)
     .all();
 
-  return result?.results || [];
+  const rows = result?.results || [];
+
+  for (const row of rows) {
+    const input = parseJSON(row.input_data, {});
+    const output = parseJSON(row.output_data, {});
+
+    const inputContentId = extractContentId(input);
+    const outputContentId = extractContentId(output);
+
+    if (
+      inputContentId === String(contentId) ||
+      outputContentId === String(contentId)
+    ) {
+      return {
+        run_id: row.id,
+        created_at: row.created_at,
+        input,
+        output
+      };
+    }
+  }
+
+  return null;
 }
 
-function summarizeMeasurements(rows) {
-  return rows.reduce(
-    (acc, row) => {
-      acc.attention += num(row.attention);
-      acc.clicks += num(row.clicks);
-      acc.product_views += num(row.product_views);
-      acc.engagements += num(row.engagements);
-      acc.customers += num(row.customers);
-      acc.orders += num(row.orders);
-      acc.revenue += num(row.revenue);
-      return acc;
+/*
+ * Resolve the persisted Learning result.
+ *
+ * Current LEARNING_LAYER_V1 persists the learning object inside
+ * input_data.learning and also carries the Intelligence result
+ * inside input_data.intelligence.
+ *
+ * The Action Layer uses the Learning funnel as its direct evidence.
+ */
+function resolveLearningSource(learningRun) {
+  if (!learningRun) {
+    return null;
+  }
+
+  const input = learningRun.input || {};
+  const output = learningRun.output || {};
+
+  const learning =
+    input.learning ||
+    output.learning ||
+    null;
+
+  const intelligence =
+    input.intelligence ||
+    output.intelligence ||
+    null;
+
+  if (!learning) {
+    return null;
+  }
+
+  const funnel =
+    learning.funnel ||
+    output?.learning?.funnel ||
+    null;
+
+  if (!funnel) {
+    return null;
+  }
+
+  const rounds =
+    num(learning.rounds) ||
+    num(input?.learning?.rounds) ||
+    num(intelligence?.rounds);
+
+  return {
+    learning,
+    intelligence,
+    funnel: {
+      attention: num(funnel.attention),
+      clicks: num(funnel.clicks),
+      product_views: num(funnel.product_views),
+      customers: num(funnel.customers),
+      orders: num(funnel.orders),
+      revenue: num(funnel.revenue)
     },
-    {
-      attention: 0,
-      clicks: 0,
-      product_views: 0,
-      engagements: 0,
-      customers: 0,
-      orders: 0,
-      revenue: 0
+    rounds,
+    source: {
+      run_id: learningRun.run_id,
+      created_at: learningRun.created_at
     }
-  );
+  };
 }
 
 function buildDecisionSummary(totals, rounds) {
@@ -291,7 +398,8 @@ async function saveActionProposal(
   content,
   decision,
   action,
-  totals
+  totals,
+  learningSource
 ) {
   const runId = crypto.randomUUID();
   const insightId = crypto.randomUUID();
@@ -306,6 +414,14 @@ async function saveActionProposal(
       learning: LEARNING_SOURCE,
       decision: DECISION_SOURCE,
       action: LAYER
+    },
+
+    source_of_truth: {
+      type: LEARNING_SOURCE,
+      learning_run_id: learningSource?.run_id || null,
+      learning_created_at:
+        learningSource?.created_at || null,
+      attention_type: ATTENTION_TYPE
     },
 
     decision,
@@ -337,7 +453,7 @@ async function saveActionProposal(
       runId,
       null,
       "ACTION_LAYER_V1",
-      "TATO-ACTION-ENGINE-V1",
+      "TATO-ACTION-ENGINE-V1.1",
       JSON.stringify(inputData),
       JSON.stringify(outputData),
       "COMPLETED",
@@ -387,7 +503,7 @@ async function saveActionProposal(
 
 async function executeProposal(db, proposalId) {
   /*
-   * V1.0 deliberately DOES NOT execute a real business action.
+   * V1.1 deliberately DOES NOT execute a real business action.
    *
    * This endpoint only records that an approval request
    * has reached the execution boundary.
@@ -406,7 +522,7 @@ async function executeProposal(db, proposalId) {
       proposalId || null,
 
     reason:
-      "Action Layer V1.0 creates proposals only. Real execution requires a dedicated Execution Layer.",
+      "Action Layer V1.1 creates proposals only. Real execution requires a dedicated Execution Layer.",
 
     guardrails: {
       automatic_execution: false,
@@ -417,11 +533,17 @@ async function executeProposal(db, proposalId) {
   };
 }
 
-async function analyze(request, env, mode = "preview") {
+async function analyze(
+  request,
+  env,
+  mode = "preview"
+) {
   const db = env.DB;
 
   if (!db) {
-    throw new Error("D1 binding DB not found");
+    throw new Error(
+      "D1 binding DB not found"
+    );
   }
 
   const url = new URL(request.url);
@@ -440,37 +562,63 @@ async function analyze(request, env, mode = "preview") {
     body.content_id;
 
   if (!contentId) {
-    throw new Error("content_id is required");
+    throw new Error(
+      "content_id is required"
+    );
   }
 
-  const content = await getContent(
-    db,
-    contentId
-  );
-
-  if (!content) {
-    throw new Error("Content not found");
-  }
-
-  const measurements =
-    await getMeasurements(
+  const content =
+    await getContent(
       db,
       contentId
     );
 
-  if (!measurements.length) {
+  if (!content) {
     throw new Error(
-      "No measurement data found for content"
+      "Content not found"
+    );
+  }
+
+  /*
+   * IMPORTANT:
+   *
+   * Do NOT aggregate content_measurements here.
+   *
+   * Resolve the latest Learning result instead.
+   */
+  const learningRun =
+    await getLatestLearning(
+      db,
+      contentId
+    );
+
+  if (!learningRun) {
+    throw new Error(
+      "No persisted Learning result found for content"
+    );
+  }
+
+  const learningSource =
+    resolveLearningSource(
+      learningRun
+    );
+
+  if (!learningSource) {
+    throw new Error(
+      "Latest Learning result does not contain a valid funnel source"
     );
   }
 
   const totals =
-    summarizeMeasurements(measurements);
+    learningSource.funnel;
+
+  const rounds =
+    learningSource.rounds;
 
   const decision =
     buildDecisionSummary(
       totals,
-      measurements.length
+      rounds
     );
 
   const action =
@@ -493,7 +641,8 @@ async function analyze(request, env, mode = "preview") {
         content,
         decision,
         action,
-        totals
+        totals,
+        learningSource.source
       );
 
     execution =
@@ -528,15 +677,64 @@ async function analyze(request, env, mode = "preview") {
       action: LAYER
     },
 
+    source_of_truth: {
+      type: LEARNING_SOURCE,
+
+      learning_run_id:
+        learningSource.source.run_id,
+
+      learning_created_at:
+        learningSource.source.created_at,
+
+      attention_type:
+        ATTENTION_TYPE,
+
+      aggregation_owner:
+        "LEARNING_LAYER_V1"
+    },
+
     measurement: {
-      rounds: measurements.length,
-      attention: totals.attention,
-      clicks: totals.clicks,
-      product_views: totals.product_views,
-      engagements: totals.engagements,
-      customers: totals.customers,
-      orders: totals.orders,
-      revenue: totals.revenue
+      rounds,
+
+      attention:
+        totals.attention,
+
+      clicks:
+        totals.clicks,
+
+      product_views:
+        totals.product_views,
+
+      engagements:
+        num(
+          learningSource.learning?.funnel
+            ?.engagements
+        ),
+
+      customers:
+        totals.customers,
+
+      orders:
+        totals.orders,
+
+      revenue:
+        totals.revenue
+    },
+
+    learning: {
+      run_id:
+        learningSource.source.run_id,
+
+      created_at:
+        learningSource.source.created_at,
+
+      state:
+        learningSource.learning?.state ||
+        null,
+
+      confidence:
+        learningSource.learning?.confidence ||
+        null
     },
 
     decision,
@@ -554,11 +752,14 @@ async function analyze(request, env, mode = "preview") {
   };
 }
 
-export async function onRequestGet(context) {
+export async function onRequestGet(
+  context
+) {
   try {
-    const url = new URL(
-      context.request.url
-    );
+    const url =
+      new URL(
+        context.request.url
+      );
 
     const contentId =
       url.searchParams.get(
@@ -569,10 +770,14 @@ export async function onRequestGet(context) {
       return json(
         {
           success: false,
+
           layer: LAYER,
+
           version: VERSION,
+
           error:
             "content_id is required",
+
           example:
             "/api/action-ai?content_id=YOUR_CONTENT_ID"
         },
@@ -588,12 +793,17 @@ export async function onRequestGet(context) {
       );
 
     return json(result);
+
   } catch (error) {
+
     return json(
       {
         success: false,
+
         layer: LAYER,
+
         version: VERSION,
+
         error:
           error?.message ||
           String(error)
@@ -603,8 +813,11 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
+
     const body =
       await context.request
         .clone()
@@ -624,12 +837,17 @@ export async function onRequestPost(context) {
       );
 
     return json(result);
+
   } catch (error) {
+
     return json(
       {
         success: false,
+
         layer: LAYER,
+
         version: VERSION,
+
         error:
           error?.message ||
           String(error)
