@@ -12,45 +12,40 @@
 //        ↓
 // Decision Layer V1.0
 //        ↓
-// Action / Automation
-//        ↓
-// Feedback
+// Action Layer
 //
-// Decision Layer:
-// - reads Learning AI
-// - validates evidence
-// - creates explicit decision
-// - preserves source chain
-// - does NOT execute actions
-// - does NOT change strategy
-// - does NOT declare winners
-// ============================================================
+// Decision does NOT:
+// - execute actions
+// - modify content
+// - modify measurement
+// - declare winners
+// - change strategy
+//
+// Decision DOES:
+// - read Learning AI
+// - read Measurement evidence
+// - convert learned signals into explicit decisions
+// - define required next action
+// - provide an Action Layer input contract
+
+const VERSION = "1.0";
+const LAYER = "DECISION_LAYER_V1";
+
+const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.2";
+const INTELLIGENCE_SOURCE = "INTELLIGENCE_LAYER_V2.1";
+const LEARNING_SOURCE = "LEARNING_AI_V1";
+const MODEL = "RULE_ENGINE";
 
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store"
 };
 
-const VERSION = "1.0";
-const LAYER = "DECISION_LAYER_V1";
-
-const MEASUREMENT_SOURCE =
-  "CONTENT_MEASUREMENT_ENGINE_V2.2";
-
-const INTELLIGENCE_SOURCE =
-  "INTELLIGENCE_LAYER_V2.1";
-
-const LEARNING_SOURCE =
-  "LEARNING_AI_V1";
-
 function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data),
-    {
-      status,
-      headers: HEADERS
-    }
-  );
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: HEADERS
+  });
 }
 
 function id() {
@@ -66,27 +61,23 @@ function s(value) {
   return value == null ? "" : String(value);
 }
 
-// ============================================================
-// SAFE JSON
-// ============================================================
+function upper(value) {
+  return s(value).trim().toUpperCase();
+}
 
-function safeParse(value) {
-  if (!value) return null;
+function safeJSON(value, fallback = null) {
+  if (value == null) return fallback;
 
   if (typeof value === "object") {
     return value;
   }
 
   try {
-    return JSON.parse(value);
+    return JSON.parse(String(value));
   } catch (_) {
-    return null;
+    return fallback;
   }
 }
-
-// ============================================================
-// DATABASE
-// ============================================================
 
 async function ensureTables(db) {
   await db.prepare(`
@@ -121,18 +112,18 @@ async function ensureTables(db) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS workflows (
       id TEXT PRIMARY KEY,
-      workflow_type TEXT,
+      name TEXT,
+      description TEXT,
+      trigger_type TEXT,
+      trigger_config TEXT,
+      action_type TEXT,
+      action_config TEXT,
       status TEXT,
-      input_json TEXT,
-      output_json TEXT,
-      created_at TEXT
+      created_at TEXT,
+      updated_at TEXT
     )
   `).run();
 }
-
-// ============================================================
-// CONTENT
-// ============================================================
 
 async function getContent(db, contentId = null) {
   try {
@@ -160,22 +151,16 @@ async function getContent(db, contentId = null) {
   }
 }
 
-// ============================================================
-// MEASUREMENT
-// ============================================================
-
 function normalizeMeasurement(row) {
   if (!row) return null;
 
   return {
-    id: s(row.id),
-    content_id: s(row.content_id),
-    measured_at: s(row.measured_at),
-    measurement_start: s(row.measurement_start),
-    attribution_mode: s(
-      row.attribution_mode ||
-      "CONTENT_ATTRIBUTION_V2"
-    ),
+    id: row.id || null,
+    content_id: row.content_id || null,
+    measured_at: row.measured_at || null,
+    measurement_start: row.measurement_start || null,
+    attribution_mode: row.attribution_mode || null,
+    status: row.status || null,
 
     attention: n(row.attention),
     product_views: n(row.product_views),
@@ -187,613 +172,513 @@ function normalizeMeasurement(row) {
   };
 }
 
-async function getMeasurement(
-  db,
-  contentId = null
-) {
-  let row = null;
-
+async function getMeasurement(db, contentId = null) {
   try {
     if (contentId) {
-      row = await db.prepare(`
+      const row = await db.prepare(`
         SELECT *
         FROM content_measurements
         WHERE content_id = ?
         ORDER BY measured_at DESC
         LIMIT 1
       `).bind(contentId).first();
+
+      if (row) {
+        return normalizeMeasurement(row);
+      }
     }
   } catch (_) {}
 
-  if (!row) {
-    try {
-      row = await db.prepare(`
-        SELECT *
-        FROM content_measurements
-        ORDER BY measured_at DESC
-        LIMIT 1
-      `).first();
-    } catch (_) {}
-  }
+  try {
+    const row = await db.prepare(`
+      SELECT *
+      FROM content_measurements
+      ORDER BY measured_at DESC
+      LIMIT 1
+    `).first();
 
-  return normalizeMeasurement(row);
+    return normalizeMeasurement(row);
+  } catch (_) {
+    return null;
+  }
 }
 
-// ============================================================
-// LEARNING FEEDBACK
-// ============================================================
-
-async function getLearningFeedback(
-  db,
-  contentId = null
-) {
-  let row = null;
-
+async function getLearningFeedback(db, contentId = null) {
   try {
     if (contentId) {
-      row = await db.prepare(`
+      const row = await db.prepare(`
         SELECT *
         FROM learning_feedback
         WHERE content_id = ?
         ORDER BY created_at DESC
         LIMIT 1
       `).bind(contentId).first();
+
+      if (row) return row;
     }
   } catch (_) {}
 
-  if (!row) {
-    try {
-      row = await db.prepare(`
-        SELECT *
-        FROM learning_feedback
-        ORDER BY created_at DESC
-        LIMIT 1
-      `).first();
-    } catch (_) {}
-  }
+  try {
+    const row = await db.prepare(`
+      SELECT *
+      FROM learning_feedback
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).first();
 
-  if (!row) return null;
+    if (row) return row;
+  } catch (_) {}
 
-  return {
-    id: s(row.id),
-    content_id: s(row.content_id),
-    measurement_id: s(row.measurement_id),
-    signal_type: s(row.signal_type),
-    title: s(row.title),
-    finding: s(row.finding),
-    recommendation: s(row.recommendation),
-    score: n(row.score),
-    status: s(row.status),
-    created_at: s(row.created_at)
-  };
+  return null;
 }
 
-// ============================================================
-// LEARNING AI
-//
-// IMPORTANT:
-// Decision Layer reads the existing Learning AI endpoint.
-// It does NOT recreate Learning logic independently.
-// ============================================================
+async function getLearningAI(request, contentId = null) {
+  try {
+    const url = new URL(request.url);
 
-async function getLearningAI(
-  request,
-  contentId = null
-) {
-  const currentURL =
-    new URL(request.url);
-
-  const learningURL =
-    new URL(
+    const endpoint = new URL(
       "/api/learning-ai",
-      currentURL.origin
+      url.origin
     );
 
-  if (contentId) {
-    learningURL.searchParams.set(
-      "content_id",
-      contentId
-    );
-  }
+    if (contentId) {
+      endpoint.searchParams.set("content_id", contentId);
+    }
 
-  const response = await fetch(
-    learningURL.toString(),
-    {
+    const response = await fetch(endpoint.toString(), {
       method: "GET",
       headers: {
         "Accept": "application/json"
       }
+    });
+
+    const text = await response.text();
+
+    let data = null;
+
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = null;
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(
-      `Learning AI HTTP ${response.status}`
-    );
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: data?.error || text || "Learning AI request failed"
+      };
+    }
+
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      status: 500,
+      error: error?.message || String(error)
+    };
   }
-
-  const data =
-    await response.json();
-
-  if (!data?.success) {
-    throw new Error(
-      "Learning AI returned unsuccessful response"
-    );
-  }
-
-  return data;
 }
 
-// ============================================================
-// EVIDENCE
-// ============================================================
-
-function extractEvidence(
-  learningAI,
-  measurement
-) {
+function extractEvidence(learningAI, measurement) {
   const intelligence =
-    learningAI?.intelligence || {};
+    learningAI?.intelligence ||
+    learningAI?.learning?.intelligence ||
+    null;
 
   const learning =
-    learningAI?.learning || {};
+    learningAI?.learning ||
+    null;
+
+  const latestMeasurement =
+    learningAI?.latest_measurement ||
+    measurement ||
+    null;
 
   const totals =
-    intelligence?.totals || {};
+    intelligence?.totals ||
+    learning?.funnel ||
+    null;
 
-  const funnel =
-    learning?.funnel || {};
+  const attention = n(
+    totals?.attention ??
+    latestMeasurement?.attention
+  );
+
+  const clicks = n(
+    totals?.clicks ??
+    latestMeasurement?.clicks
+  );
+
+  const productViews = n(
+    totals?.product_views ??
+    latestMeasurement?.product_views
+  );
+
+  const engagements = n(
+    totals?.engagements ??
+    latestMeasurement?.engagements
+  );
+
+  const customers = n(
+    totals?.customers ??
+    latestMeasurement?.customers
+  );
+
+  const orders = n(
+    totals?.orders ??
+    latestMeasurement?.orders
+  );
+
+  const revenue = n(
+    totals?.revenue ??
+    latestMeasurement?.revenue
+  );
 
   return {
+    attention,
+    clicks,
+    product_views: productViews,
+    engagements,
+    customers,
+    orders,
+    revenue,
+
     rounds: n(
-      learning?.rounds ||
-      intelligence?.rounds ||
+      intelligence?.rounds ??
+      learning?.rounds ??
       learningAI?.measurement_rounds
     ),
 
-    attention: n(
-      funnel.attention ||
-      totals.attention ||
-      measurement?.attention
-    ),
+    intelligence_state:
+      intelligence?.state || null,
 
-    clicks: n(
-      funnel.clicks ||
-      totals.clicks ||
-      measurement?.clicks
-    ),
+    learning_state:
+      learning?.state || null,
 
-    product_views: n(
-      funnel.product_views ||
-      totals.product_views ||
-      measurement?.product_views
-    ),
-
-    engagements: n(
-      funnel.engagements ||
-      totals.engagements ||
-      measurement?.engagements
-    ),
-
-    customers: n(
-      funnel.customers ||
-      totals.customers ||
-      measurement?.customers
-    ),
-
-    orders: n(
-      funnel.orders ||
-      totals.orders ||
-      measurement?.orders
-    ),
-
-    revenue: n(
-      funnel.revenue ||
-      totals.revenue ||
-      measurement?.revenue
-    )
+    decision_input:
+      learning?.decision_input || null
   };
 }
 
-// ============================================================
-// DECISION RULES
-// ============================================================
+function decide(evidence, learningAI) {
+  const {
+    attention,
+    clicks,
+    product_views,
+    customers,
+    orders,
+    revenue
+  } = evidence;
 
-function decide(
-  learningAI,
-  evidence
-) {
-  const learning =
-    learningAI?.learning || {};
+  const learningDecision =
+    upper(evidence.decision_input);
 
-  const intelligence =
-    learningAI?.intelligence || {};
-
-  const decisionInput =
-    s(learning.decision_input);
-
-  const learningState =
-    s(
-      learning.state,
-      "OBSERVING"
-    );
-
-  const intelligenceState =
-    s(
-      intelligence.state,
-      "OBSERVING"
-    );
-
-  // ----------------------------------------------------------
-  // RULE 1
-  // ATTENTION + CLICK
-  // BUT NO PRODUCT VIEW
-  // ----------------------------------------------------------
-
+  /*
+   * RULE 1
+   *
+   * Attention exists
+   * Click exists
+   * Product View does not exist
+   *
+   * This means the upstream behavioral path exists,
+   * but downstream product path is blocked or missing.
+   */
   if (
-    evidence.attention > 0 &&
-    evidence.clicks > 0 &&
-    evidence.product_views === 0
+    attention > 0 &&
+    clicks > 0 &&
+    product_views === 0
   ) {
     return {
       status: "INVESTIGATE",
       priority: "HIGH",
-      decision_type:
-        "DOWNSTREAM_PATH_INVESTIGATION",
-
-      decision:
-        "INVESTIGATE_DOWNSTREAM_PATH",
-
+      decision: "INVESTIGATE_DOWNSTREAM_PATH",
       reason:
-        "มี Attention และ Click ต่อเนื่อง แต่ยังไม่พบ Product View",
-
-      target:
-        "CLICK_TO_PRODUCT_VIEW_PATH",
-
+        "มี Attention และ Click แต่ยังไม่เกิด Product View จึงต้องตรวจสอบเส้นทางจาก Click ไป Product View",
+      decision_type: "DOWNSTREAM_PATH_INVESTIGATION",
+      target: "CLICK_TO_PRODUCT_VIEW_PATH",
       required_action: {
         type: "INVESTIGATE",
+        target: "CLICK_TO_PRODUCT_VIEW_PATH",
         execute: false
       }
     };
   }
 
-  // ----------------------------------------------------------
-  // RULE 2
-  // PRODUCT VIEW
-  // BUT NO CUSTOMER
-  // ----------------------------------------------------------
-
+  /*
+   * RULE 2
+   *
+   * Product View exists
+   * Customer does not exist
+   */
   if (
-    evidence.product_views > 0 &&
-    evidence.customers === 0
+    product_views > 0 &&
+    customers === 0
   ) {
     return {
       status: "INVESTIGATE",
       priority: "HIGH",
-      decision_type:
-        "PRODUCT_TO_CUSTOMER_INVESTIGATION",
-
-      decision:
-        "INVESTIGATE_PRODUCT_TO_CUSTOMER_PATH",
-
+      decision: "INVESTIGATE_PRODUCT_TO_CUSTOMER",
       reason:
-        "มี Product View แต่ยังไม่มี Customer",
-
-      target:
-        "PRODUCT_TO_CUSTOMER_PATH",
-
+        "มี Product View แต่ยังไม่เกิด Customer จึงต้องตรวจสอบเส้นทางจาก Product ไป Customer",
+      decision_type: "PRODUCT_TO_CUSTOMER_INVESTIGATION",
+      target: "PRODUCT_TO_CUSTOMER_PATH",
       required_action: {
         type: "INVESTIGATE",
+        target: "PRODUCT_TO_CUSTOMER_PATH",
         execute: false
       }
     };
   }
 
-  // ----------------------------------------------------------
-  // RULE 3
-  // CUSTOMER
-  // BUT NO ORDER
-  // ----------------------------------------------------------
-
+  /*
+   * RULE 3
+   *
+   * Customer exists
+   * Order does not exist
+   */
   if (
-    evidence.customers > 0 &&
-    evidence.orders === 0
+    customers > 0 &&
+    orders === 0
   ) {
     return {
       status: "INVESTIGATE",
       priority: "HIGH",
-      decision_type:
-        "CUSTOMER_TO_ORDER_INVESTIGATION",
-
-      decision:
-        "INVESTIGATE_CUSTOMER_TO_ORDER_PATH",
-
+      decision: "INVESTIGATE_CUSTOMER_TO_ORDER",
       reason:
-        "มี Customer แต่ยังไม่มี Order",
-
-      target:
-        "CUSTOMER_TO_ORDER_PATH",
-
+        "มี Customer แต่ยังไม่เกิด Order จึงต้องตรวจสอบเส้นทางจาก Customer ไป Order",
+      decision_type: "CUSTOMER_TO_ORDER_INVESTIGATION",
+      target: "CUSTOMER_TO_ORDER_PATH",
       required_action: {
         type: "INVESTIGATE",
+        target: "CUSTOMER_TO_ORDER_PATH",
         execute: false
       }
     };
   }
 
-  // ----------------------------------------------------------
-  // RULE 4
-  // ORDER
-  // BUT NO REVENUE
-  // ----------------------------------------------------------
-
+  /*
+   * RULE 4
+   *
+   * Order exists
+   * Revenue does not exist
+   */
   if (
-    evidence.orders > 0 &&
-    evidence.revenue === 0
+    orders > 0 &&
+    revenue === 0
   ) {
     return {
       status: "INVESTIGATE",
       priority: "MEDIUM",
-      decision_type:
-        "ORDER_TO_REVENUE_INVESTIGATION",
-
-      decision:
-        "INVESTIGATE_REVENUE_PATH",
-
+      decision: "INVESTIGATE_ORDER_TO_REVENUE",
       reason:
-        "มี Order แต่ยังไม่มี Revenue ที่ถูกบันทึก",
-
-      target:
-        "ORDER_TO_REVENUE_TRACKING",
-
+        "มี Order แต่ยังไม่พบ Revenue จึงต้องตรวจสอบข้อมูลการชำระเงินหรือการบันทึกรายได้",
+      decision_type: "ORDER_TO_REVENUE_INVESTIGATION",
+      target: "ORDER_TO_REVENUE_PATH",
       required_action: {
         type: "INVESTIGATE",
+        target: "ORDER_TO_REVENUE_PATH",
         execute: false
       }
     };
   }
 
-  // ----------------------------------------------------------
-  // RULE 5
-  // NO BEHAVIOR
-  // ----------------------------------------------------------
-
+  /*
+   * RULE 5
+   *
+   * Learning AI explicitly identified
+   * the downstream path as the learned problem.
+   */
   if (
-    evidence.attention === 0 &&
-    evidence.clicks === 0 &&
-    evidence.product_views === 0 &&
-    evidence.customers === 0 &&
-    evidence.orders === 0 &&
-    evidence.revenue === 0
-  ) {
-    return {
-      status: "OBSERVE",
-      priority: "LOW",
-      decision_type:
-        "WAIT_FOR_BEHAVIORAL_DATA",
-
-      decision:
-        "OBSERVE",
-
-      reason:
-        "ยังไม่มี Behavioral Evidence เพียงพอสำหรับการตัดสินใจ",
-
-      target:
-        "MEASUREMENT",
-
-      required_action: {
-        type: "OBSERVE",
-        execute: false
-      }
-    };
-  }
-
-  // ----------------------------------------------------------
-  // RULE 6
-  // TRUST LEARNING DECISION INPUT
-  // ----------------------------------------------------------
-
-  if (
-    decisionInput ===
-    "INVESTIGATE_DOWNSTREAM_PATH"
+    learningDecision === "INVESTIGATE_DOWNSTREAM_PATH"
   ) {
     return {
       status: "INVESTIGATE",
       priority: "HIGH",
-      decision_type:
-        "LEARNING_SIGNAL_DECISION",
-
-      decision:
-        "INVESTIGATE_DOWNSTREAM_PATH",
-
+      decision: "INVESTIGATE_DOWNSTREAM_PATH",
       reason:
-        "Learning AI ตรวจพบ Downstream Path ที่ต้องตรวจสอบ",
-
-      target:
-        "DOWNSTREAM_PATH",
-
+        "Learning AI ตรวจพบสัญญาณซ้ำของปัญหาใน Downstream Path",
+      decision_type: "LEARNING_SIGNAL_DECISION",
+      target: "DOWNSTREAM_PATH",
       required_action: {
         type: "INVESTIGATE",
+        target: "DOWNSTREAM_PATH",
         execute: false
       }
     };
   }
 
-  // ----------------------------------------------------------
-  // DEFAULT
-  // ----------------------------------------------------------
+  /*
+   * RULE 6
+   *
+   * No measurable behavioral activity.
+   */
+  if (
+    attention === 0 &&
+    clicks === 0 &&
+    product_views === 0 &&
+    customers === 0 &&
+    orders === 0
+  ) {
+    return {
+      status: "OBSERVE",
+      priority: "LOW",
+      decision: "WAIT_FOR_BEHAVIORAL_DATA",
+      reason:
+        "ยังไม่มี Behavioral Evidence เพียงพอสำหรับสร้าง Decision",
+      decision_type: "OBSERVATION",
+      target: "BEHAVIOR_DATA",
+      required_action: {
+        type: "WAIT",
+        target: "BEHAVIOR_DATA",
+        execute: false
+      }
+    };
+  }
 
+  /*
+   * DEFAULT
+   */
   return {
     status: "OBSERVE",
     priority: "LOW",
-
-    decision_type:
-      "CONTINUE_OBSERVATION",
-
-    decision:
-      "OBSERVE",
-
+    decision: "CONTINUE_OBSERVATION",
     reason:
-      "หลักฐานปัจจุบันยังไม่เข้าเงื่อนไขการตัดสินใจที่ต้องดำเนินการ",
-
-    target:
-      "MEASUREMENT",
-
+      "มีข้อมูลพฤติกรรมแต่ยังไม่พบ Pattern ที่ชัดเจนเพียงพอสำหรับ Decision เพิ่มเติม",
+    decision_type: "OBSERVATION",
+    target: "CURRENT_FUNNEL",
     required_action: {
-      type: "OBSERVE",
+      type: "WAIT",
+      target: "CURRENT_FUNNEL",
       execute: false
     }
   };
 }
 
-// ============================================================
-// DECISION CONTRACT
-// ============================================================
-
-function buildDecision(
+function buildDecision({
+  decision,
+  evidence,
   learningAI,
   measurement,
   learningFeedback,
-  content,
-  evidence,
-  decision
-) {
+  content
+}) {
   return {
-    layer: LAYER,
-    version: VERSION,
-
     status: decision.status,
+    priority: decision.priority,
+    decision: decision.decision,
+    reason: decision.reason,
 
-    content_id:
-      content?.id ||
-      measurement?.content_id ||
-      null,
+    decision_type: decision.decision_type,
+
+    target: decision.target,
+
+    required_action: decision.required_action,
+
+    evidence: {
+      attention: evidence.attention,
+      clicks: evidence.clicks,
+      product_views: evidence.product_views,
+      engagements: evidence.engagements,
+      customers: evidence.customers,
+      orders: evidence.orders,
+      revenue: evidence.revenue,
+      rounds: evidence.rounds
+    },
+
+    states: {
+      intelligence: evidence.intelligence_state,
+      learning: evidence.learning_state
+    },
+
+    learning: {
+      decision_input: evidence.decision_input,
+      signal_type:
+        learningFeedback?.signal_type || null,
+      title:
+        learningFeedback?.title || null,
+      finding:
+        learningFeedback?.finding || null,
+      score:
+        n(learningFeedback?.score)
+    },
 
     content: content
       ? {
-          id: content.id,
-          title: content.title,
-          status: content.status
+          id: content.id || null,
+          title: content.title || null,
+          status: content.status || null
         }
       : null,
 
-    decision,
-
-    evidence,
-
     source_chain: {
-      measurement:
-        MEASUREMENT_SOURCE,
-
-      intelligence:
-        INTELLIGENCE_SOURCE,
-
-      learning:
-        LEARNING_SOURCE,
-
-      decision:
-        LAYER
+      measurement: MEASUREMENT_SOURCE,
+      intelligence: INTELLIGENCE_SOURCE,
+      learning: LEARNING_SOURCE,
+      decision: LAYER,
+      version: VERSION
     },
 
     source_contract: {
+      measurement_version: "2.2",
+      intelligence_version: "2.1",
+      learning_version: "1.4",
+      decision_version: VERSION,
       measurement_id:
-        measurement?.id ||
-        learningAI?.learning
-          ?.source_contract
-          ?.latest_measurement_id ||
-        null,
-
-      measurement_rounds:
-        n(
-          learningAI?.learning
-            ?.source_contract
-            ?.measurement_rounds ||
-          learningAI?.measurement_rounds
-        ),
-
+        measurement?.id || null,
       content_id:
-        content?.id ||
-        measurement?.content_id ||
-        null,
-
+        content?.id || null,
       attribution_mode:
-        measurement?.attribution_mode ||
-        "CONTENT_ATTRIBUTION_V2",
-
-      attention_type:
-        learningAI?.learning
-          ?.source_contract
-          ?.attention_type ||
-        "weighted_behavioral_signal"
+        measurement?.attribution_mode || null,
+      measurement_rounds:
+        evidence.rounds
     },
-
-    learning_feedback:
-      learningFeedback,
-
-    learning_state:
-      s(
-        learningAI?.learning?.state
-      ),
-
-    intelligence_state:
-      s(
-        learningAI?.intelligence?.state
-      ),
 
     guardrails: {
       winner_declared: false,
-      winner_selected: false,
-      strategy_change: false,
+      strategy_changed: false,
       automatic_execution: false,
       action_executed: false,
       content_modified: false,
       measurement_modified: false,
-
-      requires_action_layer:
-        true
+      requires_action_layer: true
     },
 
-    created_at:
-      new Date().toISOString()
+    action_contract: {
+      ready: true,
+      execute: false,
+      action_layer_required: true,
+      action_type:
+        decision.required_action?.type || "WAIT",
+      target:
+        decision.required_action?.target || null
+    },
+
+    learning_ai_status:
+      learningAI?.success === true
+        ? "AVAILABLE"
+        : "UNAVAILABLE"
   };
 }
 
-// ============================================================
-// SAVE
-// ============================================================
-
-async function saveDecision(
-  env,
-  contract
-) {
-  const db = env.DB;
-
-  await ensureTables(db);
-
+async function saveDecision(env, result) {
   const runId = id();
   const insightId = id();
+  const now = new Date().toISOString();
 
-  const now =
-    new Date().toISOString();
-
-  const input = JSON.stringify({
-    source_chain:
-      contract.source_chain,
-
-    source_contract:
-      contract.source_contract,
-
-    evidence:
-      contract.evidence,
-
-    learning_feedback:
-      contract.learning_feedback
+  const inputData = JSON.stringify({
+    measurement: result.measurement,
+    learning_feedback: result.learningFeedback,
+    learning_ai: result.learningAI,
+    evidence: result.evidence,
+    content: result.content
   });
 
-  const output =
-    JSON.stringify(contract);
+  const outputData = JSON.stringify(
+    result.decision
+  );
 
-  await db.prepare(`
+  await env.DB.prepare(`
     INSERT INTO ai_runs (
       id,
       customer_id,
@@ -806,22 +691,22 @@ async function saveDecision(
       created_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    runId,
-    null,
-    "DECISION",
-    "RULE_ENGINE",
-    input,
-    output,
-    contract.status,
-    null,
-    now
-  ).run();
+  `)
+    .bind(
+      runId,
+      null,
+      "DECISION",
+      MODEL,
+      inputData,
+      outputData,
+      "DECISION_CREATED",
+      null,
+      now
+    )
+    .run();
 
   const priority =
-    s(
-      contract.decision?.priority
-    ).toUpperCase() || "LOW";
+    upper(result.decision?.priority) || "LOW";
 
   const score =
     priority === "HIGH"
@@ -830,7 +715,7 @@ async function saveDecision(
         ? 60
         : 30;
 
-  await db.prepare(`
+  await env.DB.prepare(`
     INSERT INTO ai_insights (
       id,
       customer_id,
@@ -844,37 +729,30 @@ async function saveDecision(
       created_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    insightId,
-    null,
-    runId,
-    "DECISION",
-    `Decision: ${s(
-      contract.decision?.decision
-    )}`,
-    output,
-    score,
-    priority,
-    "NEW",
-    now
-  ).run();
+  `)
+    .bind(
+      insightId,
+      null,
+      runId,
+      "DECISION",
+      "Decision Layer V1",
+      outputData,
+      score,
+      priority,
+      "NEW",
+      now
+    )
+    .run();
 
   return {
+    ...result,
     run_id: runId,
     insight_id: insightId
   };
 }
 
-// ============================================================
-// ANALYZE
-// ============================================================
-
-async function analyze(
-  context,
-  contentId = null
-) {
-  const env =
-    context.env;
+async function analyze(context) {
+  const env = context.env;
 
   if (!env.DB) {
     throw new Error(
@@ -882,45 +760,42 @@ async function analyze(
     );
   }
 
-  const db =
-    env.DB;
+  await ensureTables(env.DB);
 
-  await ensureTables(db);
+  const requestUrl = new URL(
+    context.request.url
+  );
+
+  const contentId =
+    requestUrl.searchParams.get(
+      "content_id"
+    ) || null;
+
+  const content =
+    await getContent(
+      env.DB,
+      contentId
+    );
+
+  const selectedContentId =
+    contentId || content?.id || null;
+
+  const measurement =
+    await getMeasurement(
+      env.DB,
+      selectedContentId
+    );
+
+  const learningFeedback =
+    await getLearningFeedback(
+      env.DB,
+      selectedContentId
+    );
 
   const learningAI =
     await getLearningAI(
       context.request,
-      contentId
-    );
-
-  const resolvedContentId =
-    contentId ||
-    learningAI?.content?.id ||
-    learningAI?.learning
-      ?.source_contract
-      ?.content_id ||
-    null;
-
-  const content =
-    await getContent(
-      db,
-      resolvedContentId
-    );
-
-  const measurement =
-    normalizeMeasurement(
-      learningAI?.latest_measurement
-    ) ||
-    await getMeasurement(
-      db,
-      resolvedContentId
-    );
-
-  const learningFeedback =
-    learningAI?.learning_feedback ||
-    await getLearningFeedback(
-      db,
-      resolvedContentId
+      selectedContentId
     );
 
   const evidence =
@@ -931,101 +806,78 @@ async function analyze(
 
   const decision =
     decide(
-      learningAI,
-      evidence
+      evidence,
+      learningAI
     );
 
-  const contract =
-    buildDecision(
+  const finalDecision =
+    buildDecision({
+      decision,
+      evidence,
       learningAI,
       measurement,
       learningFeedback,
-      content,
-      evidence,
-      decision
-    );
+      content
+    });
 
   return {
-    success: true,
-
-    layer: LAYER,
-    version: VERSION,
-
-    mode: "preview",
-
-    status:
-      decision.status,
-
-    content:
-      contract.content,
-
-    latest_measurement:
-      measurement,
-
-    measurement_rounds:
-      evidence.rounds,
-
-    intelligence:
-      learningAI?.intelligence ||
-      null,
-
-    learning:
-      learningAI?.learning ||
-      null,
-
-    learning_feedback:
-      learningFeedback,
-
-    decision:
-      decision,
-
-    source_chain:
-      contract.source_chain,
-
-    source_contract:
-      contract.source_contract,
-
-    guardrails:
-      contract.guardrails,
-
-    contract
+    content,
+    measurement,
+    learningFeedback,
+    learningAI,
+    evidence,
+    decision: finalDecision
   };
 }
 
-// ============================================================
-// GET
-// ============================================================
-
-export async function onRequestGet(
-  context
-) {
+export async function onRequestGet(context) {
   try {
-    const url =
-      new URL(
-        context.request.url
-      );
-
-    const contentId =
-      url.searchParams.get(
-        "content_id"
-      );
-
     const result =
-      await analyze(
-        context,
-        contentId
-      );
+      await analyze(context);
 
-    return json(
-      result
-    );
+    return json({
+      success: true,
+
+      layer: LAYER,
+      version: VERSION,
+      mode: "preview",
+
+      status:
+        result.decision.status,
+
+      decision:
+        result.decision,
+
+      evidence:
+        result.evidence,
+
+      measurement:
+        result.measurement,
+
+      learning_feedback:
+        result.learningFeedback,
+
+      learning_ai:
+        result.learningAI,
+
+      content:
+        result.content
+          ? {
+              id: result.content.id,
+              title: result.content.title,
+              status: result.content.status
+            }
+          : null,
+
+      next_step:
+        "Decision preview ready. Run POST execute to save the Decision Layer result."
+    });
   } catch (error) {
     return json(
       {
         success: false,
         layer: LAYER,
         version: VERSION,
-        status: "ERROR",
         error:
           error?.message ||
           String(error)
@@ -1035,13 +887,7 @@ export async function onRequestGet(
   }
 }
 
-// ============================================================
-// POST
-// ============================================================
-
-export async function onRequestPost(
-  context
-) {
+export async function onRequestPost(context) {
   try {
     let body = {};
 
@@ -1051,53 +897,105 @@ export async function onRequestPost(
     } catch (_) {}
 
     const mode =
-      s(
-        body?.mode ||
-        "preview"
-      ).toLowerCase();
-
-    const contentId =
-      body?.content_id ||
-      null;
+      body?.mode || "preview";
 
     const result =
-      await analyze(
-        context,
-        contentId
-      );
+      await analyze(context);
 
     if (mode === "execute") {
       const saved =
         await saveDecision(
           context.env,
-          result.contract
+          result
         );
 
       return json({
-        ...result,
+        success: true,
 
+        layer: LAYER,
+        version: VERSION,
         mode: "execute",
 
-        status:
-          "DECISION_SAVED",
+        status: "EXECUTED",
 
-        saved,
+        decision:
+          saved.decision,
+
+        evidence:
+          saved.evidence,
+
+        measurement:
+          saved.measurement,
+
+        learning_feedback:
+          saved.learningFeedback,
+
+        learning_ai:
+          saved.learningAI,
+
+        content:
+          saved.content
+            ? {
+                id: saved.content.id,
+                title: saved.content.title,
+                status: saved.content.status
+              }
+            : null,
+
+        run_id:
+          saved.run_id,
+
+        insight_id:
+          saved.insight_id,
 
         next_step:
-          "Decision saved. Next stage: Action / Automation Layer."
+          "Decision saved. Next stage: Action Layer."
       });
     }
 
-    return json(
-      result
-    );
+    return json({
+      success: true,
+
+      layer: LAYER,
+      version: VERSION,
+      mode: "preview",
+
+      status:
+        result.decision.status,
+
+      decision:
+        result.decision,
+
+      evidence:
+        result.evidence,
+
+      measurement:
+        result.measurement,
+
+      learning_feedback:
+        result.learningFeedback,
+
+      learning_ai:
+        result.learningAI,
+
+      content:
+        result.content
+          ? {
+              id: result.content.id,
+              title: result.content.title,
+              status: result.content.status
+            }
+          : null,
+
+      next_step:
+        "Decision preview ready."
+    });
   } catch (error) {
     return json(
       {
         success: false,
         layer: LAYER,
         version: VERSION,
-        status: "ERROR",
         error:
           error?.message ||
           String(error)
