@@ -1,47 +1,117 @@
 // ============================================================
 // TATO-OS
-// EXECUTION CYCLE V1.0
-// Action Cycle → Execution Layer → Approval → Execute
+// EXECUTION CYCLE V1.1
+//
+// Action Cycle
+//      ↓
+// Execution Layer
+//      ↓
+// Human Approval
+//      ↓
+// Execute
+//      ↓
+// Execution Result
+//      ↓
+// Feedback Loop V1.5
+//      ↓
+// Measurement V2.2
+//      ↓
+// Learning V1
+//
+// V1.1:
+// - Automatically re-enters Feedback Loop after successful execution
+// - Passes exact execution_run_id / execution_insight_id
+// - Preserves human approval boundary
+// - Does not mutate business/content/customer/payment data
 // ============================================================
 
-const LAYER = "EXECUTION_CYCLE_V1";
-const VERSION = "1.0";
+const LAYER =
+  "EXECUTION_CYCLE_V1";
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8"
+const VERSION =
+  "1.1";
+
+function json(
+  data,
+  status = 200
+) {
+  return new Response(
+    JSON.stringify(
+      data,
+      null,
+      2
+    ),
+    {
+      status,
+      headers: {
+        "content-type":
+          "application/json; charset=utf-8"
+      }
     }
-  });
+  );
 }
 
-function parseJSON(value, fallback = null) {
-  if (value === null || value === undefined) return fallback;
+function parseJSON(
+  value,
+  fallback = null
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return fallback;
+  }
 
-  if (typeof value === "object") return value;
+  if (
+    typeof value === "object"
+  ) {
+    return value;
+  }
 
   try {
-    return JSON.parse(value);
+    return JSON.parse(
+      value
+    );
   } catch {
     return fallback;
   }
 }
 
-function extractContentId(value, depth = 0) {
-  if (!value || depth > 10) return null;
+function extractContentId(
+  value,
+  depth = 0
+) {
+  if (
+    !value ||
+    depth > 12
+  ) {
+    return null;
+  }
 
-  if (typeof value === "string") {
-    const parsed = parseJSON(value);
+  if (
+    typeof value === "string"
+  ) {
+    const parsed =
+      parseJSON(value);
 
-    if (parsed && typeof parsed === "object") {
-      return extractContentId(parsed, depth + 1);
+    if (
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      return extractContentId(
+        parsed,
+        depth + 1
+      );
     }
 
     return null;
   }
 
-  if (typeof value !== "object") return null;
+  if (
+    typeof value !== "object"
+  ) {
+    return null;
+  }
 
   const directKeys = [
     "content_id",
@@ -49,9 +119,13 @@ function extractContentId(value, depth = 0) {
     "contentID"
   ];
 
-  for (const key of directKeys) {
+  for (
+    const key of directKeys
+  ) {
     if (value[key]) {
-      return String(value[key]);
+      return String(
+        value[key]
+      );
     }
   }
 
@@ -64,6 +138,7 @@ function extractContentId(value, depth = 0) {
     "result",
     "feedback",
     "execution",
+    "execution_result",
     "learning",
     "decision",
     "cycle",
@@ -72,32 +147,51 @@ function extractContentId(value, depth = 0) {
     "source_decision_cycle"
   ];
 
-  for (const key of nestedKeys) {
+  for (
+    const key of nestedKeys
+  ) {
     if (value[key]) {
-      const found = extractContentId(
-        value[key],
-        depth + 1
-      );
+      const found =
+        extractContentId(
+          value[key],
+          depth + 1
+        );
 
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
   }
 
-  for (const key of Object.keys(value)) {
-    if (nestedKeys.includes(key)) continue;
+  for (
+    const key of Object.keys(
+      value
+    )
+  ) {
+    if (
+      nestedKeys.includes(
+        key
+      )
+    ) {
+      continue;
+    }
 
-    const child = value[key];
+    const child =
+      value[key];
 
     if (
       child &&
       typeof child === "object"
     ) {
-      const found = extractContentId(
-        child,
-        depth + 1
-      );
+      const found =
+        extractContentId(
+          child,
+          depth + 1
+        );
 
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
   }
 
@@ -109,48 +203,78 @@ async function getLatestInsight(
   insightType,
   contentId
 ) {
-  const result = await db.prepare(`
-    SELECT
-      id,
-      run_id,
-      insight_type,
-      title,
-      content,
-      score,
-      priority,
-      status,
-      created_at
-    FROM ai_insights
-    WHERE insight_type = ?
-    ORDER BY created_at DESC
-    LIMIT 100
-  `)
-    .bind(insightType)
-    .all();
+  const result =
+    await db.prepare(`
+      SELECT
+        id,
+        run_id,
+        insight_type,
+        title,
+        content,
+        score,
+        priority,
+        status,
+        created_at
+      FROM ai_insights
+      WHERE insight_type = ?
+      ORDER BY created_at DESC
+      LIMIT 100
+    `)
+      .bind(
+        insightType
+      )
+      .all();
 
-  const rows = result?.results || [];
+  const rows =
+    result?.results ||
+    [];
 
-  for (const row of rows) {
+  for (
+    const row of rows
+  ) {
     const parsed =
-      parseJSON(row.content, {});
+      parseJSON(
+        row.content,
+        {}
+      );
 
     const rowContentId =
-      extractContentId(parsed);
+      extractContentId(
+        parsed
+      );
 
     if (
       rowContentId &&
-      String(rowContentId) === String(contentId)
+      String(rowContentId) ===
+        String(contentId)
     ) {
       return {
-        insight_id: row.id,
-        run_id: row.run_id,
-        insight_type: row.insight_type,
-        title: row.title,
-        content: parsed,
-        score: row.score,
-        priority: row.priority,
-        status: row.status,
-        created_at: row.created_at
+        insight_id:
+          row.id,
+
+        run_id:
+          row.run_id,
+
+        insight_type:
+          row.insight_type,
+
+        title:
+          row.title,
+
+        content:
+          parsed,
+
+        score:
+          row.score,
+
+        priority:
+          row.priority,
+
+        status:
+          row.status,
+
+        created_at:
+          row.created_at
       };
     }
   }
@@ -183,10 +307,13 @@ async function getLatestExecutionCycle(
 function findActionCyclePayload(
   actionCycle
 ) {
-  if (!actionCycle) return {};
+  if (!actionCycle) {
+    return {};
+  }
 
   const root =
-    actionCycle.content || {};
+    actionCycle.content ||
+    {};
 
   return {
     cycle:
@@ -198,7 +325,8 @@ function findActionCyclePayload(
       null,
 
     decision:
-      root.source_decision_cycle?.decision ||
+      root.source_decision_cycle
+        ?.decision ||
       null,
 
     source_decision_cycle:
@@ -226,9 +354,12 @@ async function callExecutionLayerPreview(
     await fetch(
       url.toString(),
       {
-        method: "GET",
+        method:
+          "GET",
+
         headers: {
-          "accept": "application/json"
+          "accept":
+            "application/json"
         }
       }
     );
@@ -277,16 +408,22 @@ async function callExecutionLayerExecute(
     await fetch(
       url.toString(),
       {
-        method: "POST",
+        method:
+          "POST",
+
         headers: {
           "content-type":
             "application/json",
+
           "accept":
             "application/json"
         },
-        body: JSON.stringify({
-          approved: true
-        })
+
+        body:
+          JSON.stringify({
+            approved:
+              true
+          })
       }
     );
 
@@ -315,12 +452,157 @@ async function callExecutionLayerExecute(
   return data;
 }
 
+async function callFeedbackPreview(
+  request,
+  contentId,
+  executionRunId,
+  executionInsightId
+) {
+  const url =
+    new URL(
+      "/api/feedback-loop-ai",
+      request.url
+    );
+
+  url.searchParams.set(
+    "content_id",
+    contentId
+  );
+
+  url.searchParams.set(
+    "execution_run_id",
+    executionRunId
+  );
+
+  url.searchParams.set(
+    "execution_insight_id",
+    executionInsightId
+  );
+
+  const response =
+    await fetch(
+      url.toString(),
+      {
+        method:
+          "GET",
+
+        headers: {
+          "accept":
+            "application/json"
+        }
+      }
+    );
+
+  const text =
+    await response.text();
+
+  const data =
+    parseJSON(text);
+
+  if (!data) {
+    throw new Error(
+      `FEEDBACK_LOOP_INVALID_RESPONSE:${response.status}`
+    );
+  }
+
+  if (
+    !response.ok ||
+    data.success === false
+  ) {
+    throw new Error(
+      data.error ||
+      `FEEDBACK_LOOP_FAILED:${response.status}`
+    );
+  }
+
+  return data;
+}
+
+async function callFeedbackExecute(
+  request,
+  contentId,
+  executionRunId,
+  executionInsightId
+) {
+  const url =
+    new URL(
+      "/api/feedback-loop-ai",
+      request.url
+    );
+
+  url.searchParams.set(
+    "content_id",
+    contentId
+  );
+
+  url.searchParams.set(
+    "execution_run_id",
+    executionRunId
+  );
+
+  url.searchParams.set(
+    "execution_insight_id",
+    executionInsightId
+  );
+
+  const response =
+    await fetch(
+      url.toString(),
+      {
+        method:
+          "POST",
+
+        headers: {
+          "content-type":
+            "application/json",
+
+          "accept":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+            approved:
+              true,
+
+            approval_source:
+              "EXECUTION_CYCLE_HUMAN_APPROVAL"
+          })
+      }
+    );
+
+  const text =
+    await response.text();
+
+  const data =
+    parseJSON(text);
+
+  if (!data) {
+    throw new Error(
+      `FEEDBACK_LOOP_INVALID_RESPONSE:${response.status}`
+    );
+  }
+
+  if (
+    !response.ok ||
+    data.success === false
+  ) {
+    throw new Error(
+      data.error ||
+      `FEEDBACK_LOOP_FAILED:${response.status}`
+    );
+  }
+
+  return data;
+}
+
 async function buildPreview(
   env,
   request,
   contentId
 ) {
-  const db = env.DB;
+  const db =
+    env.DB;
 
   const actionCycle =
     await getLatestActionCycle(
@@ -330,33 +612,64 @@ async function buildPreview(
 
   if (!actionCycle) {
     return {
-      success: true,
-      layer: LAYER,
-      version: VERSION,
-      mode: "preview",
+      success:
+        true,
+
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
+      mode:
+        "preview",
+
       status:
         "WAITING_FOR_ACTION_CYCLE",
 
       content: {
-        id: contentId
+        id:
+          contentId
       },
 
       diagnostics: {
-        action_cycle_found: false,
-        execution_layer_reentered: false,
-        previous_execution_cycle_found: false
+        action_cycle_found:
+          false,
+
+        execution_layer_reentered:
+          false,
+
+        previous_execution_cycle_found:
+          false
       },
 
       guardrails: {
-        execution_ready: false,
-        action_executed: false,
-        automatic_execution: false,
-        strategy_change: false,
-        business_data_mutation: false,
-        content_mutation: false,
-        customer_contact: false,
-        payment_action: false,
-        requires_human_approval: true
+        execution_ready:
+          false,
+
+        action_executed:
+          false,
+
+        automatic_execution:
+          false,
+
+        strategy_change:
+          false,
+
+        business_data_mutation:
+          false,
+
+        content_mutation:
+          false,
+
+        customer_contact:
+          false,
+
+        payment_action:
+          false,
+
+        requires_human_approval:
+          true
       },
 
       next_step:
@@ -393,15 +706,24 @@ async function buildPreview(
     "READY";
 
   return {
-    success: true,
+    success:
+      true,
 
-    layer: LAYER,
-    version: VERSION,
-    mode: "preview",
-    status: "READY",
+    layer:
+      LAYER,
+
+    version:
+      VERSION,
+
+    mode:
+      "preview",
+
+    status:
+      "READY",
 
     content: {
-      id: contentId,
+      id:
+        contentId,
 
       title:
         executionPreview.content?.title ||
@@ -432,7 +754,7 @@ async function buildPreview(
         "EXECUTION_LAYER_V1",
 
       feedback:
-        "FEEDBACK_LOOP_V1",
+        "FEEDBACK_LOOP_V1.5",
 
       decision_cycle:
         "DECISION_CYCLE_V1",
@@ -441,7 +763,7 @@ async function buildPreview(
         "ACTION_CYCLE_V1",
 
       execution_cycle:
-        "EXECUTION_CYCLE_V1"
+        "EXECUTION_CYCLE_V1.1"
     },
 
     action_cycle: {
@@ -491,15 +813,18 @@ async function buildPreview(
 
       action: {
         action_type:
-          actionPayload.action?.action_type ||
+          actionPayload.action
+            ?.action_type ||
           null,
 
         action_name:
-          actionPayload.action?.action_name ||
+          actionPayload.action
+            ?.action_name ||
           null,
 
         status:
-          actionPayload.action?.status ||
+          actionPayload.action
+            ?.status ||
           null
       },
 
@@ -526,36 +851,76 @@ async function buildPreview(
           : null,
 
       guardrails: {
-        execution_ready: true,
-        action_executed: false,
-        automatic_execution: false,
-        strategy_change: false,
-        business_data_mutation: false,
-        content_mutation: false,
-        customer_contact: false,
-        payment_action: false,
-        requires_human_approval: true
+        execution_ready:
+          true,
+
+        action_executed:
+          false,
+
+        automatic_execution:
+          false,
+
+        strategy_change:
+          false,
+
+        business_data_mutation:
+          false,
+
+        content_mutation:
+          false,
+
+        customer_contact:
+          false,
+
+        payment_action:
+          false,
+
+        requires_human_approval:
+          true
       }
     },
 
-    persistence: null,
+    persistence:
+      null,
+
+    feedback:
+      null,
 
     guardrails: {
-      execution_ready: true,
-      action_executed: false,
-      automatic_execution: false,
-      strategy_change: false,
-      business_data_mutation: false,
-      content_mutation: false,
-      customer_contact: false,
-      payment_action: false,
-      requires_human_approval: true
+      execution_ready:
+        true,
+
+      action_executed:
+        false,
+
+      automatic_execution:
+        false,
+
+      strategy_change:
+        false,
+
+      business_data_mutation:
+        false,
+
+      content_mutation:
+        false,
+
+      customer_contact:
+        false,
+
+      payment_action:
+        false,
+
+      requires_human_approval:
+        true
     },
 
     diagnostics: {
-      action_cycle_found: true,
+      action_cycle_found:
+        true,
 
-      execution_layer_reentered: true,
+      execution_layer_reentered:
+        true,
 
       previous_execution_cycle_found:
         !!previousExecutionCycle,
@@ -566,35 +931,45 @@ async function buildPreview(
 
       previous_execution_cycle_run_id:
         previousExecutionCycle?.run_id ||
-        null
+        null,
+
+      feedback_loop_reentered:
+        false
     },
 
     next_step:
-      "Execution Cycle preview ready. POST approved:true to execute through Execution Layer."
+      "Execution Cycle preview ready. POST approved:true to execute through Execution Layer and re-enter Feedback Loop."
   };
 }
 
-export async function onRequest(context) {
+export async function onRequest(
+  context
+) {
   const {
     request,
     env
   } = context;
 
   if (!env.DB) {
-    return json(
-      {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        error:
-          "DB_BINDING_NOT_FOUND"
-      },
-      500
-    );
+    return json({
+      success:
+        false,
+
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
+      error:
+        "DB_BINDING_NOT_FOUND"
+    }, 500);
   }
 
   const url =
-    new URL(request.url);
+    new URL(
+      request.url
+    );
 
   const contentId =
     url.searchParams.get(
@@ -602,32 +977,38 @@ export async function onRequest(context) {
     );
 
   if (!contentId) {
-    return json(
-      {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        error:
-          "content_id is required"
-      },
-      400
-    );
+    return json({
+      success:
+        false,
+
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
+      error:
+        "content_id is required"
+    }, 400);
   }
 
   if (
     request.method !== "GET" &&
     request.method !== "POST"
   ) {
-    return json(
-      {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        error:
-          "METHOD_NOT_ALLOWED"
-      },
-      405
-    );
+    return json({
+      success:
+        false,
+
+      layer:
+        LAYER,
+
+      version:
+        VERSION,
+
+      error:
+        "METHOD_NOT_ALLOWED"
+    }, 405);
   }
 
   // ----------------------------------------------------------
@@ -648,19 +1029,29 @@ export async function onRequest(context) {
       return json(
         preview
       );
-    } catch (error) {
-      return json(
-        {
-          success: false,
-          layer: LAYER,
-          version: VERSION,
-          mode: "preview",
-          status: "ERROR",
-          error:
-            error.message
-        },
-        500
-      );
+    } catch (
+      error
+    ) {
+      return json({
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "preview",
+
+        status:
+          "ERROR",
+
+        error:
+          error?.message ||
+          String(error)
+      }, 500);
     }
   }
 
@@ -680,37 +1071,59 @@ export async function onRequest(context) {
   if (
     body.approved !== true
   ) {
-    return json(
-      {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        mode: "execute",
-        status:
-          "APPROVAL_REQUIRED",
+    return json({
+      success:
+        false,
 
-        message:
-          "POST requires approved:true",
+      layer:
+        LAYER,
 
-        guardrails: {
-          execution_ready: false,
-          action_executed: false,
-          automatic_execution: false,
-          strategy_change: false,
-          business_data_mutation: false,
-          content_mutation: false,
-          customer_contact: false,
-          payment_action: false,
-          requires_human_approval: true
-        }
-      },
-      403
-    );
+      version:
+        VERSION,
+
+      mode:
+        "execute",
+
+      status:
+        "APPROVAL_REQUIRED",
+
+      message:
+        "POST requires approved:true",
+
+      guardrails: {
+        execution_ready:
+          false,
+
+        action_executed:
+          false,
+
+        automatic_execution:
+          false,
+
+        strategy_change:
+          false,
+
+        business_data_mutation:
+          false,
+
+        content_mutation:
+          false,
+
+        customer_contact:
+          false,
+
+        payment_action:
+          false,
+
+        requires_human_approval:
+          true
+      }
+    }, 403);
   }
 
   try {
     // --------------------------------------------------------
-    // Rebuild preview before execution
+    // 1. Rebuild preview
     // --------------------------------------------------------
 
     const preview =
@@ -721,7 +1134,8 @@ export async function onRequest(context) {
       );
 
     if (
-      preview.status !== "READY"
+      preview.status !==
+      "READY"
     ) {
       return json(
         preview,
@@ -730,8 +1144,7 @@ export async function onRequest(context) {
     }
 
     // --------------------------------------------------------
-    // Explicit approval has been received.
-    // Execute ONLY through existing Execution Layer.
+    // 2. Execute ONLY through Execution Layer
     // --------------------------------------------------------
 
     const execution =
@@ -739,6 +1152,192 @@ export async function onRequest(context) {
         request,
         contentId
       );
+
+    if (
+      execution.status !==
+      "EXECUTED"
+    ) {
+      return json({
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "execute",
+
+        status:
+          "EXECUTION_LAYER_NOT_EXECUTED",
+
+        execution,
+
+        guardrails: {
+          execution_ready:
+            false,
+
+          action_executed:
+            false,
+
+          automatic_execution:
+            false,
+
+          strategy_change:
+            false,
+
+          business_data_mutation:
+            false,
+
+          content_mutation:
+            false,
+
+          customer_contact:
+            false,
+
+          payment_action:
+            false,
+
+          requires_human_approval:
+            true
+        }
+      }, 409);
+    }
+
+    // --------------------------------------------------------
+    // 3. Extract exact Execution persistence reference
+    // --------------------------------------------------------
+
+    const executionRunId =
+      execution.persistence?.run_id ||
+      execution.run_id ||
+      null;
+
+    const executionInsightId =
+      execution.persistence?.insight_id ||
+      execution.insight_id ||
+      null;
+
+    if (
+      !executionRunId ||
+      !executionInsightId
+    ) {
+      return json({
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "execute",
+
+        status:
+          "EXECUTION_REFERENCE_MISSING",
+
+        execution,
+
+        diagnostics: {
+          execution_run_id:
+            executionRunId,
+
+          execution_insight_id:
+            executionInsightId
+        }
+      }, 500);
+    }
+
+    // --------------------------------------------------------
+    // 4. Re-enter Feedback Loop PREVIEW
+    // --------------------------------------------------------
+
+    const feedbackPreview =
+      await callFeedbackPreview(
+        request,
+        contentId,
+        executionRunId,
+        executionInsightId
+      );
+
+    if (
+      feedbackPreview.status !==
+      "READY"
+    ) {
+      return json({
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "execute",
+
+        status:
+          "FEEDBACK_REENTRY_PREVIEW_FAILED",
+
+        execution,
+
+        feedback:
+          feedbackPreview
+      }, 409);
+    }
+
+    // --------------------------------------------------------
+    // 5. Persist Feedback Loop
+    //
+    // Human approval is inherited from the explicit
+    // Execution Cycle approval.
+    //
+    // This is data/learning persistence only.
+    // No business action is executed here.
+    // --------------------------------------------------------
+
+    const feedback =
+      await callFeedbackExecute(
+        request,
+        contentId,
+        executionRunId,
+        executionInsightId
+      );
+
+    if (
+      feedback.status !==
+      "FEEDBACK_REENTERED"
+    ) {
+      return json({
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "execute",
+
+        status:
+          "FEEDBACK_REENTRY_FAILED",
+
+        execution,
+
+        feedback
+      }, 500);
+    }
+
+    // --------------------------------------------------------
+    // 6. Persist Execution Cycle
+    // --------------------------------------------------------
 
     const now =
       new Date().toISOString();
@@ -751,8 +1350,11 @@ export async function onRequest(context) {
 
     const inputData =
       JSON.stringify({
-        layer: LAYER,
-        version: VERSION,
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
 
         content_id:
           contentId,
@@ -760,28 +1362,53 @@ export async function onRequest(context) {
         source_action_cycle:
           preview.action_cycle,
 
-        approved: true,
+        approved:
+          true,
 
         approved_at:
-          now
+          now,
+
+        feedback_reentry: {
+          execution_run_id:
+            executionRunId,
+
+          execution_insight_id:
+            executionInsightId,
+
+          feedback_run_id:
+            feedback.persistence?.run_id ||
+            null,
+
+          feedback_insight_id:
+            feedback.persistence?.insight_id ||
+            null,
+
+          approval_source:
+            "EXECUTION_CYCLE_HUMAN_APPROVAL"
+        }
       });
 
     const outputData =
       JSON.stringify({
         execution,
 
+        feedback,
+
         cycle:
           preview.cycle,
 
         guardrails: {
-          execution_ready: true,
+          execution_ready:
+            true,
+
           action_executed:
-            execution.status ===
-            "EXECUTED",
+            true,
 
-          automatic_execution: false,
+          automatic_execution:
+            false,
 
-          strategy_change: false,
+          strategy_change:
+            false,
 
           business_data_mutation:
             false,
@@ -799,10 +1426,6 @@ export async function onRequest(context) {
             true
         }
       });
-
-    // --------------------------------------------------------
-    // Persist execution cycle run
-    // --------------------------------------------------------
 
     await env.DB.prepare(`
       INSERT INTO ai_runs (
@@ -822,7 +1445,7 @@ export async function onRequest(context) {
 
         "EXECUTION_CYCLE",
 
-        "TATO_EXECUTION_CYCLE_V1",
+        "TATO_EXECUTION_CYCLE_V1_1",
 
         inputData,
 
@@ -837,7 +1460,7 @@ export async function onRequest(context) {
       .run();
 
     // --------------------------------------------------------
-    // Persist execution cycle result
+    // 7. Persist Execution Cycle Result
     // --------------------------------------------------------
 
     const insightContent =
@@ -847,6 +1470,9 @@ export async function onRequest(context) {
 
           execution_result:
             execution,
+
+          feedback_result:
+            feedback,
 
           persistence: {
             run_id:
@@ -866,13 +1492,31 @@ export async function onRequest(context) {
         execution:
           execution,
 
+        feedback:
+          feedback,
+
+        feedback_reentry: {
+          execution_run_id:
+            executionRunId,
+
+          execution_insight_id:
+            executionInsightId,
+
+          feedback_run_id:
+            feedback.persistence?.run_id ||
+            null,
+
+          feedback_insight_id:
+            feedback.persistence?.insight_id ||
+            null
+        },
+
         guardrails: {
           execution_ready:
             true,
 
           action_executed:
-            execution.status ===
-            "EXECUTED",
+            true,
 
           automatic_execution:
             false,
@@ -918,30 +1562,39 @@ export async function onRequest(context) {
 
         "EXECUTION_CYCLE_RESULT",
 
-        "Execution Cycle V1",
+        "Execution Cycle V1.1",
 
         insightContent,
 
         1,
 
-        "high",
+        "HIGH",
 
-        "new",
+        "COMPLETED",
 
         now
       )
       .run();
 
+    // --------------------------------------------------------
+    // 8. Final response
+    // --------------------------------------------------------
+
     return json({
-      success: true,
+      success:
+        true,
 
-      layer: LAYER,
+      layer:
+        LAYER,
 
-      version: VERSION,
+      version:
+        VERSION,
 
-      mode: "execute",
+      mode:
+        "execute",
 
-      status: "EXECUTED",
+      status:
+        "EXECUTED",
 
       content:
         preview.content,
@@ -955,11 +1608,17 @@ export async function onRequest(context) {
       execution:
         execution,
 
+      feedback:
+        feedback,
+
       cycle: {
         ...preview.cycle,
 
         execution_result:
           execution,
+
+        feedback_result:
+          feedback,
 
         persistence: {
           run_id:
@@ -984,13 +1643,37 @@ export async function onRequest(context) {
           now
       },
 
+      feedback_reentry: {
+        status:
+          "COMPLETED",
+
+        execution_run_id:
+          executionRunId,
+
+        execution_insight_id:
+          executionInsightId,
+
+        feedback_run_id:
+          feedback.persistence?.run_id ||
+          null,
+
+        feedback_insight_id:
+          feedback.persistence?.insight_id ||
+          null,
+
+        measurement_reentered:
+          true,
+
+        learning_reentered:
+          true
+      },
+
       guardrails: {
         execution_ready:
           true,
 
         action_executed:
-          execution.status ===
-          "EXECUTED",
+          true,
 
         automatic_execution:
           false,
@@ -1025,30 +1708,47 @@ export async function onRequest(context) {
           true,
 
         execution_cycle_persisted:
+          true,
+
+        feedback_loop_reentered:
+          true,
+
+        feedback_loop_persisted:
+          true,
+
+        measurement_reentered:
+          true,
+
+        learning_reentered:
           true
       },
 
       next_step:
-        "Execution Cycle completed. Execution Result is ready for Feedback Loop."
+        "Execution → Feedback → Measurement → Learning completed."
     });
 
-  } catch (error) {
-    return json(
-      {
-        success: false,
+  } catch (
+    error
+  ) {
+    return json({
+      success:
+        false,
 
-        layer: LAYER,
+      layer:
+        LAYER,
 
-        version: VERSION,
+      version:
+        VERSION,
 
-        mode: "execute",
+      mode:
+        "execute",
 
-        status: "ERROR",
+      status:
+        "ERROR",
 
-        error:
-          error.message
-      },
-      500
-    );
+      error:
+        error?.message ||
+        String(error)
+    }, 500);
   }
 }
