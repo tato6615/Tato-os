@@ -1,5 +1,3 @@
-````javascript
-// ============================================================
 // TATO-OS
 // DECISION CYCLE V1.0
 // Route: /api/decision-cycle-ai
@@ -1105,4 +1103,3 @@ export async function onRequestPost(
     }, 500);
   }
 }
-````
