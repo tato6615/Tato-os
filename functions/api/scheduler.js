@@ -1,28 +1,36 @@
 // ============================================================
 // TATO-OS
-// SCHEDULER V1.0
+// SCHEDULER V1.1
 //
 // Purpose:
 // - Control when TATO OS Orchestrator should run.
 // - Discover PUBLISHED content.
 // - Prevent duplicate runs inside the configured interval.
-// - Trigger Orchestrator only.
+// - Trigger Orchestrator V1.1 only.
+// - Validate Orchestrator V1.1.
 // - NEVER bypass human approval.
 // - NEVER change strategy/content/customer/payment.
 //
 // Flow:
-// Scheduler
-//   -> Orchestrator
-//   -> Measurement
-//   -> Learning
-//   -> Decision Preview
-//   -> Action Preview
-//   -> Execution Preview
+//
+// Scheduler V1.1
+//   -> Orchestrator V1.1
+//   -> Measurement V2.2
+//   -> Learning V1.0
+//   -> Decision Cycle V1.1
+//   -> Action Cycle V1.1
+//   -> Execution Cycle V1.1 PREVIEW
 //   -> STOP at Human Approval
 // ============================================================
 
 const LAYER = "TATO_OS_SCHEDULER";
-const VERSION = "1.0";
+const VERSION = "1.1";
+
+const REQUIRED_ORCHESTRATOR_LAYER =
+  "TATO_OS_ORCHESTRATOR";
+
+const REQUIRED_ORCHESTRATOR_VERSION =
+  "1.1";
 
 const DEFAULT_INTERVAL_MINUTES = 60;
 const DEFAULT_MAX_CONTENTS = 10;
@@ -47,31 +55,48 @@ function id() {
 }
 
 function safeString(value) {
-  if (value === null || value === undefined) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return null;
   }
 
   return String(value);
 }
 
-function parseJSON(value, fallback = null) {
-  if (value === null || value === undefined) {
+function parseJSON(
+  value,
+  fallback = null
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return fallback;
   }
 
-  if (typeof value === "object") {
+  if (
+    typeof value === "object"
+  ) {
     return value;
   }
 
   try {
-    return JSON.parse(String(value));
+    return JSON.parse(
+      String(value)
+    );
   } catch (_) {
     return fallback;
   }
 }
 
-function numberValue(value, fallback = 0) {
-  const number = Number(value);
+function numberValue(
+  value,
+  fallback = 0
+) {
+  const number =
+    Number(value);
 
   return Number.isFinite(number)
     ? number
@@ -79,27 +104,128 @@ function numberValue(value, fallback = 0) {
 }
 
 function getIntervalMinutes(body) {
-  const value = numberValue(
-    body?.interval_minutes,
-    DEFAULT_INTERVAL_MINUTES
-  );
+  const value =
+    numberValue(
+      body?.interval_minutes,
+      DEFAULT_INTERVAL_MINUTES
+    );
 
   return Math.max(
     1,
-    Math.min(value, 1440)
+    Math.min(
+      value,
+      1440
+    )
   );
 }
 
 function getMaxContents(body) {
-  const value = numberValue(
-    body?.max_contents,
-    DEFAULT_MAX_CONTENTS
-  );
+  const value =
+    numberValue(
+      body?.max_contents,
+      DEFAULT_MAX_CONTENTS
+    );
 
   return Math.max(
     1,
-    Math.min(value, 100)
+    Math.min(
+      value,
+      100
+    )
   );
+}
+
+// ------------------------------------------------------------
+// Extract version from nested Orchestrator response
+// ------------------------------------------------------------
+
+function extractVersion(data) {
+  if (!data) {
+    return null;
+  }
+
+  if (
+    data.version !== undefined &&
+    data.version !== null
+  ) {
+    return String(
+      data.version
+    );
+  }
+
+  if (
+    data.output?.version !==
+      undefined &&
+    data.output?.version !== null
+  ) {
+    return String(
+      data.output.version
+    );
+  }
+
+  return null;
+}
+
+// ------------------------------------------------------------
+// Validate Orchestrator
+// ------------------------------------------------------------
+
+function validateOrchestrator(
+  data
+) {
+  const actualLayer =
+    data?.layer || null;
+
+  const actualVersion =
+    extractVersion(data);
+
+  const layerValid =
+    actualLayer ===
+    REQUIRED_ORCHESTRATOR_LAYER;
+
+  const versionValid =
+    actualVersion ===
+    REQUIRED_ORCHESTRATOR_VERSION;
+
+  const successValid =
+    data?.success !== false;
+
+  return {
+    valid:
+      layerValid &&
+      versionValid &&
+      successValid,
+
+    layer_valid:
+      layerValid,
+
+    version_valid:
+      versionValid,
+
+    success_valid:
+      successValid,
+
+    expected_layer:
+      REQUIRED_ORCHESTRATOR_LAYER,
+
+    expected_version:
+      REQUIRED_ORCHESTRATOR_VERSION,
+
+    actual_layer:
+      actualLayer,
+
+    actual_version:
+      actualVersion,
+
+    reason:
+      !layerValid
+        ? "INVALID_ORCHESTRATOR_LAYER"
+        : !versionValid
+          ? "INVALID_ORCHESTRATOR_VERSION"
+          : !successValid
+            ? "ORCHESTRATOR_FAILED"
+            : null
+  };
 }
 
 // ------------------------------------------------------------
@@ -110,30 +236,32 @@ async function getPublishedContents(
   db,
   maxContents
 ) {
-  const result = await db
-    .prepare(
-      `
-      SELECT *
-      FROM content_engine
-      WHERE status = 'PUBLISHED'
-      ORDER BY created_at ASC
-      LIMIT ?
-      `
-    )
-    .bind(maxContents)
-    .all();
+  const result =
+    await db
+      .prepare(
+        `
+        SELECT *
+        FROM content_engine
+        WHERE status = 'PUBLISHED'
+        ORDER BY created_at ASC
+        LIMIT ?
+        `
+      )
+      .bind(
+        maxContents
+      )
+      .all();
 
   return result.results || [];
 }
 
 // ------------------------------------------------------------
 // Scheduler history
-//
-// Uses ai_runs because this table is already part of the
-// verified TATO OS schema.
 // ------------------------------------------------------------
 
-async function getLatestSchedulerRun(db) {
+async function getLatestSchedulerRun(
+  db
+) {
   try {
     return await db
       .prepare(
@@ -159,7 +287,9 @@ function calculateCooldown(
   latestRun,
   intervalMinutes
 ) {
-  if (!latestRun?.created_at) {
+  if (
+    !latestRun?.created_at
+  ) {
     return {
       blocked: false,
       next_run_at: null,
@@ -172,7 +302,11 @@ function calculateCooldown(
       latestRun.created_at
     ).getTime();
 
-  if (!Number.isFinite(lastRun)) {
+  if (
+    !Number.isFinite(
+      lastRun
+    )
+  ) {
     return {
       blocked: false,
       next_run_at: null,
@@ -216,7 +350,7 @@ function calculateCooldown(
 }
 
 // ------------------------------------------------------------
-// Call Orchestrator
+// Call Orchestrator V1.1
 // ------------------------------------------------------------
 
 async function callOrchestrator(
@@ -271,6 +405,11 @@ async function callOrchestrator(
       }
     );
 
+  const validation =
+    validateOrchestrator(
+      data
+    );
+
   return {
     ok:
       response.ok,
@@ -278,7 +417,9 @@ async function callOrchestrator(
     status:
       response.status,
 
-    data
+    data,
+
+    validation
   };
 }
 
@@ -321,7 +462,7 @@ async function saveSchedulerRun(
     .bind(
       runId,
       "SCHEDULER",
-      "TATO_OS_SCHEDULER_V1",
+      "TATO_OS_SCHEDULER_V1.1",
       JSON.stringify(
         inputData
       ),
@@ -355,7 +496,7 @@ async function saveSchedulerRun(
       insightId,
       runId,
       "SCHEDULER_RESULT",
-      "TATO OS Scheduler V1",
+      "TATO OS Scheduler V1.1",
       JSON.stringify(
         outputData
       ),
@@ -450,7 +591,10 @@ async function buildPreview(
 
     contents:
       contents.map(
-        (content, index) => ({
+        (
+          content,
+          index
+        ) => ({
           order:
             index + 1,
 
@@ -464,7 +608,8 @@ async function buildPreview(
             content.status || "",
 
           created_at:
-            content.created_at || null
+            content.created_at ||
+            null
         })
       ),
 
@@ -474,6 +619,9 @@ async function buildPreview(
 
         layer:
           "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+        version:
+          "2.2",
 
         mode:
           "execute"
@@ -485,6 +633,9 @@ async function buildPreview(
         layer:
           "LEARNING_LAYER_V1",
 
+        version:
+          "1.0",
+
         mode:
           "execute"
       },
@@ -493,7 +644,10 @@ async function buildPreview(
         order: 3,
 
         layer:
-          "DECISION_CYCLE_V1.0",
+          "DECISION_CYCLE_V1",
+
+        version:
+          "1.1",
 
         mode:
           "preview"
@@ -503,7 +657,10 @@ async function buildPreview(
         order: 4,
 
         layer:
-          "ACTION_CYCLE_V1.0",
+          "ACTION_CYCLE_V1",
+
+        version:
+          "1.1",
 
         mode:
           "preview"
@@ -513,12 +670,44 @@ async function buildPreview(
         order: 5,
 
         layer:
-          "EXECUTION_CYCLE_V1.1",
+          "EXECUTION_CYCLE_V1",
+
+        version:
+          "1.1",
 
         mode:
           "preview"
       }
     ],
+
+    source_chain: {
+      scheduler:
+        "TATO_OS_SCHEDULER_V1.1",
+
+      orchestrator:
+        "TATO_OS_ORCHESTRATOR_V1.1",
+
+      measurement:
+        "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+      intelligence:
+        "INTELLIGENCE_LAYER_V2.1",
+
+      learning:
+        "LEARNING_LAYER_V1",
+
+      decision:
+        "DECISION_CYCLE_V1.1",
+
+      action:
+        "ACTION_CYCLE_V1.1",
+
+      execution:
+        "EXECUTION_CYCLE_V1.1",
+
+      feedback:
+        "FEEDBACK_LOOP_V1.5"
+    },
 
     guardrails: {
       automatic_business_execution:
@@ -547,7 +736,7 @@ async function buildPreview(
       cooldown.blocked
         ? "Scheduler is inside cooldown."
         : contents.length
-          ? "POST {mode:'execute', approved:true} to run the scheduled orchestration."
+          ? "POST {mode:'execute', approved:true} to run Scheduler V1.1."
           : "No PUBLISHED content is available."
   };
 }
@@ -587,7 +776,9 @@ async function runScheduler(
       maxContents
     );
 
-  if (!contents.length) {
+  if (
+    !contents.length
+  ) {
     const result = {
       success: true,
 
@@ -612,6 +803,14 @@ async function runScheduler(
       },
 
       results: [],
+
+      source_chain: {
+        scheduler:
+          "TATO_OS_SCHEDULER_V1.1",
+
+        orchestrator:
+          "TATO_OS_ORCHESTRATOR_V1.1"
+      },
 
       guardrails: {
         automatic_business_execution:
@@ -660,7 +859,9 @@ async function runScheduler(
       intervalMinutes
     );
 
-  if (cooldown.blocked) {
+  if (
+    cooldown.blocked
+  ) {
     const result = {
       success: true,
 
@@ -706,6 +907,14 @@ async function runScheduler(
 
       results: [],
 
+      source_chain: {
+        scheduler:
+          "TATO_OS_SCHEDULER_V1.1",
+
+        orchestrator:
+          "TATO_OS_ORCHESTRATOR_V1.1"
+      },
+
       guardrails: {
         automatic_business_execution:
           false,
@@ -741,6 +950,9 @@ async function runScheduler(
   let waitingForApproval =
     0;
 
+  let invalidOrchestrator =
+    0;
+
   for (
     const content
     of contents
@@ -755,6 +967,9 @@ async function runScheduler(
       const data =
         orchestration.data;
 
+      const validation =
+        orchestration.validation;
+
       const status =
         data?.status ||
         (
@@ -762,6 +977,39 @@ async function runScheduler(
             ? "COMPLETED"
             : "FAILED"
         );
+
+      if (
+        !validation.valid
+      ) {
+        invalidOrchestrator += 1;
+        failed += 1;
+
+        results.push({
+          content: {
+            id:
+              content.id,
+
+            title:
+              content.title || "",
+
+            status:
+              content.status || ""
+          },
+
+          status:
+            "INVALID_ORCHESTRATOR",
+
+          success:
+            false,
+
+          validation,
+
+          orchestrator:
+            data
+        });
+
+        continue;
+      }
 
       if (
         orchestration.ok &&
@@ -796,6 +1044,8 @@ async function runScheduler(
         success:
           orchestration.ok &&
           data?.success !== false,
+
+        validation,
 
         orchestrator:
           data
@@ -879,6 +1129,35 @@ async function runScheduler(
         maxContents
     },
 
+    source_chain: {
+      scheduler:
+        "TATO_OS_SCHEDULER_V1.1",
+
+      orchestrator:
+        "TATO_OS_ORCHESTRATOR_V1.1",
+
+      measurement:
+        "CONTENT_MEASUREMENT_ENGINE_V2.2",
+
+      intelligence:
+        "INTELLIGENCE_LAYER_V2.1",
+
+      learning:
+        "LEARNING_LAYER_V1",
+
+      decision:
+        "DECISION_CYCLE_V1.1",
+
+      action:
+        "ACTION_CYCLE_V1.1",
+
+      execution:
+        "EXECUTION_CYCLE_V1.1",
+
+      feedback:
+        "FEEDBACK_LOOP_V1.5"
+    },
+
     summary: {
       total_contents:
         contents.length,
@@ -888,6 +1167,9 @@ async function runScheduler(
 
       failed:
         failed,
+
+      invalid_orchestrator:
+        invalidOrchestrator,
 
       waiting_for_human_approval:
         waitingForApproval
@@ -901,6 +1183,27 @@ async function runScheduler(
 
       completed_at:
         completedAt
+    },
+
+    version_validation: {
+      orchestrator: {
+        expected_layer:
+          REQUIRED_ORCHESTRATOR_LAYER,
+
+        expected_version:
+          REQUIRED_ORCHESTRATOR_VERSION
+      },
+
+      cycles: {
+        decision:
+          "DECISION_CYCLE_V1.1",
+
+        action:
+          "ACTION_CYCLE_V1.1",
+
+        execution:
+          "EXECUTION_CYCLE_V1.1"
+      }
     },
 
     guardrails: {
@@ -928,8 +1231,11 @@ async function runScheduler(
 
     next_step:
       waitingForApproval > 0
-        ? "Orchestrator completed safely and stopped at Human Approval."
-        : "Scheduler completed the scheduled orchestration run."
+        ? "Orchestrator V1.1 completed safely and stopped at Human Approval."
+        : schedulerStatus ===
+          "FAILED"
+          ? "Scheduler failed. Inspect orchestrator validation and results."
+          : "Scheduler completed the scheduled orchestration run."
   };
 
   const persistence =
@@ -944,6 +1250,9 @@ async function runScheduler(
 
         trigger:
           "SCHEDULER_RUN",
+
+        orchestrator_version:
+          REQUIRED_ORCHESTRATOR_VERSION,
 
         started_at:
           startedAt
@@ -1071,7 +1380,7 @@ export async function onRequestGet(
 // Requires explicit approved:true.
 //
 // This approval only allows Scheduler to start the safe
-// Orchestrator loop. It does NOT approve business execution.
+// Orchestrator V1.1 loop.
 //
 // Orchestrator itself still stops at Human Approval.
 // ------------------------------------------------------------
