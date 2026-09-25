@@ -1,19 +1,38 @@
 // TATO-OS
-// Decision Layer V1.3.3
+// Decision Layer V1.3.4
 // Route: /api/decision
 //
 // Pipeline:
+//
 // Measurement V2.3
 //        ↓
 // Intelligence V2.1
 //        ↓
 // Learning Engine V2.3
 //        ↓
-// Decision Layer V1.3.3
+// Decision Layer V1.3.4
 //        ↓
 // Action Layer V1.0
+//
+// Decision Layer DOES:
+// - read Learning Engine output
+// - validate upstream contracts strictly
+// - use Learning decision_input as primary decision source
+// - create a decision
+// - preserve Learning evidence
+// - hand off to Action Layer
+//
+// Decision Layer DOES NOT:
+// - read raw behavior_events
+// - recalculate Measurement
+// - recalculate Intelligence
+// - recalculate Learning
+// - declare winners
+// - change strategy automatically
+// - execute actions
+// - execute external actions
 
-const VERSION = "1.3.3";
+const VERSION = "1.3.4";
 
 const LAYER = "DECISION_LAYER_V1";
 
@@ -21,16 +40,23 @@ const LEARNING_LAYER = "LEARNING_ENGINE_V2";
 const LEARNING_VERSION = "2.3";
 const LEARNING_ENGINE = "LEARNING_V2.3_FEEDBACK_AWARE";
 
-const MEASUREMENT_LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.3";
+const MEASUREMENT_LAYER =
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
-const INTELLIGENCE_LAYER = "INTELLIGENCE_LAYER_V2";
+const INTELLIGENCE_LAYER =
+  "INTELLIGENCE_LAYER_V2";
+
 const INTELLIGENCE_VERSION = "2.1";
-const INTELLIGENCE_ENGINE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const INTELLIGENCE_ENGINE =
+  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 const DECISION_ENGINE =
-  "DECISION_V1.3.3_LEARNING_V2.3_COMPATIBLE";
+  "DECISION_V1.3.4_LEARNING_V2.3_COMPATIBLE";
 
-const ACTION_LAYER = "ACTION_LAYER_V1";
+const ACTION_LAYER =
+  "ACTION_LAYER_V1";
+
 
 function json(data, status = 200) {
   return new Response(
@@ -38,12 +64,15 @@ function json(data, status = 200) {
     {
       status,
       headers: {
-        "content-type": "application/json; charset=UTF-8",
-        "cache-control": "no-store"
+        "content-type":
+          "application/json; charset=UTF-8",
+        "cache-control":
+          "no-store"
       }
     }
   );
 }
+
 
 function getContentId(request) {
   const url = new URL(request.url);
@@ -55,28 +84,35 @@ function getContentId(request) {
   ).trim();
 }
 
+
 async function getLearning(request, contentId) {
   const url = new URL(request.url);
 
   const learningUrl =
-    new URL("/api/learning-ai", url.origin);
+    new URL(
+      "/api/learning-ai",
+      url.origin
+    );
 
   learningUrl.searchParams.set(
     "content_id",
     contentId
   );
 
-  const response = await fetch(
-    learningUrl.toString(),
-    {
-      method: "GET",
-      headers: {
-        accept: "application/json"
+  const response =
+    await fetch(
+      learningUrl.toString(),
+      {
+        method: "GET",
+        headers: {
+          accept:
+            "application/json"
+        }
       }
-    }
-  );
+    );
 
-  const text = await response.text();
+  const text =
+    await response.text();
 
   let data;
 
@@ -98,7 +134,10 @@ async function getLearning(request, contentId) {
     );
   }
 
-  if (!data || data.success !== true) {
+  if (
+    !data ||
+    data.success !== true
+  ) {
     throw new Error(
       data && data.error
         ? data.error
@@ -108,6 +147,7 @@ async function getLearning(request, contentId) {
 
   return data;
 }
+
 
 function normalizeLearning(root) {
   const learning =
@@ -134,12 +174,16 @@ function normalizeLearning(root) {
     learning.decision_input || {};
 
   const hypotheses =
-    Array.isArray(learning.hypotheses)
+    Array.isArray(
+      learning.hypotheses
+    )
       ? learning.hypotheses
       : [];
 
   const repeatedSignals =
-    Array.isArray(learning.repeated_signals)
+    Array.isArray(
+      learning.repeated_signals
+    )
       ? learning.repeated_signals
       : [];
 
@@ -147,7 +191,8 @@ function normalizeLearning(root) {
     learning.source_contract || {};
 
   const feedbackContext =
-    (root && root.feedback_context) ||
+    (root &&
+      root.feedback_context) ||
     learning.feedback_context ||
     null;
 
@@ -163,9 +208,11 @@ function normalizeLearning(root) {
 
     content_id:
       learning.content_id ||
-      (root &&
+      (
+        root &&
         root.content &&
-        root.content.id) ||
+        root.content.id
+      ) ||
       null,
 
     status:
@@ -184,30 +231,46 @@ function normalizeLearning(root) {
 
     metrics: {
       attention:
-        Number(metrics.attention || 0),
+        Number(
+          metrics.attention || 0
+        ),
 
       clicks:
-        Number(metrics.clicks || 0),
+        Number(
+          metrics.clicks || 0
+        ),
 
       product_views:
-        Number(metrics.product_views || 0),
+        Number(
+          metrics.product_views || 0
+        ),
 
       engagements:
-        Number(metrics.engagements || 0),
+        Number(
+          metrics.engagements || 0
+        ),
 
       customers:
-        Number(metrics.customers || 0),
+        Number(
+          metrics.customers || 0
+        ),
 
       orders:
-        Number(metrics.orders || 0),
+        Number(
+          metrics.orders || 0
+        ),
 
       revenue:
-        Number(metrics.revenue || 0)
+        Number(
+          metrics.revenue || 0
+        )
     },
 
     patterns: {
       rounds:
-        Number(patterns.rounds || 0),
+        Number(
+          patterns.rounds || 0
+        ),
 
       attention_present:
         patterns.attention_present === true,
@@ -255,28 +318,33 @@ function normalizeLearning(root) {
     conversions: {
       attention_to_product_view:
         Number(
-          conversions.attention_to_product_view || 0
+          conversions
+            .attention_to_product_view || 0
         ),
 
       product_view_to_click:
         Number(
-          conversions.product_view_to_click || 0
+          conversions
+            .product_view_to_click || 0
         ),
 
       click_to_customer:
         Number(
-          conversions.click_to_customer || 0
+          conversions
+            .click_to_customer || 0
         ),
 
       customer_to_order:
         Number(
-          conversions.customer_to_order || 0
+          conversions
+            .customer_to_order || 0
         )
     },
 
     latest_measurement: {
       id:
-        latestMeasurement.id || null,
+        latestMeasurement.id ||
+        null,
 
       attention:
         Number(
@@ -316,29 +384,34 @@ function normalizeLearning(root) {
 
     decision_input: {
       type:
-        decisionInput.type || null,
+        decisionInput.type ||
+        null,
 
       target:
-        decisionInput.target || null
+        decisionInput.target ||
+        null
     },
 
     hypotheses,
 
-    // FIXED:
-    // use the actual declared variable
-    repeated_signals: repeatedSignals,
+    repeated_signals:
+      repeatedSignals,
 
     measurement_source:
-      sourceContract.measurement || null,
+      sourceContract.measurement ||
+      null,
 
     intelligence_source:
-      sourceContract.intelligence || null,
+      sourceContract.intelligence ||
+      null,
 
     intelligence_version:
-      sourceContract.intelligence_version || null,
+      sourceContract.intelligence_version ||
+      null,
 
     intelligence_engine:
-      sourceContract.intelligence_engine || null,
+      sourceContract.intelligence_engine ||
+      null,
 
     learning_version:
       sourceContract.learning_version ||
@@ -346,15 +419,20 @@ function normalizeLearning(root) {
       null,
 
     feedback_source:
-      sourceContract.feedback || null,
+      sourceContract.feedback ||
+      null,
 
     feedback_context:
       feedbackContext
   };
 }
 
-function hasBehavioralEvidence(learning) {
-  const m = learning.metrics;
+
+function hasBehavioralEvidence(
+  learning
+) {
+  const m =
+    learning.metrics;
 
   return (
     learning.evidence_available === true &&
@@ -370,11 +448,15 @@ function hasBehavioralEvidence(learning) {
   );
 }
 
-function createDecision(learning) {
+
+function createDecision(
+  learning
+) {
   const input =
     learning.decision_input || {};
 
-  // Learning V2.3 decision_input is primary.
+  // Learning V2.3 decision_input
+  // is the primary decision source.
   if (
     input.type &&
     input.target
@@ -400,8 +482,11 @@ function createDecision(learning) {
     };
   }
 
-  const m = learning.metrics;
-  const p = learning.patterns;
+  const m =
+    learning.metrics;
+
+  const p =
+    learning.patterns;
 
   if (
     p.click_without_product_view === true &&
@@ -409,7 +494,8 @@ function createDecision(learning) {
     m.product_views === 0
   ) {
     return {
-      priority: "HIGH",
+      priority:
+        "HIGH",
 
       type:
         "INVESTIGATE_DOWNSTREAM_PATH",
@@ -431,7 +517,8 @@ function createDecision(learning) {
     m.customers === 0
   ) {
     return {
-      priority: "MEDIUM",
+      priority:
+        "MEDIUM",
 
       type:
         "INVESTIGATE_PRODUCT_TO_CUSTOMER",
@@ -453,7 +540,8 @@ function createDecision(learning) {
     m.orders === 0
   ) {
     return {
-      priority: "MEDIUM",
+      priority:
+        "MEDIUM",
 
       type:
         "INVESTIGATE_CUSTOMER_TO_ORDER",
@@ -475,7 +563,8 @@ function createDecision(learning) {
     m.revenue === 0
   ) {
     return {
-      priority: "MEDIUM",
+      priority:
+        "MEDIUM",
 
       type:
         "INVESTIGATE_ORDER_TO_REVENUE",
@@ -495,7 +584,8 @@ function createDecision(learning) {
     learning.evidence_available !== true
   ) {
     return {
-      priority: "LOW",
+      priority:
+        "LOW",
 
       type:
         "WAIT_FOR_BEHAVIORAL_DATA",
@@ -512,10 +602,13 @@ function createDecision(learning) {
   }
 
   if (
-    !hasBehavioralEvidence(learning)
+    !hasBehavioralEvidence(
+      learning
+    )
   ) {
     return {
-      priority: "LOW",
+      priority:
+        "LOW",
 
       type:
         "WAIT_FOR_BEHAVIORAL_DATA",
@@ -532,7 +625,8 @@ function createDecision(learning) {
   }
 
   return {
-    priority: "LOW",
+    priority:
+      "LOW",
 
     type:
       "CONTINUE_OBSERVATION",
@@ -548,17 +642,28 @@ function createDecision(learning) {
   };
 }
 
-function validateLearningContract(learning) {
+
+function validateLearningContract(
+  learning
+) {
   const errors = [];
+
+  // Required exact contract fields.
+  // NULL / undefined / empty values MUST fail.
 
   if (
     learning.layer !==
     LEARNING_LAYER
   ) {
     errors.push({
-      field: "learning.layer",
-      expected: LEARNING_LAYER,
-      received: learning.layer
+      field:
+        "learning.layer",
+
+      expected:
+        LEARNING_LAYER,
+
+      received:
+        learning.layer
     });
   }
 
@@ -567,21 +672,36 @@ function validateLearningContract(learning) {
     LEARNING_VERSION
   ) {
     errors.push({
-      field: "learning.version",
-      expected: LEARNING_VERSION,
-      received: learning.version
+      field:
+        "learning.version",
+
+      expected:
+        LEARNING_VERSION,
+
+      received:
+        learning.version
     });
   }
 
+  // IMPORTANT:
+  // learning.engine is REQUIRED.
+  // Do NOT make this optional.
   if (
-    learning.engine &&
     learning.engine !==
     LEARNING_ENGINE
   ) {
     errors.push({
-      field: "learning.engine",
-      expected: LEARNING_ENGINE,
-      received: learning.engine
+      field:
+        "learning.engine",
+
+      expected:
+        LEARNING_ENGINE,
+
+      received:
+        learning.engine,
+
+      reason:
+        "Learning engine is a required upstream contract field."
     });
   }
 
@@ -592,8 +712,10 @@ function validateLearningContract(learning) {
     errors.push({
       field:
         "learning.source_contract.measurement",
+
       expected:
         MEASUREMENT_LAYER,
+
       received:
         learning.measurement_source
     });
@@ -606,8 +728,10 @@ function validateLearningContract(learning) {
     errors.push({
       field:
         "learning.source_contract.intelligence",
+
       expected:
         INTELLIGENCE_ENGINE,
+
       received:
         learning.intelligence_source
     });
@@ -620,8 +744,10 @@ function validateLearningContract(learning) {
     errors.push({
       field:
         "learning.source_contract.intelligence_version",
+
       expected:
         INTELLIGENCE_VERSION,
+
       received:
         learning.intelligence_version
     });
@@ -634,23 +760,28 @@ function validateLearningContract(learning) {
     errors.push({
       field:
         "learning.source_contract.intelligence_engine",
+
       expected:
         INTELLIGENCE_ENGINE,
+
       received:
         learning.intelligence_engine
     });
   }
 
+  // learning_version is also a required
+  // source-contract field for this Decision version.
   if (
-    learning.learning_version &&
     learning.learning_version !==
     LEARNING_VERSION
   ) {
     errors.push({
       field:
         "learning.source_contract.learning_version",
+
       expected:
         LEARNING_VERSION,
+
       received:
         learning.learning_version
     });
@@ -658,6 +789,7 @@ function validateLearningContract(learning) {
 
   return errors;
 }
+
 
 function buildResponse(
   root,
@@ -673,7 +805,8 @@ function buildResponse(
     learning.metrics;
 
   return {
-    success: true,
+    success:
+      true,
 
     layer:
       LAYER,
@@ -718,7 +851,8 @@ function buildResponse(
             ? "WAIT"
             : "INVESTIGATE",
 
-      execute: false
+      execute:
+        false
     },
 
     evidence: {
@@ -813,11 +947,14 @@ function buildResponse(
       context:
         learning.feedback_context,
 
-      counted_as_behavior: false,
+      counted_as_behavior:
+        false,
 
-      counted_as_attention: false,
+      counted_as_attention:
+        false,
 
-      alters_funnel_metrics: false
+      alters_funnel_metrics:
+        false
     },
 
     funnel: {
@@ -999,7 +1136,10 @@ function buildResponse(
   };
 }
 
-export async function onRequestGet(context) {
+
+export async function onRequestGet(
+  context
+) {
   try {
     const contentId =
       getContentId(
@@ -1009,7 +1149,8 @@ export async function onRequestGet(context) {
     if (!contentId) {
       return json(
         {
-          success: false,
+          success:
+            false,
 
           layer:
             LAYER,
@@ -1046,11 +1187,13 @@ export async function onRequestGet(context) {
 
     if (
       learning.content_id &&
-      learning.content_id !== contentId
+      learning.content_id !==
+        contentId
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
 
           layer:
             LAYER,
@@ -1084,7 +1227,8 @@ export async function onRequestGet(context) {
     ) {
       return json(
         {
-          success: false,
+          success:
+            false,
 
           layer:
             LAYER,
@@ -1099,7 +1243,7 @@ export async function onRequestGet(context) {
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.3.3 requires the current Learning V2.3 upstream contract.",
+            "Decision Layer V1.3.4 requires the complete and exact Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
@@ -1124,7 +1268,10 @@ export async function onRequestGet(context) {
               INTELLIGENCE_VERSION,
 
             intelligence_engine:
-              INTELLIGENCE_ENGINE
+              INTELLIGENCE_ENGINE,
+
+            learning_source_version:
+              LEARNING_VERSION
           },
 
           received: {
@@ -1147,7 +1294,10 @@ export async function onRequestGet(context) {
               learning.intelligence_version,
 
             intelligence_engine:
-              learning.intelligence_engine
+              learning.intelligence_engine,
+
+            learning_source_version:
+              learning.learning_version
           },
 
           contract_errors:
@@ -1174,7 +1324,8 @@ export async function onRequestGet(context) {
   } catch (error) {
     return json(
       {
-        success: false,
+        success:
+          false,
 
         layer:
           LAYER,
@@ -1199,6 +1350,11 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
-  return onRequestGet(context);
+
+export async function onRequestPost(
+  context
+) {
+  return onRequestGet(
+    context
+  );
 }
