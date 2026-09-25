@@ -1,6 +1,6 @@
 ```javascript
 // TATO-OS
-// Decision Layer V1.3
+// Decision Layer V1.3.1
 // Route: /api/decision
 //
 // Pipeline:
@@ -11,7 +11,7 @@
 //        ↓
 // Learning Engine V2.3
 //        ↓
-// Decision Layer V1.3
+// Decision Layer V1.3.1
 //        ↓
 // Action Layer V1.0
 //
@@ -33,7 +33,7 @@
 // - execute actions
 // - execute external actions
 
-const VERSION = "1.3";
+const VERSION = "1.3.1";
 const LAYER = "DECISION_LAYER_V1";
 
 const LEARNING_LAYER = "LEARNING_ENGINE_V2";
@@ -48,24 +48,26 @@ const INTELLIGENCE_LAYER =
   "INTELLIGENCE_LAYER_V2";
 
 const INTELLIGENCE_VERSION = "2.1";
+
 const INTELLIGENCE_ENGINE =
   "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 const DECISION_ENGINE =
-  "DECISION_V1.3_LEARNING_V2.3_COMPATIBLE";
+  "DECISION_V1.3.1_LEARNING_V2.3_COMPATIBLE";
 
 const ACTION_LAYER =
   "ACTION_LAYER_V1";
 
-function json(data, status = 200) {
+function json(data, status) {
   return new Response(
     JSON.stringify(data, null, 2),
     {
-      status,
+      status: status || 200,
       headers: {
         "content-type":
           "application/json; charset=UTF-8",
-        "cache-control": "no-store"
+        "cache-control":
+          "no-store"
       }
     }
   );
@@ -97,34 +99,38 @@ async function getLearning(request, contentId) {
     {
       method: "GET",
       headers: {
-        accept: "application/json"
+        "accept": "application/json"
       }
     }
   );
 
   const text = await response.text();
 
-  let data;
+  let data = null;
 
   try {
     data = JSON.parse(text);
-  } catch {
+  } catch (error) {
     throw new Error(
-      `Learning Engine returned invalid JSON. HTTP ${response.status}`
+      "Learning Engine returned invalid JSON. HTTP " +
+      response.status
     );
   }
 
   if (!response.ok) {
     throw new Error(
-      data?.error ||
-        `Learning Engine request failed with HTTP ${response.status}`
+      data && data.error
+        ? data.error
+        : "Learning Engine request failed with HTTP " +
+          response.status
     );
   }
 
-  if (!data?.success) {
+  if (!data || data.success !== true) {
     throw new Error(
-      data?.error ||
-        "Learning Engine did not return success=true"
+      data && data.error
+        ? data.error
+        : "Learning Engine did not return success=true"
     );
   }
 
@@ -133,239 +139,261 @@ async function getLearning(request, contentId) {
 
 function normalizeLearning(root) {
   const learning =
-    root?.learning || {};
+    root && root.learning
+      ? root.learning
+      : {};
 
   const evidence =
-    learning?.evidence || {};
+    learning && learning.evidence
+      ? learning.evidence
+      : {};
 
   const metrics =
-    evidence?.metrics || {};
+    evidence && evidence.metrics
+      ? evidence.metrics
+      : {};
 
   const patterns =
-    evidence?.patterns || {};
+    evidence && evidence.patterns
+      ? evidence.patterns
+      : {};
 
   const conversions =
-    evidence?.conversions || {};
+    evidence && evidence.conversions
+      ? evidence.conversions
+      : {};
 
   const latestMeasurement =
-    evidence?.latest_measurement || {};
+    evidence &&
+    evidence.latest_measurement
+      ? evidence.latest_measurement
+      : {};
 
   const decisionInput =
-    learning?.decision_input || {};
+    learning && learning.decision_input
+      ? learning.decision_input
+      : {};
 
   const hypotheses =
-    Array.isArray(learning?.hypotheses)
+    Array.isArray(learning.hypotheses)
       ? learning.hypotheses
       : [];
 
   const repeatedSignals =
-    Array.isArray(learning?.repeated_signals)
+    Array.isArray(learning.repeated_signals)
       ? learning.repeated_signals
       : [];
 
   const sourceContract =
-    learning?.source_contract || {};
+    learning && learning.source_contract
+      ? learning.source_contract
+      : {};
 
   const feedbackContext =
-    root?.feedback_context ||
-    learning?.feedback_context ||
+    (root && root.feedback_context) ||
+    (learning && learning.feedback_context) ||
     null;
 
   return {
     layer:
-      learning?.layer || null,
+      learning.layer || null,
 
     version:
-      learning?.version || null,
+      learning.version || null,
 
     engine:
-      learning?.engine || null,
+      learning.engine || null,
 
     content_id:
-      learning?.content_id ||
-      root?.content?.id ||
+      learning.content_id ||
+      (root &&
+        root.content &&
+        root.content.id) ||
       null,
 
     status:
-      learning?.status || null,
+      learning.status || null,
 
     state:
-      learning?.state || null,
+      learning.state || null,
 
     confidence:
-      learning?.confidence ?? null,
+      learning.confidence !== undefined
+        ? learning.confidence
+        : null,
 
     evidence_available:
-      learning?.evidence_available === true,
+      learning.evidence_available === true,
 
     metrics: {
       attention:
-        Number(metrics?.attention || 0),
+        Number(metrics.attention || 0),
 
       clicks:
-        Number(metrics?.clicks || 0),
+        Number(metrics.clicks || 0),
 
       product_views:
-        Number(metrics?.product_views || 0),
+        Number(metrics.product_views || 0),
 
       engagements:
-        Number(metrics?.engagements || 0),
+        Number(metrics.engagements || 0),
 
       customers:
-        Number(metrics?.customers || 0),
+        Number(metrics.customers || 0),
 
       orders:
-        Number(metrics?.orders || 0),
+        Number(metrics.orders || 0),
 
       revenue:
-        Number(metrics?.revenue || 0)
+        Number(metrics.revenue || 0)
     },
 
     patterns: {
       rounds:
-        Number(patterns?.rounds || 0),
+        Number(patterns.rounds || 0),
 
       attention_present:
-        patterns?.attention_present === true,
+        patterns.attention_present === true,
 
       clicks_present:
-        patterns?.clicks_present === true,
+        patterns.clicks_present === true,
 
       product_views_present:
-        patterns?.product_views_present === true,
+        patterns.product_views_present === true,
 
       customers_present:
-        patterns?.customers_present === true,
+        patterns.customers_present === true,
 
       orders_present:
-        patterns?.orders_present === true,
+        patterns.orders_present === true,
 
       revenue_present:
-        patterns?.revenue_present === true,
+        patterns.revenue_present === true,
 
       persistent_attention:
-        patterns?.persistent_attention === true,
+        patterns.persistent_attention === true,
 
       persistent_clicks:
-        patterns?.persistent_clicks === true,
+        patterns.persistent_clicks === true,
 
       click_without_product_view:
-        patterns?.click_without_product_view === true,
+        patterns.click_without_product_view === true,
 
       persistent_funnel_block:
-        patterns?.persistent_funnel_block === true,
+        patterns.persistent_funnel_block === true,
 
       persistent_no_customer:
-        patterns?.persistent_no_customer === true,
+        patterns.persistent_no_customer === true,
 
       persistent_no_order:
-        patterns?.persistent_no_order === true,
+        patterns.persistent_no_order === true,
 
       persistent_no_revenue:
-        patterns?.persistent_no_revenue === true,
+        patterns.persistent_no_revenue === true,
 
       no_behavior:
-        patterns?.no_behavior === true
+        patterns.no_behavior === true
     },
 
     conversions: {
       attention_to_product_view:
         Number(
-          conversions?.attention_to_product_view || 0
+          conversions.attention_to_product_view || 0
         ),
 
       product_view_to_click:
         Number(
-          conversions?.product_view_to_click || 0
+          conversions.product_view_to_click || 0
         ),
 
       click_to_customer:
         Number(
-          conversions?.click_to_customer || 0
+          conversions.click_to_customer || 0
         ),
 
       customer_to_order:
         Number(
-          conversions?.customer_to_order || 0
+          conversions.customer_to_order || 0
         )
     },
 
     latest_measurement: {
       id:
-        latestMeasurement?.id || null,
+        latestMeasurement.id || null,
 
       attention:
         Number(
-          latestMeasurement?.attention || 0
+          latestMeasurement.attention || 0
         ),
 
       clicks:
         Number(
-          latestMeasurement?.clicks || 0
+          latestMeasurement.clicks || 0
         ),
 
       product_views:
         Number(
-          latestMeasurement?.product_views || 0
+          latestMeasurement.product_views || 0
         ),
 
       engagements:
         Number(
-          latestMeasurement?.engagements || 0
+          latestMeasurement.engagements || 0
         ),
 
       customers:
         Number(
-          latestMeasurement?.customers || 0
+          latestMeasurement.customers || 0
         ),
 
       orders:
         Number(
-          latestMeasurement?.orders || 0
+          latestMeasurement.orders || 0
         ),
 
       revenue:
         Number(
-          latestMeasurement?.revenue || 0
+          latestMeasurement.revenue || 0
         )
     },
 
     decision_input: {
       type:
-        decisionInput?.type || null,
+        decisionInput.type || null,
 
       target:
-        decisionInput?.target || null
+        decisionInput.target || null
     },
 
-    hypotheses,
+    hypotheses:
+      hypotheses,
 
     repeated_signals:
       repeatedSignals,
 
     measurement_source:
-      sourceContract?.measurement ||
+      sourceContract.measurement ||
       null,
 
     intelligence_source:
-      sourceContract?.intelligence ||
+      sourceContract.intelligence ||
       null,
 
     intelligence_version:
-      sourceContract?.intelligence_version ||
+      sourceContract.intelligence_version ||
       null,
 
     intelligence_engine:
-      sourceContract?.intelligence_engine ||
+      sourceContract.intelligence_engine ||
       null,
 
     learning_version:
-      sourceContract?.learning_version ||
-      learning?.version ||
+      sourceContract.learning_version ||
+      learning.version ||
       null,
 
     feedback_source:
-      sourceContract?.feedback ||
+      sourceContract.feedback ||
       null,
 
     feedback_context:
@@ -392,31 +420,31 @@ function hasBehavioralEvidence(learning) {
 
 function createDecision(learning) {
   /*
-   * PRIMARY DECISION SOURCE
+   * PRIMARY SOURCE
    *
    * Learning V2.3 decision_input
-   * is authoritative when valid.
+   * is authoritative when present.
    */
 
-  const learningDecision =
+  const input =
     learning.decision_input || {};
 
   if (
-    learningDecision.type &&
-    learningDecision.target
+    input.type &&
+    input.target
   ) {
     return {
       priority:
-        learningDecision.type ===
+        input.type ===
           "INVESTIGATE_DOWNSTREAM_PATH"
           ? "HIGH"
           : "MEDIUM",
 
       type:
-        learningDecision.type,
+        input.type,
 
       target:
-        learningDecision.target,
+        input.target,
 
       reason:
         "Decision created from Learning V2.3 decision_input.",
@@ -429,11 +457,8 @@ function createDecision(learning) {
   /*
    * SECONDARY FALLBACK
    *
-   * These checks only interpret already
-   * calculated Learning evidence.
-   *
-   * They do NOT recalculate Measurement,
-   * Intelligence or Learning.
+   * Only uses already calculated
+   * Learning evidence.
    */
 
   const m = learning.metrics;
@@ -527,13 +552,6 @@ function createDecision(learning) {
     };
   }
 
-  /*
-   * No sufficient behavioral evidence.
-   *
-   * This is a valid Decision state,
-   * not a system error.
-   */
-
   if (
     learning.evidence_available !== true
   ) {
@@ -574,11 +592,6 @@ function createDecision(learning) {
     };
   }
 
-  /*
-   * Evidence exists but no actionable
-   * downstream block was identified.
-   */
-
   return {
     priority: "LOW",
 
@@ -602,7 +615,9 @@ function buildResponse(
   decision
 ) {
   const content =
-    root?.content || {};
+    root && root.content
+      ? root.content
+      : {};
 
   const m =
     learning.metrics;
@@ -628,19 +643,21 @@ function buildResponse(
     content: {
       id:
         learning.content_id ||
-        content?.id ||
+        content.id ||
         null,
 
       title:
-        content?.title ||
+        content.title ||
         null,
 
       status:
-        content?.status ??
-        null
+        content.status !== undefined
+          ? content.status
+          : null
     },
 
-    decision,
+    decision:
+      decision,
 
     required_action: {
       type:
@@ -721,9 +738,11 @@ function buildResponse(
         learning.intelligence_engine,
 
       state:
-        root?.learning?.evidence
-          ?.intelligence_state ||
-        null,
+        root &&
+        root.learning &&
+        root.learning.evidence
+          ? root.learning.evidence.intelligence_state
+          : null,
 
       patterns:
         learning.patterns,
@@ -785,7 +804,7 @@ function buildResponse(
           learning.patterns.rounds,
 
         latest_measurement_id:
-          learning.latest_measurement?.id ||
+          learning.latest_measurement.id ||
           null
       },
 
@@ -921,10 +940,6 @@ function validateLearningContract(
 ) {
   const errors = [];
 
-  /*
-   * Learning identity
-   */
-
   if (
     learning.layer !==
     LEARNING_LAYER
@@ -957,12 +972,6 @@ function validateLearningContract(
     });
   }
 
-  /*
-   * Learning engine
-   *
-   * Optional for compatibility.
-   */
-
   if (
     learning.engine &&
     learning.engine !==
@@ -980,10 +989,6 @@ function validateLearningContract(
     });
   }
 
-  /*
-   * Measurement source
-   */
-
   if (
     learning.measurement_source !==
     MEASUREMENT_LAYER
@@ -999,13 +1004,6 @@ function validateLearningContract(
         learning.measurement_source
     });
   }
-
-  /*
-   * Intelligence source
-   *
-   * Learning V2.3 exposes the engine
-   * identifier in source_contract.intelligence.
-   */
 
   if (
     learning.intelligence_source !==
@@ -1023,10 +1021,6 @@ function validateLearningContract(
     });
   }
 
-  /*
-   * Intelligence version
-   */
-
   if (
     learning.intelligence_version !==
     INTELLIGENCE_VERSION
@@ -1043,10 +1037,6 @@ function validateLearningContract(
     });
   }
 
-  /*
-   * Intelligence engine
-   */
-
   if (
     learning.intelligence_engine !==
     INTELLIGENCE_ENGINE
@@ -1062,14 +1052,6 @@ function validateLearningContract(
         learning.intelligence_engine
     });
   }
-
-  /*
-   * Content identity
-   *
-   * Content ID may be supplied by either
-   * learning.content_id or root.content.id.
-   * Validation happens after normalization.
-   */
 
   return errors;
 }
@@ -1120,7 +1102,7 @@ export async function onRequestGet(
       );
 
     /*
-     * Validate strict upstream contract.
+     * Validate upstream contract.
      */
 
     const contractErrors =
@@ -1145,7 +1127,7 @@ export async function onRequestGet(
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.3 requires the current Learning V2.3 upstream contract.",
+            "Decision Layer V1.3.1 requires the current Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
@@ -1238,12 +1220,10 @@ export async function onRequestGet(
     }
 
     /*
-     * Decision creation.
+     * Create decision.
      *
-     * IMPORTANT:
-     * A lack of evidence is not an internal
-     * system failure. It is a valid upstream
-     * state and produces WAIT.
+     * Lack of evidence is a valid state.
+     * It is NOT a server error.
      */
 
     const decision =
@@ -1274,8 +1254,9 @@ export async function onRequestGet(
           "ERROR",
 
         error:
-          error?.message ||
-          "Unknown Decision Layer error."
+          error && error.message
+            ? error.message
+            : "Unknown Decision Layer error."
       },
       500
     );
