@@ -2,7 +2,7 @@
 // Feedback Layer V1.1
 // Route: /api/feedback
 //
-// CURRENT PIPELINE:
+// Pipeline:
 //
 // Measurement V2.3
 //        ↓
@@ -10,1925 +10,686 @@
 //        ↓
 // Learning V2.3
 //        ↓
-// Decision V1.2
+// Decision V1.3.4
 //        ↓
-// Action V1.0
+// Action V1.4
 //        ↓
-// Automation Execution V1.0
+// Approval V1
+//        ↓
+// Execution V1
 //        ↓
 // Feedback V1.1
 //        ↓
-// Measurement V2.3
+// Measurement
 //
 // Feedback DOES:
-// - read Automation execution state
-// - record execution outcome
-// - persist feedback_events
-// - verify persistence
-// - migrate stale V2.2 loop metadata
-// - read persisted feedback_events
-// - expose latest persisted feedback
-// - hand off to Measurement V2.3
+// - read completed execution result
+// - record operational outcome
+// - preserve execution status
+// - create measurement handoff
+// - keep feedback separate from behavioral evidence
 //
 // Feedback DOES NOT:
+// - create behavior events
+// - create attention
+// - change funnel metrics
 // - recalculate Measurement
 // - recalculate Intelligence
 // - recalculate Learning
-// - create Decision
 // - change strategy
-// - execute actions
 // - declare winners
+// - execute actions
+//
+// Cloudflare Pages Functions
+// Path: functions/api/feedback.js
 
+const LAYER = "FEEDBACK_LAYER_V1.1";
 const VERSION = "1.1";
-const LAYER = "FEEDBACK_LAYER_V1";
 
-const MEASUREMENT_LAYER =
-  "CONTENT_MEASUREMENT_ENGINE_V2.3";
+const ACTION_LAYER = "ACTION_ENGINE_V1.4";
+const APPROVAL_LAYER = "APPROVAL_ENGINE_V1";
+const EXECUTION_LAYER = "EXECUTION_ENGINE_V1";
 
-const INTELLIGENCE_LAYER =
-  "INTELLIGENCE_LAYER_V2";
-
-const INTELLIGENCE_VERSION =
-  "2.1";
-
-const INTELLIGENCE_ENGINE =
-  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
-
-const LEARNING_LAYER =
-  "LEARNING_ENGINE_V2";
-
-const LEARNING_VERSION =
-  "2.3";
-
-const LEARNING_ENGINE =
-  "LEARNING_V2.3_FEEDBACK_AWARE";
-
-const DECISION_LAYER =
-  "DECISION_LAYER_V1";
-
-const DECISION_VERSION =
-  "1.2";
-
-const ACTION_LAYER =
-  "ACTION_LAYER_V1";
-
-const ACTION_VERSION =
-  "1.0";
-
-const AUTOMATION_LAYER =
-  "AUTOMATION_EXECUTION_V1";
-
-const AUTOMATION_VERSION =
-  "1.0";
-
-const AUTOMATION_ENGINE =
-  "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE";
-
-const FEEDBACK_ENGINE =
-  "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE";
-
-const AUTOMATION_URL =
-  "/api/automation";
-
-const DEFAULT_CONTENT_ID =
-  "5127d38f-6601-41dd-bb30-9e4346dd9a4c";
-
-const FEEDBACK_TABLE =
-  "feedback_events";
+const HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store"
+};
 
 function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data),
-    {
-      status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store",
-        "Content-Encoding": "identity"
-      }
-    }
-  );
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: HEADERS
+  });
 }
 
-function normalize(value) {
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return null;
-  }
-
-  return String(value);
+function nowISO() {
+  return new Date().toISOString();
 }
 
-// ==================================================
-// TEXT NORMALIZATION
-// ==================================================
-
-function repairMojibake(value) {
-  if (
-    typeof value !== "string" ||
-    !value
-  ) {
-    return value;
-  }
-
-  // Only attempt repair when the string
-  // clearly contains UTF-8 mojibake markers.
-  const suspicious =
-    /(?:à¸|à¹|à»|àº|â†|â€™|â€œ|â€|ðŸ)/.test(
-      value
-    );
-
-  if (!suspicious) {
-    return value;
-  }
-
-  try {
-    const bytes = new Uint8Array(
-      Array.from(
-        unescape(
-          encodeURIComponent(value)
-        ),
-        char => char.charCodeAt(0)
-      )
-    );
-
-    const decoded =
-      new TextDecoder("utf-8", {
-        fatal: false
-      }).decode(bytes);
-
-    if (
-      decoded &&
-      decoded !== value &&
-      !/(?:à¸|à¹|à»|àº|â†)/.test(
-        decoded
-      )
-    ) {
-      return decoded;
-    }
-  } catch {
-    // Keep original value if repair fails.
-  }
-
-  return value;
+function s(value) {
+  return value == null ? "" : String(value);
 }
 
-function repairObject(value) {
-  if (
-    typeof value === "string"
-  ) {
-    return repairMojibake(value);
-  }
-
-  if (
-    Array.isArray(value)
-  ) {
-    return value.map(
-      repairObject
-    );
-  }
-
-  if (
-    value &&
-    typeof value === "object"
-  ) {
-    const output = {};
-
-    for (
-      const [key, item] of
-      Object.entries(value)
-    ) {
-      output[key] =
-        repairObject(item);
-    }
-
-    return output;
-  }
-
-  return value;
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-// ==================================================
-// TABLE
-// ==================================================
+function normalizeExecutionStatus(value) {
+  return s(value).trim().toUpperCase();
+}
 
-async function ensureTable(DB) {
-  await DB.prepare(`
-    CREATE TABLE IF NOT EXISTS feedback_events (
+function normalizeActionStatus(value) {
+  return s(value).trim().toUpperCase();
+}
+
+/* ---------------------------------------------------------
+   TABLE
+--------------------------------------------------------- */
+
+async function ensureFeedbackTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS feedback_runs (
       id TEXT PRIMARY KEY,
-      execution_id TEXT,
+      action_run_id TEXT NOT NULL,
+      execution_run_id TEXT,
       content_id TEXT,
-      action_code TEXT,
-      action_target TEXT,
-      execution_code TEXT,
+      action_type TEXT,
+      operation TEXT,
       execution_status TEXT,
-      expected_outcome TEXT,
-      actual_outcome TEXT,
       outcome_status TEXT,
-      operator_note TEXT,
+      outcome TEXT,
+      message TEXT,
+      counted_as_behavior INTEGER DEFAULT 0,
+      counted_as_attention INTEGER DEFAULT 0,
+      alters_funnel_metrics INTEGER DEFAULT 0,
       measurement_required INTEGER DEFAULT 1,
       measurement_completed INTEGER DEFAULT 0,
-      feedback_payload TEXT,
-      created_at TEXT,
-      updated_at TEXT
+      source TEXT,
+      created_at TEXT
     )
   `).run();
 }
 
-// ==================================================
-// MIGRATE STALE V2.2 METADATA
-// ==================================================
+/* ---------------------------------------------------------
+   REQUEST INPUT
+--------------------------------------------------------- */
 
-async function migrateLegacyPayloads(DB) {
+async function getInput(request) {
+  const url = new URL(request.url);
+
+  let body = {};
+
   try {
-    await DB.prepare(`
-      UPDATE feedback_events
-      SET feedback_payload =
-        REPLACE(
-          feedback_payload,
-          'MEASUREMENT_V2.2',
-          'CONTENT_MEASUREMENT_ENGINE_V2.3'
-        ),
-        updated_at = ?
-      WHERE feedback_payload LIKE '%MEASUREMENT_V2.2%'
-    `)
-      .bind(
-        new Date().toISOString()
-      )
-      .run();
-  } catch {
-    // Migration must never break the Feedback layer.
+    body = await request.json();
+  } catch (_) {
+    body = {};
   }
+
+  return {
+    action_run_id:
+      body.action_run_id ||
+      url.searchParams.get("action_run_id"),
+
+    execution_run_id:
+      body.execution_run_id ||
+      url.searchParams.get("execution_run_id"),
+
+    mode:
+      s(body.mode || url.searchParams.get("mode") || "preview").toLowerCase()
+  };
 }
 
-// ==================================================
-// DATABASE READS
-// ==================================================
+/* ---------------------------------------------------------
+   LOAD ACTION
+--------------------------------------------------------- */
 
-async function getLatestFeedback(
-  DB,
-  contentId
-) {
-  const result =
-    await DB.prepare(`
-      SELECT
-        id,
-        execution_id,
-        content_id,
-        action_code,
-        action_target,
-        execution_code,
-        execution_status,
-        expected_outcome,
-        actual_outcome,
-        outcome_status,
-        operator_note,
-        measurement_required,
-        measurement_completed,
-        feedback_payload,
-        created_at,
-        updated_at
-      FROM feedback_events
-      WHERE content_id = ?
-      ORDER BY created_at DESC
-      LIMIT 1
-    `)
-      .bind(contentId)
-      .first();
+async function getAction(db, actionRunId) {
+  const result = await db.prepare(`
+    SELECT
+      id,
+      action_type,
+      status,
+      action_status,
+      content_id,
+      measurement_id,
+      priority,
+      reason,
+      requires_approval,
+      approved_at,
+      executed_at,
+      result,
+      output_data,
+      action_payload,
+      created_at
+    FROM action_runs
+    WHERE id = ?
+    LIMIT 1
+  `).bind(actionRunId).first();
 
   return result || null;
 }
 
-async function getFeedbackByExecution(
-  DB,
-  executionId
-) {
-  if (!executionId) {
-    return null;
-  }
+/* ---------------------------------------------------------
+   LOAD EXECUTION
+--------------------------------------------------------- */
 
-  const result =
-    await DB.prepare(`
-      SELECT
-        id,
-        execution_id,
-        content_id,
-        action_code,
-        action_target,
-        execution_code,
-        execution_status,
-        expected_outcome,
-        actual_outcome,
-        outcome_status,
-        operator_note,
-        measurement_required,
-        measurement_completed,
-        feedback_payload,
-        created_at,
-        updated_at
-      FROM feedback_events
-      WHERE execution_id = ?
-      ORDER BY created_at DESC
-      LIMIT 1
-    `)
-      .bind(executionId)
-      .first();
+async function getExecution(db, executionRunId, actionRunId) {
+  let result = null;
 
-  return result || null;
-}
-
-// ==================================================
-// AUTOMATION
-// ==================================================
-
-async function getAutomationPreview(
-  request,
-  contentId
-) {
-  try {
-    const requestUrl =
-      new URL(request.url);
-
-    const automationUrl =
-      new URL(
-        AUTOMATION_URL,
-        requestUrl.origin
-      );
-
-    automationUrl.searchParams.set(
-      "content_id",
-      contentId
-    );
-
-    const response =
-      await fetch(
-        automationUrl.toString(),
-        {
-          method: "GET",
-          headers: {
-            "Cache-Control":
-              "no-cache"
-          }
-        }
-      );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return repairObject(
-      await response.json()
-    );
-
-  } catch {
-    return null;
-  }
-}
-
-// ==================================================
-// EXECUTION STATE
-// ==================================================
-
-async function getExecutionState(
-  DB,
-  executionId
-) {
-  if (!executionId) {
-    return null;
-  }
-
-  try {
-    const row =
-      await DB.prepare(`
+  if (executionRunId) {
+    try {
+      result = await db.prepare(`
         SELECT *
-        FROM execution_queue
+        FROM execution_runs
         WHERE id = ?
         LIMIT 1
-      `)
-        .bind(executionId)
-        .first();
-
-    if (!row) {
-      return null;
+      `).bind(executionRunId).first();
+    } catch (_) {
+      result = null;
     }
+  }
 
+  /*
+   * V1 fallback:
+   * Execution Engine may not expose a persistent execution_runs
+   * record in every existing schema. In that case we use the
+   * action_runs execution result as the operational source.
+   */
+
+  if (!result && actionRunId) {
+    const action = await db.prepare(`
+      SELECT
+        id,
+        action_type,
+        action_status,
+        status,
+        content_id,
+        executed_at,
+        result,
+        output_data
+      FROM action_runs
+      WHERE id = ?
+      LIMIT 1
+    `).bind(actionRunId).first();
+
+    if (action) {
+      return {
+        id: executionRunId || null,
+        action_run_id: action.id,
+        action_type: action.action_type,
+        status:
+          action.result ||
+          action.output_data ||
+          "UNKNOWN",
+        executed_at: action.executed_at || null,
+        source: "ACTION_RUN_FALLBACK"
+      };
+    }
+  }
+
+  return result;
+}
+
+/* ---------------------------------------------------------
+   NORMALIZE EXECUTION RESULT
+--------------------------------------------------------- */
+
+function normalizeExecution(execution, action) {
+  if (!execution) {
     return {
-      execution_type:
-        row.execution_type ||
-        "MANUAL_TASK",
-
-      execution_code:
-        row.execution_code ||
-        null,
-
-      execution_mode:
-        row.execution_mode ||
-        null,
-
-      title:
-        repairMojibake(
-          row.title || null
-        ),
-
-      objective:
-        repairMojibake(
-          row.objective || null
-        ),
-
-      status:
-        row.status ||
-        "UNKNOWN",
-
-      approved:
-        Boolean(row.approved),
-
-      executed:
-        Boolean(row.executed)
+      success: false,
+      error: "EXECUTION_NOT_FOUND"
     };
-
-  } catch {
-    return null;
-  }
-}
-
-// ==================================================
-// PAYLOAD
-// ==================================================
-
-function parsePayload(value) {
-  if (!value) {
-    return null;
   }
 
-  try {
-    return repairObject(
-      JSON.parse(value)
-    );
-  } catch {
-    return null;
+  let rawStatus =
+    execution.execution_status ||
+    execution.status ||
+    execution.result ||
+    "";
+
+  let status = normalizeExecutionStatus(rawStatus);
+
+  let message =
+    execution.message ||
+    "";
+
+  /*
+   * If action.result/output_data is JSON,
+   * attempt to recover the execution status.
+   */
+
+  for (const raw of [
+    execution.result,
+    execution.output_data,
+    execution.status
+  ]) {
+    if (!raw || typeof raw !== "string") continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+
+      if (isObject(parsed)) {
+        if (!status || status === "UNKNOWN") {
+          status = normalizeExecutionStatus(
+            parsed.status ||
+            parsed.execution_status ||
+            parsed.result
+          );
+        }
+
+        if (!message) {
+          message = s(parsed.message);
+        }
+      }
+    } catch (_) {
+      // Not JSON. Keep raw value.
+    }
   }
-}
 
-// ==================================================
-// SOURCE CONTRACT
-// ==================================================
+  if (!status) {
+    status = "UNKNOWN";
+  }
 
-function buildSourceChain() {
-  return [
-    MEASUREMENT_LAYER,
-    INTELLIGENCE_ENGINE,
-    LEARNING_ENGINE,
-    DECISION_LAYER,
-    ACTION_LAYER,
-    AUTOMATION_LAYER,
-    LAYER
-  ];
-}
+  let outcomeStatus = "UNKNOWN";
+  let outcome = "UNKNOWN";
 
-function buildSourceContract() {
+  if (status === "EXECUTED" || status === "SUCCESS") {
+    outcomeStatus = "EXECUTED";
+    outcome = "EXECUTED";
+  } else if (
+    status === "EXECUTION_NOT_IMPLEMENTED" ||
+    status === "NOT_IMPLEMENTED"
+  ) {
+    outcomeStatus = "NOT_IMPLEMENTED";
+    outcome = "NOT_IMPLEMENTED";
+  } else if (
+    status === "FAILED" ||
+    status === "ERROR"
+  ) {
+    outcomeStatus = "FAILED";
+    outcome = "FAILED";
+  } else if (
+    status === "WAITING_FOR_APPROVAL" ||
+    status === "BLOCKED"
+  ) {
+    outcomeStatus = "BLOCKED";
+    outcome = "BLOCKED";
+  } else {
+    outcomeStatus = status;
+    outcome = status;
+  }
+
   return {
-    measurement: {
-      layer:
-        MEASUREMENT_LAYER
-    },
+    success: true,
+    execution_status: status,
+    outcome_status: outcomeStatus,
+    outcome,
+    message,
+    executed_at: execution.executed_at || action.executed_at || null
+  };
+}
 
-    intelligence: {
-      layer:
-        INTELLIGENCE_LAYER,
+/* ---------------------------------------------------------
+   DUPLICATE CHECK
+--------------------------------------------------------- */
 
-      version:
-        INTELLIGENCE_VERSION,
+async function findExistingFeedback(db, actionRunId) {
+  return await db.prepare(`
+    SELECT *
+    FROM feedback_runs
+    WHERE action_run_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).bind(actionRunId).first();
+}
 
-      engine:
-        INTELLIGENCE_ENGINE
-    },
+/* ---------------------------------------------------------
+   CREATE FEEDBACK
+--------------------------------------------------------- */
 
-    learning: {
-      layer:
-        LEARNING_LAYER,
+async function createFeedback(
+  db,
+  action,
+  execution,
+  normalized
+) {
+  const id = crypto.randomUUID();
+  const createdAt = nowISO();
 
-      version:
-        LEARNING_VERSION,
+  await db.prepare(`
+    INSERT INTO feedback_runs (
+      id,
+      action_run_id,
+      execution_run_id,
+      content_id,
+      action_type,
+      operation,
+      execution_status,
+      outcome_status,
+      outcome,
+      message,
+      counted_as_behavior,
+      counted_as_attention,
+      alters_funnel_metrics,
+      measurement_required,
+      measurement_completed,
+      source,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    action.id,
+    execution?.id || null,
+    action.content_id || null,
+    action.action_type || null,
+    action.action_type || null,
+    normalized.execution_status,
+    normalized.outcome_status,
+    normalized.outcome,
+    normalized.message || null,
 
-      engine:
-        LEARNING_ENGINE
-    },
+    // CRITICAL GUARDRAILS
+    0,
+    0,
+    0,
 
-    decision: {
-      layer:
-        DECISION_LAYER,
+    // Measurement must observe the system afterward.
+    1,
+    0,
 
-      version:
-        DECISION_VERSION
-    },
+    `${LAYER}`,
+    createdAt
+  ).run();
+
+  return id;
+}
+
+/* ---------------------------------------------------------
+   BUILD RESPONSE
+--------------------------------------------------------- */
+
+function buildResponse({
+  action,
+  execution,
+  normalized,
+  feedbackId,
+  duplicate,
+  mode
+}) {
+  return {
+    success: true,
+    layer: LAYER,
+    version: VERSION,
+    mode,
+
+    status: duplicate
+      ? "FEEDBACK_ALREADY_EXISTS"
+      : "FEEDBACK_SAVED",
 
     action: {
-      layer:
-        ACTION_LAYER,
-
-      version:
-        ACTION_VERSION
+      action_run_id: action.id,
+      action_type: action.action_type,
+      content_id: action.content_id || null,
+      action_status:
+        action.action_status ||
+        action.status ||
+        null
     },
 
-    automation: {
-      layer:
-        AUTOMATION_LAYER,
+    execution: {
+      execution_run_id:
+        execution?.id ||
+        null,
 
-      version:
-        AUTOMATION_VERSION,
+      status:
+        normalized.execution_status,
 
-      engine:
-        AUTOMATION_ENGINE
+      outcome_status:
+        normalized.outcome_status,
+
+      outcome:
+        normalized.outcome,
+
+      message:
+        normalized.message || null,
+
+      executed_at:
+        normalized.executed_at
     },
 
     feedback: {
-      layer:
-        LAYER,
+      feedback_run_id: feedbackId,
 
-      version:
-        VERSION,
+      source: LAYER,
 
-      engine:
-        FEEDBACK_ENGINE
-    }
-  };
-}
+      role: "OPERATIONAL_OUTCOME_ONLY",
 
-// ==================================================
-// AUTOMATION CONTRACT
-// ==================================================
+      counted_as_behavior: false,
 
-function validateAutomationContract(
-  automation
-) {
-  if (!automation) {
-    return {
-      valid: false,
+      counted_as_attention: false,
 
-      errors: [
-        {
-          field:
-            "automation",
+      alters_funnel_metrics: false,
 
-          expected:
-            AUTOMATION_LAYER,
+      measurement_required: true,
 
-          received:
-            null
-        }
-      ]
-    };
-  }
-
-  const errors = [];
-
-  if (
-    automation.layer !==
-    AUTOMATION_LAYER
-  ) {
-    errors.push({
-      field:
-        "automation.layer",
-
-      expected:
-        AUTOMATION_LAYER,
-
-      received:
-        automation.layer ||
-        null
-    });
-  }
-
-  if (
-    automation.version !==
-    AUTOMATION_VERSION
-  ) {
-    errors.push({
-      field:
-        "automation.version",
-
-      expected:
-        AUTOMATION_VERSION,
-
-      received:
-        automation.version ||
-        null
-    });
-  }
-
-  if (
-    automation.engine &&
-    automation.engine !==
-      AUTOMATION_ENGINE
-  ) {
-    errors.push({
-      field:
-        "automation.engine",
-
-      expected:
-        AUTOMATION_ENGINE,
-
-      received:
-        automation.engine
-    });
-  }
-
-  const sourceContract =
-    automation.source_contract;
-
-  if (sourceContract) {
-
-    if (
-      sourceContract.measurement?.layer &&
-      sourceContract.measurement.layer !==
-        MEASUREMENT_LAYER
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.measurement.layer",
-
-        expected:
-          MEASUREMENT_LAYER,
-
-        received:
-          sourceContract.measurement.layer
-      });
-    }
-
-    if (
-      sourceContract.intelligence?.version &&
-      sourceContract.intelligence.version !==
-        INTELLIGENCE_VERSION
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.intelligence.version",
-
-        expected:
-          INTELLIGENCE_VERSION,
-
-        received:
-          sourceContract.intelligence.version
-      });
-    }
-
-    if (
-      sourceContract.intelligence?.engine &&
-      sourceContract.intelligence.engine !==
-        INTELLIGENCE_ENGINE
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.intelligence.engine",
-
-        expected:
-          INTELLIGENCE_ENGINE,
-
-        received:
-          sourceContract.intelligence.engine
-      });
-    }
-
-    if (
-      sourceContract.learning?.version &&
-      sourceContract.learning.version !==
-        LEARNING_VERSION
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.learning.version",
-
-        expected:
-          LEARNING_VERSION,
-
-        received:
-          sourceContract.learning.version
-      });
-    }
-
-    if (
-      sourceContract.learning?.engine &&
-      sourceContract.learning.engine !==
-        LEARNING_ENGINE
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.learning.engine",
-
-        expected:
-          LEARNING_ENGINE,
-
-        received:
-          sourceContract.learning.engine
-      });
-    }
-
-    if (
-      sourceContract.decision?.version &&
-      sourceContract.decision.version !==
-        DECISION_VERSION
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.decision.version",
-
-        expected:
-          DECISION_VERSION,
-
-        received:
-          sourceContract.decision.version
-      });
-    }
-
-    if (
-      sourceContract.action?.version &&
-      sourceContract.action.version !==
-        ACTION_VERSION
-    ) {
-      errors.push({
-        field:
-          "automation.source_contract.action.version",
-
-        expected:
-          ACTION_VERSION,
-
-        received:
-          sourceContract.action.version
-      });
-    }
-  }
-
-  return {
-    valid:
-      errors.length === 0,
-
-    errors
-  };
-}
-
-// ==================================================
-// PERSISTED FEEDBACK
-// ==================================================
-
-function buildPersistedFeedback(
-  row,
-  automation,
-  executionState
-) {
-  if (!row) {
-    return null;
-  }
-
-  const execution =
-    executionState ||
-    automation?.execution || {
-      status:
-        row.execution_status ||
-        "UNKNOWN",
-
-      approved:
-        false,
-
-      executed:
-        false
-    };
-
-  const payload =
-    parsePayload(
-      row.feedback_payload
-    );
-
-  return {
-    feedback_type:
-      "EXECUTION_OUTCOME",
-
-    execution: {
-      status:
-        execution.status ||
-        row.execution_status ||
-        "UNKNOWN",
-
-      approved:
-        Boolean(
-          execution.approved
-        ),
-
-      executed:
-        Boolean(
-          execution.executed
-        ),
-
-      execution_id:
-        row.execution_id ||
-        null
+      measurement_completed: false
     },
-
-    expected: {
-      outcome:
-        repairMojibake(
-          row.expected_outcome
-        )
-    },
-
-    actual: {
-      outcome:
-        repairMojibake(
-          row.actual_outcome
-        ),
-
-      status:
-        row.outcome_status
-    },
-
-    operator: {
-      note:
-        repairMojibake(
-          row.operator_note
-        )
-    },
-
-    measurement: {
-      required:
-        Boolean(
-          row.measurement_required
-        ),
-
-      completed:
-        Boolean(
-          row.measurement_completed
-        ),
-
-      reason:
-        "Feedback must return to Measurement V2.3 for the next observable cycle."
-    },
-
-    persistence: {
-      saved:
-        true,
-
-      verified:
-        true,
-
-      source:
-        "D1.feedback_events",
-
-      record_id:
-        row.id,
-
-      created_at:
-        row.created_at,
-
-      updated_at:
-        row.updated_at
-    },
-
-    payload,
-
-    loop: {
-      closed:
-        false,
-
-      next_layer:
-        MEASUREMENT_LAYER
-    }
-  };
-}
-
-// ==================================================
-// PREVIEW
-// ==================================================
-
-function buildPreview({
-  contentId,
-  automation,
-  persistedFeedback,
-  executionState
-}) {
-  const content =
-    automation?.content || {
-      id:
-        contentId,
-
-      title:
-        null,
-
-      status:
-        null
-    };
-
-  const action =
-    automation?.action ||
-    null;
-
-  const execution =
-    executionState ||
-    automation?.execution || {
-      execution_type:
-        "MANUAL_TASK",
-
-      execution_code:
-        null,
-
-      execution_mode:
-        "MANUAL_INVESTIGATION",
-
-      title:
-        action?.title ||
-        null,
-
-      objective:
-        action?.objective ||
-        null,
-
-      instructions:
-        [],
-
-      external_execution:
-        false,
-
-      requires_human_approval:
-        true,
-
-      status:
-        "PENDING_APPROVAL",
-
-      approved:
-        false,
-
-      executed:
-        false
-    };
-
-  const decision =
-    automation?.decision ||
-    null;
-
-  const evidence =
-    automation?.evidence || {
-      attention: 0,
-      clicks: 0,
-      product_views: 0,
-      engagements: 0,
-      customers: 0,
-      orders: 0,
-      revenue: 0
-    };
-
-  const learning =
-    automation?.learning ||
-    null;
-
-  const intelligence =
-    automation?.intelligence ||
-    null;
-
-  const funnel =
-    automation?.funnel ||
-    evidence;
-
-  const persisted =
-    buildPersistedFeedback(
-      persistedFeedback,
-      automation,
-      executionState
-    );
-
-  const feedback =
-    persisted || {
-      feedback_type:
-        "EXECUTION_OUTCOME",
-
-      execution: {
-        status:
-          execution.status,
-
-        approved:
-          Boolean(
-            execution.approved
-          ),
-
-        executed:
-          Boolean(
-            execution.executed
-          ),
-
-        execution_id:
-          null
-      },
-
-      expected: {
-        outcome:
-          action?.objective ||
-          "Execution outcome required"
-      },
-
-      actual: {
-        outcome:
-          null,
-
-        status:
-          "PENDING"
-      },
-
-      operator: {
-        note:
-          null
-      },
-
-      measurement: {
-        required:
-          true,
-
-        completed:
-          false,
-
-        reason:
-          "Feedback must return to Measurement V2.3 for the next observable cycle."
-      },
-
-      persistence: {
-        saved:
-          false,
-
-        verified:
-          false,
-
-        source:
-          "D1.feedback_events",
-
-        record_id:
-          null,
-
-        created_at:
-          null,
-
-        updated_at:
-          null
-      },
-
-      loop: {
-        closed:
-          false,
-
-        next_layer:
-          MEASUREMENT_LAYER
-      }
-    };
-
-  return {
-    success:
-      true,
-
-    layer:
-      LAYER,
-
-    version:
-      VERSION,
-
-    engine:
-      FEEDBACK_ENGINE,
-
-    mode:
-      "PREVIEW",
-
-    status:
-      persistedFeedback
-        ? "FEEDBACK_PERSISTED"
-        : "FEEDBACK_READY",
-
-    content:
-      repairObject(content),
-
-    action:
-      repairObject(action),
-
-    execution:
-      repairObject(execution),
-
-    decision:
-      repairObject(decision),
-
-    feedback:
-      repairObject(feedback),
-
-    evidence,
-
-    learning:
-      repairObject(learning),
-
-    intelligence:
-      repairObject(intelligence),
-
-    funnel,
-
-    source_chain:
-      buildSourceChain(),
-
-    source_contract:
-      buildSourceContract(),
 
     guardrails: {
-      reads_raw_behavior_events:
-        false,
+      creates_behavior_event: false,
+      creates_attention: false,
+      alters_funnel_metrics: false,
 
-      recalculates_measurement:
-        false,
+      recalculates_measurement: false,
+      recalculates_intelligence: false,
+      recalculates_learning: false,
 
-      recalculates_intelligence:
-        false,
+      changes_strategy: false,
+      declares_winner: false,
 
-      recalculates_learning:
-        false,
-
-      creates_decision:
-        false,
-
-      changes_strategy:
-        false,
-
-      winner_declared:
-        false,
-
-      automatic_execution:
-        false,
-
-      external_execution:
-        false,
-
-      action_executed:
-        false,
-
-      feedback_recorded:
-        Boolean(
-          persistedFeedback
-        )
+      executes_action: false,
+      automatic_execution: false
     },
 
-    persistence: {
-      table:
-        FEEDBACK_TABLE,
-
-      record_found:
-        Boolean(
-          persistedFeedback
-        ),
-
-      record_id:
-        persistedFeedback?.id ||
-        null
-    },
-
-    loop: {
-      current_layer:
-        LAYER,
-
-      next_layer:
-        MEASUREMENT_LAYER,
-
-      closed:
-        false,
-
-      measurement_required:
-        true
-    },
-
-    saved:
-      Boolean(
-        persistedFeedback
-      ),
-
-    timestamp:
-      new Date().toISOString()
+    handoff: {
+      next_layer: "MEASUREMENT_V2.3",
+      measurement_required: true,
+      execute: false
+    }
   };
 }
 
-// ==================================================
-// REQUEST HANDLER
-// ==================================================
+/* ---------------------------------------------------------
+   MAIN
+--------------------------------------------------------- */
 
-export async function onRequest(
-  context
-) {
-  const request =
-    context.request;
+async function runFeedback(context) {
+  const db = context.env.DB;
 
-  const DB =
-    context.env?.DB;
-
-  if (!DB) {
-    return json(
-      {
-        success:
-          false,
-
-        layer:
-          LAYER,
-
-        version:
-          VERSION,
-
-        error:
-          "D1_BINDING_NOT_FOUND"
-      },
-      500
-    );
+  if (!db) {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "DB_BINDING_NOT_FOUND"
+    };
   }
 
-  const url =
-    new URL(request.url);
+  const input = await getInput(context.request);
 
-  const contentId =
-    url.searchParams.get(
-      "content_id"
-    ) ||
-    DEFAULT_CONTENT_ID;
+  if (!input.action_run_id) {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "action_run_id_required"
+    };
+  }
 
+  await ensureFeedbackTable(db);
+
+  const action = await getAction(
+    db,
+    input.action_run_id
+  );
+
+  if (!action) {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "ACTION_NOT_FOUND",
+      action_run_id: input.action_run_id
+    };
+  }
+
+  /*
+   * Feedback must only observe an action that has reached
+   * the execution stage.
+   */
+
+  const actionStatus = normalizeActionStatus(
+    action.action_status ||
+    action.status
+  );
+
+  if (
+    actionStatus !== "EXECUTED" &&
+    !action.executed_at &&
+    !action.result
+  ) {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "ACTION_NOT_EXECUTED",
+      action: {
+        id: action.id,
+        status: action.status,
+        action_status: action.action_status,
+        executed_at: action.executed_at
+      }
+    };
+  }
+
+  const execution = await getExecution(
+    db,
+    input.execution_run_id,
+    input.action_run_id
+  );
+
+  const normalized = normalizeExecution(
+    execution,
+    action
+  );
+
+  if (!normalized.success) {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: normalized.error,
+      action_run_id: input.action_run_id,
+      execution_run_id: input.execution_run_id || null
+    };
+  }
+
+  const existing = await findExistingFeedback(
+    db,
+    action.id
+  );
+
+  /*
+   * Preview never creates a record.
+   */
+
+  if (input.mode !== "execute") {
+    return buildResponse({
+      action,
+      execution,
+      normalized,
+      feedbackId: existing?.id || null,
+      duplicate: !!existing,
+      mode: "preview"
+    });
+  }
+
+  /*
+   * Execute mode creates exactly one feedback record.
+   */
+
+  if (existing) {
+    return buildResponse({
+      action,
+      execution,
+      normalized,
+      feedbackId: existing.id,
+      duplicate: true,
+      mode: "execute"
+    });
+  }
+
+  const feedbackId = await createFeedback(
+    db,
+    action,
+    execution,
+    normalized
+  );
+
+  return buildResponse({
+    action,
+    execution,
+    normalized,
+    feedbackId,
+    duplicate: false,
+    mode: "execute"
+  });
+}
+
+/* ---------------------------------------------------------
+   GET
+--------------------------------------------------------- */
+
+export async function onRequestGet(context) {
   try {
-
-    await ensureTable(DB);
-
-    // Keep existing feedback records
-    // compatible with current Measurement V2.3.
-    await migrateLegacyPayloads(DB);
-
-    // ==================================================
-    // GET
-    // ==================================================
-
-    if (
-      request.method ===
-      "GET"
-    ) {
-      const executionId =
-        url.searchParams.get(
-          "execution_id"
-        );
-
-      let persistedFeedback =
-        null;
-
-      if (executionId) {
-
-        persistedFeedback =
-          await getFeedbackByExecution(
-            DB,
-            executionId
-          );
-
-      } else {
-
-        persistedFeedback =
-          await getLatestFeedback(
-            DB,
-            contentId
-          );
-      }
-
-      const executionState =
-        executionId
-          ? await getExecutionState(
-              DB,
-              executionId
-            )
-          : null;
-
-      const automation =
-        await getAutomationPreview(
-          request,
-          contentId
-        );
-
-      const contract =
-        validateAutomationContract(
-          automation
-        );
-
-      if (
-        automation &&
-        !contract.valid
-      ) {
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            status:
-              "CONTRACT_ERROR",
-
-            error:
-              "Feedback Layer V1.1 requires current Automation V1.0 contract.",
-
-            expected: {
-              automation_layer:
-                AUTOMATION_LAYER,
-
-              automation_version:
-                AUTOMATION_VERSION,
-
-              automation_engine:
-                AUTOMATION_ENGINE,
-
-              measurement:
-                MEASUREMENT_LAYER,
-
-              intelligence_version:
-                INTELLIGENCE_VERSION,
-
-              intelligence_engine:
-                INTELLIGENCE_ENGINE,
-
-              learning_version:
-                LEARNING_VERSION,
-
-              learning_engine:
-                LEARNING_ENGINE,
-
-              decision_version:
-                DECISION_VERSION,
-
-              action_version:
-                ACTION_VERSION
-            },
-
-            received:
-              automation,
-
-            contract_errors:
-              contract.errors
-          },
-          409
-        );
-      }
-
-      return json(
-        buildPreview({
-          contentId,
-          automation,
-          persistedFeedback,
-          executionState
-        })
-      );
-    }
-
-    // ==================================================
-    // POST
-    // ==================================================
-
-    if (
-      request.method ===
-      "POST"
-    ) {
-      let body = {};
-
-      try {
-
-        body =
-          await request.json();
-
-      } catch {
-
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            error:
-              "INVALID_JSON_BODY"
-          },
-          400
-        );
-      }
-
-      const mode =
-        normalize(
-          body.mode
-        )?.toLowerCase();
-
-      if (
-        mode !==
-        "record"
-      ) {
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            error:
-              "INVALID_MODE",
-
-            expected:
-              "record"
-          },
-          400
-        );
-      }
-
-      const executionId =
-        normalize(
-          body.execution_id
-        );
-
-      const actualOutcome =
-        normalize(
-          body.actual_outcome
-        );
-
-      const outcomeStatus =
-        normalize(
-          body.outcome_status
-        ) ||
-        "RECORDED";
-
-      const operatorNote =
-        normalize(
-          body.operator_note
-        );
-
-      if (!actualOutcome) {
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            error:
-              "ACTUAL_OUTCOME_REQUIRED"
-          },
-          400
-        );
-      }
-
-      const automation =
-        await getAutomationPreview(
-          request,
-          contentId
-        );
-
-      const contract =
-        validateAutomationContract(
-          automation
-        );
-
-      if (
-        automation &&
-        !contract.valid
-      ) {
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            status:
-              "CONTRACT_ERROR",
-
-            error:
-              "Feedback Layer V1.1 requires current Automation V1.0 contract.",
-
-            contract_errors:
-              contract.errors
-          },
-          409
-        );
-      }
-
-      const executionState =
-        executionId
-          ? await getExecutionState(
-              DB,
-              executionId
-            )
-          : null;
-
-      const execution =
-        executionState ||
-        automation?.execution || {
-          status:
-            "UNKNOWN",
-
-          approved:
-            false,
-
-          executed:
-            false
-        };
-
-      const action =
-        automation?.action ||
-        {};
-
-      const expectedOutcome =
-        action.objective ||
-        "Execution outcome required";
-
-      const id =
-        crypto.randomUUID();
-
-      const createdAt =
-        new Date().toISOString();
-
-      const feedbackPayload = {
-        feedback_type:
-          "EXECUTION_OUTCOME",
-
-        execution: {
-          status:
-            execution.status ||
-            "UNKNOWN",
-
-          approved:
-            Boolean(
-              execution.approved
-            ),
-
-          executed:
-            Boolean(
-              execution.executed
-            )
-        },
-
-        expected: {
-          outcome:
-            expectedOutcome
-        },
-
-        actual: {
-          outcome:
-            actualOutcome,
-
-          status:
-            outcomeStatus
-        },
-
-        operator: {
-          note:
-            operatorNote
-        },
-
-        measurement: {
-          required:
-            true,
-
-          completed:
-            false
-        },
-
-        loop: {
-          closed:
-            false,
-
-          next_layer:
-            MEASUREMENT_LAYER
-        },
-
-        execution_id:
-          executionId
-      };
-
-      await DB.prepare(`
-        INSERT INTO feedback_events (
-          id,
-          execution_id,
-          content_id,
-          action_code,
-          action_target,
-          execution_code,
-          execution_status,
-          expected_outcome,
-          actual_outcome,
-          outcome_status,
-          operator_note,
-          measurement_required,
-          measurement_completed,
-          feedback_payload,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-        .bind(
-          id,
-          executionId,
-          contentId,
-          action.action_code ||
-            null,
-          action.target ||
-            null,
-          execution.execution_code ||
-            null,
-          execution.status ||
-            null,
-          expectedOutcome,
-          actualOutcome,
-          outcomeStatus,
-          operatorNote,
-          1,
-          0,
-          JSON.stringify(
-            feedbackPayload
-          ),
-          createdAt,
-          createdAt
-        )
-        .run();
-
-      // ==================================================
-      // REAL PERSISTENCE VERIFICATION
-      // ==================================================
-
-      const persisted =
-        await DB.prepare(`
-          SELECT
-            id,
-            execution_id,
-            content_id,
-            action_code,
-            action_target,
-            execution_code,
-            execution_status,
-            expected_outcome,
-            actual_outcome,
-            outcome_status,
-            operator_note,
-            measurement_required,
-            measurement_completed,
-            feedback_payload,
-            created_at,
-            updated_at
-          FROM feedback_events
-          WHERE id = ?
-          LIMIT 1
-        `)
-          .bind(id)
-          .first();
-
-      if (!persisted) {
-        return json(
-          {
-            success:
-              false,
-
-            layer:
-              LAYER,
-
-            version:
-              VERSION,
-
-            mode:
-              "RECORD",
-
-            status:
-              "PERSISTENCE_VERIFICATION_FAILED",
-
-            saved:
-              false,
-
-            feedback_recorded:
-              false
-          },
-          500
-        );
-      }
-
-      return json(
-        {
-          success:
-            true,
-
-          layer:
-            LAYER,
-
-          version:
-            VERSION,
-
-          engine:
-            FEEDBACK_ENGINE,
-
-          mode:
-            "RECORD",
-
-          status:
-            "FEEDBACK_RECORDED",
-
-          content:
-            repairObject(
-              automation?.content || {
-                id:
-                  contentId,
-
-                title:
-                  null,
-
-                status:
-                  null
-              }
-            ),
-
-          action:
-            repairObject(action),
-
-          execution:
-            repairObject(execution),
-
-          decision:
-            repairObject(
-              automation?.decision ||
-              null
-            ),
-
-          feedback:
-            buildPersistedFeedback(
-              persisted,
-              automation,
-              executionState
-            ),
-
-          evidence:
-            automation?.evidence || {
-              attention: 0,
-              clicks: 0,
-              product_views: 0,
-              engagements: 0,
-              customers: 0,
-              orders: 0,
-              revenue: 0
-            },
-
-          learning:
-            repairObject(
-              automation?.learning ||
-              null
-            ),
-
-          intelligence:
-            repairObject(
-              automation?.intelligence ||
-              null
-            ),
-
-          funnel:
-            automation?.funnel ||
-            automation?.evidence ||
-            null,
-
-          record: {
-            id:
-              persisted.id,
-
-            status:
-              "RECORDED",
-
-            persisted:
-              true,
-
-            verified:
-              true,
-
-            measurement_required:
-              true,
-
-            measurement_completed:
-              false,
-
-            created_at:
-              persisted.created_at,
-
-            updated_at:
-              persisted.updated_at
-          },
-
-          source_chain:
-            buildSourceChain(),
-
-          source_contract:
-            buildSourceContract(),
-
-          guardrails: {
-            reads_raw_behavior_events:
-              false,
-
-            recalculates_measurement:
-              false,
-
-            recalculates_intelligence:
-              false,
-
-            recalculates_learning:
-              false,
-
-            creates_decision:
-              false,
-
-            changes_strategy:
-              false,
-
-            winner_declared:
-              false,
-
-            automatic_execution:
-              false,
-
-            external_execution:
-              false,
-
-            action_executed:
-              false,
-
-            feedback_recorded:
-              true
-          },
-
-          loop: {
-            current_layer:
-              LAYER,
-
-            next_layer:
-              MEASUREMENT_LAYER,
-
-            closed:
-              false,
-
-            measurement_required:
-              true
-          },
-
-          saved:
-            true,
-
-          timestamp:
-            new Date().toISOString()
-        }
-      );
-    }
+    const result = await runFeedback(context);
 
     return json(
-      {
-        success:
-          false,
-
-        layer:
-          LAYER,
-
-        version:
-          VERSION,
-
-        error:
-          "METHOD_NOT_ALLOWED"
-      },
-      405
+      result,
+      result.success ? 200 : 400
     );
-
   } catch (error) {
+    return json({
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "FEEDBACK_LAYER_ERROR",
+      message: error?.message || String(error)
+    }, 500);
+  }
+}
+
+/* ---------------------------------------------------------
+   POST
+--------------------------------------------------------- */
+
+export async function onRequestPost(context) {
+  try {
+    const result = await runFeedback(context);
 
     return json(
-      {
-        success:
-          false,
-
-        layer:
-          LAYER,
-
-        version:
-          VERSION,
-
-        error:
-          "FEEDBACK_LAYER_ERROR",
-
-        message:
-          error?.message ||
-          String(error)
-      },
-      500
+      result,
+      result.success ? 200 : 400
     );
+  } catch (error) {
+    return json({
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "FEEDBACK_LAYER_ERROR",
+      message: error?.message || String(error)
+    }, 500);
   }
 }
