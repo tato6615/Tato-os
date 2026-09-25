@@ -2,15 +2,15 @@
 // Automation / Execution Layer V1.0
 // Route: /api/automation
 //
-// Architecture:
+// Current Architecture:
 //
-// Measurement V2.2
+// Measurement V2.3
 //        ↓
-// Intelligence V2.0
+// Intelligence V2.1
 //        ↓
-// Learning V2.2
+// Learning V2.3
 //        ↓
-// Decision V1.1
+// Decision V1.2
 //        ↓
 // Action V1.0
 //        ↓
@@ -47,6 +47,30 @@ const LAYER = "AUTOMATION_EXECUTION_V1";
 const ACTION_LAYER = "ACTION_LAYER_V1";
 const ACTION_VERSION = "1.0";
 
+const MEASUREMENT_LAYER =
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
+
+const INTELLIGENCE_LAYER =
+  "INTELLIGENCE_LAYER_V2";
+
+const INTELLIGENCE_VERSION = "2.1";
+
+const INTELLIGENCE_ENGINE =
+  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const LEARNING_LAYER =
+  "LEARNING_ENGINE_V2";
+
+const LEARNING_VERSION = "2.3";
+
+const LEARNING_ENGINE =
+  "LEARNING_V2.3_FEEDBACK_AWARE";
+
+const DECISION_LAYER =
+  "DECISION_LAYER_V1";
+
+const DECISION_VERSION = "1.2";
+
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store"
@@ -77,14 +101,16 @@ function bool(value) {
 }
 
 /**
- * Validate the Action Layer contract.
+ * Validate Action Layer contract.
  *
- * Automation must consume Action Layer output.
- * It must not bypass Action Layer and read Decision/Intelligence/etc.
+ * Automation consumes Action only.
+ * It does not bypass Action Layer.
  */
 function normalizeAction(root) {
   if (!root || root.success !== true) {
-    throw new Error("Action Layer response is invalid");
+    throw new Error(
+      "Action Layer response is invalid"
+    );
   }
 
   if (root.layer !== ACTION_LAYER) {
@@ -110,19 +136,27 @@ function normalizeAction(root) {
   const content = root.content || null;
 
   if (!s(action.action_type)) {
-    throw new Error("Action type is missing");
+    throw new Error(
+      "Action type is missing"
+    );
   }
 
   if (!s(action.action_code)) {
-    throw new Error("Action code is missing");
+    throw new Error(
+      "Action code is missing"
+    );
   }
 
   if (!s(action.target)) {
-    throw new Error("Action target is missing");
+    throw new Error(
+      "Action target is missing"
+    );
   }
 
   if (!s(action.execution_mode)) {
-    throw new Error("Action execution mode is missing");
+    throw new Error(
+      "Action execution mode is missing"
+    );
   }
 
   if (action.external_execution !== false) {
@@ -137,19 +171,25 @@ function normalizeAction(root) {
     );
   }
 
-  if (root.guardrails?.automatic_execution !== false) {
+  if (
+    root.guardrails?.automatic_execution !== false
+  ) {
     throw new Error(
       "Action contract violation: automatic_execution must be false"
     );
   }
 
-  if (root.guardrails?.external_execution !== false) {
+  if (
+    root.guardrails?.external_execution !== false
+  ) {
     throw new Error(
       "Action contract violation: external_execution must be false"
     );
   }
 
-  if (root.guardrails?.action_executed !== false) {
+  if (
+    root.guardrails?.action_executed !== false
+  ) {
     throw new Error(
       "Action contract violation: action_executed must be false"
     );
@@ -159,56 +199,110 @@ function normalizeAction(root) {
     content,
 
     decision: {
-      priority: s(decision.priority || "LOW").toUpperCase(),
+      priority: s(
+        decision.priority || "LOW"
+      ).toUpperCase(),
+
       type: s(decision.type),
+
       target: s(decision.target),
+
       reason: s(decision.reason)
     },
 
     action: {
-      action_type: s(action.action_type),
-      action_code: s(action.action_code),
-      priority: s(action.priority || decision.priority || "LOW").toUpperCase(),
-      target: s(action.target),
-      title: s(action.title),
-      description: s(action.description),
-      objective: s(action.objective),
-      execution_mode: s(action.execution_mode),
-      requires_human_approval: bool(action.requires_human_approval),
-      external_execution: action.external_execution === true
+      action_type:
+        s(action.action_type),
+
+      action_code:
+        s(action.action_code),
+
+      priority:
+        s(
+          action.priority ||
+          decision.priority ||
+          "LOW"
+        ).toUpperCase(),
+
+      target:
+        s(action.target),
+
+      title:
+        s(action.title),
+
+      description:
+        s(action.description),
+
+      objective:
+        s(action.objective),
+
+      execution_mode:
+        s(action.execution_mode),
+
+      requires_human_approval:
+        bool(
+          action.requires_human_approval
+        ),
+
+      external_execution:
+        action.external_execution === true
     },
 
-    evidence: root.evidence || {},
-    learning: root.learning || {},
-    intelligence: root.intelligence || {},
-    funnel: root.funnel || {},
+    evidence:
+      root.evidence || {},
 
-    source_chain: Array.isArray(root.source_chain)
-      ? root.source_chain
-      : [],
+    learning:
+      root.learning || {},
 
-    guardrails: root.guardrails || {},
+    intelligence:
+      root.intelligence || {},
 
-    handoff: root.handoff || {},
+    funnel:
+      root.funnel || {},
 
-    execution: root.execution || {},
+    source_chain:
+      Array.isArray(root.source_chain)
+        ? root.source_chain
+        : [],
 
-    timestamp: root.timestamp || null
+    source_contract:
+      root.source_contract || {},
+
+    guardrails:
+      root.guardrails || {},
+
+    handoff:
+      root.handoff || {},
+
+    execution:
+      root.execution || {},
+
+    timestamp:
+      root.timestamp || null
   };
 }
 
 /**
- * Validate that the Action Layer itself is using the expected upstream chain.
+ * Validate current upstream chain.
+ *
+ * Action V1.0 must come from:
+ *
+ * Measurement V2.3
+ * Intelligence V2.1
+ * Learning V2.3
+ * Decision V1.2
+ * Action V1.0
  */
 function validateSourceChain(actionData) {
-  const chain = actionData.source_chain;
+  const chain =
+    actionData.source_chain;
 
   const required = [
-    "CONTENT_MEASUREMENT_ENGINE_V2.2",
-    "INTELLIGENCE_LAYER_V2",
-    "LEARNING_ENGINE_V2",
-    "DECISION_LAYER_V1",
-    "ACTION_LAYER_V1"
+    MEASUREMENT_LAYER,
+    INTELLIGENCE_ENGINE,
+    LEARNING_ENGINE,
+    DECISION_LAYER,
+    ACTION_LAYER
   ];
 
   for (const layer of required) {
@@ -217,6 +311,104 @@ function validateSourceChain(actionData) {
         `Invalid Action source chain: missing ${layer}`
       );
     }
+  }
+
+  /*
+   * Validate source contract when available.
+   */
+  const contract =
+    actionData.source_contract || {};
+
+  const measurement =
+    contract.measurement || {};
+
+  const intelligence =
+    contract.intelligence || {};
+
+  const learning =
+    contract.learning || {};
+
+  const decision =
+    contract.decision || {};
+
+  if (
+    measurement.layer &&
+    measurement.layer !==
+      MEASUREMENT_LAYER
+  ) {
+    throw new Error(
+      `Invalid Measurement contract: expected ${MEASUREMENT_LAYER}, received ${measurement.layer}`
+    );
+  }
+
+  if (
+    intelligence.version &&
+    intelligence.version !==
+      INTELLIGENCE_VERSION
+  ) {
+    throw new Error(
+      `Invalid Intelligence version: expected ${INTELLIGENCE_VERSION}, received ${intelligence.version}`
+    );
+  }
+
+  if (
+    intelligence.engine &&
+    intelligence.engine !==
+      INTELLIGENCE_ENGINE
+  ) {
+    throw new Error(
+      `Invalid Intelligence engine: expected ${INTELLIGENCE_ENGINE}, received ${intelligence.engine}`
+    );
+  }
+
+  if (
+    learning.layer &&
+    learning.layer !==
+      LEARNING_LAYER
+  ) {
+    throw new Error(
+      `Invalid Learning Layer: expected ${LEARNING_LAYER}, received ${learning.layer}`
+    );
+  }
+
+  if (
+    learning.version &&
+    learning.version !==
+      LEARNING_VERSION
+  ) {
+    throw new Error(
+      `Invalid Learning version: expected ${LEARNING_VERSION}, received ${learning.version}`
+    );
+  }
+
+  if (
+    learning.engine &&
+    learning.engine !==
+      LEARNING_ENGINE
+  ) {
+    throw new Error(
+      `Invalid Learning engine: expected ${LEARNING_ENGINE}, received ${learning.engine}`
+    );
+  }
+
+  if (
+    decision.layer &&
+    decision.layer !==
+      DECISION_LAYER
+  ) {
+    throw new Error(
+      `Invalid Decision Layer: expected ${DECISION_LAYER}, received ${decision.layer}`
+    );
+  }
+
+  if (
+    decision.version &&
+    decision.version !==
+      DECISION_VERSION
+  ) {
+    throw new Error(
+      `Invalid Decision version: expected ${DECISION_VERSION}, received ${decision.version}`
+    );
   }
 
   return true;
@@ -228,18 +420,31 @@ function validateSourceChain(actionData) {
  * V1 intentionally supports controlled/manual execution.
  */
 function buildExecutionPlan(actionData) {
-  const action = actionData.action;
+  const action =
+    actionData.action;
 
   if (
-    action.action_code === "INVESTIGATE_CLICK_TO_PRODUCT_VIEW" &&
-    action.target === "CLICK_TO_PRODUCT_VIEW_PATH"
+    action.action_code ===
+      "INVESTIGATE_CLICK_TO_PRODUCT_VIEW" &&
+    action.target ===
+      "CLICK_TO_PRODUCT_VIEW_PATH"
   ) {
     return {
-      execution_type: "MANUAL_TASK",
-      execution_code: "MANUAL_INVESTIGATE_CLICK_TO_PRODUCT_VIEW",
-      execution_mode: "MANUAL_INVESTIGATION",
-      title: action.title,
-      objective: action.objective,
+      execution_type:
+        "MANUAL_TASK",
+
+      execution_code:
+        "MANUAL_INVESTIGATE_CLICK_TO_PRODUCT_VIEW",
+
+      execution_mode:
+        "MANUAL_INVESTIGATION",
+
+      title:
+        action.title,
+
+      objective:
+        action.objective,
+
       instructions: [
         "ตรวจสอบ URL หรือปลายทางของ Click จาก Content",
         "ตรวจสอบว่า Click สามารถเปิด Product View ได้จริง",
@@ -247,27 +452,45 @@ function buildExecutionPlan(actionData) {
         "ตรวจสอบ content_id / product_id attribution",
         "บันทึกผลการตรวจสอบกลับเข้าสู่ระบบ Feedback"
       ],
-      external_execution: false,
-      requires_human_approval: true
+
+      external_execution:
+        false,
+
+      requires_human_approval:
+        true
     };
   }
 
   return {
-    execution_type: "MANUAL_TASK",
-    execution_code: "MANUAL_INVESTIGATE_ACTION",
-    execution_mode: "MANUAL_INVESTIGATION",
-    title: action.title || `ตรวจสอบ ${action.target}`,
+    execution_type:
+      "MANUAL_TASK",
+
+    execution_code:
+      "MANUAL_INVESTIGATE_ACTION",
+
+    execution_mode:
+      "MANUAL_INVESTIGATION",
+
+    title:
+      action.title ||
+      `ตรวจสอบ ${action.target}`,
+
     objective:
       action.objective ||
       "ตรวจสอบ Action ก่อนดำเนินการจริง",
+
     instructions: [
       "ตรวจสอบหลักฐานของ Action",
       "ตรวจสอบเป้าหมายของ Action",
       "ตรวจสอบผลกระทบก่อนดำเนินการ",
       "บันทึกผลการดำเนินงานกลับเข้าสู่ระบบ Feedback"
     ],
-    external_execution: false,
-    requires_human_approval: true
+
+    external_execution:
+      false,
+
+    requires_human_approval:
+      true
   };
 }
 
@@ -321,42 +544,63 @@ async function ensureTable(db) {
 /**
  * Call Action Layer from the same deployment origin.
  */
-async function fetchActionFromRequest(context, contentId) {
-  const currentUrl = new URL(context.request.url);
+async function fetchActionFromRequest(
+  context,
+  contentId
+) {
+  const currentUrl =
+    new URL(context.request.url);
 
-  const url = new URL(
-    "/api/actions",
-    currentUrl.origin
-  );
+  const url =
+    new URL(
+      "/api/actions",
+      currentUrl.origin
+    );
 
   if (contentId) {
-    url.searchParams.set("content_id", contentId);
+    url.searchParams.set(
+      "content_id",
+      contentId
+    );
   }
 
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "Cache-Control": "no-cache"
-    }
-  });
+  const response =
+    await fetch(
+      url.toString(),
+      {
+        method: "GET",
 
-  const text = await response.text();
+        headers: {
+          "Accept":
+            "application/json",
+
+          "Cache-Control":
+            "no-cache"
+        }
+      }
+    );
+
+  const text =
+    await response.text();
 
   let data;
 
   try {
-    data = JSON.parse(text);
+    data =
+      JSON.parse(text);
   } catch (_) {
     throw new Error(
-      `Action Layer returned invalid JSON: ${text.slice(0, 300)}`
+      `Action Layer returned invalid JSON: ${text.slice(
+        0,
+        300
+      )}`
     );
   }
 
   if (!response.ok) {
     throw new Error(
       data?.error ||
-      `Action Layer HTTP ${response.status}`
+        `Action Layer HTTP ${response.status}`
     );
   }
 
@@ -366,15 +610,24 @@ async function fetchActionFromRequest(context, contentId) {
 /**
  * Save execution job.
  */
-async function createExecutionJob(env, actionData, executionPlan) {
+async function createExecutionJob(
+  env,
+  actionData,
+  executionPlan
+) {
   if (!env.DB) {
-    throw new Error("D1 binding DB is missing");
+    throw new Error(
+      "D1 binding DB is missing"
+    );
   }
 
   await ensureTable(env.DB);
 
-  const now = new Date().toISOString();
-  const executionId = id();
+  const now =
+    new Date().toISOString();
+
+  const executionId =
+    id();
 
   const contentId =
     actionData.content?.id ||
@@ -409,71 +662,116 @@ async function createExecutionJob(env, actionData, executionPlan) {
   `)
     .bind(
       executionId,
+
       contentId,
+
       actionData.action.action_code,
+
       actionData.action.action_type,
+
       actionData.action.target,
+
       actionData.action.priority,
+
       executionPlan.execution_type,
+
       executionPlan.execution_code,
+
       executionPlan.execution_mode,
+
       "PENDING_APPROVAL",
-      executionPlan.requires_human_approval ? 1 : 0,
+
+      executionPlan.requires_human_approval
+        ? 1
+        : 0,
+
       0,
-      executionPlan.external_execution ? 1 : 0,
+
+      executionPlan.external_execution
+        ? 1
+        : 0,
+
       0,
+
       null,
-      JSON.stringify(actionData.action),
-      JSON.stringify(executionPlan),
+
+      JSON.stringify(
+        actionData.action
+      ),
+
+      JSON.stringify(
+        executionPlan
+      ),
+
       null,
+
       now,
+
       null,
+
       null,
+
       now
     )
     .run();
 
   return {
     id: executionId,
-    status: "PENDING_APPROVAL",
-    created_at: now
+
+    status:
+      "PENDING_APPROVAL",
+
+    created_at:
+      now
   };
 }
 
 /**
- * Approve a queued execution.
+ * Approve queued execution.
  *
- * Approval changes the job state only.
- * It does not call an external service.
+ * Approval changes state only.
+ * No external service is called.
  */
-async function approveExecution(env, executionId) {
+async function approveExecution(
+  env,
+  executionId
+) {
   if (!env.DB) {
-    throw new Error("D1 binding DB is missing");
+    throw new Error(
+      "D1 binding DB is missing"
+    );
   }
 
   await ensureTable(env.DB);
 
-  const existing = await env.DB
-    .prepare(`
-      SELECT *
-      FROM execution_queue
-      WHERE id = ?
-      LIMIT 1
-    `)
-    .bind(executionId)
-    .first();
+  const existing =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM execution_queue
+        WHERE id = ?
+        LIMIT 1
+      `)
+      .bind(executionId)
+      .first();
 
   if (!existing) {
-    throw new Error("Execution job not found");
+    throw new Error(
+      "Execution job not found"
+    );
   }
 
-  if (existing.status !== "PENDING_APPROVAL") {
+  if (
+    existing.status !==
+      "PENDING_APPROVAL"
+  ) {
     throw new Error(
       `Execution cannot be approved from status ${existing.status}`
     );
   }
 
-  const now = new Date().toISOString();
+  const now =
+    new Date().toISOString();
 
   await env.DB.prepare(`
     UPDATE execution_queue
@@ -493,62 +791,96 @@ async function approveExecution(env, executionId) {
     .run();
 
   return {
-    id: executionId,
-    status: "APPROVED",
-    approved: true,
-    approved_at: now
+    id:
+      executionId,
+
+    status:
+      "APPROVED",
+
+    approved:
+      true,
+
+    approved_at:
+      now
   };
 }
 
 /**
- * Execute an approved job.
+ * Execute approved job.
  *
- * V1.0 deliberately performs NO external execution.
+ * V1.0 performs no external execution.
  *
- * For manual investigation, "execution" means the task has been
- * released to the human operator.
+ * For manual investigation,
+ * execution means the task is released
+ * to the human operator.
  */
-async function executeApproved(env, executionId) {
+async function executeApproved(
+  env,
+  executionId
+) {
   if (!env.DB) {
-    throw new Error("D1 binding DB is missing");
+    throw new Error(
+      "D1 binding DB is missing"
+    );
   }
 
   await ensureTable(env.DB);
 
-  const existing = await env.DB
-    .prepare(`
-      SELECT *
-      FROM execution_queue
-      WHERE id = ?
-      LIMIT 1
-    `)
-    .bind(executionId)
-    .first();
+  const existing =
+    await env.DB
+      .prepare(`
+        SELECT *
+        FROM execution_queue
+        WHERE id = ?
+        LIMIT 1
+      `)
+      .bind(executionId)
+      .first();
 
   if (!existing) {
-    throw new Error("Execution job not found");
+    throw new Error(
+      "Execution job not found"
+    );
   }
 
-  if (existing.status !== "APPROVED") {
+  if (
+    existing.status !==
+      "APPROVED"
+  ) {
     throw new Error(
       `Execution requires APPROVED status. Current status: ${existing.status}`
     );
   }
 
-  if (Number(existing.external_execution) === 1) {
+  if (
+    Number(
+      existing.external_execution
+    ) === 1
+  ) {
     throw new Error(
       "External execution is disabled in Automation / Execution V1.0"
     );
   }
 
-  const now = new Date().toISOString();
+  const now =
+    new Date().toISOString();
 
   const result = {
-    execution_type: existing.execution_type,
-    execution_code: existing.execution_code,
-    execution_mode: existing.execution_mode,
-    result: "RELEASED_TO_OPERATOR",
-    external_execution: false,
+    execution_type:
+      existing.execution_type,
+
+    execution_code:
+      existing.execution_code,
+
+    execution_mode:
+      existing.execution_mode,
+
+    result:
+      "RELEASED_TO_OPERATOR",
+
+    external_execution:
+      false,
+
     message:
       "Manual task released. No external service was executed."
   };
@@ -565,43 +897,70 @@ async function executeApproved(env, executionId) {
   `)
     .bind(
       "EXECUTED",
+
       JSON.stringify(result),
+
       now,
+
       now,
+
       executionId
     )
     .run();
 
   return {
-    id: executionId,
-    status: "EXECUTED",
-    executed: true,
-    external_execution: false,
-    executed_at: now,
+    id:
+      executionId,
+
+    status:
+      "EXECUTED",
+
+    executed:
+      true,
+
+    external_execution:
+      false,
+
+    executed_at:
+      now,
+
     result
   };
 }
 
 /**
- * Build automation preview.
+ * Build Automation preview.
  */
-async function buildAutomation(context) {
-  const url = new URL(context.request.url);
+async function buildAutomation(
+  context
+) {
+  const url =
+    new URL(context.request.url);
 
   const contentId =
-    url.searchParams.get("content_id") ||
-    null;
+    url.searchParams.get(
+      "content_id"
+    ) || null;
 
-  const rawAction = await fetchActionFromRequest(
-    context,
-    contentId
+  const rawAction =
+    await fetchActionFromRequest(
+      context,
+      contentId
+    );
+
+  const actionData =
+    normalizeAction(
+      rawAction
+    );
+
+  validateSourceChain(
+    actionData
   );
 
-  const actionData = normalizeAction(rawAction);
-
-  validateSourceChain(actionData);
-
-  const executionPlan = buildExecutionPlan(actionData);
+  const executionPlan =
+    buildExecutionPlan(
+      actionData
+    );
 
   return {
     actionData,
@@ -616,91 +975,226 @@ async function buildAutomation(context) {
  * Does not save.
  * Does not execute.
  */
-export async function onRequestGet(context) {
+export async function onRequestGet(
+  context
+) {
   try {
-    const result = await buildAutomation(context);
+    const result =
+      await buildAutomation(
+        context
+      );
 
     return json({
       success: true,
-      layer: LAYER,
-      version: VERSION,
-      mode: "PREVIEW",
-      status: "EXECUTION_READY",
 
-      content: result.actionData.content,
+      layer:
+        LAYER,
 
-      action: result.actionData.action,
+      version:
+        VERSION,
+
+      engine:
+        "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE",
+
+      mode:
+        "PREVIEW",
+
+      status:
+        "EXECUTION_READY",
+
+      content:
+        result.actionData.content,
+
+      action:
+        result.actionData.action,
 
       execution: {
         ...result.executionPlan,
-        status: "PENDING_APPROVAL",
-        approved: false,
-        executed: false
+
+        status:
+          "PENDING_APPROVAL",
+
+        approved:
+          false,
+
+        executed:
+          false
       },
 
-      decision: result.actionData.decision,
+      decision:
+        result.actionData.decision,
 
-      evidence: result.actionData.evidence,
+      evidence:
+        result.actionData.evidence,
 
-      learning: result.actionData.learning,
+      learning:
+        result.actionData.learning,
 
-      intelligence: result.actionData.intelligence,
+      intelligence:
+        result.actionData.intelligence,
 
-      funnel: result.actionData.funnel,
+      funnel:
+        result.actionData.funnel,
 
       source_chain: [
-        "CONTENT_MEASUREMENT_ENGINE_V2.2",
-        "INTELLIGENCE_LAYER_V2",
-        "LEARNING_ENGINE_V2",
-        "DECISION_LAYER_V1",
-        "ACTION_LAYER_V1",
-        "AUTOMATION_EXECUTION_V1"
+        MEASUREMENT_LAYER,
+        INTELLIGENCE_ENGINE,
+        LEARNING_ENGINE,
+        DECISION_LAYER,
+        ACTION_LAYER,
+        LAYER
       ],
 
+      source_contract: {
+        measurement: {
+          layer:
+            MEASUREMENT_LAYER
+        },
+
+        intelligence: {
+          layer:
+            INTELLIGENCE_LAYER,
+
+          version:
+            INTELLIGENCE_VERSION,
+
+          engine:
+            INTELLIGENCE_ENGINE
+        },
+
+        learning: {
+          layer:
+            LEARNING_LAYER,
+
+          version:
+            LEARNING_VERSION,
+
+          engine:
+            LEARNING_ENGINE
+        },
+
+        decision: {
+          layer:
+            DECISION_LAYER,
+
+          version:
+            DECISION_VERSION
+        },
+
+        action: {
+          layer:
+            ACTION_LAYER,
+
+          version:
+            ACTION_VERSION
+        },
+
+        automation: {
+          layer:
+            LAYER,
+
+          version:
+            VERSION
+        }
+      },
+
       guardrails: {
-        reads_raw_behavior_events: false,
-        recalculates_measurement: false,
-        recalculates_intelligence: false,
-        recalculates_learning: false,
-        creates_decision: false,
-        changes_strategy: false,
-        winner_declared: false,
-        automatic_execution: false,
-        external_execution: false,
-        action_executed: false,
-        requires_human_approval: true
+        reads_raw_behavior_events:
+          false,
+
+        recalculates_measurement:
+          false,
+
+        recalculates_intelligence:
+          false,
+
+        recalculates_learning:
+          false,
+
+        creates_decision:
+          false,
+
+        changes_strategy:
+          false,
+
+        winner_declared:
+          false,
+
+        automatic_execution:
+          false,
+
+        external_execution:
+          false,
+
+        action_executed:
+          false,
+
+        requires_human_approval:
+          true
       },
 
       execution_policy: {
-        mode: "CONTROLLED_EXECUTION",
-        approval_required: true,
-        external_execution_enabled: false,
-        automatic_execution_enabled: false
+        mode:
+          "CONTROLLED_EXECUTION",
+
+        approval_required:
+          true,
+
+        external_execution_enabled:
+          false,
+
+        automatic_execution_enabled:
+          false
       },
 
       handoff: {
-        next_layer: "FEEDBACK",
-        execution_ready: true,
-        approval_required: true,
-        execute: false
+        next_layer:
+          "FEEDBACK",
+
+        execution_ready:
+          true,
+
+        approval_required:
+          true,
+
+        execute:
+          false
       },
 
-      saved: false,
+      saved:
+        false,
 
-      timestamp: new Date().toISOString()
+      timestamp:
+        new Date().toISOString()
     });
   } catch (error) {
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        status: "ERROR",
-        error: error?.message || String(error),
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        status:
+          "ERROR",
+
+        error:
+          error?.message ||
+          String(error),
+
         guardrails: {
-          automatic_execution: false,
-          external_execution: false,
-          action_executed: false
+          automatic_execution:
+            false,
+
+          external_execution:
+            false,
+
+          action_executed:
+            false
         }
       },
       500
@@ -720,17 +1214,24 @@ export async function onRequestGet(context) {
  *
  * V1.0 execution is controlled.
  */
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
     let body = {};
 
     try {
-      body = await context.request.json();
+      body =
+        await context.request.json();
     } catch (_) {
       body = {};
     }
 
-    const mode = s(body?.mode || "preview").toLowerCase();
+    const mode =
+      s(
+        body?.mode ||
+          "preview"
+      ).toLowerCase();
 
     if (
       ![
@@ -742,10 +1243,18 @@ export async function onRequestPost(context) {
     ) {
       return json(
         {
-          success: false,
-          layer: LAYER,
-          version: VERSION,
-          status: "ERROR",
+          success:
+            false,
+
+          layer:
+            LAYER,
+
+          version:
+            VERSION,
+
+          status:
+            "ERROR",
+
           error:
             "Invalid mode. Allowed: preview, queue, approve, execute"
         },
@@ -755,20 +1264,31 @@ export async function onRequestPost(context) {
 
     /**
      * APPROVE
-     *
-     * Does not need to call Action Layer again.
      */
-    if (mode === "approve") {
+    if (
+      mode ===
+        "approve"
+    ) {
       const executionId =
-        s(body?.execution_id);
+        s(
+          body?.execution_id
+        );
 
       if (!executionId) {
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
-            status: "ERROR",
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
+            status:
+              "ERROR",
+
             error:
               "execution_id is required for approve mode"
           },
@@ -776,44 +1296,79 @@ export async function onRequestPost(context) {
         );
       }
 
-      const result = await approveExecution(
-        context.env,
-        executionId
-      );
+      const result =
+        await approveExecution(
+          context.env,
+          executionId
+        );
 
       return json({
-        success: true,
-        layer: LAYER,
-        version: VERSION,
-        mode: "APPROVE",
-        status: "APPROVED",
-        execution: result,
+        success:
+          true,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "APPROVE",
+
+        status:
+          "APPROVED",
+
+        execution:
+          result,
+
         guardrails: {
-          automatic_execution: false,
-          external_execution: false,
-          action_executed: false,
-          requires_human_approval: true
+          automatic_execution:
+            false,
+
+          external_execution:
+            false,
+
+          action_executed:
+            false,
+
+          requires_human_approval:
+            true
         },
-        timestamp: new Date().toISOString()
+
+        timestamp:
+          new Date().toISOString()
       });
     }
 
     /**
      * EXECUTE
      *
-     * Requires an already approved execution job.
+     * Requires an already approved job.
      */
-    if (mode === "execute") {
+    if (
+      mode ===
+        "execute"
+    ) {
       const executionId =
-        s(body?.execution_id);
+        s(
+          body?.execution_id
+        );
 
       if (!executionId) {
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
-            status: "ERROR",
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
+            status:
+              "ERROR",
+
             error:
               "execution_id is required for execute mode"
           },
@@ -821,176 +1376,353 @@ export async function onRequestPost(context) {
         );
       }
 
-      const result = await executeApproved(
-        context.env,
-        executionId
-      );
+      const result =
+        await executeApproved(
+          context.env,
+          executionId
+        );
 
       return json({
-        success: true,
-        layer: LAYER,
-        version: VERSION,
-        mode: "EXECUTE",
-        status: "EXECUTED",
-        execution: result,
+        success:
+          true,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        mode:
+          "EXECUTE",
+
+        status:
+          "EXECUTED",
+
+        execution:
+          result,
+
         guardrails: {
-          automatic_execution: false,
-          external_execution: false,
-          action_executed: true,
-          requires_human_approval: true
+          automatic_execution:
+            false,
+
+          external_execution:
+            false,
+
+          action_executed:
+            true,
+
+          requires_human_approval:
+            true
         },
-        timestamp: new Date().toISOString()
+
+        timestamp:
+          new Date().toISOString()
       });
     }
 
     /**
      * PREVIEW / QUEUE
      */
-    const result = await buildAutomation(context);
+    const result =
+      await buildAutomation(
+        context
+      );
 
     /**
      * PREVIEW
      */
-    if (mode === "preview") {
+    if (
+      mode ===
+        "preview"
+    ) {
       return json({
-        success: true,
-        layer: LAYER,
-        version: VERSION,
-        mode: "PREVIEW",
-        status: "EXECUTION_READY",
+        success:
+          true,
 
-        content: result.actionData.content,
+        layer:
+          LAYER,
 
-        action: result.actionData.action,
+        version:
+          VERSION,
+
+        engine:
+          "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE",
+
+        mode:
+          "PREVIEW",
+
+        status:
+          "EXECUTION_READY",
+
+        content:
+          result.actionData.content,
+
+        action:
+          result.actionData.action,
 
         execution: {
           ...result.executionPlan,
-          status: "PENDING_APPROVAL",
-          approved: false,
-          executed: false
+
+          status:
+            "PENDING_APPROVAL",
+
+          approved:
+            false,
+
+          executed:
+            false
         },
 
-        decision: result.actionData.decision,
+        decision:
+          result.actionData.decision,
 
-        evidence: result.actionData.evidence,
+        evidence:
+          result.actionData.evidence,
 
-        learning: result.actionData.learning,
+        learning:
+          result.actionData.learning,
 
-        intelligence: result.actionData.intelligence,
+        intelligence:
+          result.actionData.intelligence,
 
-        funnel: result.actionData.funnel,
+        funnel:
+          result.actionData.funnel,
 
         queue: {
-          status: "NOT_SAVED"
+          status:
+            "NOT_SAVED"
         },
 
+        source_chain: [
+          MEASUREMENT_LAYER,
+          INTELLIGENCE_ENGINE,
+          LEARNING_ENGINE,
+          DECISION_LAYER,
+          ACTION_LAYER,
+          LAYER
+        ],
+
         guardrails: {
-          reads_raw_behavior_events: false,
-          recalculates_measurement: false,
-          recalculates_intelligence: false,
-          recalculates_learning: false,
-          creates_decision: false,
-          changes_strategy: false,
-          winner_declared: false,
-          automatic_execution: false,
-          external_execution: false,
-          action_executed: false,
-          requires_human_approval: true
+          reads_raw_behavior_events:
+            false,
+
+          recalculates_measurement:
+            false,
+
+          recalculates_intelligence:
+            false,
+
+          recalculates_learning:
+            false,
+
+          creates_decision:
+            false,
+
+          changes_strategy:
+            false,
+
+          winner_declared:
+            false,
+
+          automatic_execution:
+            false,
+
+          external_execution:
+            false,
+
+          action_executed:
+            false,
+
+          requires_human_approval:
+            true
         },
 
         execution_policy: {
-          mode: "CONTROLLED_EXECUTION",
-          approval_required: true,
-          external_execution_enabled: false,
-          automatic_execution_enabled: false
+          mode:
+            "CONTROLLED_EXECUTION",
+
+          approval_required:
+            true,
+
+          external_execution_enabled:
+            false,
+
+          automatic_execution_enabled:
+            false
         },
 
-        saved: false,
+        saved:
+          false,
 
-        timestamp: new Date().toISOString()
+        timestamp:
+          new Date().toISOString()
       });
     }
 
     /**
      * QUEUE
      *
-     * Creates an execution job.
-     * Nothing is executed.
+     * Creates execution job.
+     * Nothing executes yet.
      */
-    const queued = await createExecutionJob(
-      context.env,
-      result.actionData,
-      result.executionPlan
-    );
+    const queued =
+      await createExecutionJob(
+        context.env,
+        result.actionData,
+        result.executionPlan
+      );
 
     return json({
-      success: true,
-      layer: LAYER,
-      version: VERSION,
-      mode: "QUEUE",
-      status: "PENDING_APPROVAL",
+      success:
+        true,
 
-      content: result.actionData.content,
+      layer:
+        LAYER,
 
-      action: result.actionData.action,
+      version:
+        VERSION,
+
+      engine:
+        "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE",
+
+      mode:
+        "QUEUE",
+
+      status:
+        "PENDING_APPROVAL",
+
+      content:
+        result.actionData.content,
+
+      action:
+        result.actionData.action,
 
       execution: {
         ...result.executionPlan,
-        status: "PENDING_APPROVAL",
-        approved: false,
-        executed: false
+
+        status:
+          "PENDING_APPROVAL",
+
+        approved:
+          false,
+
+        executed:
+          false
       },
 
-      decision: result.actionData.decision,
+      decision:
+        result.actionData.decision,
 
-      evidence: result.actionData.evidence,
+      evidence:
+        result.actionData.evidence,
 
-      learning: result.actionData.learning,
+      learning:
+        result.actionData.learning,
 
-      intelligence: result.actionData.intelligence,
+      intelligence:
+        result.actionData.intelligence,
 
-      funnel: result.actionData.funnel,
+      funnel:
+        result.actionData.funnel,
 
-      queue: queued,
+      queue:
+        queued,
+
+      source_chain: [
+        MEASUREMENT_LAYER,
+        INTELLIGENCE_ENGINE,
+        LEARNING_ENGINE,
+        DECISION_LAYER,
+        ACTION_LAYER,
+        LAYER
+      ],
 
       guardrails: {
-        reads_raw_behavior_events: false,
-        recalculates_measurement: false,
-        recalculates_intelligence: false,
-        recalculates_learning: false,
-        creates_decision: false,
-        changes_strategy: false,
-        winner_declared: false,
-        automatic_execution: false,
-        external_execution: false,
-        action_executed: false,
-        requires_human_approval: true
+        reads_raw_behavior_events:
+          false,
+
+        recalculates_measurement:
+          false,
+
+        recalculates_intelligence:
+          false,
+
+        recalculates_learning:
+          false,
+
+        creates_decision:
+          false,
+
+        changes_strategy:
+          false,
+
+        winner_declared:
+          false,
+
+        automatic_execution:
+          false,
+
+        external_execution:
+          false,
+
+        action_executed:
+          false,
+
+        requires_human_approval:
+          true
       },
 
       execution_policy: {
-        mode: "CONTROLLED_EXECUTION",
-        approval_required: true,
-        external_execution_enabled: false,
-        automatic_execution_enabled: false
+        mode:
+          "CONTROLLED_EXECUTION",
+
+        approval_required:
+          true,
+
+        external_execution_enabled:
+          false,
+
+        automatic_execution_enabled:
+          false
       },
 
-      saved: true,
+      saved:
+        true,
 
-      timestamp: new Date().toISOString()
+      timestamp:
+        new Date().toISOString()
     });
   } catch (error) {
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
-        status: "ERROR",
-        error: error?.message || String(error),
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
+        status:
+          "ERROR",
+
+        error:
+          error?.message ||
+          String(error),
+
         guardrails: {
-          automatic_execution: false,
-          external_execution: false,
-          action_executed: false,
-          requires_human_approval: true
+          automatic_execution:
+            false,
+
+          external_execution:
+            false,
+
+          action_executed:
+            false,
+
+          requires_human_approval:
+            true
         }
       },
       500
