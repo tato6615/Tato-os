@@ -340,7 +340,7 @@ function normalizeLearning(root) {
 
     intelligence_source:
       sourceContract?.intelligence ||
-      INTELLIGENCE_LAYER,
+      null,
 
     intelligence_version:
       sourceContract?.intelligence_version ||
@@ -396,10 +396,6 @@ function createDecision(learning) {
 
   /*
    * SECONDARY LEARNING-EVIDENCE FALLBACK
-   *
-   * This still uses evidence already supplied
-   * by Learning. It does not recalculate
-   * Measurement or Intelligence.
    */
 
   if (
@@ -571,11 +567,6 @@ function buildResponse(
       execute: false
     },
 
-    /*
-     * Evidence is taken from Learning V2.3.
-     * Decision Layer does not recalculate it.
-     */
-
     evidence: {
       attention:
         m.attention,
@@ -689,8 +680,8 @@ function buildResponse(
 
     source_chain: [
       MEASUREMENT_LAYER,
-      INTELLIGENCE_LAYER,
-      LEARNING_LAYER,
+      INTELLIGENCE_ENGINE,
+      LEARNING_ENGINE,
       LAYER
     ],
 
@@ -714,42 +705,22 @@ function buildResponse(
         layer:
           learning.intelligence_source,
 
-        expected:
-          INTELLIGENCE_LAYER,
-
         version:
           learning.intelligence_version,
 
-        expected_version:
-          INTELLIGENCE_VERSION,
-
         engine:
-          learning.intelligence_engine,
-
-        expected_engine:
-          INTELLIGENCE_ENGINE,
-
-        state:
-          root?.learning?.evidence
-            ?.intelligence_state ||
-          null
+          learning.intelligence_engine
       },
 
       learning: {
         layer:
-          LEARNING_LAYER,
+          learning.layer,
 
         version:
           learning.version,
 
-        expected_version:
-          LEARNING_VERSION,
-
         engine:
           learning.engine,
-
-        expected_engine:
-          LEARNING_ENGINE,
 
         state:
           learning.state,
@@ -852,12 +823,17 @@ function validateLearningContract(
 ) {
   const errors = [];
 
+  /*
+   * Learning identity
+   */
+
   if (
     learning.layer !==
     LEARNING_LAYER
   ) {
     errors.push({
-      field: "learning.layer",
+      field:
+        "learning.layer",
 
       expected:
         LEARNING_LAYER,
@@ -872,7 +848,8 @@ function validateLearningContract(
     LEARNING_VERSION
   ) {
     errors.push({
-      field: "learning.version",
+      field:
+        "learning.version",
 
       expected:
         LEARNING_VERSION,
@@ -882,13 +859,23 @@ function validateLearningContract(
     });
   }
 
+  /*
+   * Learning engine is optional because
+   * current Learning V2.3 output does not
+   * expose learning.engine in the learning
+   * object.
+   *
+   * If it exists, validate it.
+   */
+
   if (
     learning.engine &&
     learning.engine !==
       LEARNING_ENGINE
   ) {
     errors.push({
-      field: "learning.engine",
+      field:
+        "learning.engine",
 
       expected:
         LEARNING_ENGINE,
@@ -897,6 +884,10 @@ function validateLearningContract(
         learning.engine
     });
   }
+
+  /*
+   * Measurement source
+   */
 
   if (
     learning.measurement_source !==
@@ -914,26 +905,44 @@ function validateLearningContract(
     });
   }
 
+  /*
+   * Intelligence source contract
+   *
+   * IMPORTANT:
+   *
+   * Learning V2.3 returns:
+   *
+   * source_contract.intelligence
+   * = INTELLIGENCE_V2.1_FEEDBACK_AWARE
+   *
+   * Therefore this field must be
+   * validated against the ENGINE value,
+   * not INTELLIGENCE_LAYER_V2.
+   */
+
   if (
     learning.intelligence_source !==
-    INTELLIGENCE_LAYER
+    INTELLIGENCE_ENGINE
   ) {
     errors.push({
       field:
         "learning.source_contract.intelligence",
 
       expected:
-        INTELLIGENCE_LAYER,
+        INTELLIGENCE_ENGINE,
 
       received:
         learning.intelligence_source
     });
   }
 
+  /*
+   * Intelligence version
+   */
+
   if (
-    learning.intelligence_version &&
     learning.intelligence_version !==
-      INTELLIGENCE_VERSION
+    INTELLIGENCE_VERSION
   ) {
     errors.push({
       field:
@@ -947,10 +956,13 @@ function validateLearningContract(
     });
   }
 
+  /*
+   * Intelligence engine
+   */
+
   if (
-    learning.intelligence_engine &&
     learning.intelligence_engine !==
-      INTELLIGENCE_ENGINE
+    INTELLIGENCE_ENGINE
   ) {
     errors.push({
       field:
@@ -1013,7 +1025,7 @@ export async function onRequestGet(
       );
 
     /*
-     * Strict Learning V2.3 contract.
+     * Strict current upstream contract.
      */
 
     const contractErrors =
@@ -1038,7 +1050,7 @@ export async function onRequestGet(
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.2 requires Learning Engine V2.3 and its current upstream contracts.",
+            "Decision Layer V1.2 requires the current Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
@@ -1053,8 +1065,11 @@ export async function onRequestGet(
             measurement:
               MEASUREMENT_LAYER,
 
-            intelligence:
+            intelligence_layer:
               INTELLIGENCE_LAYER,
+
+            intelligence_source:
+              INTELLIGENCE_ENGINE,
 
             intelligence_version:
               INTELLIGENCE_VERSION,
@@ -1076,7 +1091,7 @@ export async function onRequestGet(
             measurement:
               learning.measurement_source,
 
-            intelligence:
+            intelligence_source:
               learning.intelligence_source,
 
             intelligence_version:
