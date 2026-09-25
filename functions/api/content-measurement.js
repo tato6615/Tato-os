@@ -1,8 +1,38 @@
 // TATO-OS
-// Content Measurement Engine V2.2
+// Content Measurement Engine V2.3
 // Route: /api/content-measurement
+//
+// Pipeline:
+//
+// Measurement V2.3
+//        ↑
+// Feedback V1.1
+//        ↑
+// Automation Execution V1.0
+//        ↑
+// Action V1.0
+//        ↑
+// Decision V1.1
+//        ↑
+// Learning V2.2
+//        ↑
+// Intelligence V2.0
+//
+// V2.3 adds:
+// - read persisted feedback_events
+// - detect pending measurement feedback
+// - run normal Measurement V2.2 logic
+// - mark feedback measurement_completed = 1
+// - expose feedback handoff status
+//
+// IMPORTANT:
+// Feedback is NOT counted as behavior.
+// Feedback does NOT become Attention.
+// Feedback does NOT alter funnel metrics.
+// Feedback only closes the operational handoff into Measurement.
 
-const LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.2";
+const LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.3";
+const PREVIOUS_LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.2";
 const ATTRIBUTION_MODE = "CONTENT_ATTRIBUTION_V2";
 
 const HEADERS = {
@@ -234,6 +264,134 @@ async function getMeasurementStart(
   return new Date().toISOString();
 }
 
+/*
+ * FEEDBACK INTEGRATION V2.3
+ *
+ * Feedback is operational state only.
+ * It is NEVER included in behavior metrics.
+ */
+async function getPendingFeedback(
+  db,
+  contentId
+) {
+  try {
+    const row = await db
+      .prepare(
+        `SELECT
+          id,
+          execution_id,
+          content_id,
+          action_code,
+          action_target,
+          execution_code,
+          execution_status,
+          expected_outcome,
+          actual_outcome,
+          outcome_status,
+          operator_note,
+          measurement_required,
+          measurement_completed,
+          feedback_payload,
+          created_at,
+          updated_at
+         FROM feedback_events
+         WHERE content_id = ?
+           AND measurement_required = 1
+           AND measurement_completed = 0
+         ORDER BY created_at DESC
+         LIMIT 1`
+      )
+      .bind(contentId)
+      .first();
+
+    return row || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function markFeedbackMeasurementCompleted(
+  db,
+  feedbackId
+) {
+  if (!feedbackId) {
+    return {
+      success: false,
+      updated: false,
+      reason: "NO_FEEDBACK_ID"
+    };
+  }
+
+  try {
+    const updatedAt =
+      new Date().toISOString();
+
+    await db
+      .prepare(
+        `UPDATE feedback_events
+         SET
+           measurement_completed = 1,
+           updated_at = ?
+         WHERE id = ?`
+      )
+      .bind(
+        updatedAt,
+        feedbackId
+      )
+      .run();
+
+    const row =
+      await db
+        .prepare(
+          `SELECT
+            id,
+            measurement_required,
+            measurement_completed,
+            updated_at
+           FROM feedback_events
+           WHERE id = ?
+           LIMIT 1`
+        )
+        .bind(feedbackId)
+        .first();
+
+    if (!row) {
+      return {
+        success: false,
+        updated: false,
+        verified: false,
+        reason:
+          "FEEDBACK_RECORD_NOT_FOUND_AFTER_UPDATE"
+      };
+    }
+
+    return {
+      success: true,
+      updated:
+        Number(row.measurement_completed) === 1,
+      verified:
+        Number(row.measurement_completed) === 1,
+      record_id:
+        row.id,
+      measurement_required:
+        Number(row.measurement_required) === 1,
+      measurement_completed:
+        Number(row.measurement_completed) === 1,
+      updated_at:
+        row.updated_at
+    };
+  } catch (error) {
+    return {
+      success: false,
+      updated: false,
+      verified: false,
+      reason:
+        error?.message ||
+        String(error)
+    };
+  }
+}
+
 async function getBehaviorEvents(db, measurementStart) {
   try {
     const result = await db
@@ -253,32 +411,44 @@ async function getBehaviorEvents(db, measurementStart) {
 }
 
 function getContentEvents(events, contentId) {
-  const targetContentId = stringValue(contentId);
+  const targetContentId =
+    stringValue(contentId);
 
   return events.filter((event) => {
-    return getEventContentId(event) === targetContentId;
+    return (
+      getEventContentId(event) ===
+      targetContentId
+    );
   });
 }
 
 function getClicks(events) {
   return events.filter((event) => {
     return (
-      normalizeEventType(event.event_type) ===
+      normalizeEventType(
+        event.event_type
+      ) ===
       "content_click"
     );
   });
 }
 
 function isAfterClick(event, click) {
-  const eventTime = getEventTime(event);
-  const clickTime = getEventTime(click);
+  const eventTime =
+    getEventTime(event);
+
+  const clickTime =
+    getEventTime(click);
 
   if (!eventTime || !clickTime) {
     return false;
   }
 
-  const eventSession = getEventSessionId(event);
-  const clickSession = getEventSessionId(click);
+  const eventSession =
+    getEventSessionId(event);
+
+  const clickSession =
+    getEventSessionId(click);
 
   if (!eventSession || !clickSession) {
     return false;
@@ -290,14 +460,20 @@ function isAfterClick(event, click) {
   );
 }
 
-function getDownstreamEvents(allEvents, clicks) {
+function getDownstreamEvents(
+  allEvents,
+  clicks
+) {
   if (!clicks.length) {
     return [];
   }
 
   return allEvents.filter((event) => {
     return clicks.some((click) => {
-      return isAfterClick(event, click);
+      return isAfterClick(
+        event,
+        click
+      );
     });
   });
 }
@@ -312,7 +488,9 @@ function uniqueValues(values) {
             value !== undefined &&
             stringValue(value) !== ""
         )
-        .map((value) => stringValue(value))
+        .map((value) =>
+          stringValue(value)
+        )
     )
   ];
 }
@@ -321,7 +499,10 @@ function getCustomerIdsFromEvents(events) {
   const ids = [];
 
   for (const event of events) {
-    const type = normalizeEventType(event.event_type);
+    const type =
+      normalizeEventType(
+        event.event_type
+      );
 
     if (
       type === "customer" ||
@@ -329,7 +510,9 @@ function getCustomerIdsFromEvents(events) {
       type === "lead_created"
     ) {
       if (event.customer_id) {
-        ids.push(event.customer_id);
+        ids.push(
+          event.customer_id
+        );
       }
     }
   }
@@ -375,7 +558,9 @@ async function getCustomerIds(
            FROM customers
            WHERE session_id IN (${placeholders})`
         )
-        .bind(...clickSessions)
+        .bind(
+          ...clickSessions
+        )
         .all();
 
     return uniqueValues(
@@ -411,7 +596,10 @@ async function getOrders(
         .prepare(
           `SELECT
              COUNT(*) AS orders,
-             COALESCE(SUM(amount), 0) AS revenue
+             COALESCE(
+               SUM(amount),
+               0
+             ) AS revenue
            FROM orders
            WHERE customer_id IN (${placeholders})
              AND created_at >= ?`
@@ -425,11 +613,14 @@ async function getOrders(
     return {
       orders:
         numberValue(
-          row && row.orders
+          row &&
+          row.orders
         ),
+
       revenue:
         numberValue(
-          row && row.revenue
+          row &&
+          row.revenue
         )
     };
   } catch (_) {
@@ -549,6 +740,16 @@ async function measure(
   const contentId =
     stringValue(content.id);
 
+  /*
+   * STEP 1
+   * Read pending Feedback before measurement.
+   */
+  const pendingFeedback =
+    await getPendingFeedback(
+      db,
+      contentId
+    );
+
   const measurementStart =
     await getMeasurementStart(
       db,
@@ -556,6 +757,12 @@ async function measure(
       content.created_at
     );
 
+  /*
+   * STEP 2
+   * Normal Measurement V2.2 behavior pipeline.
+   *
+   * Feedback is NOT read as behavior.
+   */
   const allEvents =
     await getBehaviorEvents(
       db,
@@ -634,10 +841,7 @@ async function measure(
    * content_click = 3
    * product_view  = 4
    * engagement    = 5
-   *
-   * Attention is a weighted behavioral score.
    */
-
   const attention =
     calculateAttentionScore(
       contentEvents
@@ -650,17 +854,23 @@ async function measure(
 
   const metrics = {
     attention,
+
     product_views:
       productViews.length,
+
     clicks:
       clicks.length,
+
     engagements:
       engagements.length +
       downstreamEngagements.length,
+
     customers:
       customerIds.length,
+
     orders:
       orderData.orders,
+
     revenue:
       orderData.revenue
   };
@@ -702,6 +912,10 @@ async function measure(
   const measurementId =
     makeId();
 
+  /*
+   * STEP 3
+   * Persist normal Measurement.
+   */
   await insertMeasurement(
     db,
     {
@@ -760,6 +974,81 @@ async function measure(
     }
   );
 
+  /*
+   * STEP 4
+   * If Feedback requested a Measurement cycle,
+   * mark that Feedback as completed ONLY AFTER
+   * the Measurement record has been successfully saved.
+   */
+  let feedbackIntegration = {
+    detected: false,
+    completed: false,
+    verified: false,
+    record_id: null,
+    measurement_required: false,
+    measurement_completed: false
+  };
+
+  if (pendingFeedback) {
+    const completion =
+      await markFeedbackMeasurementCompleted(
+        db,
+        pendingFeedback.id
+      );
+
+    feedbackIntegration = {
+      detected: true,
+
+      completed:
+        Boolean(
+          completion.updated
+        ),
+
+      verified:
+        Boolean(
+          completion.verified
+        ),
+
+      record_id:
+        pendingFeedback.id,
+
+      execution_id:
+        pendingFeedback.execution_id ||
+        null,
+
+      action_code:
+        pendingFeedback.action_code ||
+        null,
+
+      action_target:
+        pendingFeedback.action_target ||
+        null,
+
+      actual_outcome:
+        pendingFeedback.actual_outcome ||
+        null,
+
+      outcome_status:
+        pendingFeedback.outcome_status ||
+        null,
+
+      measurement_required:
+        completion.measurement_required !==
+        undefined
+          ? completion.measurement_required
+          : true,
+
+      measurement_completed:
+        Boolean(
+          completion.measurement_completed
+        ),
+
+      updated_at:
+        completion.updated_at ||
+        null
+    };
+  }
+
   return {
     success: true,
 
@@ -767,7 +1056,10 @@ async function measure(
       LAYER,
 
     version:
-      "2.2",
+      "2.3",
+
+    previous_version:
+      PREVIOUS_LAYER,
 
     content: {
       id:
@@ -846,6 +1138,29 @@ async function measure(
         attentionBreakdown
     },
 
+    feedback_integration: {
+      layer:
+        "FEEDBACK_LAYER_V1.1",
+
+      role:
+        "Operational handoff only",
+
+      counted_as_behavior:
+        false,
+
+      counted_as_attention:
+        false,
+
+      alters_funnel_metrics:
+        false,
+
+      pending_feedback_before_measurement:
+        Boolean(pendingFeedback),
+
+      result:
+        feedbackIntegration
+    },
+
     diagnostics: {
       total_behavior_events:
         allEvents.length,
@@ -881,7 +1196,74 @@ async function measure(
         ATTRIBUTION_MODE,
 
       winner_decision:
-        "NOT_DECLARED_IN_V2.2"
+        "NOT_DECLARED_IN_V2.3"
+    },
+
+    source_chain: [
+      "FEEDBACK_LAYER_V1.1",
+      "CONTENT_MEASUREMENT_ENGINE_V2.3"
+    ],
+
+    guardrails: {
+      reads_raw_behavior_events:
+        true,
+
+      feedback_used_as_behavior:
+        false,
+
+      feedback_used_as_attention:
+        false,
+
+      recalculates_from_feedback:
+        false,
+
+      winner_declared:
+        false,
+
+      strategy_changed:
+        false,
+
+      decision_created:
+        false,
+
+      action_executed:
+        false,
+
+      automatic_execution:
+        false,
+
+      feedback_measurement_completed:
+        Boolean(
+          feedbackIntegration.completed &&
+          feedbackIntegration.verified
+        )
+    },
+
+    loop: {
+      current_layer:
+        "MEASUREMENT_V2.3",
+
+      previous_layer:
+        "FEEDBACK_V1.1",
+
+      next_layer:
+        "INTELLIGENCE_V2",
+
+      feedback_detected:
+        Boolean(pendingFeedback),
+
+      feedback_completed:
+        Boolean(
+          feedbackIntegration.completed &&
+          feedbackIntegration.verified
+        ),
+
+      closed:
+        Boolean(
+          pendingFeedback &&
+          feedbackIntegration.completed &&
+          feedbackIntegration.verified
+        )
     }
   };
 }
@@ -915,8 +1297,13 @@ export async function onRequestGet(
     return json(
       {
         success: false,
+
         layer:
           LAYER,
+
+        version:
+          "2.3",
+
         error:
           error &&
           error.message
@@ -960,8 +1347,13 @@ export async function onRequestPost(
     return json(
       {
         success: false,
+
         layer:
           LAYER,
+
+        version:
+          "2.3",
+
         error:
           error &&
           error.message
