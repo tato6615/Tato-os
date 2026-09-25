@@ -1,5 +1,6 @@
+```javascript
 // TATO-OS
-// Decision Layer V1.2
+// Decision Layer V1.3
 // Route: /api/decision
 //
 // Pipeline:
@@ -10,14 +11,16 @@
 //        ↓
 // Learning Engine V2.3
 //        ↓
-// Decision Layer V1.2
+// Decision Layer V1.3
 //        ↓
 // Action Layer V1.0
 //
 // Decision Layer DOES:
 // - read Learning Engine output
-// - use Learning evidence as source of decision
+// - validate upstream contracts
+// - use Learning decision_input as primary decision source
 // - create a decision
+// - preserve Learning evidence
 // - hand off to Action Layer
 //
 // Decision Layer DOES NOT:
@@ -30,7 +33,7 @@
 // - execute actions
 // - execute external actions
 
-const VERSION = "1.2";
+const VERSION = "1.3";
 const LAYER = "DECISION_LAYER_V1";
 
 const LEARNING_LAYER = "LEARNING_ENGINE_V2";
@@ -47,6 +50,12 @@ const INTELLIGENCE_LAYER =
 const INTELLIGENCE_VERSION = "2.1";
 const INTELLIGENCE_ENGINE =
   "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const DECISION_ENGINE =
+  "DECISION_V1.3_LEARNING_V2.3_COMPATIBLE";
+
+const ACTION_LAYER =
+  "ACTION_LAYER_V1";
 
 function json(data, status = 200) {
   return new Response(
@@ -88,7 +97,7 @@ async function getLearning(request, contentId) {
     {
       method: "GET",
       headers: {
-        "accept": "application/json"
+        accept: "application/json"
       }
     }
   );
@@ -184,7 +193,7 @@ function normalizeLearning(root) {
       learning?.state || null,
 
     confidence:
-      learning?.confidence || null,
+      learning?.confidence ?? null,
 
     evidence_available:
       learning?.evidence_available === true,
@@ -336,7 +345,7 @@ function normalizeLearning(root) {
 
     measurement_source:
       sourceContract?.measurement ||
-      MEASUREMENT_LAYER,
+      null,
 
     intelligence_source:
       sourceContract?.intelligence ||
@@ -364,43 +373,74 @@ function normalizeLearning(root) {
   };
 }
 
-function createDecision(learning) {
+function hasBehavioralEvidence(learning) {
   const m = learning.metrics;
 
+  return (
+    learning.evidence_available === true &&
+    (
+      m.attention > 0 ||
+      m.clicks > 0 ||
+      m.product_views > 0 ||
+      m.engagements > 0 ||
+      m.customers > 0 ||
+      m.orders > 0 ||
+      m.revenue > 0
+    )
+  );
+}
+
+function createDecision(learning) {
   /*
    * PRIMARY DECISION SOURCE
    *
    * Learning V2.3 decision_input
-   * is authoritative.
+   * is authoritative when valid.
    */
 
+  const learningDecision =
+    learning.decision_input || {};
+
   if (
-    learning.decision_input?.type ===
-      "INVESTIGATE_DOWNSTREAM_PATH" &&
-    learning.decision_input?.target ===
-      "CLICK_TO_PRODUCT_VIEW_PATH"
+    learningDecision.type &&
+    learningDecision.target
   ) {
     return {
-      priority: "HIGH",
+      priority:
+        learningDecision.type ===
+          "INVESTIGATE_DOWNSTREAM_PATH"
+          ? "HIGH"
+          : "MEDIUM",
 
       type:
-        "INVESTIGATE_DOWNSTREAM_PATH",
+        learningDecision.type,
 
       target:
-        "CLICK_TO_PRODUCT_VIEW_PATH",
+        learningDecision.target,
 
       reason:
-        "Learning V2.3 identifies a persistent click-to-product-view downstream block."
+        "Decision created from Learning V2.3 decision_input.",
+
+      source:
+        "LEARNING_DECISION_INPUT"
     };
   }
 
   /*
-   * SECONDARY LEARNING-EVIDENCE FALLBACK
+   * SECONDARY FALLBACK
+   *
+   * These checks only interpret already
+   * calculated Learning evidence.
+   *
+   * They do NOT recalculate Measurement,
+   * Intelligence or Learning.
    */
 
+  const m = learning.metrics;
+  const p = learning.patterns;
+
   if (
-    learning.patterns?.click_without_product_view ===
-      true &&
+    p.click_without_product_view === true &&
     m.clicks > 0 &&
     m.product_views === 0
   ) {
@@ -414,11 +454,15 @@ function createDecision(learning) {
         "CLICK_TO_PRODUCT_VIEW_PATH",
 
       reason:
-        "Learning evidence shows clicks without downstream product views."
+        "Learning evidence shows clicks without downstream product views.",
+
+      source:
+        "LEARNING_EVIDENCE_FALLBACK"
     };
   }
 
   if (
+    p.persistent_no_customer === true &&
     m.product_views > 0 &&
     m.customers === 0
   ) {
@@ -432,11 +476,15 @@ function createDecision(learning) {
         "PRODUCT_VIEW_TO_CUSTOMER_PATH",
 
       reason:
-        "Learning evidence shows product views without customers."
+        "Learning evidence shows a persistent product-view to customer gap.",
+
+      source:
+        "LEARNING_EVIDENCE_FALLBACK"
     };
   }
 
   if (
+    p.persistent_no_order === true &&
     m.customers > 0 &&
     m.orders === 0
   ) {
@@ -450,11 +498,15 @@ function createDecision(learning) {
         "CUSTOMER_TO_ORDER_PATH",
 
       reason:
-        "Learning evidence shows customers without orders."
+        "Learning evidence shows a persistent customer to order gap.",
+
+      source:
+        "LEARNING_EVIDENCE_FALLBACK"
     };
   }
 
   if (
+    p.persistent_no_revenue === true &&
     m.orders > 0 &&
     m.revenue === 0
   ) {
@@ -468,20 +520,22 @@ function createDecision(learning) {
         "ORDER_TO_REVENUE_PATH",
 
       reason:
-        "Learning evidence shows orders without measured revenue."
+        "Learning evidence shows a persistent order to revenue gap.",
+
+      source:
+        "LEARNING_EVIDENCE_FALLBACK"
     };
   }
 
+  /*
+   * No sufficient behavioral evidence.
+   *
+   * This is a valid Decision state,
+   * not a system error.
+   */
+
   if (
-    learning.evidence_available !== true ||
-    (
-      m.attention === 0 &&
-      m.clicks === 0 &&
-      m.product_views === 0 &&
-      m.customers === 0 &&
-      m.orders === 0 &&
-      m.revenue === 0
-    )
+    learning.evidence_available !== true
   ) {
     return {
       priority: "LOW",
@@ -493,9 +547,37 @@ function createDecision(learning) {
         "CURRENT_CONTENT",
 
       reason:
-        "Learning Engine does not provide sufficient behavioral evidence for a downstream decision."
+        "Learning Engine does not currently provide sufficient behavioral evidence.",
+
+      source:
+        "LEARNING_STATE"
     };
   }
+
+  if (
+    !hasBehavioralEvidence(learning)
+  ) {
+    return {
+      priority: "LOW",
+
+      type:
+        "WAIT_FOR_BEHAVIORAL_DATA",
+
+      target:
+        "CURRENT_CONTENT",
+
+      reason:
+        "No measurable behavioral evidence is available.",
+
+      source:
+        "LEARNING_EVIDENCE"
+    };
+  }
+
+  /*
+   * Evidence exists but no actionable
+   * downstream block was identified.
+   */
 
   return {
     priority: "LOW",
@@ -507,7 +589,10 @@ function createDecision(learning) {
       "CURRENT_CONTENT",
 
     reason:
-      "Learning evidence does not identify a specific downstream block."
+      "Learning evidence does not identify a specific downstream block.",
+
+    source:
+      "LEARNING_EVIDENCE"
   };
 }
 
@@ -532,10 +617,13 @@ function buildResponse(
       VERSION,
 
     engine:
-      "DECISION_V1.2_LEARNING_V2.3_COMPATIBLE",
+      DECISION_ENGINE,
 
     status:
       "DECISION_READY",
+
+    mode:
+      "PREVIEW",
 
     content: {
       id:
@@ -705,11 +793,20 @@ function buildResponse(
         layer:
           learning.intelligence_source,
 
+        expected_layer:
+          INTELLIGENCE_LAYER,
+
         version:
           learning.intelligence_version,
 
+        expected_version:
+          INTELLIGENCE_VERSION,
+
         engine:
-          learning.intelligence_engine
+          learning.intelligence_engine,
+
+        expected_engine:
+          INTELLIGENCE_ENGINE
       },
 
       learning: {
@@ -737,7 +834,10 @@ function buildResponse(
           LAYER,
 
         version:
-          VERSION
+          VERSION,
+
+        engine:
+          DECISION_ENGINE
       }
     },
 
@@ -787,10 +887,11 @@ function buildResponse(
 
     handoff: {
       next_layer:
-        "ACTION_LAYER_V1",
+        ACTION_LAYER,
 
       action_required:
-        true,
+        decision.type !==
+        "WAIT_FOR_BEHAVIORAL_DATA",
 
       execute:
         false
@@ -809,9 +910,6 @@ function buildResponse(
 
     timestamp:
       new Date().toISOString(),
-
-    mode:
-      "PREVIEW",
 
     saved:
       false
@@ -860,12 +958,9 @@ function validateLearningContract(
   }
 
   /*
-   * Learning engine is optional because
-   * current Learning V2.3 output does not
-   * expose learning.engine in the learning
-   * object.
+   * Learning engine
    *
-   * If it exists, validate it.
+   * Optional for compatibility.
    */
 
   if (
@@ -906,18 +1001,10 @@ function validateLearningContract(
   }
 
   /*
-   * Intelligence source contract
+   * Intelligence source
    *
-   * IMPORTANT:
-   *
-   * Learning V2.3 returns:
-   *
-   * source_contract.intelligence
-   * = INTELLIGENCE_V2.1_FEEDBACK_AWARE
-   *
-   * Therefore this field must be
-   * validated against the ENGINE value,
-   * not INTELLIGENCE_LAYER_V2.
+   * Learning V2.3 exposes the engine
+   * identifier in source_contract.intelligence.
    */
 
   if (
@@ -976,6 +1063,14 @@ function validateLearningContract(
     });
   }
 
+  /*
+   * Content identity
+   *
+   * Content ID may be supplied by either
+   * learning.content_id or root.content.id.
+   * Validation happens after normalization.
+   */
+
   return errors;
 }
 
@@ -1025,7 +1120,7 @@ export async function onRequestGet(
       );
 
     /*
-     * Strict current upstream contract.
+     * Validate strict upstream contract.
      */
 
     const contractErrors =
@@ -1050,7 +1145,7 @@ export async function onRequestGet(
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.2 requires the current Learning V2.3 upstream contract.",
+            "Decision Layer V1.3 requires the current Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
@@ -1143,35 +1238,12 @@ export async function onRequestGet(
     }
 
     /*
-     * Learning must explicitly provide evidence.
-     */
-
-    if (
-      learning.evidence_available !==
-      true
-    ) {
-      return json(
-        {
-          success: false,
-
-          layer:
-            LAYER,
-
-          version:
-            VERSION,
-
-          status:
-            "EVIDENCE_NOT_AVAILABLE",
-
-          error:
-            "Learning Engine V2.3 did not provide sufficient evidence."
-        },
-        409
-      );
-    }
-
-    /*
-     * Create decision from Learning evidence.
+     * Decision creation.
+     *
+     * IMPORTANT:
+     * A lack of evidence is not an internal
+     * system failure. It is a valid upstream
+     * state and produces WAIT.
      */
 
     const decision =
@@ -1217,3 +1289,4 @@ export async function onRequestPost(
     context
   );
 }
+```
