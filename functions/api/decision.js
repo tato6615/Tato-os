@@ -1,6 +1,5 @@
-```javascript
 // TATO-OS
-// Decision Layer V1.3.1
+// Decision Layer V1.3.2
 // Route: /api/decision
 //
 // Pipeline:
@@ -11,7 +10,7 @@
 //        ↓
 // Learning Engine V2.3
 //        ↓
-// Decision Layer V1.3.1
+// Decision Layer V1.3.2
 //        ↓
 // Action Layer V1.0
 //
@@ -33,41 +32,33 @@
 // - execute actions
 // - execute external actions
 
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
+
 const LAYER = "DECISION_LAYER_V1";
 
 const LEARNING_LAYER = "LEARNING_ENGINE_V2";
 const LEARNING_VERSION = "2.3";
-const LEARNING_ENGINE =
-  "LEARNING_V2.3_FEEDBACK_AWARE";
+const LEARNING_ENGINE = "LEARNING_V2.3_FEEDBACK_AWARE";
 
-const MEASUREMENT_LAYER =
-  "CONTENT_MEASUREMENT_ENGINE_V2.3";
+const MEASUREMENT_LAYER = "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
-const INTELLIGENCE_LAYER =
-  "INTELLIGENCE_LAYER_V2";
-
+const INTELLIGENCE_LAYER = "INTELLIGENCE_LAYER_V2";
 const INTELLIGENCE_VERSION = "2.1";
-
-const INTELLIGENCE_ENGINE =
-  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+const INTELLIGENCE_ENGINE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 const DECISION_ENGINE =
-  "DECISION_V1.3.1_LEARNING_V2.3_COMPATIBLE";
+  "DECISION_V1.3.2_LEARNING_V2.3_COMPATIBLE";
 
-const ACTION_LAYER =
-  "ACTION_LAYER_V1";
+const ACTION_LAYER = "ACTION_LAYER_V1";
 
-function json(data, status) {
+function json(data, status = 200) {
   return new Response(
     JSON.stringify(data, null, 2),
     {
-      status: status || 200,
+      status,
       headers: {
-        "content-type":
-          "application/json; charset=UTF-8",
-        "cache-control":
-          "no-store"
+        "content-type": "application/json; charset=UTF-8",
+        "cache-control": "no-store"
       }
     }
   );
@@ -99,14 +90,14 @@ async function getLearning(request, contentId) {
     {
       method: "GET",
       headers: {
-        "accept": "application/json"
+        accept: "application/json"
       }
     }
   );
 
   const text = await response.text();
 
-  let data = null;
+  let data;
 
   try {
     data = JSON.parse(text);
@@ -144,35 +135,22 @@ function normalizeLearning(root) {
       : {};
 
   const evidence =
-    learning && learning.evidence
-      ? learning.evidence
-      : {};
+    learning.evidence || {};
 
   const metrics =
-    evidence && evidence.metrics
-      ? evidence.metrics
-      : {};
+    evidence.metrics || {};
 
   const patterns =
-    evidence && evidence.patterns
-      ? evidence.patterns
-      : {};
+    evidence.patterns || {};
 
   const conversions =
-    evidence && evidence.conversions
-      ? evidence.conversions
-      : {};
+    evidence.conversions || {};
 
   const latestMeasurement =
-    evidence &&
-    evidence.latest_measurement
-      ? evidence.latest_measurement
-      : {};
+    evidence.latest_measurement || {};
 
   const decisionInput =
-    learning && learning.decision_input
-      ? learning.decision_input
-      : {};
+    learning.decision_input || {};
 
   const hypotheses =
     Array.isArray(learning.hypotheses)
@@ -185,13 +163,11 @@ function normalizeLearning(root) {
       : [];
 
   const sourceContract =
-    learning && learning.source_contract
-      ? learning.source_contract
-      : {};
+    learning.source_contract || {};
 
   const feedbackContext =
     (root && root.feedback_context) ||
-    (learning && learning.feedback_context) ||
+    learning.feedback_context ||
     null;
 
   return {
@@ -365,27 +341,21 @@ function normalizeLearning(root) {
         decisionInput.target || null
     },
 
-    hypotheses:
-      hypotheses,
+    hypotheses,
 
-    repeated_signals:
-      repeatedSignals,
+    repeated_signals,
 
     measurement_source:
-      sourceContract.measurement ||
-      null,
+      sourceContract.measurement || null,
 
     intelligence_source:
-      sourceContract.intelligence ||
-      null,
+      sourceContract.intelligence || null,
 
     intelligence_version:
-      sourceContract.intelligence_version ||
-      null,
+      sourceContract.intelligence_version || null,
 
     intelligence_engine:
-      sourceContract.intelligence_engine ||
-      null,
+      sourceContract.intelligence_engine || null,
 
     learning_version:
       sourceContract.learning_version ||
@@ -393,8 +363,7 @@ function normalizeLearning(root) {
       null,
 
     feedback_source:
-      sourceContract.feedback ||
-      null,
+      sourceContract.feedback || null,
 
     feedback_context:
       feedbackContext
@@ -436,7 +405,7 @@ function createDecision(learning) {
     return {
       priority:
         input.type ===
-          "INVESTIGATE_DOWNSTREAM_PATH"
+        "INVESTIGATE_DOWNSTREAM_PATH"
           ? "HIGH"
           : "MEDIUM",
 
@@ -609,6 +578,130 @@ function createDecision(learning) {
   };
 }
 
+function validateLearningContract(learning) {
+  const errors = [];
+
+  if (
+    learning.layer !==
+    LEARNING_LAYER
+  ) {
+    errors.push({
+      field: "learning.layer",
+      expected: LEARNING_LAYER,
+      received: learning.layer
+    });
+  }
+
+  if (
+    learning.version !==
+    LEARNING_VERSION
+  ) {
+    errors.push({
+      field: "learning.version",
+      expected: LEARNING_VERSION,
+      received: learning.version
+    });
+  }
+
+  if (
+    learning.engine &&
+    learning.engine !==
+    LEARNING_ENGINE
+  ) {
+    errors.push({
+      field: "learning.engine",
+      expected: LEARNING_ENGINE,
+      received: learning.engine
+    });
+  }
+
+  if (
+    learning.measurement_source !==
+    MEASUREMENT_LAYER
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.measurement",
+      expected:
+        MEASUREMENT_LAYER,
+      received:
+        learning.measurement_source
+    });
+  }
+
+  /*
+   * IMPORTANT CONTRACT FIX
+   *
+   * Learning V2.3 currently exposes:
+   *
+   * source_contract.intelligence
+   * = INTELLIGENCE_V2.1_FEEDBACK_AWARE
+   *
+   * Therefore this field must be
+   * validated against INTELLIGENCE_ENGINE,
+   * not INTELLIGENCE_LAYER.
+   */
+
+  if (
+    learning.intelligence_source !==
+    INTELLIGENCE_ENGINE
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence",
+      expected:
+        INTELLIGENCE_ENGINE,
+      received:
+        learning.intelligence_source
+    });
+  }
+
+  if (
+    learning.intelligence_version !==
+    INTELLIGENCE_VERSION
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence_version",
+      expected:
+        INTELLIGENCE_VERSION,
+      received:
+        learning.intelligence_version
+    });
+  }
+
+  if (
+    learning.intelligence_engine !==
+    INTELLIGENCE_ENGINE
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence_engine",
+      expected:
+        INTELLIGENCE_ENGINE,
+      received:
+        learning.intelligence_engine
+    });
+  }
+
+  if (
+    learning.learning_version &&
+    learning.learning_version !==
+    LEARNING_VERSION
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.learning_version",
+      expected:
+        LEARNING_VERSION,
+      received:
+        learning.learning_version
+    });
+  }
+
+  return errors;
+}
+
 function buildResponse(
   root,
   learning,
@@ -656,13 +749,12 @@ function buildResponse(
           : null
     },
 
-    decision:
-      decision,
+    decision,
 
     required_action: {
       type:
         decision.type ===
-          "CONTINUE_OBSERVATION"
+        "CONTINUE_OBSERVATION"
           ? "OBSERVE"
           : decision.type ===
             "WAIT_FOR_BEHAVIORAL_DATA"
@@ -728,6 +820,9 @@ function buildResponse(
     },
 
     intelligence: {
+      layer:
+        INTELLIGENCE_LAYER,
+
       source:
         learning.intelligence_source,
 
@@ -759,7 +854,13 @@ function buildResponse(
         learning.feedback_source,
 
       context:
-        learning.feedback_context
+        learning.feedback_context,
+
+      counted_as_behavior: false,
+
+      counted_as_attention: false,
+
+      alters_funnel_metrics: false
     },
 
     funnel: {
@@ -810,10 +911,13 @@ function buildResponse(
 
       intelligence: {
         layer:
+          INTELLIGENCE_LAYER,
+
+        source:
           learning.intelligence_source,
 
-        expected_layer:
-          INTELLIGENCE_LAYER,
+        expected_source:
+          INTELLIGENCE_ENGINE,
 
         version:
           learning.intelligence_version,
@@ -888,6 +992,9 @@ function buildResponse(
       strategy_changed:
         false,
 
+      action_selected:
+        false,
+
       automatic_execution:
         false,
 
@@ -935,130 +1042,7 @@ function buildResponse(
   };
 }
 
-function validateLearningContract(
-  learning
-) {
-  const errors = [];
-
-  if (
-    learning.layer !==
-    LEARNING_LAYER
-  ) {
-    errors.push({
-      field:
-        "learning.layer",
-
-      expected:
-        LEARNING_LAYER,
-
-      received:
-        learning.layer
-    });
-  }
-
-  if (
-    learning.version !==
-    LEARNING_VERSION
-  ) {
-    errors.push({
-      field:
-        "learning.version",
-
-      expected:
-        LEARNING_VERSION,
-
-      received:
-        learning.version
-    });
-  }
-
-  if (
-    learning.engine &&
-    learning.engine !==
-      LEARNING_ENGINE
-  ) {
-    errors.push({
-      field:
-        "learning.engine",
-
-      expected:
-        LEARNING_ENGINE,
-
-      received:
-        learning.engine
-    });
-  }
-
-  if (
-    learning.measurement_source !==
-    MEASUREMENT_LAYER
-  ) {
-    errors.push({
-      field:
-        "learning.source_contract.measurement",
-
-      expected:
-        MEASUREMENT_LAYER,
-
-      received:
-        learning.measurement_source
-    });
-  }
-
-  if (
-    learning.intelligence_source !==
-    INTELLIGENCE_ENGINE
-  ) {
-    errors.push({
-      field:
-        "learning.source_contract.intelligence",
-
-      expected:
-        INTELLIGENCE_ENGINE,
-
-      received:
-        learning.intelligence_source
-    });
-  }
-
-  if (
-    learning.intelligence_version !==
-    INTELLIGENCE_VERSION
-  ) {
-    errors.push({
-      field:
-        "learning.source_contract.intelligence_version",
-
-      expected:
-        INTELLIGENCE_VERSION,
-
-      received:
-        learning.intelligence_version
-    });
-  }
-
-  if (
-    learning.intelligence_engine !==
-    INTELLIGENCE_ENGINE
-  ) {
-    errors.push({
-      field:
-        "learning.source_contract.intelligence_engine",
-
-      expected:
-        INTELLIGENCE_ENGINE,
-
-      received:
-        learning.intelligence_engine
-    });
-  }
-
-  return errors;
-}
-
-export async function onRequestGet(
-  context
-) {
+export async function onRequestGet(context) {
   try {
     const contentId =
       getContentId(
@@ -1076,19 +1060,21 @@ export async function onRequestGet(
           version:
             VERSION,
 
+          engine:
+            DECISION_ENGINE,
+
           status:
             "INVALID_REQUEST",
 
           error:
-            "content_id is required."
+            "content_id is required.",
+
+          usage:
+            "/api/decision?content_id=<content_id>"
         },
         400
       );
     }
-
-    /*
-     * Decision reads Learning only.
-     */
 
     const learningRoot =
       await getLearning(
@@ -1102,8 +1088,41 @@ export async function onRequestGet(
       );
 
     /*
-     * Validate upstream contract.
+     * Content ID integrity check.
+     *
+     * Decision must never create a
+     * decision for a different content.
      */
+
+    if (
+      learning.content_id &&
+      learning.content_id !== contentId
+    ) {
+      return json(
+        {
+          success: false,
+
+          layer:
+            LAYER,
+
+          version:
+            VERSION,
+
+          engine:
+            DECISION_ENGINE,
+
+          status:
+            "CONTENT_ID_MISMATCH",
+
+          requested_content_id:
+            contentId,
+
+          learning_content_id:
+            learning.content_id
+        },
+        409
+      );
+    }
 
     const contractErrors =
       validateLearningContract(
@@ -1123,11 +1142,14 @@ export async function onRequestGet(
           version:
             VERSION,
 
+          engine:
+            DECISION_ENGINE,
+
           status:
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.3.1 requires the current Learning V2.3 upstream contract.",
+            "Decision Layer V1.3.2 requires the current Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
@@ -1185,47 +1207,6 @@ export async function onRequestGet(
       );
     }
 
-    /*
-     * Content identity validation.
-     */
-
-    if (
-      learning.content_id &&
-      learning.content_id !== contentId
-    ) {
-      return json(
-        {
-          success: false,
-
-          layer:
-            LAYER,
-
-          version:
-            VERSION,
-
-          status:
-            "CONTENT_MISMATCH",
-
-          error:
-            "Learning content_id does not match requested content_id.",
-
-          requested_content_id:
-            contentId,
-
-          learning_content_id:
-            learning.content_id
-        },
-        409
-      );
-    }
-
-    /*
-     * Create decision.
-     *
-     * Lack of evidence is a valid state.
-     * It is NOT a server error.
-     */
-
     const decision =
       createDecision(
         learning
@@ -1236,7 +1217,8 @@ export async function onRequestGet(
         learningRoot,
         learning,
         decision
-      )
+      ),
+      200
     );
 
   } catch (error) {
@@ -1250,11 +1232,15 @@ export async function onRequestGet(
         version:
           VERSION,
 
+        engine:
+          DECISION_ENGINE,
+
         status:
-          "ERROR",
+          "DECISION_ERROR",
 
         error:
-          error && error.message
+          error &&
+          error.message
             ? error.message
             : "Unknown Decision Layer error."
       },
@@ -1263,11 +1249,6 @@ export async function onRequestGet(
   }
 }
 
-export async function onRequestPost(
-  context
-) {
-  return onRequestGet(
-    context
-  );
+export async function onRequestPost(context) {
+  return onRequestGet(context);
 }
-```
