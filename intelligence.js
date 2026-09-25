@@ -22,37 +22,39 @@
 //
 // Intelligence V2.1
 //
-// DOES:
-// - read Measurement V2.3
-// - read measurement history
-// - read completed Feedback as operational context
-// - identify persistent behavioral patterns
-// - identify funnel blocks
-// - preserve measurement truth
-// - expose feedback context to downstream Learning
+// Purpose:
+// - Consume Measurement V2.3
+// - Preserve all Measurement metrics exactly
+// - Read completed Feedback as operational context
+// - Detect persistent behavioral patterns
+// - Detect persistent funnel blocks
+// - Pass structured intelligence to Learning
 //
-// DOES NOT:
-// - count feedback as behavior
-// - count feedback as attention
-// - alter funnel metrics from feedback
+// Feedback is NEVER:
+// - behavior
+// - attention
+// - funnel metric
+// - conversion metric
+//
+// Intelligence does NOT:
 // - declare winners
 // - change strategy
 // - create decisions
 // - execute actions
 //
 // Cloudflare Pages Functions
-// Path: functions/api/intelligence.js
+// File: functions/api/intelligence.js
 
 const VERSION = "2.1";
 const LAYER = "INTELLIGENCE_LAYER_V2";
+const ENGINE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.3";
-const PREVIOUS_MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.2";
 const FEEDBACK_SOURCE = "FEEDBACK_LAYER_V1.1";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
-  "cache-control": "no-store"
+  "cache-control": "no-store, no-cache, must-revalidate, max-age=0"
 };
 
 function json(data, status = 200) {
@@ -75,16 +77,6 @@ function nowISO() {
   return new Date().toISOString();
 }
 
-function safeJson(value, fallback = null) {
-  try {
-    if (value == null) return fallback;
-    if (typeof value === "object") return value;
-    return JSON.parse(String(value));
-  } catch (_) {
-    return fallback;
-  }
-}
-
 function ratio(a, b) {
   const x = n(a);
   const y = n(b);
@@ -95,50 +87,38 @@ function ratio(a, b) {
 }
 
 async function getContent(db, contentId) {
-  try {
-    const result = await db.prepare(`
-      SELECT *
-      FROM content_engine
-      WHERE id = ?
-      LIMIT 1
-    `).bind(contentId).first();
+  const result = await db.prepare(`
+    SELECT *
+    FROM content_engine
+    WHERE id = ?
+    LIMIT 1
+  `).bind(contentId).first();
 
-    return result || null;
-  } catch (_) {
-    return null;
-  }
+  return result || null;
 }
 
 async function getLatestMeasurement(db, contentId) {
-  try {
-    const result = await db.prepare(`
-      SELECT *
-      FROM content_measurements
-      WHERE content_id = ?
-      ORDER BY measured_at DESC, rowid DESC
-      LIMIT 1
-    `).bind(contentId).first();
+  const result = await db.prepare(`
+    SELECT *
+    FROM content_measurements
+    WHERE content_id = ?
+    ORDER BY measured_at DESC, rowid DESC
+    LIMIT 1
+  `).bind(contentId).first();
 
-    return result || null;
-  } catch (_) {
-    return null;
-  }
+  return result || null;
 }
 
 async function getMeasurementHistory(db, contentId) {
-  try {
-    const result = await db.prepare(`
-      SELECT *
-      FROM content_measurements
-      WHERE content_id = ?
-      ORDER BY measured_at DESC, rowid DESC
-      LIMIT 100
-    `).bind(contentId).all();
+  const result = await db.prepare(`
+    SELECT *
+    FROM content_measurements
+    WHERE content_id = ?
+    ORDER BY measured_at DESC, rowid DESC
+    LIMIT 100
+  `).bind(contentId).all();
 
-    return result?.results || [];
-  } catch (_) {
-    return [];
-  }
+  return result?.results || [];
 }
 
 async function getCompletedFeedback(db, contentId) {
@@ -158,8 +138,8 @@ async function getCompletedFeedback(db, contentId) {
   }
 }
 
-function measurementMetrics(measurement) {
-  if (!measurement) {
+function getMetrics(row) {
+  if (!row) {
     return {
       attention: 0,
       product_views: 0,
@@ -172,17 +152,17 @@ function measurementMetrics(measurement) {
   }
 
   return {
-    attention: n(measurement.attention),
-    product_views: n(measurement.product_views),
-    clicks: n(measurement.clicks),
-    engagements: n(measurement.engagements),
-    customers: n(measurement.customers),
-    orders: n(measurement.orders),
-    revenue: n(measurement.revenue)
+    attention: n(row.attention),
+    product_views: n(row.product_views),
+    clicks: n(row.clicks),
+    engagements: n(row.engagements),
+    customers: n(row.customers),
+    orders: n(row.orders),
+    revenue: n(row.revenue)
   };
 }
 
-function aggregateMeasurements(history) {
+function aggregate(history) {
   const totals = {
     attention: 0,
     product_views: 0,
@@ -206,68 +186,65 @@ function aggregateMeasurements(history) {
   return totals;
 }
 
-function buildPatterns(latest, totals, rounds) {
-  const latestMetrics = measurementMetrics(latest);
+function buildPatterns(totals, latest, rounds) {
+  const latestMetrics = getMetrics(latest);
 
   const attentionPresent = totals.attention > 0;
-  const clickPresent = totals.clicks > 0;
-  const productViewPresent = totals.product_views > 0;
-  const customerPresent = totals.customers > 0;
-  const orderPresent = totals.orders > 0;
+  const clicksPresent = totals.clicks > 0;
+  const productViewsPresent = totals.product_views > 0;
+  const customersPresent = totals.customers > 0;
+  const ordersPresent = totals.orders > 0;
   const revenuePresent = totals.revenue > 0;
-
-  const persistentAttention = rounds >= 2 && attentionPresent;
-  const persistentClicks = rounds >= 2 && clickPresent;
-
-  const clickWithoutProductView =
-    clickPresent &&
-    !productViewPresent;
-
-  const persistentFunnelBlock =
-    rounds >= 2 &&
-    attentionPresent &&
-    clickPresent &&
-    !productViewPresent;
-
-  const persistentNoCustomer =
-    rounds >= 2 &&
-    attentionPresent &&
-    !customerPresent;
-
-  const persistentNoOrder =
-    rounds >= 2 &&
-    attentionPresent &&
-    !orderPresent;
-
-  const persistentNoRevenue =
-    rounds >= 2 &&
-    attentionPresent &&
-    !revenuePresent;
 
   return {
     rounds,
 
     attention_present: attentionPresent,
-    clicks_present: clickPresent,
-    product_views_present: productViewPresent,
+    clicks_present: clicksPresent,
+    product_views_present: productViewsPresent,
     engagements_present: totals.engagements > 0,
-    customers_present: customerPresent,
-    orders_present: orderPresent,
+    customers_present: customersPresent,
+    orders_present: ordersPresent,
     revenue_present: revenuePresent,
 
-    persistent_attention: persistentAttention,
-    persistent_clicks: persistentClicks,
+    persistent_attention:
+      rounds >= 2 && attentionPresent,
 
-    click_without_product_view: clickWithoutProductView,
+    persistent_clicks:
+      rounds >= 2 && clicksPresent,
 
-    persistent_funnel_block: persistentFunnelBlock,
-    persistent_no_customer: persistentNoCustomer,
-    persistent_no_order: persistentNoOrder,
-    persistent_no_revenue: persistentNoRevenue,
+    click_without_product_view:
+      clicksPresent && !productViewsPresent,
 
-    latest_attention_present: latestMetrics.attention > 0,
-    latest_click_present: latestMetrics.clicks > 0,
-    latest_product_view_present: latestMetrics.product_views > 0,
+    persistent_funnel_block:
+      rounds >= 2 &&
+      attentionPresent &&
+      clicksPresent &&
+      !productViewsPresent,
+
+    persistent_no_customer:
+      rounds >= 2 &&
+      attentionPresent &&
+      !customersPresent,
+
+    persistent_no_order:
+      rounds >= 2 &&
+      attentionPresent &&
+      !ordersPresent,
+
+    persistent_no_revenue:
+      rounds >= 2 &&
+      attentionPresent &&
+      !revenuePresent,
+
+    latest_attention_present:
+      latestMetrics.attention > 0,
+
+    latest_click_present:
+      latestMetrics.clicks > 0,
+
+    latest_product_view_present:
+      latestMetrics.product_views > 0,
 
     no_behavior:
       totals.attention === 0 &&
@@ -280,23 +257,38 @@ function buildPatterns(latest, totals, rounds) {
 function buildConversions(totals) {
   return {
     attention_to_product_view:
-      ratio(totals.product_views, totals.attention),
+      ratio(
+        totals.product_views,
+        totals.attention
+      ),
 
     product_view_to_click:
-      ratio(totals.clicks, totals.product_views),
+      ratio(
+        totals.clicks,
+        totals.product_views
+      ),
 
     click_to_customer:
-      ratio(totals.customers, totals.clicks),
+      ratio(
+        totals.customers,
+        totals.clicks
+      ),
 
     customer_to_order:
-      ratio(totals.orders, totals.customers)
+      ratio(
+        totals.orders,
+        totals.customers
+      )
   };
 }
 
 function buildInsights(patterns, totals) {
   const insights = [];
 
-  if (patterns.persistent_attention && patterns.click_without_product_view) {
+  if (
+    patterns.persistent_attention &&
+    patterns.click_without_product_view
+  ) {
     insights.push({
       type: "PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW",
       title: "Attention และ Click แต่ไม่มี Product View",
@@ -402,11 +394,17 @@ function buildState(patterns) {
 }
 
 function buildConfidence(patterns, rounds) {
-  if (patterns.persistent_funnel_block && rounds >= 10) {
+  if (
+    patterns.persistent_funnel_block &&
+    rounds >= 10
+  ) {
     return "HIGH";
   }
 
-  if (patterns.persistent_funnel_block && rounds >= 2) {
+  if (
+    patterns.persistent_funnel_block &&
+    rounds >= 2
+  ) {
     return "MEDIUM";
   }
 
@@ -421,7 +419,8 @@ function buildRecommendation(patterns) {
   if (patterns.persistent_funnel_block) {
     return {
       action: "INVESTIGATE_FUNNEL",
-      direction: "ตรวจเส้นทาง Click ไป Product View",
+      direction:
+        "ตรวจเส้นทาง Click ไป Product View",
       reason:
         "มี Attention และ Click ต่อเนื่อง แต่ยังไม่มี Product View",
       do_not_change_strategy_yet: true,
@@ -432,7 +431,8 @@ function buildRecommendation(patterns) {
   if (patterns.persistent_no_customer) {
     return {
       action: "INVESTIGATE_CONVERSION",
-      direction: "ตรวจเส้นทางจาก Click ไป Customer",
+      direction:
+        "ตรวจเส้นทางจาก Click ไป Customer",
       reason:
         "มี Behavioral Signal แต่ยังไม่พบ Customer",
       do_not_change_strategy_yet: true,
@@ -443,7 +443,8 @@ function buildRecommendation(patterns) {
   if (patterns.persistent_no_order) {
     return {
       action: "INVESTIGATE_ORDER_PATH",
-      direction: "ตรวจเส้นทางจาก Customer ไป Order",
+      direction:
+        "ตรวจเส้นทางจาก Customer ไป Order",
       reason:
         "มี Customer แต่ยังไม่พบ Order",
       do_not_change_strategy_yet: true,
@@ -454,9 +455,10 @@ function buildRecommendation(patterns) {
   if (patterns.persistent_no_revenue) {
     return {
       action: "INVESTIGATE_REVENUE_PATH",
-      direction: "ตรวจเส้นทางจาก Order ไป Revenue",
+      direction:
+        "ตรวจเส้นทางจาก Order ไป Revenue",
       reason:
-        "มีข้อมูล downstream แต่ยังไม่พบ Revenue",
+        "มี Order แต่ยังไม่พบ Revenue",
       do_not_change_strategy_yet: true,
       winner_declared: false
     };
@@ -464,7 +466,8 @@ function buildRecommendation(patterns) {
 
   return {
     action: "CONTINUE_MEASUREMENT",
-    direction: "เก็บ Measurement ต่อ",
+    direction:
+      "เก็บ Measurement ต่อ",
     reason:
       "ยังไม่มี Persistent Pattern ที่เพียงพอสำหรับการตรวจสอบเชิงลึก",
     do_not_change_strategy_yet: true,
@@ -476,26 +479,40 @@ function buildFeedbackContext(feedback) {
   if (!feedback) {
     return {
       available: false,
+
       layer: FEEDBACK_SOURCE,
+
       role: "Operational context only",
+
       counted_as_behavior: false,
       counted_as_attention: false,
       alters_funnel_metrics: false,
+
+      measurement_required: false,
       measurement_completed: false
     };
   }
 
   return {
     available: true,
+
     layer: FEEDBACK_SOURCE,
+
     role: "Operational context only",
 
     id: s(feedback.id),
-    action_code: s(feedback.action_code),
-    action_target: s(feedback.action_target),
 
-    actual_outcome: s(feedback.actual_outcome),
-    outcome_status: s(feedback.outcome_status),
+    action_code:
+      s(feedback.action_code),
+
+    action_target:
+      s(feedback.action_target),
+
+    actual_outcome:
+      s(feedback.actual_outcome),
+
+    outcome_status:
+      s(feedback.outcome_status),
 
     measurement_required:
       n(feedback.measurement_required) === 1,
@@ -503,11 +520,16 @@ function buildFeedbackContext(feedback) {
     measurement_completed:
       n(feedback.measurement_completed) === 1,
 
-    created_at: s(feedback.created_at),
-    updated_at: s(feedback.updated_at),
+    created_at:
+      s(feedback.created_at),
+
+    updated_at:
+      s(feedback.updated_at),
 
     counted_as_behavior: false,
+
     counted_as_attention: false,
+
     alters_funnel_metrics: false,
 
     interpretation:
@@ -515,72 +537,64 @@ function buildFeedbackContext(feedback) {
   };
 }
 
-function buildSourceContract(latest, history, feedback) {
-  return {
-    measurement: {
-      layer: MEASUREMENT_SOURCE,
-      version: VERSION === "2.1" ? "2.3" : "2.3",
-      rounds: history.length,
-      latest_measurement_id: latest ? s(latest.id) : null
-    },
-
-    feedback: {
-      layer: FEEDBACK_SOURCE,
-      available: Boolean(feedback),
-      measurement_completed:
-        feedback
-          ? n(feedback.measurement_completed) === 1
-          : false
-    },
-
-    intelligence: {
-      layer: LAYER,
-      version: VERSION
-    }
-  };
-}
-
 async function analyze(db, contentId) {
-  const content = await getContent(db, contentId);
+  const content =
+    await getContent(
+      db,
+      contentId
+    );
 
   if (!content) {
     return {
       success: false,
+      layer: LAYER,
+      version: VERSION,
+      engine: ENGINE,
       error: "content_not_found",
       content_id: contentId
     };
   }
 
   const latestMeasurement =
-    await getLatestMeasurement(db, contentId);
+    await getLatestMeasurement(
+      db,
+      contentId
+    );
 
   const history =
-    await getMeasurementHistory(db, contentId);
+    await getMeasurementHistory(
+      db,
+      contentId
+    );
 
   const feedback =
-    await getCompletedFeedback(db, contentId);
-
-  const latest =
-    latestMeasurement || {};
+    await getCompletedFeedback(
+      db,
+      contentId
+    );
 
   const latestMetrics =
-    measurementMetrics(latest);
+    getMetrics(
+      latestMeasurement
+    );
 
   const totals =
-    aggregateMeasurements(history);
+    aggregate(history);
 
   const rounds =
     history.length;
 
   const patterns =
     buildPatterns(
-      latestMeasurement,
       totals,
+      latestMeasurement,
       rounds
     );
 
   const conversions =
-    buildConversions(totals);
+    buildConversions(
+      totals
+    );
 
   const insights =
     buildInsights(
@@ -589,7 +603,9 @@ async function analyze(db, contentId) {
     );
 
   const state =
-    buildState(patterns);
+    buildState(
+      patterns
+    );
 
   const confidence =
     buildConfidence(
@@ -598,18 +614,25 @@ async function analyze(db, contentId) {
     );
 
   const recommendation =
-    buildRecommendation(patterns);
+    buildRecommendation(
+      patterns
+    );
 
   const feedbackContext =
-    buildFeedbackContext(feedback);
+    buildFeedbackContext(
+      feedback
+    );
 
   return {
     success: true,
 
     layer: LAYER,
+
     version: VERSION,
 
-    mode: "PREVIEW",
+    engine: ENGINE,
+
+    mode: "preview",
 
     status: "ANALYZED",
 
@@ -618,71 +641,163 @@ async function analyze(db, contentId) {
       title: s(content.title),
       status: s(content.status),
 
-      objective: s(content.objective),
-      attention_type: s(content.attention_type),
-      market_keyword: s(content.market_keyword),
-      angle: s(content.angle),
-      cta: s(content.cta)
+      objective:
+        s(content.objective),
+
+      attention_type:
+        s(content.attention_type),
+
+      market_keyword:
+        s(content.market_keyword),
+
+      angle:
+        s(content.angle),
+
+      cta:
+        s(content.cta)
     },
 
     measurement: {
-      source: MEASUREMENT_SOURCE,
+      source:
+        MEASUREMENT_SOURCE,
 
-      latest: latestMeasurement
-        ? {
-            id: s(latestMeasurement.id),
-            content_id: s(latestMeasurement.content_id),
-            measured_at: s(latestMeasurement.measured_at),
-            measurement_start:
-              s(latestMeasurement.measurement_start),
+      id:
+        latestMeasurement
+          ? s(latestMeasurement.id)
+          : null,
 
-            attention: latestMetrics.attention,
-            product_views: latestMetrics.product_views,
-            clicks: latestMetrics.clicks,
-            engagements: latestMetrics.engagements,
-            customers: latestMetrics.customers,
-            orders: latestMetrics.orders,
-            revenue: latestMetrics.revenue,
+      content_id:
+        latestMeasurement
+          ? s(latestMeasurement.content_id)
+          : contentId,
 
-            attention_to_view:
-              n(latestMeasurement.attention_to_view),
+      measured_at:
+        latestMeasurement
+          ? s(latestMeasurement.measured_at)
+          : null,
 
-            view_to_click:
-              n(latestMeasurement.view_to_click),
+      measurement_start:
+        latestMeasurement
+          ? s(latestMeasurement.measurement_start)
+          : null,
 
-            click_to_customer:
-              n(latestMeasurement.click_to_customer),
+      attribution_mode:
+        latestMeasurement
+          ? s(latestMeasurement.attribution_mode)
+          : null,
 
-            customer_to_order:
-              n(latestMeasurement.customer_to_order),
+      attention:
+        latestMetrics.attention,
 
-            attribution_mode:
-              s(latestMeasurement.attribution_mode)
-          }
-        : null,
+      product_views:
+        latestMetrics.product_views,
 
-      history: {
-        rounds,
-        available: rounds > 0
+      clicks:
+        latestMetrics.clicks,
+
+      engagements:
+        latestMetrics.engagements,
+
+      customers:
+        latestMetrics.customers,
+
+      orders:
+        latestMetrics.orders,
+
+      revenue:
+        latestMetrics.revenue
+    },
+
+    measurement_history: {
+      rounds,
+
+      available:
+        rounds > 0
+    },
+
+    metrics: {
+      latest: {
+        id:
+          latestMeasurement
+            ? s(latestMeasurement.id)
+            : null,
+
+        content_id:
+          latestMeasurement
+            ? s(latestMeasurement.content_id)
+            : contentId,
+
+        measured_at:
+          latestMeasurement
+            ? s(latestMeasurement.measured_at)
+            : null,
+
+        measurement_start:
+          latestMeasurement
+            ? s(latestMeasurement.measurement_start)
+            : null,
+
+        attribution_mode:
+          latestMeasurement
+            ? s(latestMeasurement.attribution_mode)
+            : null,
+
+        attention:
+          latestMetrics.attention,
+
+        product_views:
+          latestMetrics.product_views,
+
+        clicks:
+          latestMetrics.clicks,
+
+        engagements:
+          latestMetrics.engagements,
+
+        customers:
+          latestMetrics.customers,
+
+        orders:
+          latestMetrics.orders,
+
+        revenue:
+          latestMetrics.revenue
       },
 
       totals
     },
 
-    conversions,
-
-    patterns,
-
     intelligence: {
       layer: LAYER,
+
       version: VERSION,
 
+      engine: ENGINE,
+
       state,
+
       confidence,
 
-      latest_measurement: latestMetrics,
+      content: {
+        id: s(content.id),
+        title: s(content.title),
+        objective:
+          s(content.objective),
+        attention_type:
+          s(content.attention_type),
+        market_keyword:
+          s(content.market_keyword),
+        angle:
+          s(content.angle),
+        cta:
+          s(content.cta)
+      },
 
-      measurement_rounds: rounds,
+      latest_measurement:
+        latestMetrics,
+
+      measurement_rounds:
+        rounds,
 
       totals,
 
@@ -695,19 +810,46 @@ async function analyze(db, contentId) {
       recommendation
     },
 
-    feedback_context: feedbackContext,
+    feedback_context:
+      feedbackContext,
 
     source_chain: [
       MEASUREMENT_SOURCE,
       LAYER
     ],
 
-    source_contract:
-      buildSourceContract(
-        latestMeasurement,
-        history,
-        feedback
-      ),
+    source_contract: {
+      measurement: {
+        layer:
+          MEASUREMENT_SOURCE,
+
+        version: "2.3",
+
+        rounds,
+
+        latest_measurement_id:
+          latestMeasurement
+            ? s(latestMeasurement.id)
+            : null
+      },
+
+      feedback: {
+        layer:
+          FEEDBACK_SOURCE,
+
+        available:
+          feedbackContext.available,
+
+        measurement_completed:
+          feedbackContext.measurement_completed
+      },
+
+      intelligence: {
+        layer: LAYER,
+        version: VERSION,
+        engine: ENGINE
+      }
+    },
 
     guardrails: {
       reads_raw_behavior_events: false,
@@ -744,22 +886,34 @@ async function analyze(db, contentId) {
     },
 
     handoff: {
-      current_layer: LAYER,
-      next_layer: "LEARNING_ENGINE_V2.2",
+      current_layer:
+        "INTELLIGENCE_V2.1",
 
-      learning_input_ready: true,
+      next_layer:
+        "LEARNING_ENGINE_V2.2",
+
+      learning_input_ready:
+        true,
 
       feedback_context_available:
         feedbackContext.available,
 
-      decision_created: false,
-      action_executed: false
+      decision_created:
+        false,
+
+      action_executed:
+        false
     },
 
     loop: {
-      current_layer: "INTELLIGENCE_V2.1",
-      previous_layer: "MEASUREMENT_V2.3",
-      next_layer: "LEARNING_V2.2",
+      current_layer:
+        "INTELLIGENCE_V2.1",
+
+      previous_layer:
+        "MEASUREMENT_V2.3",
+
+      next_layer:
+        "LEARNING_V2.2",
 
       feedback_context_available:
         feedbackContext.available,
@@ -770,13 +924,14 @@ async function analyze(db, contentId) {
       closed: false
     },
 
-    timestamp: nowISO()
+    timestamp:
+      nowISO()
   };
 }
 
 export async function onRequestGet(context) {
-  const request = context.request;
-  const env = context.env;
+  const env =
+    context.env;
 
   if (!env || !env.DB) {
     return json(
@@ -784,16 +939,22 @@ export async function onRequestGet(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "D1 binding DB not found"
       },
       500
     );
   }
 
-  const url = new URL(request.url);
+  const url =
+    new URL(
+      context.request.url
+    );
 
   const contentId =
-    url.searchParams.get("content_id");
+    url.searchParams.get(
+      "content_id"
+    );
 
   if (!contentId) {
     return json(
@@ -801,6 +962,7 @@ export async function onRequestGet(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "content_id_required"
       },
       400
@@ -820,8 +982,11 @@ export async function onRequestGet(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "intelligence_failed",
-        message: s(error?.message)
+        message: s(
+          error?.message
+        )
       },
       500
     );
@@ -829,7 +994,8 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
-  const env = context.env;
+  const env =
+    context.env;
 
   if (!env || !env.DB) {
     return json(
@@ -837,22 +1003,26 @@ export async function onRequestPost(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "D1 binding DB not found"
       },
       500
     );
   }
 
-  let body;
+  let body = {};
 
   try {
-    body = await context.request.json();
+    body =
+      await context.request.json();
   } catch (_) {
     body = {};
   }
 
   const contentId =
-    s(body?.content_id).trim();
+    s(
+      body?.content_id
+    ).trim();
 
   if (!contentId) {
     return json(
@@ -860,6 +1030,7 @@ export async function onRequestPost(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "content_id_required"
       },
       400
@@ -879,8 +1050,11 @@ export async function onRequestPost(context) {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error: "intelligence_failed",
-        message: s(error?.message)
+        message: s(
+          error?.message
+        )
       },
       500
     );
