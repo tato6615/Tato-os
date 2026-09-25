@@ -4,13 +4,13 @@
 //
 // Pipeline:
 //
-// Measurement V2.2
+// Measurement V2.3
 //        ↓
-// Intelligence V2
+// Intelligence V2.1
 //        ↓
-// Learning V2.2
+// Learning V2.3
 //        ↓
-// Decision V1.1
+// Decision V1.2
 //        ↓
 // Action V1.0
 //        ↓
@@ -18,15 +18,16 @@
 //        ↓
 // Feedback V1.1
 //        ↓
-// Measurement V2.2
+// Measurement V2.3
 //
 // Feedback DOES:
 // - read Automation execution state
 // - record execution outcome
 // - persist feedback_events
+// - verify persistence
 // - read persisted feedback_events
 // - expose latest persisted feedback
-// - hand off to Measurement
+// - hand off to Measurement V2.3
 //
 // Feedback DOES NOT:
 // - recalculate Measurement
@@ -40,25 +41,75 @@
 const VERSION = "1.1";
 const LAYER = "FEEDBACK_LAYER_V1";
 
-const AUTOMATION_URL = "/api/automation";
+const MEASUREMENT_LAYER =
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
+
+const INTELLIGENCE_LAYER =
+  "INTELLIGENCE_LAYER_V2";
+
+const INTELLIGENCE_VERSION =
+  "2.1";
+
+const INTELLIGENCE_ENGINE =
+  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const LEARNING_LAYER =
+  "LEARNING_ENGINE_V2";
+
+const LEARNING_VERSION =
+  "2.3";
+
+const LEARNING_ENGINE =
+  "LEARNING_V2.3_FEEDBACK_AWARE";
+
+const DECISION_LAYER =
+  "DECISION_LAYER_V1";
+
+const DECISION_VERSION =
+  "1.2";
+
+const ACTION_LAYER =
+  "ACTION_LAYER_V1";
+
+const ACTION_VERSION =
+  "1.0";
+
+const AUTOMATION_LAYER =
+  "AUTOMATION_EXECUTION_V1";
+
+const AUTOMATION_VERSION =
+  "1.0";
+
+const AUTOMATION_ENGINE =
+  "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE";
+
+const AUTOMATION_URL =
+  "/api/automation";
 
 const DEFAULT_CONTENT_ID =
   "5127d38f-6601-41dd-bb30-9e4346dd9a4c";
 
-const FEEDBACK_TABLE = "feedback_events";
+const FEEDBACK_TABLE =
+  "feedback_events";
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store"
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store"
+      }
     }
-  });
+  );
 }
 
 function normalize(value) {
-  if (value === undefined || value === null) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
     return null;
   }
 
@@ -88,73 +139,85 @@ async function ensureTable(DB) {
   `).run();
 }
 
-async function getLatestFeedback(DB, contentId) {
-  const result = await DB.prepare(`
-    SELECT
-      id,
-      execution_id,
-      content_id,
-      action_code,
-      action_target,
-      execution_code,
-      execution_status,
-      expected_outcome,
-      actual_outcome,
-      outcome_status,
-      operator_note,
-      measurement_required,
-      measurement_completed,
-      feedback_payload,
-      created_at,
-      updated_at
-    FROM feedback_events
-    WHERE content_id = ?
-    ORDER BY created_at DESC
-    LIMIT 1
-  `)
-    .bind(contentId)
-    .first();
+async function getLatestFeedback(
+  DB,
+  contentId
+) {
+  const result =
+    await DB.prepare(`
+      SELECT
+        id,
+        execution_id,
+        content_id,
+        action_code,
+        action_target,
+        execution_code,
+        execution_status,
+        expected_outcome,
+        actual_outcome,
+        outcome_status,
+        operator_note,
+        measurement_required,
+        measurement_completed,
+        feedback_payload,
+        created_at,
+        updated_at
+      FROM feedback_events
+      WHERE content_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `)
+      .bind(contentId)
+      .first();
 
   return result || null;
 }
 
-async function getFeedbackByExecution(DB, executionId) {
+async function getFeedbackByExecution(
+  DB,
+  executionId
+) {
   if (!executionId) {
     return null;
   }
 
-  const result = await DB.prepare(`
-    SELECT
-      id,
-      execution_id,
-      content_id,
-      action_code,
-      action_target,
-      execution_code,
-      execution_status,
-      expected_outcome,
-      actual_outcome,
-      outcome_status,
-      operator_note,
-      measurement_required,
-      measurement_completed,
-      feedback_payload,
-      created_at,
-      updated_at
-    FROM feedback_events
-    WHERE execution_id = ?
-    ORDER BY created_at DESC
-    LIMIT 1
-  `)
-    .bind(executionId)
-    .first();
+  const result =
+    await DB.prepare(`
+      SELECT
+        id,
+        execution_id,
+        content_id,
+        action_code,
+        action_target,
+        execution_code,
+        execution_status,
+        expected_outcome,
+        actual_outcome,
+        outcome_status,
+        operator_note,
+        measurement_required,
+        measurement_completed,
+        feedback_payload,
+        created_at,
+        updated_at
+      FROM feedback_events
+      WHERE execution_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `)
+      .bind(executionId)
+      .first();
 
   return result || null;
 }
 
-async function getAutomationPreview(request, contentId) {
+async function getAutomationPreview(
+  request,
+  contentId
+) {
   try {
-    const requestUrl = new URL(request.url);
+    const requestUrl =
+      new URL(request.url);
 
     const automationUrl =
       new URL(
@@ -167,15 +230,16 @@ async function getAutomationPreview(request, contentId) {
       contentId
     );
 
-    const response = await fetch(
-      automationUrl.toString(),
-      {
-        method: "GET",
-        headers: {
-          "Cache-Control": "no-cache"
+    const response =
+      await fetch(
+        automationUrl.toString(),
+        {
+          method: "GET",
+          headers: {
+            "Cache-Control": "no-cache"
+          }
         }
-      }
-    );
+      );
 
     if (!response.ok) {
       return null;
@@ -188,20 +252,24 @@ async function getAutomationPreview(request, contentId) {
   }
 }
 
-async function getExecutionState(DB, executionId) {
+async function getExecutionState(
+  DB,
+  executionId
+) {
   if (!executionId) {
     return null;
   }
 
   try {
-    const row = await DB.prepare(`
-      SELECT *
-      FROM execution_queue
-      WHERE id = ?
-      LIMIT 1
-    `)
-      .bind(executionId)
-      .first();
+    const row =
+      await DB.prepare(`
+        SELECT *
+        FROM execution_queue
+        WHERE id = ?
+        LIMIT 1
+      `)
+        .bind(executionId)
+        .first();
 
     if (!row) {
       return null;
@@ -256,6 +324,290 @@ function parsePayload(value) {
   }
 }
 
+function buildSourceChain() {
+  return [
+    MEASUREMENT_LAYER,
+    INTELLIGENCE_ENGINE,
+    LEARNING_ENGINE,
+    DECISION_LAYER,
+    ACTION_LAYER,
+    AUTOMATION_LAYER,
+    LAYER
+  ];
+}
+
+function buildSourceContract() {
+  return {
+    measurement: {
+      layer:
+        MEASUREMENT_LAYER
+    },
+
+    intelligence: {
+      layer:
+        INTELLIGENCE_LAYER,
+
+      version:
+        INTELLIGENCE_VERSION,
+
+      engine:
+        INTELLIGENCE_ENGINE
+    },
+
+    learning: {
+      layer:
+        LEARNING_LAYER,
+
+      version:
+        LEARNING_VERSION,
+
+      engine:
+        LEARNING_ENGINE
+    },
+
+    decision: {
+      layer:
+        DECISION_LAYER,
+
+      version:
+        DECISION_VERSION
+    },
+
+    action: {
+      layer:
+        ACTION_LAYER,
+
+      version:
+        ACTION_VERSION
+    },
+
+    automation: {
+      layer:
+        AUTOMATION_LAYER,
+
+      version:
+        AUTOMATION_VERSION,
+
+      engine:
+        AUTOMATION_ENGINE
+    },
+
+    feedback: {
+      layer:
+        LAYER,
+
+      version:
+        VERSION
+    }
+  };
+}
+
+function validateAutomationContract(
+  automation
+) {
+  if (!automation) {
+    return {
+      valid: false,
+
+      errors: [
+        {
+          field:
+            "automation",
+
+          expected:
+            AUTOMATION_LAYER,
+
+          received:
+            null
+        }
+      ]
+    };
+  }
+
+  const errors = [];
+
+  if (
+    automation.layer !==
+    AUTOMATION_LAYER
+  ) {
+    errors.push({
+      field:
+        "automation.layer",
+
+      expected:
+        AUTOMATION_LAYER,
+
+      received:
+        automation.layer || null
+    });
+  }
+
+  if (
+    automation.version !==
+    AUTOMATION_VERSION
+  ) {
+    errors.push({
+      field:
+        "automation.version",
+
+      expected:
+        AUTOMATION_VERSION,
+
+      received:
+        automation.version || null
+    });
+  }
+
+  if (
+    automation.engine &&
+    automation.engine !==
+      AUTOMATION_ENGINE
+  ) {
+    errors.push({
+      field:
+        "automation.engine",
+
+      expected:
+        AUTOMATION_ENGINE,
+
+      received:
+        automation.engine
+    });
+  }
+
+  const sourceContract =
+    automation.source_contract;
+
+  if (sourceContract) {
+
+    if (
+      sourceContract.measurement?.layer &&
+      sourceContract.measurement.layer !==
+        MEASUREMENT_LAYER
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.measurement",
+
+        expected:
+          MEASUREMENT_LAYER,
+
+        received:
+          sourceContract.measurement.layer
+      });
+    }
+
+    if (
+      sourceContract.intelligence?.version &&
+      sourceContract.intelligence.version !==
+        INTELLIGENCE_VERSION
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.intelligence.version",
+
+        expected:
+          INTELLIGENCE_VERSION,
+
+        received:
+          sourceContract.intelligence.version
+      });
+    }
+
+    if (
+      sourceContract.intelligence?.engine &&
+      sourceContract.intelligence.engine !==
+        INTELLIGENCE_ENGINE
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.intelligence.engine",
+
+        expected:
+          INTELLIGENCE_ENGINE,
+
+        received:
+          sourceContract.intelligence.engine
+      });
+    }
+
+    if (
+      sourceContract.learning?.version &&
+      sourceContract.learning.version !==
+        LEARNING_VERSION
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.learning.version",
+
+        expected:
+          LEARNING_VERSION,
+
+        received:
+          sourceContract.learning.version
+      });
+    }
+
+    if (
+      sourceContract.learning?.engine &&
+      sourceContract.learning.engine !==
+        LEARNING_ENGINE
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.learning.engine",
+
+        expected:
+          LEARNING_ENGINE,
+
+        received:
+          sourceContract.learning.engine
+      });
+    }
+
+    if (
+      sourceContract.decision?.version &&
+      sourceContract.decision.version !==
+        DECISION_VERSION
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.decision.version",
+
+        expected:
+          DECISION_VERSION,
+
+        received:
+          sourceContract.decision.version
+      });
+    }
+
+    if (
+      sourceContract.action?.version &&
+      sourceContract.action.version !==
+        ACTION_VERSION
+    ) {
+      errors.push({
+        field:
+          "automation.source_contract.action.version",
+
+        expected:
+          ACTION_VERSION,
+
+        received:
+          sourceContract.action.version
+      });
+    }
+  }
+
+  return {
+    valid:
+      errors.length === 0,
+
+    errors
+  };
+}
+
 function buildPersistedFeedback(
   row,
   automation,
@@ -272,8 +624,11 @@ function buildPersistedFeedback(
         row.execution_status ||
         "UNKNOWN",
 
-      approved: false,
-      executed: false
+      approved:
+        false,
+
+      executed:
+        false
     };
 
   const payload =
@@ -283,9 +638,7 @@ function buildPersistedFeedback(
 
   return {
     feedback_type:
-      row.action_code
-        ? "EXECUTION_OUTCOME"
-        : "EXECUTION_OUTCOME",
+      "EXECUTION_OUTCOME",
 
     execution: {
       status:
@@ -294,13 +647,18 @@ function buildPersistedFeedback(
         "UNKNOWN",
 
       approved:
-        Boolean(execution.approved),
+        Boolean(
+          execution.approved
+        ),
 
       executed:
-        Boolean(execution.executed),
+        Boolean(
+          execution.executed
+        ),
 
       execution_id:
-        row.execution_id || null
+        row.execution_id ||
+        null
     },
 
     expected: {
@@ -323,19 +681,25 @@ function buildPersistedFeedback(
 
     measurement: {
       required:
-        Boolean(row.measurement_required),
+        Boolean(
+          row.measurement_required
+        ),
 
       completed:
-        Boolean(row.measurement_completed),
+        Boolean(
+          row.measurement_completed
+        ),
 
       reason:
-        "Feedback must return to Measurement for the next observable cycle."
+        "Feedback must return to Measurement V2.3 for the next observable cycle."
     },
 
     persistence: {
-      saved: true,
+      saved:
+        true,
 
-      verified: true,
+      verified:
+        true,
 
       source:
         "D1.feedback_events",
@@ -353,10 +717,11 @@ function buildPersistedFeedback(
     payload,
 
     loop: {
-      closed: false,
+      closed:
+        false,
 
       next_layer:
-        "MEASUREMENT_V2.2"
+        MEASUREMENT_LAYER
     }
   };
 }
@@ -367,16 +732,21 @@ function buildPreview({
   persistedFeedback,
   executionState
 }) {
-
   const content =
     automation?.content || {
-      id: contentId,
-      title: null,
-      status: null
+      id:
+        contentId,
+
+      title:
+        null,
+
+      status:
+        null
     };
 
   const action =
-    automation?.action || null;
+    automation?.action ||
+    null;
 
   const execution =
     executionState ||
@@ -391,10 +761,12 @@ function buildPreview({
         "MANUAL_INVESTIGATION",
 
       title:
-        action?.title || null,
+        action?.title ||
+        null,
 
       objective:
-        action?.objective || null,
+        action?.objective ||
+        null,
 
       instructions:
         [],
@@ -416,7 +788,8 @@ function buildPreview({
     };
 
   const decision =
-    automation?.decision || null;
+    automation?.decision ||
+    null;
 
   const evidence =
     automation?.evidence || {
@@ -430,10 +803,12 @@ function buildPreview({
     };
 
   const learning =
-    automation?.learning || null;
+    automation?.learning ||
+    null;
 
   const intelligence =
-    automation?.intelligence || null;
+    automation?.intelligence ||
+    null;
 
   const funnel =
     automation?.funnel ||
@@ -456,10 +831,14 @@ function buildPreview({
           execution.status,
 
         approved:
-          Boolean(execution.approved),
+          Boolean(
+            execution.approved
+          ),
 
         executed:
-          Boolean(execution.executed),
+          Boolean(
+            execution.executed
+          ),
 
         execution_id:
           null
@@ -492,7 +871,7 @@ function buildPreview({
           false,
 
         reason:
-          "Feedback must return to Measurement for the next observable cycle."
+          "Feedback must return to Measurement V2.3 for the next observable cycle."
       },
 
       persistence: {
@@ -509,6 +888,9 @@ function buildPreview({
           null,
 
         created_at:
+          null,
+
+        updated_at:
           null
       },
 
@@ -517,18 +899,22 @@ function buildPreview({
           false,
 
         next_layer:
-          "MEASUREMENT_V2.2"
+          MEASUREMENT_LAYER
       }
     };
 
   return {
-    success: true,
+    success:
+      true,
 
     layer:
       LAYER,
 
     version:
       VERSION,
+
+    engine:
+      "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE",
 
     mode:
       "PREVIEW",
@@ -556,30 +942,47 @@ function buildPreview({
 
     funnel,
 
-    source_chain: [
-      "CONTENT_MEASUREMENT_ENGINE_V2.2",
-      "INTELLIGENCE_LAYER_V2",
-      "LEARNING_ENGINE_V2.2",
-      "DECISION_LAYER_V1.1",
-      "ACTION_LAYER_V1.0",
-      "AUTOMATION_EXECUTION_V1.0",
-      "FEEDBACK_LAYER_V1.1"
-    ],
+    source_chain:
+      buildSourceChain(),
+
+    source_contract:
+      buildSourceContract(),
 
     guardrails: {
-      reads_raw_behavior_events: false,
-      recalculates_measurement: false,
-      recalculates_intelligence: false,
-      recalculates_learning: false,
-      creates_decision: false,
-      changes_strategy: false,
-      winner_declared: false,
-      automatic_execution: false,
-      external_execution: false,
-      action_executed: false,
+      reads_raw_behavior_events:
+        false,
+
+      recalculates_measurement:
+        false,
+
+      recalculates_intelligence:
+        false,
+
+      recalculates_learning:
+        false,
+
+      creates_decision:
+        false,
+
+      changes_strategy:
+        false,
+
+      winner_declared:
+        false,
+
+      automatic_execution:
+        false,
+
+      external_execution:
+        false,
+
+      action_executed:
+        false,
 
       feedback_recorded:
-        Boolean(persistedFeedback)
+        Boolean(
+          persistedFeedback
+        )
     },
 
     persistence: {
@@ -587,7 +990,9 @@ function buildPreview({
         FEEDBACK_TABLE,
 
       record_found:
-        Boolean(persistedFeedback),
+        Boolean(
+          persistedFeedback
+        ),
 
       record_id:
         persistedFeedback?.id ||
@@ -596,10 +1001,10 @@ function buildPreview({
 
     loop: {
       current_layer:
-        "FEEDBACK_LAYER_V1.1",
+        LAYER,
 
       next_layer:
-        "MEASUREMENT_V2.2",
+        MEASUREMENT_LAYER,
 
       closed:
         false,
@@ -609,15 +1014,18 @@ function buildPreview({
     },
 
     saved:
-      Boolean(persistedFeedback),
+      Boolean(
+        persistedFeedback
+      ),
 
     timestamp:
       new Date().toISOString()
   };
 }
 
-export async function onRequest(context) {
-
+export async function onRequest(
+  context
+) {
   const request =
     context.request;
 
@@ -627,9 +1035,15 @@ export async function onRequest(context) {
   if (!DB) {
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
         error:
           "D1_BINDING_NOT_FOUND"
       },
@@ -654,14 +1068,17 @@ export async function onRequest(context) {
     // GET
     // ==================================================
 
-    if (request.method === "GET") {
-
+    if (
+      request.method ===
+      "GET"
+    ) {
       const executionId =
         url.searchParams.get(
           "execution_id"
         );
 
-      let persistedFeedback = null;
+      let persistedFeedback =
+        null;
 
       if (executionId) {
 
@@ -694,6 +1111,74 @@ export async function onRequest(context) {
           contentId
         );
 
+      const contract =
+        validateAutomationContract(
+          automation
+        );
+
+      if (
+        automation &&
+        !contract.valid
+      ) {
+        return json(
+          {
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
+            status:
+              "CONTRACT_ERROR",
+
+            error:
+              "Feedback Layer V1.1 requires current Automation V1.0 contract.",
+
+            expected: {
+              automation_layer:
+                AUTOMATION_LAYER,
+
+              automation_version:
+                AUTOMATION_VERSION,
+
+              automation_engine:
+                AUTOMATION_ENGINE,
+
+              measurement:
+                MEASUREMENT_LAYER,
+
+              intelligence_version:
+                INTELLIGENCE_VERSION,
+
+              intelligence_engine:
+                INTELLIGENCE_ENGINE,
+
+              learning_version:
+                LEARNING_VERSION,
+
+              learning_engine:
+                LEARNING_ENGINE,
+
+              decision_version:
+                DECISION_VERSION,
+
+              action_version:
+                ACTION_VERSION
+            },
+
+            received:
+              automation,
+
+            contract_errors:
+              contract.errors
+          },
+          409
+        );
+      }
+
       return json(
         buildPreview({
           contentId,
@@ -708,8 +1193,10 @@ export async function onRequest(context) {
     // POST
     // ==================================================
 
-    if (request.method === "POST") {
-
+    if (
+      request.method ===
+      "POST"
+    ) {
       let body = {};
 
       try {
@@ -721,9 +1208,15 @@ export async function onRequest(context) {
 
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
             error:
               "INVALID_JSON_BODY"
           },
@@ -732,18 +1225,28 @@ export async function onRequest(context) {
       }
 
       const mode =
-        normalize(body.mode)
-          ?.toLowerCase();
+        normalize(
+          body.mode
+        )?.toLowerCase();
 
-      if (mode !== "record") {
-
+      if (
+        mode !==
+        "record"
+      ) {
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
             error:
               "INVALID_MODE",
+
             expected:
               "record"
           },
@@ -773,12 +1276,17 @@ export async function onRequest(context) {
         );
 
       if (!actualOutcome) {
-
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
             error:
               "ACTUAL_OUTCOME_REQUIRED"
           },
@@ -791,6 +1299,39 @@ export async function onRequest(context) {
           request,
           contentId
         );
+
+      const contract =
+        validateAutomationContract(
+          automation
+        );
+
+      if (
+        automation &&
+        !contract.valid
+      ) {
+        return json(
+          {
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
+            status:
+              "CONTRACT_ERROR",
+
+            error:
+              "Feedback Layer V1.1 requires current Automation V1.0 contract.",
+
+            contract_errors:
+              contract.errors
+          },
+          409
+        );
+      }
 
       const executionState =
         executionId
@@ -814,7 +1355,8 @@ export async function onRequest(context) {
         };
 
       const action =
-        automation?.action || {};
+        automation?.action ||
+        {};
 
       const expectedOutcome =
         action.objective ||
@@ -836,10 +1378,14 @@ export async function onRequest(context) {
             "UNKNOWN",
 
           approved:
-            Boolean(execution.approved),
+            Boolean(
+              execution.approved
+            ),
 
           executed:
-            Boolean(execution.executed)
+            Boolean(
+              execution.executed
+            )
         },
 
         expected: {
@@ -873,7 +1419,7 @@ export async function onRequest(context) {
             false,
 
           next_layer:
-            "MEASUREMENT_V2.2"
+            MEASUREMENT_LAYER
         },
 
         execution_id:
@@ -905,10 +1451,14 @@ export async function onRequest(context) {
           id,
           executionId,
           contentId,
-          action.action_code || null,
-          action.target || null,
-          execution.execution_code || null,
-          execution.status || null,
+          action.action_code ||
+            null,
+          action.target ||
+            null,
+          execution.execution_code ||
+            null,
+          execution.status ||
+            null,
           expectedOutcome,
           actualOutcome,
           outcomeStatus,
@@ -954,17 +1504,28 @@ export async function onRequest(context) {
           .first();
 
       if (!persisted) {
-
         return json(
           {
-            success: false,
-            layer: LAYER,
-            version: VERSION,
-            mode: "RECORD",
+            success:
+              false,
+
+            layer:
+              LAYER,
+
+            version:
+              VERSION,
+
+            mode:
+              "RECORD",
+
             status:
               "PERSISTENCE_VERIFICATION_FAILED",
-            saved: false,
-            feedback_recorded: false
+
+            saved:
+              false,
+
+            feedback_recorded:
+              false
           },
           500
         );
@@ -972,13 +1533,17 @@ export async function onRequest(context) {
 
       return json(
         {
-          success: true,
+          success:
+            true,
 
           layer:
             LAYER,
 
           version:
             VERSION,
+
+          engine:
+            "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE",
 
           mode:
             "RECORD",
@@ -988,9 +1553,14 @@ export async function onRequest(context) {
 
           content:
             automation?.content || {
-              id: contentId,
-              title: null,
-              status: null
+              id:
+                contentId,
+
+              title:
+                null,
+
+              status:
+                null
             },
 
           action,
@@ -1058,36 +1628,53 @@ export async function onRequest(context) {
               persisted.updated_at
           },
 
-          source_chain: [
-            "CONTENT_MEASUREMENT_ENGINE_V2.2",
-            "INTELLIGENCE_LAYER_V2",
-            "LEARNING_ENGINE_V2.2",
-            "DECISION_LAYER_V1.1",
-            "ACTION_LAYER_V1.0",
-            "AUTOMATION_EXECUTION_V1.0",
-            "FEEDBACK_LAYER_V1.1"
-          ],
+          source_chain:
+            buildSourceChain(),
+
+          source_contract:
+            buildSourceContract(),
 
           guardrails: {
-            reads_raw_behavior_events: false,
-            recalculates_measurement: false,
-            recalculates_intelligence: false,
-            recalculates_learning: false,
-            creates_decision: false,
-            changes_strategy: false,
-            winner_declared: false,
-            automatic_execution: false,
-            external_execution: false,
-            action_executed: false,
-            feedback_recorded: true
+            reads_raw_behavior_events:
+              false,
+
+            recalculates_measurement:
+              false,
+
+            recalculates_intelligence:
+              false,
+
+            recalculates_learning:
+              false,
+
+            creates_decision:
+              false,
+
+            changes_strategy:
+              false,
+
+            winner_declared:
+              false,
+
+            automatic_execution:
+              false,
+
+            external_execution:
+              false,
+
+            action_executed:
+              false,
+
+            feedback_recorded:
+              true
           },
 
           loop: {
             current_layer:
-              "FEEDBACK_LAYER_V1.1",
+              LAYER,
 
             next_layer:
-              "MEASUREMENT_V2.2",
+              MEASUREMENT_LAYER,
 
             closed:
               false,
@@ -1107,9 +1694,15 @@ export async function onRequest(context) {
 
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
         error:
           "METHOD_NOT_ALLOWED"
       },
@@ -1120,9 +1713,15 @@ export async function onRequest(context) {
 
     return json(
       {
-        success: false,
-        layer: LAYER,
-        version: VERSION,
+        success:
+          false,
+
+        layer:
+          LAYER,
+
+        version:
+          VERSION,
+
         error:
           "FEEDBACK_LAYER_ERROR",
 
