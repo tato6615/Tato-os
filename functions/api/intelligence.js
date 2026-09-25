@@ -1,10 +1,47 @@
+// TATO-OS
+// Intelligence Layer V2.1
+// Route: /api/intelligence
+//
+// Pipeline:
+//
+// Measurement V2.3
+//        ↓
+// Intelligence V2.1
+//        ↓
+// Learning V2.2
+//        ↓
+// Decision V1.1
+//
+// Intelligence V2.1:
+// - reads Measurement V2.3
+// - reads completed Feedback V1.1 as operational context
+// - does NOT count feedback as behavior
+// - does NOT count feedback as attention
+// - does NOT alter funnel metrics from feedback
+// - detects persistent behavioral patterns
+// - creates intelligence
+// - does NOT declare winner
+// - does NOT change strategy
+// - does NOT execute actions
+
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store"
+  "Cache-Control": "no-store, no-cache, must-revalidate"
 };
 
 const LAYER = "INTELLIGENCE_LAYER_V2";
-const VERSION = "2.0";
+const VERSION = "2.1";
+
+const ENGINE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const MEASUREMENT_SOURCE =
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
+
+const FEEDBACK_SOURCE =
+  "FEEDBACK_LAYER_V1.1";
+
+const LEARNING_SOURCE =
+  "LEARNING_ENGINE_V2.2";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -101,7 +138,9 @@ async function getContent(db, contentId) {
       .bind(contentId)
       .first();
 
-    if (result) return result;
+    if (result) {
+      return result;
+    }
   }
 
   return await db
@@ -116,7 +155,11 @@ async function getMeasurements(db, contentId) {
 
   const result = await db
     .prepare(
-      "SELECT * FROM content_measurements WHERE content_id = ? ORDER BY measured_at DESC LIMIT 20"
+      `SELECT *
+       FROM content_measurements
+       WHERE content_id = ?
+       ORDER BY measured_at DESC
+       LIMIT 20`
     )
     .bind(contentId)
     .all();
@@ -124,6 +167,70 @@ async function getMeasurements(db, contentId) {
   return (result.results || [])
     .map(normalizeMeasurement)
     .filter(Boolean);
+}
+
+async function getCompletedFeedback(db, contentId) {
+  if (!contentId) {
+    return null;
+  }
+
+  try {
+    const result = await db
+      .prepare(
+        `SELECT *
+         FROM feedback_events
+         WHERE content_id = ?
+           AND measurement_required = 1
+           AND measurement_completed = 1
+         ORDER BY created_at DESC
+         LIMIT 1`
+      )
+      .bind(contentId)
+      .first();
+
+    if (!result) {
+      return null;
+    }
+
+    return {
+      id: text(result.id),
+      content_id: text(result.content_id),
+      execution_id:
+        result.execution_id == null
+          ? null
+          : text(result.execution_id),
+      action_code:
+        result.action_code == null
+          ? null
+          : text(result.action_code),
+      action_target:
+        result.action_target == null
+          ? null
+          : text(result.action_target),
+      actual_outcome:
+        result.actual_outcome == null
+          ? null
+          : text(result.actual_outcome),
+      outcome_status:
+        result.outcome_status == null
+          ? null
+          : text(result.outcome_status),
+      measurement_required:
+        num(result.measurement_required) === 1,
+      measurement_completed:
+        num(result.measurement_completed) === 1,
+      created_at:
+        result.created_at == null
+          ? null
+          : text(result.created_at),
+      updated_at:
+        result.updated_at == null
+          ? null
+          : text(result.updated_at)
+    };
+  } catch (_) {
+    return null;
+  }
 }
 
 function aggregate(history) {
@@ -152,30 +259,37 @@ function aggregate(history) {
 
 function percentage(value, base) {
   if (base <= 0) return 0;
-  return Number(((value / base) * 100).toFixed(2));
+
+  return Number(
+    ((value / base) * 100).toFixed(2)
+  );
 }
 
 function buildConversions(totals) {
   return {
-    attention_to_product_view: percentage(
-      totals.product_views,
-      totals.attention
-    ),
+    attention_to_product_view:
+      percentage(
+        totals.product_views,
+        totals.attention
+      ),
 
-    product_view_to_click: percentage(
-      totals.clicks,
-      totals.product_views
-    ),
+    product_view_to_click:
+      percentage(
+        totals.clicks,
+        totals.product_views
+      ),
 
-    click_to_customer: percentage(
-      totals.customers,
-      totals.clicks
-    ),
+    click_to_customer:
+      percentage(
+        totals.customers,
+        totals.clicks
+      ),
 
-    customer_to_order: percentage(
-      totals.orders,
-      totals.customers
-    )
+    customer_to_order:
+      percentage(
+        totals.orders,
+        totals.customers
+      )
   };
 }
 
@@ -249,43 +363,172 @@ function detectPatterns(history, totals) {
   };
 }
 
+function buildInsights(patterns) {
+  const insights = [];
+
+  if (
+    patterns.persistent_funnel_block
+  ) {
+    insights.push({
+      type:
+        "PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW",
+
+      title:
+        "Attention และ Click แต่ไม่มี Product View",
+
+      finding:
+        "พบสัญญาณ Attention และ Click ต่อเนื่อง แต่ยังไม่พบ Product View"
+    });
+  }
+
+  if (
+    patterns.click_without_product_view
+  ) {
+    insights.push({
+      type:
+        "CLICK_WITHOUT_PRODUCT_VIEW",
+
+      title:
+        "Click ยังไม่ไปถึง Product View",
+
+      finding:
+        "พบ Click แต่ downstream ยังไม่มี Product View"
+    });
+  }
+
+  if (
+    patterns.persistent_no_customer
+  ) {
+    insights.push({
+      type:
+        "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT",
+
+      title:
+        "ยังไม่เกิด Customer",
+
+      finding:
+        "มี Measurement หลายรอบแต่ยังไม่พบ Customer"
+    });
+  }
+
+  if (
+    patterns.persistent_no_order
+  ) {
+    insights.push({
+      type:
+        "NO_ORDER_AFTER_REPEATED_MEASUREMENT",
+
+      title:
+        "ยังไม่เกิด Order",
+
+      finding:
+        "มี Measurement หลายรอบแต่ยังไม่พบ Order"
+    });
+  }
+
+  if (
+    patterns.persistent_no_revenue
+  ) {
+    insights.push({
+      type:
+        "NO_REVENUE_AFTER_REPEATED_MEASUREMENT",
+
+      title:
+        "ยังไม่เกิด Revenue",
+
+      finding:
+        "มี Measurement หลายรอบแต่ยังไม่พบ Revenue"
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      type: "OBSERVING",
+
+      title:
+        "กำลังสะสมหลักฐาน",
+
+      finding:
+        "ยังไม่พบ Pattern ที่เพียงพอสำหรับการเปลี่ยนแปลง"
+    });
+  }
+
+  return insights;
+}
+
 function buildRecommendation(patterns) {
   if (patterns.persistent_funnel_block) {
     return {
-      action: "INVESTIGATE_FUNNEL",
+      action:
+        "INVESTIGATE_FUNNEL",
+
       direction:
         "ตรวจเส้นทาง Click ไป Product View",
+
       reason:
-        "มี Attention และ Click ต่อเนื่อง แต่ยังไม่มี Product View"
+        "มี Attention และ Click ต่อเนื่อง แต่ยังไม่มี Product View",
+
+      do_not_change_strategy_yet:
+        true,
+
+      winner_declared:
+        false
     };
   }
 
   if (patterns.persistent_no_customer) {
     return {
-      action: "INVESTIGATE_CONVERSION",
+      action:
+        "INVESTIGATE_CONVERSION",
+
       direction:
         "ตรวจเส้นทางจากพฤติกรรมไป Customer",
+
       reason:
-        "มี Measurement หลายรอบแต่ยังไม่เกิด Customer"
+        "มี Measurement หลายรอบแต่ยังไม่เกิด Customer",
+
+      do_not_change_strategy_yet:
+        true,
+
+      winner_declared:
+        false
     };
   }
 
   if (patterns.attention_present) {
     return {
-      action: "CONTINUE_MEASUREMENT",
+      action:
+        "CONTINUE_MEASUREMENT",
+
       direction:
         "เก็บ downstream behavior เพิ่ม",
+
       reason:
-        "มี Attention แต่หลักฐาน conversion ยังไม่เพียงพอ"
+        "มี Attention แต่หลักฐาน conversion ยังไม่เพียงพอ",
+
+      do_not_change_strategy_yet:
+        true,
+
+      winner_declared:
+        false
     };
   }
 
   return {
-    action: "CONTINUE_MEASUREMENT",
+    action:
+      "CONTINUE_MEASUREMENT",
+
     direction:
       "เก็บ Measurement ต่อ",
+
     reason:
-      "ยังมีข้อมูลไม่เพียงพอ"
+      "ยังมีข้อมูลไม่เพียงพอ",
+
+    do_not_change_strategy_yet:
+      true,
+
+    winner_declared:
+      false
   };
 }
 
@@ -294,11 +537,15 @@ function determineState(patterns) {
     return "NO_DATA";
   }
 
-  if (patterns.persistent_funnel_block) {
+  if (
+    patterns.persistent_funnel_block
+  ) {
     return "PERSISTENT_FUNNEL_BLOCK";
   }
 
-  if (patterns.persistent_no_customer) {
+  if (
+    patterns.persistent_no_customer
+  ) {
     return "PERSISTENT_NO_CUSTOMER";
   }
 
@@ -313,11 +560,34 @@ function determineState(patterns) {
   return "OBSERVING";
 }
 
+function determineConfidence(state) {
+  if (
+    state === "PERSISTENT_FUNNEL_BLOCK"
+  ) {
+    return "HIGH";
+  }
+
+  if (
+    state === "PERSISTENT_NO_CUSTOMER"
+  ) {
+    return "MEDIUM";
+  }
+
+  if (
+    state === "PATTERN_DETECTED"
+  ) {
+    return "MEDIUM";
+  }
+
+  return "LOW";
+}
+
 function buildIntelligence(
   content,
   latest,
   history,
-  totals
+  totals,
+  feedback
 ) {
   const patterns =
     detectPatterns(
@@ -328,105 +598,19 @@ function buildIntelligence(
   const state =
     determineState(patterns);
 
+  const confidence =
+    determineConfidence(state);
+
+  const insights =
+    buildInsights(patterns);
+
   const recommendation =
     buildRecommendation(patterns);
-
-  let confidence = "LOW";
-
-  if (
-    state === "PERSISTENT_FUNNEL_BLOCK"
-  ) {
-    confidence = "HIGH";
-  } else if (
-    state === "PERSISTENT_NO_CUSTOMER"
-  ) {
-    confidence = "MEDIUM";
-  } else if (
-    state === "PATTERN_DETECTED"
-  ) {
-    confidence = "MEDIUM";
-  }
-
-  const insights = [];
-
-  if (
-    patterns.persistent_funnel_block
-  ) {
-    insights.push({
-      type:
-        "PERSISTENT_ATTENTION_WITHOUT_PRODUCT_VIEW",
-      title:
-        "Attention และ Click แต่ไม่มี Product View",
-      finding:
-        "พบสัญญาณ Attention และ Click ต่อเนื่อง แต่ยังไม่พบ Product View"
-    });
-  }
-
-  if (
-    patterns.click_without_product_view
-  ) {
-    insights.push({
-      type:
-        "CLICK_WITHOUT_PRODUCT_VIEW",
-      title:
-        "Click ยังไม่ไปถึง Product View",
-      finding:
-        "พบ Click แต่ downstream ยังไม่มี Product View"
-    });
-  }
-
-  if (
-    patterns.persistent_no_customer
-  ) {
-    insights.push({
-      type:
-        "NO_CUSTOMER_AFTER_REPEATED_MEASUREMENT",
-      title:
-        "ยังไม่เกิด Customer",
-      finding:
-        "มี Measurement หลายรอบแต่ยังไม่พบ Customer"
-    });
-  }
-
-  if (
-    patterns.persistent_no_order
-  ) {
-    insights.push({
-      type:
-        "NO_ORDER_AFTER_REPEATED_MEASUREMENT",
-      title:
-        "ยังไม่เกิด Order",
-      finding:
-        "มี Measurement หลายรอบแต่ยังไม่พบ Order"
-    });
-  }
-
-  if (
-    patterns.persistent_no_revenue
-  ) {
-    insights.push({
-      type:
-        "NO_REVENUE_AFTER_REPEATED_MEASUREMENT",
-      title:
-        "ยังไม่เกิด Revenue",
-      finding:
-        "มี Measurement หลายรอบแต่ยังไม่พบ Revenue"
-    });
-  }
-
-  if (insights.length === 0) {
-    insights.push({
-      type: "OBSERVING",
-      title:
-        "กำลังสะสมหลักฐาน",
-      finding:
-        "ยังไม่พบ Pattern ที่เพียงพอสำหรับการเปลี่ยนแปลง"
-    });
-  }
 
   return {
     layer: LAYER,
     version: VERSION,
+    engine: ENGINE,
 
     state,
     confidence,
@@ -485,21 +669,74 @@ function buildIntelligence(
 
     insights,
 
-    recommendation: {
-      ...recommendation,
+    recommendation,
 
-      do_not_change_strategy_yet:
-        true,
+    feedback_context: {
+      available:
+        !!feedback,
 
-      winner_declared:
-        false
+      role:
+        "OPERATIONAL_CONTEXT_ONLY",
+
+      counted_as_behavior:
+        false,
+
+      counted_as_attention:
+        false,
+
+      alters_funnel_metrics:
+        false,
+
+      source:
+        FEEDBACK_SOURCE,
+
+      latest:
+        feedback
+          ? feedback
+          : null
+    },
+
+    source_contract: {
+      measurement:
+        MEASUREMENT_SOURCE,
+
+      feedback:
+        FEEDBACK_SOURCE,
+
+      intelligence:
+        ENGINE,
+
+      next:
+        LEARNING_SOURCE
     },
 
     guardrails: {
-      winner_declared: false,
-      automatic_execution: false,
-      strategy_change_automatic: false,
-      requires_human_approval: true
+      reads_measurement:
+        true,
+
+      reads_feedback_context:
+        true,
+
+      feedback_used_as_behavior:
+        false,
+
+      feedback_used_as_attention:
+        false,
+
+      feedback_alters_funnel_metrics:
+        false,
+
+      winner_declared:
+        false,
+
+      automatic_execution:
+        false,
+
+      strategy_change_automatic:
+        false,
+
+      requires_human_approval:
+        true
     }
   };
 }
@@ -539,12 +776,19 @@ async function analyze(
   const totals =
     aggregate(history);
 
+  const feedback =
+    await getCompletedFeedback(
+      env.DB,
+      resolvedContentId
+    );
+
   const intelligence =
     buildIntelligence(
       content,
       latest,
       history,
-      totals
+      totals,
+      feedback
     );
 
   return {
@@ -552,6 +796,7 @@ async function analyze(
     latest,
     history,
     totals,
+    feedback,
     intelligence
   };
 }
@@ -585,14 +830,25 @@ async function save(
     JSON.stringify({
       layer: LAYER,
       version: VERSION,
-      content_id: contentId,
-      measurement_id: measurementId,
+      engine: ENGINE,
+
+      content_id:
+        contentId,
+
+      measurement_id:
+        measurementId,
+
       latest_measurement:
         result.latest,
+
       history:
         result.history,
+
       totals:
-        result.totals
+        result.totals,
+
+      feedback_context:
+        result.feedback
     });
 
   const outputData =
@@ -628,7 +884,8 @@ async function save(
     )
     .run();
 
-  let priority = "LOW";
+  let priority =
+    "LOW";
 
   if (
     result.intelligence.state ===
@@ -673,7 +930,7 @@ async function save(
       null,
       runId,
       "INTELLIGENCE",
-      "Intelligence Layer V2 Analysis",
+      "Intelligence Layer V2.1 Analysis",
       outputData,
       score,
       priority,
@@ -684,12 +941,168 @@ async function save(
 
   return {
     ...result,
-    run_id: runId,
-    insight_id: insightId
+    run_id:
+      runId,
+    insight_id:
+      insightId
   };
 }
 
-export async function onRequestGet(context) {
+function responsePayload(
+  result,
+  mode
+) {
+  return {
+    success: true,
+
+    layer:
+      LAYER,
+
+    version:
+      VERSION,
+
+    engine:
+      ENGINE,
+
+    mode,
+
+    status:
+      mode === "execute"
+        ? "EXECUTED"
+        : "ANALYZED",
+
+    content:
+      result.content
+        ? {
+            id:
+              result.content.id,
+
+            title:
+              result.content.title,
+
+            status:
+              result.content.status
+          }
+        : null,
+
+    measurement:
+      result.latest,
+
+    measurement_history: {
+      rounds:
+        result.history.length
+    },
+
+    metrics: {
+      latest:
+        result.latest,
+
+      totals:
+        result.totals
+    },
+
+    feedback_context: {
+      available:
+        !!result.feedback,
+
+      role:
+        "OPERATIONAL_CONTEXT_ONLY",
+
+      counted_as_behavior:
+        false,
+
+      counted_as_attention:
+        false,
+
+      alters_funnel_metrics:
+        false,
+
+      source:
+        FEEDBACK_SOURCE,
+
+      latest:
+        result.feedback
+          ? result.feedback
+          : null
+    },
+
+    intelligence:
+      result.intelligence,
+
+    source_chain: [
+      MEASUREMENT_SOURCE,
+      FEEDBACK_SOURCE,
+      LAYER
+    ],
+
+    handoff: {
+      next_layer:
+        LEARNING_SOURCE,
+
+      ready:
+        true
+    },
+
+    guardrails: {
+      reads_raw_behavior:
+        false,
+
+      reads_measurement:
+        true,
+
+      reads_feedback_context:
+        true,
+
+      feedback_used_as_behavior:
+        false,
+
+      feedback_used_as_attention:
+        false,
+
+      feedback_alters_funnel_metrics:
+        false,
+
+      winner_declared:
+        false,
+
+      strategy_changed:
+        false,
+
+      decision_created:
+        false,
+
+      action_executed:
+        false,
+
+      automatic_execution:
+        false,
+
+      requires_human_approval:
+        true
+    },
+
+    loop: {
+      current_layer:
+        "INTELLIGENCE_V2.1",
+
+      previous_layer:
+        "MEASUREMENT_V2.3",
+
+      feedback_source:
+        "FEEDBACK_V1.1",
+
+      next_layer:
+        "LEARNING_V2.2",
+
+      closed:
+        false
+    }
+  };
+}
+
+export async function onRequestGet(
+  context
+) {
   try {
     const url =
       new URL(
@@ -707,52 +1120,19 @@ export async function onRequestGet(context) {
         contentId
       );
 
-    return json({
-      success: true,
-      layer: LAYER,
-      version: VERSION,
-      mode: "preview",
-      status: "ANALYZED",
-
-      content:
-        result.content
-          ? {
-              id:
-                result.content.id,
-              title:
-                result.content.title,
-              status:
-                result.content.status
-            }
-          : null,
-
-      measurement:
-        result.latest,
-
-      measurement_history: {
-        rounds:
-          result.history.length
-      },
-
-      metrics: {
-        latest:
-          result.latest,
-        totals:
-          result.totals
-      },
-
-      intelligence:
-        result.intelligence,
-
-      next_step:
-        "Intelligence V2 preview ready."
-    });
+    return json(
+      responsePayload(
+        result,
+        "preview"
+      )
+    );
   } catch (error) {
     return json(
       {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error:
           error &&
           error.message
@@ -764,7 +1144,9 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost(
+  context
+) {
   try {
     let body = {};
 
@@ -785,107 +1167,65 @@ export async function onRequestPost(context) {
         contentId
       );
 
-    if (mode === "execute") {
+    if (
+      mode === "execute"
+    ) {
       const saved =
         await save(
           context.env,
           result
         );
 
-      return json({
-        success: true,
-        layer: LAYER,
-        version: VERSION,
-        mode: "execute",
-        status: "EXECUTED",
+      const response =
+        responsePayload(
+          saved,
+          "execute"
+        );
 
-        content:
-          saved.content
-            ? {
-                id:
-                  saved.content.id,
-                title:
-                  saved.content.title,
-                status:
-                  saved.content.status
-              }
+      response.run_id =
+        saved.run_id;
+
+      response.insight_id =
+        saved.insight_id;
+
+      response.contract = {
+        run_type:
+          "INTELLIGENCE",
+
+        measurement_id:
+          saved.latest
+            ? saved.latest.id
             : null,
 
-        measurement:
-          saved.latest,
+        content_id:
+          saved.content
+            ? saved.content.id
+            : saved.latest
+            ? saved.latest.content_id
+            : null,
 
-        metrics: {
-          latest:
-            saved.latest,
-          totals:
-            saved.totals
-        },
+        feedback_source:
+          FEEDBACK_SOURCE
+      };
 
-        intelligence:
-          saved.intelligence,
-
-        run_id:
-          saved.run_id,
-
-        insight_id:
-          saved.insight_id,
-
-        contract: {
-          run_type:
-            "INTELLIGENCE",
-          measurement_id:
-            saved.latest
-              ? saved.latest.id
-              : null,
-          content_id:
-            saved.content
-              ? saved.content.id
-              : saved.latest
-              ? saved.latest.content_id
-              : null
-        },
-
-        next_step:
-          "Intelligence V2 saved."
-      });
+      return json(
+        response
+      );
     }
 
-    return json({
-      success: true,
-      layer: LAYER,
-      version: VERSION,
-      mode: "preview",
-      status: "ANALYZED",
-      content:
-        result.content
-          ? {
-              id:
-                result.content.id,
-              title:
-                result.content.title,
-              status:
-                result.content.status
-            }
-          : null,
-      measurement:
-        result.latest,
-      metrics: {
-        latest:
-          result.latest,
-        totals:
-          result.totals
-      },
-      intelligence:
-        result.intelligence,
-      next_step:
-        "Intelligence V2 preview ready."
-    });
+    return json(
+      responsePayload(
+        result,
+        "preview"
+      )
+    );
   } catch (error) {
     return json(
       {
         success: false,
         layer: LAYER,
         version: VERSION,
+        engine: ENGINE,
         error:
           error &&
           error.message
