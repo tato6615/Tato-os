@@ -2,7 +2,7 @@
 // Feedback Layer V1.1
 // Route: /api/feedback
 //
-// Pipeline:
+// CURRENT PIPELINE:
 //
 // Measurement V2.3
 //        ↓
@@ -25,6 +25,7 @@
 // - record execution outcome
 // - persist feedback_events
 // - verify persistence
+// - migrate stale V2.2 loop metadata
 // - read persisted feedback_events
 // - expose latest persisted feedback
 // - hand off to Measurement V2.3
@@ -83,6 +84,9 @@ const AUTOMATION_VERSION =
 const AUTOMATION_ENGINE =
   "AUTOMATION_V1.0_ACTION_V1.0_COMPATIBLE";
 
+const FEEDBACK_ENGINE =
+  "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE";
+
 const AUTOMATION_URL =
   "/api/automation";
 
@@ -98,8 +102,9 @@ function json(data, status = 200) {
     {
       status,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store"
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Content-Encoding": "identity"
       }
     }
   );
@@ -115,6 +120,99 @@ function normalize(value) {
 
   return String(value);
 }
+
+// ==================================================
+// TEXT NORMALIZATION
+// ==================================================
+
+function repairMojibake(value) {
+  if (
+    typeof value !== "string" ||
+    !value
+  ) {
+    return value;
+  }
+
+  // Only attempt repair when the string
+  // clearly contains UTF-8 mojibake markers.
+  const suspicious =
+    /(?:à¸|à¹|à»|àº|â†|â€™|â€œ|â€|ðŸ)/.test(
+      value
+    );
+
+  if (!suspicious) {
+    return value;
+  }
+
+  try {
+    const bytes = new Uint8Array(
+      Array.from(
+        unescape(
+          encodeURIComponent(value)
+        ),
+        char => char.charCodeAt(0)
+      )
+    );
+
+    const decoded =
+      new TextDecoder("utf-8", {
+        fatal: false
+      }).decode(bytes);
+
+    if (
+      decoded &&
+      decoded !== value &&
+      !/(?:à¸|à¹|à»|àº|â†)/.test(
+        decoded
+      )
+    ) {
+      return decoded;
+    }
+  } catch {
+    // Keep original value if repair fails.
+  }
+
+  return value;
+}
+
+function repairObject(value) {
+  if (
+    typeof value === "string"
+  ) {
+    return repairMojibake(value);
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    return value.map(
+      repairObject
+    );
+  }
+
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    const output = {};
+
+    for (
+      const [key, item] of
+      Object.entries(value)
+    ) {
+      output[key] =
+        repairObject(item);
+    }
+
+    return output;
+  }
+
+  return value;
+}
+
+// ==================================================
+// TABLE
+// ==================================================
 
 async function ensureTable(DB) {
   await DB.prepare(`
@@ -138,6 +236,36 @@ async function ensureTable(DB) {
     )
   `).run();
 }
+
+// ==================================================
+// MIGRATE STALE V2.2 METADATA
+// ==================================================
+
+async function migrateLegacyPayloads(DB) {
+  try {
+    await DB.prepare(`
+      UPDATE feedback_events
+      SET feedback_payload =
+        REPLACE(
+          feedback_payload,
+          'MEASUREMENT_V2.2',
+          'CONTENT_MEASUREMENT_ENGINE_V2.3'
+        ),
+        updated_at = ?
+      WHERE feedback_payload LIKE '%MEASUREMENT_V2.2%'
+    `)
+      .bind(
+        new Date().toISOString()
+      )
+      .run();
+  } catch {
+    // Migration must never break the Feedback layer.
+  }
+}
+
+// ==================================================
+// DATABASE READS
+// ==================================================
 
 async function getLatestFeedback(
   DB,
@@ -211,6 +339,10 @@ async function getFeedbackByExecution(
   return result || null;
 }
 
+// ==================================================
+// AUTOMATION
+// ==================================================
+
 async function getAutomationPreview(
   request,
   contentId
@@ -236,7 +368,8 @@ async function getAutomationPreview(
         {
           method: "GET",
           headers: {
-            "Cache-Control": "no-cache"
+            "Cache-Control":
+              "no-cache"
           }
         }
       );
@@ -245,12 +378,18 @@ async function getAutomationPreview(
       return null;
     }
 
-    return await response.json();
+    return repairObject(
+      await response.json()
+    );
 
   } catch {
     return null;
   }
 }
+
+// ==================================================
+// EXECUTION STATE
+// ==================================================
 
 async function getExecutionState(
   DB,
@@ -289,12 +428,14 @@ async function getExecutionState(
         null,
 
       title:
-        row.title ||
-        null,
+        repairMojibake(
+          row.title || null
+        ),
 
       objective:
-        row.objective ||
-        null,
+        repairMojibake(
+          row.objective || null
+        ),
 
       status:
         row.status ||
@@ -312,17 +453,27 @@ async function getExecutionState(
   }
 }
 
+// ==================================================
+// PAYLOAD
+// ==================================================
+
 function parsePayload(value) {
   if (!value) {
     return null;
   }
 
   try {
-    return JSON.parse(value);
+    return repairObject(
+      JSON.parse(value)
+    );
   } catch {
     return null;
   }
 }
+
+// ==================================================
+// SOURCE CONTRACT
+// ==================================================
 
 function buildSourceChain() {
   return [
@@ -397,10 +548,17 @@ function buildSourceContract() {
         LAYER,
 
       version:
-        VERSION
+        VERSION,
+
+      engine:
+        FEEDBACK_ENGINE
     }
   };
 }
+
+// ==================================================
+// AUTOMATION CONTRACT
+// ==================================================
 
 function validateAutomationContract(
   automation
@@ -438,7 +596,8 @@ function validateAutomationContract(
         AUTOMATION_LAYER,
 
       received:
-        automation.layer || null
+        automation.layer ||
+        null
     });
   }
 
@@ -454,7 +613,8 @@ function validateAutomationContract(
         AUTOMATION_VERSION,
 
       received:
-        automation.version || null
+        automation.version ||
+        null
     });
   }
 
@@ -487,7 +647,7 @@ function validateAutomationContract(
     ) {
       errors.push({
         field:
-          "automation.source_contract.measurement",
+          "automation.source_contract.measurement.layer",
 
         expected:
           MEASUREMENT_LAYER,
@@ -608,6 +768,10 @@ function validateAutomationContract(
   };
 }
 
+// ==================================================
+// PERSISTED FEEDBACK
+// ==================================================
+
 function buildPersistedFeedback(
   row,
   automation,
@@ -663,12 +827,16 @@ function buildPersistedFeedback(
 
     expected: {
       outcome:
-        row.expected_outcome
+        repairMojibake(
+          row.expected_outcome
+        )
     },
 
     actual: {
       outcome:
-        row.actual_outcome,
+        repairMojibake(
+          row.actual_outcome
+        ),
 
       status:
         row.outcome_status
@@ -676,7 +844,9 @@ function buildPersistedFeedback(
 
     operator: {
       note:
-        row.operator_note
+        repairMojibake(
+          row.operator_note
+        )
     },
 
     measurement: {
@@ -725,6 +895,10 @@ function buildPersistedFeedback(
     }
   };
 }
+
+// ==================================================
+// PREVIEW
+// ==================================================
 
 function buildPreview({
   contentId,
@@ -914,7 +1088,7 @@ function buildPreview({
       VERSION,
 
     engine:
-      "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE",
+      FEEDBACK_ENGINE,
 
     mode:
       "PREVIEW",
@@ -924,21 +1098,28 @@ function buildPreview({
         ? "FEEDBACK_PERSISTED"
         : "FEEDBACK_READY",
 
-    content,
+    content:
+      repairObject(content),
 
-    action,
+    action:
+      repairObject(action),
 
-    execution,
+    execution:
+      repairObject(execution),
 
-    decision,
+    decision:
+      repairObject(decision),
 
-    feedback,
+    feedback:
+      repairObject(feedback),
 
     evidence,
 
-    learning,
+    learning:
+      repairObject(learning),
 
-    intelligence,
+    intelligence:
+      repairObject(intelligence),
 
     funnel,
 
@@ -1023,6 +1204,10 @@ function buildPreview({
   };
 }
 
+// ==================================================
+// REQUEST HANDLER
+// ==================================================
+
 export async function onRequest(
   context
 ) {
@@ -1063,6 +1248,10 @@ export async function onRequest(
   try {
 
     await ensureTable(DB);
+
+    // Keep existing feedback records
+    // compatible with current Measurement V2.3.
+    await migrateLegacyPayloads(DB);
 
     // ==================================================
     // GET
@@ -1543,7 +1732,7 @@ export async function onRequest(
             VERSION,
 
           engine:
-            "FEEDBACK_V1.1_AUTOMATION_V1.0_COMPATIBLE",
+            FEEDBACK_ENGINE,
 
           mode:
             "RECORD",
@@ -1552,24 +1741,30 @@ export async function onRequest(
             "FEEDBACK_RECORDED",
 
           content:
-            automation?.content || {
-              id:
-                contentId,
+            repairObject(
+              automation?.content || {
+                id:
+                  contentId,
 
-              title:
-                null,
+                title:
+                  null,
 
-              status:
-                null
-            },
+                status:
+                  null
+              }
+            ),
 
-          action,
+          action:
+            repairObject(action),
 
-          execution,
+          execution:
+            repairObject(execution),
 
           decision:
-            automation?.decision ||
-            null,
+            repairObject(
+              automation?.decision ||
+              null
+            ),
 
           feedback:
             buildPersistedFeedback(
@@ -1590,12 +1785,16 @@ export async function onRequest(
             },
 
           learning:
-            automation?.learning ||
-            null,
+            repairObject(
+              automation?.learning ||
+              null
+            ),
 
           intelligence:
-            automation?.intelligence ||
-            null,
+            repairObject(
+              automation?.intelligence ||
+              null
+            ),
 
           funnel:
             automation?.funnel ||
