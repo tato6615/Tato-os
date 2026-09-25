@@ -1,36 +1,57 @@
 // TATO-OS
-// Learning Engine V2.2
+// Learning Engine V2.3
 // Route: /api/learning-ai
 //
 // Pipeline:
 //
-// Measurement V2.2
+// Measurement V2.3
 //        ↓
-// Intelligence V2.0
+// Intelligence V2.1
 //        ↓
-// Learning Engine V2.2
+// Learning Engine V2.3
 //        ↓
-// Decision Layer
+// Decision Layer V1.1
 //
-// Learning only consumes Intelligence evidence.
-// It does not read raw behavior data,
-// recalculate Measurement,
-// declare winners,
-// change strategy,
-// select actions,
-// or execute actions.
+// Learning DOES:
+// - read Intelligence V2.1
+// - identify repeated behavioral signals
+// - create learning hypotheses
+// - carry operational feedback context
+// - prepare evidence for Decision Layer
+//
+// Learning DOES NOT:
+// - read raw behavior events
+// - recalculate Measurement
+// - recalculate Intelligence
+// - declare winners
+// - change strategy
+// - select execution actions
+// - execute actions
+// - use feedback as behavior
+// - use feedback as attention
+// - alter funnel metrics
 
-const VERSION = "2.2";
+const VERSION = "2.3";
 const LAYER = "LEARNING_ENGINE_V2";
 
 const MEASUREMENT_SOURCE =
-  "CONTENT_MEASUREMENT_ENGINE_V2.2";
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
 const INTELLIGENCE_SOURCE =
-  "INTELLIGENCE_LAYER_V2";
+  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+
+const FEEDBACK_SOURCE =
+  "FEEDBACK_LAYER_V1.1";
+
+const DECISION_SOURCE =
+  "DECISION_LAYER_V1.1";
 
 const MODEL =
   "@cf/zai-org/glm-4.7-flash";
+
+/* =====================================================
+   RESPONSE
+===================================================== */
 
 function json(data, status = 200) {
   return new Response(
@@ -46,6 +67,10 @@ function json(data, status = 200) {
     }
   );
 }
+
+/* =====================================================
+   HELPERS
+===================================================== */
 
 function number(value) {
   const n = Number(value);
@@ -78,13 +103,10 @@ function resolveContentId(
   request,
   body = {}
 ) {
-  const url =
-    new URL(request.url);
+  const url = new URL(request.url);
 
   return (
-    url.searchParams.get(
-      "content_id"
-    ) ||
+    url.searchParams.get("content_id") ||
     body.content_id ||
     body.contentId ||
     null
@@ -123,8 +145,7 @@ async function getIntelligence(
   let data;
 
   try {
-    data =
-      JSON.parse(text);
+    data = JSON.parse(text);
   } catch {
     throw new Error(
       "INTELLIGENCE_INVALID_JSON"
@@ -140,11 +161,130 @@ async function getIntelligence(
     );
   }
 
+  /*
+   * HARD CONTRACT
+   *
+   * Learning V2.3 must consume
+   * Intelligence V2.1 only.
+   */
+
+  if (
+    data?.version !== "2.1"
+  ) {
+    throw new Error(
+      `INTELLIGENCE_VERSION_MISMATCH_EXPECTED_2.1_GOT_${data?.version || "UNKNOWN"}`
+    );
+  }
+
+  if (
+    data?.engine !==
+    "INTELLIGENCE_V2.1_FEEDBACK_AWARE"
+  ) {
+    throw new Error(
+      "INTELLIGENCE_ENGINE_CONTRACT_MISMATCH"
+    );
+  }
+
   return data;
 }
 
 /* =====================================================
-   NORMALIZE REAL INTELLIGENCE V2 RESPONSE
+   FEEDBACK CONTEXT
+===================================================== */
+
+function normalizeFeedbackContext(
+  raw
+) {
+  const feedback =
+    object(
+      raw?.feedback_context ||
+      raw?.intelligence?.feedback_context
+    );
+
+  if (
+    !feedback ||
+    Object.keys(feedback).length === 0
+  ) {
+    return {
+      available: false,
+      source: FEEDBACK_SOURCE,
+      role:
+        "OPERATIONAL_HANDOFF_ONLY",
+      counted_as_behavior: false,
+      counted_as_attention: false,
+      alters_funnel_metrics: false,
+      latest: null
+    };
+  }
+
+  const latest =
+    object(feedback.latest);
+
+  return {
+    available:
+      Boolean(feedback.available),
+
+    source:
+      feedback.source ||
+      FEEDBACK_SOURCE,
+
+    role:
+      feedback.role ||
+      "OPERATIONAL_HANDOFF_ONLY",
+
+    counted_as_behavior:
+      false,
+
+    counted_as_attention:
+      false,
+
+    alters_funnel_metrics:
+      false,
+
+    latest: {
+      id:
+        latest.id ||
+        null,
+
+      action_code:
+        latest.action_code ||
+        null,
+
+      action_target:
+        latest.action_target ||
+        null,
+
+      actual_outcome:
+        latest.actual_outcome ||
+        null,
+
+      outcome_status:
+        latest.outcome_status ||
+        null,
+
+      measurement_required:
+        Boolean(
+          latest.measurement_required
+        ),
+
+      measurement_completed:
+        Boolean(
+          latest.measurement_completed
+        ),
+
+      created_at:
+        latest.created_at ||
+        null,
+
+      updated_at:
+        latest.updated_at ||
+        null
+    }
+  };
+}
+
+/* =====================================================
+   NORMALIZE INTELLIGENCE V2.1
 ===================================================== */
 
 function normalizeIntelligence(
@@ -153,32 +293,6 @@ function normalizeIntelligence(
 ) {
   const root =
     object(raw);
-
-  /*
-   REAL RESPONSE:
-
-   root.content
-
-   root.measurement
-
-   root.measurement_history
-
-   root.metrics.latest
-   root.metrics.totals
-
-   root.intelligence
-     .state
-     .confidence
-     .content
-     .latest_measurement
-     .measurement_rounds
-     .totals
-     .conversions
-     .patterns
-     .insights
-     .recommendation
-     .guardrails
-  */
 
   const intel =
     object(
@@ -293,6 +407,11 @@ function normalizeIntelligence(
         metrics.totals?.revenue,
         latest.revenue
       )
+    );
+
+  const feedbackContext =
+    normalizeFeedbackContext(
+      raw
     );
 
   return {
@@ -526,7 +645,16 @@ function normalizeIntelligence(
     guardrails:
       object(
         intel.guardrails
-      )
+      ),
+
+    feedback_context:
+      feedbackContext,
+
+    intelligence_version:
+      "2.1",
+
+    intelligence_engine:
+      "INTELLIGENCE_V2.1_FEEDBACK_AWARE"
   };
 }
 
@@ -589,8 +717,10 @@ function detectRepeatedSignals(
         `Clicks ${t.clicks} → Product Views ${t.product_views}`,
 
       repeated:
-        p.persistent_funnel_block ||
-        intel.rounds >= 2
+        Boolean(
+          p.persistent_funnel_block ||
+          intel.rounds >= 2
+        )
     });
   }
 
@@ -832,13 +962,14 @@ function determineConfidence(
     ).length;
 
   if (
-    repeated > 0 &&
-    intel.rounds >= 2
+    repeated >= 2 &&
+    intel.rounds >= 10
   ) {
     return "HIGH";
   }
 
   if (
+    repeated > 0 &&
     intel.rounds >= 2
   ) {
     return "MEDIUM";
@@ -1057,6 +1188,9 @@ function buildLearning(
         intel.latest_measurement
     },
 
+    feedback_context:
+      intel.feedback_context,
+
     source_contract: {
       measurement:
         MEASUREMENT_SOURCE,
@@ -1067,8 +1201,20 @@ function buildLearning(
       learning:
         LAYER,
 
+      feedback:
+        FEEDBACK_SOURCE,
+
+      decision:
+        DECISION_SOURCE,
+
       intelligence_version:
-        "2.0",
+        "2.1",
+
+      intelligence_engine:
+        "INTELLIGENCE_V2.1_FEEDBACK_AWARE",
+
+      learning_version:
+        VERSION,
 
       content_id:
         intel.content.id,
@@ -1082,6 +1228,18 @@ function buildLearning(
         false,
 
       recalculates_measurement:
+        false,
+
+      recalculates_intelligence:
+        false,
+
+      feedback_used_as_behavior:
+        false,
+
+      feedback_used_as_attention:
+        false,
+
+      feedback_alters_funnel_metrics:
         false,
 
       winner_declared:
@@ -1105,7 +1263,7 @@ function buildLearning(
 
     handoff: {
       next_layer:
-        "DECISION_LAYER_V1",
+        "DECISION_LAYER_V1.1",
 
       decision_required:
         true,
@@ -1117,7 +1275,7 @@ function buildLearning(
 }
 
 /* =====================================================
-   AI
+   AI ANALYSIS
 ===================================================== */
 
 async function runAI(
@@ -1214,10 +1372,10 @@ async function runAI(
   };
 
   /*
-   AI is optional.
-   Learning state is deterministic
-   and does not depend on AI.
-  */
+   * AI is optional.
+   * Deterministic Learning state
+   * never depends on AI output.
+   */
 
   if (
     !env?.AI ||
@@ -1238,7 +1396,17 @@ async function runAI(
                 "system",
 
               content:
-                "You are an evidence-only learning analyst. Do not choose strategy, declare winners, or execute actions."
+                [
+                  "You are an evidence-only learning analyst.",
+                  "Use only the supplied evidence.",
+                  "Do not choose strategy.",
+                  "Do not declare winners.",
+                  "Do not execute actions.",
+                  "Do not treat feedback as behavior.",
+                  "Do not treat feedback as attention.",
+                  "Do not alter funnel metrics.",
+                  "Return factual evidence analysis only."
+                ].join(" ")
             },
 
             {
@@ -1263,7 +1431,10 @@ async function runAI(
                     learning.decision_input,
 
                   evidence:
-                    learning.evidence
+                    learning.evidence,
+
+                  feedback_context:
+                    learning.feedback_context
                 })
             }
           ]
@@ -1340,8 +1511,8 @@ async function runLearning(
     );
 
   /*
-   Contract check.
-  */
+   * Content contract.
+   */
 
   if (
     intelligence.content.id !==
@@ -1349,6 +1520,86 @@ async function runLearning(
   ) {
     throw new Error(
       "INTELLIGENCE_CONTENT_ID_MISMATCH"
+    );
+  }
+
+  /*
+   * Intelligence contract.
+   */
+
+  if (
+    intelligence.intelligence_version !==
+    "2.1"
+  ) {
+    throw new Error(
+      "INTELLIGENCE_VERSION_CONTRACT_FAILED"
+    );
+  }
+
+  if (
+    intelligence.intelligence_engine !==
+    "INTELLIGENCE_V2.1_FEEDBACK_AWARE"
+  ) {
+    throw new Error(
+      "INTELLIGENCE_ENGINE_CONTRACT_FAILED"
+    );
+  }
+
+  /*
+   * Measurement contract.
+   *
+   * Intelligence V2.1 is expected to
+   * consume Measurement V2.3.
+   */
+
+  const intelligenceSource =
+    raw?.source_contract?.measurement ||
+    raw?.intelligence?.source_contract?.measurement ||
+    MEASUREMENT_SOURCE;
+
+  if (
+    intelligenceSource !==
+    MEASUREMENT_SOURCE
+  ) {
+    throw new Error(
+      `MEASUREMENT_SOURCE_CONTRACT_FAILED_EXPECTED_${MEASUREMENT_SOURCE}_GOT_${intelligenceSource}`
+    );
+  }
+
+  /*
+   * Feedback contract.
+   */
+
+  const feedbackContext =
+    intelligence.feedback_context;
+
+  if (
+    feedbackContext
+      .counted_as_behavior !==
+      false
+  ) {
+    throw new Error(
+      "FEEDBACK_BEHAVIOR_GUARDRAIL_FAILED"
+    );
+  }
+
+  if (
+    feedbackContext
+      .counted_as_attention !==
+      false
+  ) {
+    throw new Error(
+      "FEEDBACK_ATTENTION_GUARDRAIL_FAILED"
+    );
+  }
+
+  if (
+    feedbackContext
+      .alters_funnel_metrics !==
+      false
+  ) {
+    throw new Error(
+      "FEEDBACK_FUNNEL_GUARDRAIL_FAILED"
     );
   }
 
@@ -1385,6 +1636,9 @@ async function runLearning(
     version:
       VERSION,
 
+    engine:
+      "LEARNING_V2.3_FEEDBACK_AWARE",
+
     mode:
       "preview",
 
@@ -1400,8 +1654,41 @@ async function runLearning(
       ai
     },
 
+    feedback_context:
+      intelligence.feedback_context,
+
+    source_chain: [
+      MEASUREMENT_SOURCE,
+      INTELLIGENCE_SOURCE,
+      FEEDBACK_SOURCE,
+      "LEARNING_V2.3_FEEDBACK_AWARE"
+    ],
+
+    loop: {
+      current_layer:
+        "LEARNING_V2.3",
+
+      previous_layer:
+        "INTELLIGENCE_V2.1",
+
+      measurement_source:
+        MEASUREMENT_SOURCE,
+
+      feedback_source:
+        FEEDBACK_SOURCE,
+
+      next_layer:
+        "DECISION_V1.1",
+
+      decision_required:
+        true,
+
+      closed:
+        false
+    },
+
     next_step:
-      "Pass Learning evidence to Decision Layer."
+      "Pass Learning V2.3 evidence to Decision Layer V1.1."
   };
 }
 
