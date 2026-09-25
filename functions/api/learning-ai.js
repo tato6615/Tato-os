@@ -34,6 +34,9 @@
 const VERSION = "2.3";
 const LAYER = "LEARNING_ENGINE_V2";
 
+const LEARNING_ENGINE =
+  "LEARNING_V2.3_FEEDBACK_AWARE";
+
 const MEASUREMENT_SOURCE =
   "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
@@ -160,13 +163,6 @@ async function getIntelligence(
       `INTELLIGENCE_REQUEST_FAILED_${response.status}`
     );
   }
-
-  /*
-   * HARD CONTRACT
-   *
-   * Learning V2.3 must consume
-   * Intelligence V2.1 only.
-   */
 
   if (
     data?.version !== "2.1"
@@ -1115,6 +1111,12 @@ function buildLearning(
     version:
       VERSION,
 
+    // FIX:
+    // Learning Engine contract requires
+    // an explicit engine identifier.
+    engine:
+      LEARNING_ENGINE,
+
     content_id:
       intel.content.id,
 
@@ -1371,12 +1373,6 @@ async function runAI(
     }
   };
 
-  /*
-   * AI is optional.
-   * Deterministic Learning state
-   * never depends on AI output.
-   */
-
   if (
     !env?.AI ||
     typeof env.AI.run !==
@@ -1510,10 +1506,6 @@ async function runLearning(
       contentId
     );
 
-  /*
-   * Content contract.
-   */
-
   if (
     intelligence.content.id !==
     contentId
@@ -1522,10 +1514,6 @@ async function runLearning(
       "INTELLIGENCE_CONTENT_ID_MISMATCH"
     );
   }
-
-  /*
-   * Intelligence contract.
-   */
 
   if (
     intelligence.intelligence_version !==
@@ -1545,13 +1533,6 @@ async function runLearning(
     );
   }
 
-  /*
-   * Measurement contract.
-   *
-   * Intelligence V2.1 is expected to
-   * consume Measurement V2.3.
-   */
-
   const intelligenceSource =
     raw?.source_contract?.measurement ||
     raw?.intelligence?.source_contract?.measurement ||
@@ -1565,10 +1546,6 @@ async function runLearning(
       `MEASUREMENT_SOURCE_CONTRACT_FAILED_EXPECTED_${MEASUREMENT_SOURCE}_GOT_${intelligenceSource}`
     );
   }
-
-  /*
-   * Feedback contract.
-   */
 
   const feedbackContext =
     intelligence.feedback_context;
@@ -1637,7 +1614,7 @@ async function runLearning(
       VERSION,
 
     engine:
-      "LEARNING_V2.3_FEEDBACK_AWARE",
+      LEARNING_ENGINE,
 
     mode:
       "preview",
@@ -1661,7 +1638,7 @@ async function runLearning(
       MEASUREMENT_SOURCE,
       INTELLIGENCE_SOURCE,
       FEEDBACK_SOURCE,
-      "LEARNING_V2.3_FEEDBACK_AWARE"
+      LEARNING_ENGINE
     ],
 
     loop: {
