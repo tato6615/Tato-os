@@ -1,18 +1,18 @@
 // TATO-OS
-// Decision Layer V1.1
+// Decision Layer V1.2
 // Route: /api/decision
 //
 // Pipeline:
 //
-// Measurement V2.2
+// Measurement V2.3
 //        ↓
-// Intelligence V2.0
+// Intelligence V2.1
 //        ↓
-// Learning Engine V2.2
+// Learning Engine V2.3
 //        ↓
-// Decision Layer V1.1
+// Decision Layer V1.2
 //        ↓
-// Action Layer
+// Action Layer V1.0
 //
 // Decision Layer DOES:
 // - read Learning Engine output
@@ -28,18 +28,25 @@
 // - declare winners
 // - change strategy automatically
 // - execute actions
+// - execute external actions
 
-const VERSION = "1.1";
+const VERSION = "1.2";
 const LAYER = "DECISION_LAYER_V1";
 
 const LEARNING_LAYER = "LEARNING_ENGINE_V2";
-const LEARNING_VERSION = "2.2";
+const LEARNING_VERSION = "2.3";
+const LEARNING_ENGINE =
+  "LEARNING_V2.3_FEEDBACK_AWARE";
 
 const MEASUREMENT_LAYER =
-  "CONTENT_MEASUREMENT_ENGINE_V2.2";
+  "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
 const INTELLIGENCE_LAYER =
   "INTELLIGENCE_LAYER_V2";
+
+const INTELLIGENCE_VERSION = "2.1";
+const INTELLIGENCE_ENGINE =
+  "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 function json(data, status = 200) {
   return new Response(
@@ -147,12 +154,23 @@ function normalizeLearning(root) {
       ? learning.repeated_signals
       : [];
 
+  const sourceContract =
+    learning?.source_contract || {};
+
+  const feedbackContext =
+    root?.feedback_context ||
+    learning?.feedback_context ||
+    null;
+
   return {
     layer:
       learning?.layer || null,
 
     version:
       learning?.version || null,
+
+    engine:
+      learning?.engine || null,
 
     content_id:
       learning?.content_id ||
@@ -317,16 +335,32 @@ function normalizeLearning(root) {
       repeatedSignals,
 
     measurement_source:
-      learning?.source_contract?.measurement ||
+      sourceContract?.measurement ||
       MEASUREMENT_LAYER,
 
     intelligence_source:
-      learning?.source_contract?.intelligence ||
+      sourceContract?.intelligence ||
       INTELLIGENCE_LAYER,
 
     intelligence_version:
-      learning?.source_contract?.intelligence_version ||
-      null
+      sourceContract?.intelligence_version ||
+      null,
+
+    intelligence_engine:
+      sourceContract?.intelligence_engine ||
+      null,
+
+    learning_version:
+      sourceContract?.learning_version ||
+      learning?.version ||
+      null,
+
+    feedback_source:
+      sourceContract?.feedback ||
+      null,
+
+    feedback_context:
+      feedbackContext
   };
 }
 
@@ -334,8 +368,10 @@ function createDecision(learning) {
   const m = learning.metrics;
 
   /*
-   * Learning V2.2 is the authoritative
-   * source for the Decision Layer.
+   * PRIMARY DECISION SOURCE
+   *
+   * Learning V2.3 decision_input
+   * is authoritative.
    */
 
   if (
@@ -354,12 +390,21 @@ function createDecision(learning) {
         "CLICK_TO_PRODUCT_VIEW_PATH",
 
       reason:
-        "Learning V2.2 reports persistent clicks without product views."
+        "Learning V2.3 identifies a persistent click-to-product-view downstream block."
     };
   }
 
+  /*
+   * SECONDARY LEARNING-EVIDENCE FALLBACK
+   *
+   * This still uses evidence already supplied
+   * by Learning. It does not recalculate
+   * Measurement or Intelligence.
+   */
+
   if (
-    m.attention > 0 &&
+    learning.patterns?.click_without_product_view ===
+      true &&
     m.clicks > 0 &&
     m.product_views === 0
   ) {
@@ -373,7 +418,7 @@ function createDecision(learning) {
         "CLICK_TO_PRODUCT_VIEW_PATH",
 
       reason:
-        "Attention and clicks are present, but no product view has been measured."
+        "Learning evidence shows clicks without downstream product views."
     };
   }
 
@@ -391,7 +436,7 @@ function createDecision(learning) {
         "PRODUCT_VIEW_TO_CUSTOMER_PATH",
 
       reason:
-        "Product views are present, but no customers have been measured."
+        "Learning evidence shows product views without customers."
     };
   }
 
@@ -409,7 +454,7 @@ function createDecision(learning) {
         "CUSTOMER_TO_ORDER_PATH",
 
       reason:
-        "Customers are present, but no orders have been measured."
+        "Learning evidence shows customers without orders."
     };
   }
 
@@ -427,7 +472,7 @@ function createDecision(learning) {
         "ORDER_TO_REVENUE_PATH",
 
       reason:
-        "Orders are present, but no revenue has been measured."
+        "Learning evidence shows orders without measured revenue."
     };
   }
 
@@ -452,7 +497,7 @@ function createDecision(learning) {
         "CURRENT_CONTENT",
 
       reason:
-        "There is not enough behavioral evidence for a downstream decision."
+        "Learning Engine does not provide sufficient behavioral evidence for a downstream decision."
     };
   }
 
@@ -466,7 +511,7 @@ function createDecision(learning) {
       "CURRENT_CONTENT",
 
     reason:
-      "Current evidence does not indicate a specific downstream block."
+      "Learning evidence does not identify a specific downstream block."
   };
 }
 
@@ -489,6 +534,9 @@ function buildResponse(
 
     version:
       VERSION,
+
+    engine:
+      "DECISION_V1.2_LEARNING_V2.3_COMPATIBLE",
 
     status:
       "DECISION_READY",
@@ -524,9 +572,8 @@ function buildResponse(
     },
 
     /*
-     * IMPORTANT:
-     * Evidence comes from Learning V2.2.
-     * Latest measurement is NOT used here.
+     * Evidence is taken from Learning V2.3.
+     * Decision Layer does not recalculate it.
      */
 
     evidence: {
@@ -559,6 +606,9 @@ function buildResponse(
       version:
         learning.version,
 
+      engine:
+        learning.engine,
+
       state:
         learning.state,
 
@@ -588,6 +638,9 @@ function buildResponse(
       version:
         learning.intelligence_version,
 
+      engine:
+        learning.intelligence_engine,
+
       state:
         root?.learning?.evidence
           ?.intelligence_state ||
@@ -598,6 +651,17 @@ function buildResponse(
 
       conversions:
         learning.conversions
+    },
+
+    feedback: {
+      available:
+        !!learning.feedback_context,
+
+      source:
+        learning.feedback_source,
+
+      context:
+        learning.feedback_context
     },
 
     funnel: {
@@ -635,6 +699,9 @@ function buildResponse(
         layer:
           learning.measurement_source,
 
+        expected:
+          MEASUREMENT_LAYER,
+
         rounds:
           learning.patterns.rounds,
 
@@ -647,8 +714,20 @@ function buildResponse(
         layer:
           learning.intelligence_source,
 
+        expected:
+          INTELLIGENCE_LAYER,
+
         version:
           learning.intelligence_version,
+
+        expected_version:
+          INTELLIGENCE_VERSION,
+
+        engine:
+          learning.intelligence_engine,
+
+        expected_engine:
+          INTELLIGENCE_ENGINE,
 
         state:
           root?.learning?.evidence
@@ -661,7 +740,16 @@ function buildResponse(
           LEARNING_LAYER,
 
         version:
+          learning.version,
+
+        expected_version:
           LEARNING_VERSION,
+
+        engine:
+          learning.engine,
+
+        expected_engine:
+          LEARNING_ENGINE,
 
         state:
           learning.state,
@@ -671,6 +759,14 @@ function buildResponse(
 
         decision_input:
           learning.decision_input
+      },
+
+      decision: {
+        layer:
+          LAYER,
+
+        version:
+          VERSION
       }
     },
 
@@ -685,6 +781,15 @@ function buildResponse(
         false,
 
       recalculates_learning:
+        false,
+
+      feedback_used_as_behavior:
+        false,
+
+      feedback_used_as_attention:
+        false,
+
+      feedback_alters_funnel_metrics:
         false,
 
       winner_declared:
@@ -703,12 +808,15 @@ function buildResponse(
         false,
 
       requires_action_layer:
+        true,
+
+      requires_human_approval:
         true
     },
 
     handoff: {
       next_layer:
-        "ACTION_LAYER",
+        "ACTION_LAYER_V1",
 
       action_required:
         true,
@@ -725,7 +833,7 @@ function buildResponse(
         false,
 
       reason:
-        "Decision Layer creates decisions only. Action execution belongs to the Action / Automation Layer."
+        "Decision Layer creates decisions only. Action and Automation layers control execution."
     },
 
     timestamp:
@@ -737,6 +845,126 @@ function buildResponse(
     saved:
       false
   };
+}
+
+function validateLearningContract(
+  learning
+) {
+  const errors = [];
+
+  if (
+    learning.layer !==
+    LEARNING_LAYER
+  ) {
+    errors.push({
+      field: "learning.layer",
+
+      expected:
+        LEARNING_LAYER,
+
+      received:
+        learning.layer
+    });
+  }
+
+  if (
+    learning.version !==
+    LEARNING_VERSION
+  ) {
+    errors.push({
+      field: "learning.version",
+
+      expected:
+        LEARNING_VERSION,
+
+      received:
+        learning.version
+    });
+  }
+
+  if (
+    learning.engine &&
+    learning.engine !==
+      LEARNING_ENGINE
+  ) {
+    errors.push({
+      field: "learning.engine",
+
+      expected:
+        LEARNING_ENGINE,
+
+      received:
+        learning.engine
+    });
+  }
+
+  if (
+    learning.measurement_source !==
+    MEASUREMENT_LAYER
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.measurement",
+
+      expected:
+        MEASUREMENT_LAYER,
+
+      received:
+        learning.measurement_source
+    });
+  }
+
+  if (
+    learning.intelligence_source !==
+    INTELLIGENCE_LAYER
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence",
+
+      expected:
+        INTELLIGENCE_LAYER,
+
+      received:
+        learning.intelligence_source
+    });
+  }
+
+  if (
+    learning.intelligence_version &&
+    learning.intelligence_version !==
+      INTELLIGENCE_VERSION
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence_version",
+
+      expected:
+        INTELLIGENCE_VERSION,
+
+      received:
+        learning.intelligence_version
+    });
+  }
+
+  if (
+    learning.intelligence_engine &&
+    learning.intelligence_engine !==
+      INTELLIGENCE_ENGINE
+  ) {
+    errors.push({
+      field:
+        "learning.source_contract.intelligence_engine",
+
+      expected:
+        INTELLIGENCE_ENGINE,
+
+      received:
+        learning.intelligence_engine
+    });
+  }
+
+  return errors;
 }
 
 export async function onRequestGet(
@@ -753,12 +981,25 @@ export async function onRequestGet(
         {
           success: false,
 
+          layer:
+            LAYER,
+
+          version:
+            VERSION,
+
+          status:
+            "INVALID_REQUEST",
+
           error:
             "content_id is required."
         },
         400
       );
     }
+
+    /*
+     * Decision reads Learning only.
+     */
 
     const learningRoot =
       await getLearning(
@@ -772,14 +1013,16 @@ export async function onRequestGet(
       );
 
     /*
-     * Strict contract validation.
+     * Strict Learning V2.3 contract.
      */
 
+    const contractErrors =
+      validateLearningContract(
+        learning
+      );
+
     if (
-      learning.layer !==
-        LEARNING_LAYER ||
-      learning.version !==
-        LEARNING_VERSION
+      contractErrors.length > 0
     ) {
       return json(
         {
@@ -795,27 +1038,64 @@ export async function onRequestGet(
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer requires Learning Engine V2.2.",
+            "Decision Layer V1.2 requires Learning Engine V2.3 and its current upstream contracts.",
 
           expected: {
-            layer:
+            learning_layer:
               LEARNING_LAYER,
 
-            version:
-              LEARNING_VERSION
+            learning_version:
+              LEARNING_VERSION,
+
+            learning_engine:
+              LEARNING_ENGINE,
+
+            measurement:
+              MEASUREMENT_LAYER,
+
+            intelligence:
+              INTELLIGENCE_LAYER,
+
+            intelligence_version:
+              INTELLIGENCE_VERSION,
+
+            intelligence_engine:
+              INTELLIGENCE_ENGINE
           },
 
           received: {
-            layer:
+            learning_layer:
               learning.layer,
 
-            version:
-              learning.version
-          }
+            learning_version:
+              learning.version,
+
+            learning_engine:
+              learning.engine,
+
+            measurement:
+              learning.measurement_source,
+
+            intelligence:
+              learning.intelligence_source,
+
+            intelligence_version:
+              learning.intelligence_version,
+
+            intelligence_engine:
+              learning.intelligence_engine
+          },
+
+          contract_errors:
+            contractErrors
         },
         409
       );
     }
+
+    /*
+     * Content identity validation.
+     */
 
     if (
       learning.content_id &&
@@ -847,6 +1127,10 @@ export async function onRequestGet(
       );
     }
 
+    /*
+     * Learning must explicitly provide evidence.
+     */
+
     if (
       learning.evidence_available !==
       true
@@ -865,11 +1149,15 @@ export async function onRequestGet(
             "EVIDENCE_NOT_AVAILABLE",
 
           error:
-            "Learning Engine V2.2 did not provide sufficient evidence."
+            "Learning Engine V2.3 did not provide sufficient evidence."
         },
         409
       );
     }
+
+    /*
+     * Create decision from Learning evidence.
+     */
 
     const decision =
       createDecision(
