@@ -1,38 +1,19 @@
 // TATO-OS
-// Decision Layer V1.3.2
+// Decision Layer V1.3.3
 // Route: /api/decision
 //
 // Pipeline:
-//
 // Measurement V2.3
 //        ↓
 // Intelligence V2.1
 //        ↓
 // Learning Engine V2.3
 //        ↓
-// Decision Layer V1.3.2
+// Decision Layer V1.3.3
 //        ↓
 // Action Layer V1.0
-//
-// Decision Layer DOES:
-// - read Learning Engine output
-// - validate upstream contracts
-// - use Learning decision_input as primary decision source
-// - create a decision
-// - preserve Learning evidence
-// - hand off to Action Layer
-//
-// Decision Layer DOES NOT:
-// - read raw behavior_events
-// - recalculate Measurement
-// - recalculate Intelligence
-// - recalculate Learning
-// - declare winners
-// - change strategy automatically
-// - execute actions
-// - execute external actions
 
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 
 const LAYER = "DECISION_LAYER_V1";
 
@@ -47,7 +28,7 @@ const INTELLIGENCE_VERSION = "2.1";
 const INTELLIGENCE_ENGINE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
 
 const DECISION_ENGINE =
-  "DECISION_V1.3.2_LEARNING_V2.3_COMPATIBLE";
+  "DECISION_V1.3.3_LEARNING_V2.3_COMPATIBLE";
 
 const ACTION_LAYER = "ACTION_LAYER_V1";
 
@@ -343,7 +324,9 @@ function normalizeLearning(root) {
 
     hypotheses,
 
-    repeated_signals,
+    // FIXED:
+    // use the actual declared variable
+    repeated_signals: repeatedSignals,
 
     measurement_source:
       sourceContract.measurement || null,
@@ -388,16 +371,10 @@ function hasBehavioralEvidence(learning) {
 }
 
 function createDecision(learning) {
-  /*
-   * PRIMARY SOURCE
-   *
-   * Learning V2.3 decision_input
-   * is authoritative when present.
-   */
-
   const input =
     learning.decision_input || {};
 
+  // Learning V2.3 decision_input is primary.
   if (
     input.type &&
     input.target
@@ -422,13 +399,6 @@ function createDecision(learning) {
         "LEARNING_DECISION_INPUT"
     };
   }
-
-  /*
-   * SECONDARY FALLBACK
-   *
-   * Only uses already calculated
-   * Learning evidence.
-   */
 
   const m = learning.metrics;
   const p = learning.patterns;
@@ -628,19 +598,6 @@ function validateLearningContract(learning) {
         learning.measurement_source
     });
   }
-
-  /*
-   * IMPORTANT CONTRACT FIX
-   *
-   * Learning V2.3 currently exposes:
-   *
-   * source_contract.intelligence
-   * = INTELLIGENCE_V2.1_FEEDBACK_AWARE
-   *
-   * Therefore this field must be
-   * validated against INTELLIGENCE_ENGINE,
-   * not INTELLIGENCE_LAYER.
-   */
 
   if (
     learning.intelligence_source !==
@@ -1087,13 +1044,6 @@ export async function onRequestGet(context) {
         learningRoot
       );
 
-    /*
-     * Content ID integrity check.
-     *
-     * Decision must never create a
-     * decision for a different content.
-     */
-
     if (
       learning.content_id &&
       learning.content_id !== contentId
@@ -1149,7 +1099,7 @@ export async function onRequestGet(context) {
             "CONTRACT_ERROR",
 
           error:
-            "Decision Layer V1.3.2 requires the current Learning V2.3 upstream contract.",
+            "Decision Layer V1.3.3 requires the current Learning V2.3 upstream contract.",
 
           expected: {
             learning_layer:
