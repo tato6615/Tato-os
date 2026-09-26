@@ -1,9 +1,41 @@
 const DISTRIBUTION_ID = "distribution-1790392496602-lhk96nmd";
 const MARKET_TEST_ID = "market-test-1790392032678-c80dkx3f";
 const MEASUREMENT_ID = "measurement-1790395426049-7wjtgs3p";
-const ENTRY_API = "/api/market-test-entry";
+const ENTRY_API = "https://8f91cd42.tato-os.pages.dev/api/market-test-entry";
 
 export async function onRequest(context) {
+  if (context.request.method === "POST") {
+    try {
+      const body = await context.request.text();
+      const response = await fetch(ENTRY_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body
+      });
+
+      return new Response(await response.text(), {
+        status: response.status,
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          "Cache-Control": "no-store"
+        }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: error && error.message ? error.message : String(error)
+      }), {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          "Cache-Control": "no-store"
+        }
+      });
+    }
+  }
+
   const html = String.raw`<!doctype html>
 <html lang="th">
 <head>
@@ -56,7 +88,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <script>
 (function(){
 var did="distribution-1790392496602-lhk96nmd";
-var api="/api/market-test-entry";
+var api="/api/market-test-page";
 var sent={};
 var statusEl=document.getElementById("status");
 
