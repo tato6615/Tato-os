@@ -63,7 +63,7 @@ localStorage.setItem("tato_session",sessionId);
 const buyUrl="/buy.html?product_id="+encodeURIComponent(productId)+"&content_id="+encodeURIComponent(contentId)+"&session_id="+encodeURIComponent(sessionId);
 const cta=document.getElementById("productCta"); cta.href=buyUrl;
 fetch("/api/behavior",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_view",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE"}})}).catch(()=>{});
-cta.addEventListener("click",()=>{fetch("/api/behavior",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_click",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",destination:"/buy.html"}}).catch(()=>{});});
+cta.addEventListener("click",()=>{fetch("/api/behavior",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_click",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",destination:"/buy.html"}})}).catch(()=>{});});
 </script>
 </body>
 </html>
