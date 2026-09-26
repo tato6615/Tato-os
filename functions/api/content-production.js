@@ -359,7 +359,7 @@ CTA:
 ${brief.cta}
 
 Purchase URL:
-${new URL("/buy.html?content_id=" + contentId, context.request.url).toString()}
+${new URL("/buy.html?product_id=" + encodeURIComponent(String(product?.id || "")) + "&content_id=" + contentId, context.request.url).toString()}
 
 กฎ:
 - ภาษาไทยธรรมชาติ
@@ -409,7 +409,7 @@ ${new URL("/buy.html?content_id=" + contentId, context.request.url).toString()}
           "คั่วสดใหม่ทุกออเดอร์",
           "",
           "CTA: " + brief.cta,
-          new URL("/buy.html?content_id=" + contentId, context.request.url).toString()
+          new URL("/buy.html?product_id=" + encodeURIComponent(String(product?.id || "")) + "&content_id=" + contentId, context.request.url).toString()
         ].join("\n");
       }
 
