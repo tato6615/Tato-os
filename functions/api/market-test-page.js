@@ -1,7 +1,7 @@
 const DISTRIBUTION_ID = "distribution-1790392496602-lhk96nmd";
 const MARKET_TEST_ID = "market-test-1790392032678-c80dkx3f";
 const MEASUREMENT_ID = "measurement-1790395426049-7wjtgs3p";
-const ENTRY_API = "https://8f91cd42.tato-os.pages.dev/api/market-test-entry";
+const ENTRY_API = "/api/market-test-entry";
 
 export async function onRequest(context) {
   const html = String.raw`<!doctype html>
@@ -56,7 +56,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <script>
 (function(){
 var did="distribution-1790392496602-lhk96nmd";
-var api="https://8f91cd42.tato-os.pages.dev/api/market-test-entry";
+var api="/api/market-test-entry";
 var sent={};
 var statusEl=document.getElementById("status");
 
