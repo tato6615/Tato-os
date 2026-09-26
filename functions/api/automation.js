@@ -101,6 +101,38 @@ async function ensureTable(db) {
     )
   `).run();
 
+  // Migrate an older live D1 execution_queue schema to the V1.1 contract.
+  const info = await db.prepare(`PRAGMA table_info(execution_queue)`).all();
+  const existing = new Set((info.results || []).map((row) => row.name));
+
+  const migrations = [
+    ["content_id", "TEXT"],
+    ["action_type", "TEXT NOT NULL DEFAULT ''"],
+    ["action_name", "TEXT NOT NULL DEFAULT ''"],
+    ["target", "TEXT"],
+    ["priority", "TEXT"],
+    ["status", "TEXT NOT NULL DEFAULT 'PENDING'"],
+    ["approved", "INTEGER NOT NULL DEFAULT 0"],
+    ["executed", "INTEGER NOT NULL DEFAULT 0"],
+    ["external_execution", "INTEGER NOT NULL DEFAULT 0"],
+    ["action_payload", "TEXT NOT NULL DEFAULT '{}'"],
+    ["execution_payload", "TEXT NOT NULL DEFAULT '{}'"],
+    ["result_payload", "TEXT"],
+    ["error", "TEXT"],
+    ["created_at", "TEXT NOT NULL DEFAULT ''"],
+    ["approved_at", "TEXT"],
+    ["executed_at", "TEXT"],
+    ["updated_at", "TEXT NOT NULL DEFAULT ''"]
+  ];
+
+  for (const [column, definition] of migrations) {
+    if (!existing.has(column)) {
+      await db.prepare(
+        `ALTER TABLE execution_queue ADD COLUMN ${column} ${definition}`
+      ).run();
+    }
+  }
+
   await db.prepare(`
     CREATE INDEX IF NOT EXISTS idx_execution_queue_status
     ON execution_queue(status)
