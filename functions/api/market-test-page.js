@@ -783,6 +783,7 @@ if(orderForm){
    result.textContent="ยังสร้างคำสั่งซื้อไม่ได้: "+(error&&error.message?error.message:"unknown error");
    if(orderSubmit) orderSubmit.disabled=false;
   });
+ });
 }
 var offer=document.getElementById("offer");
 if("IntersectionObserver" in window && offer){
