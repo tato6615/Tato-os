@@ -1,11 +1,12 @@
 // TATO-OS
-// Business Goal V1.0
+// Business Goal V1.1
 // Route: /api/business-goals
 //
 // Purpose:
 // - Store the real commercial target for TATO Coffee.
-// - Measure the target from verified business records only.
-// - Keep missing real-world costs as missing; never invent them.
+// - Measure the target from the existing Business Money Loop.
+// - Use verified payment revenue and recorded gross profit only.
+// - Never invent sales, cost, profit, customers, or orders.
 //
 // Current target:
 //   GROSS PROFIT = THB 100,000 / month
@@ -13,7 +14,7 @@
 // This is a business-domain service. It does not modify the closed
 // Measurement / Intelligence / Learning / Decision / Action layers.
 
-const LAYER = "BUSINESS_GOAL_V1.0";
+const LAYER = "BUSINESS_GOAL_V1.1";
 const GOAL_CODE = "TATO_COFFEE_MONTHLY_PROFIT";
 const TARGET_PROFIT = 100000;
 const CURRENCY = "THB";
@@ -61,7 +62,7 @@ async function ensureTable(db) {
     `).bind(
       crypto.randomUUID(),
       GOAL_CODE,
-      "TATO Coffee monthly profit",
+      "TATO Coffee monthly gross profit",
       "GROSS_PROFIT",
       TARGET_PROFIT,
       CURRENCY,
@@ -77,19 +78,22 @@ async function ensureTable(db) {
 }
 
 function monthRange(value) {
-  let month = null;
-
   if (value) {
-    const m = String(value).match(/^(\\d{4})-(\\d{2})$/);
-    if (m) {
-      month = `${m[1]}-${m[2]}`;
-      const startDate = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
-      const endDate = new Date(Date.UTC(Number(m[1]), Number(m[2]), 1));
-      return {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-        month
-      };
+    const match = String(value).match(/^(\\d{4})-(\\d{2})$/);
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+
+      if (month >= 1 && month <= 12) {
+        const startDate = new Date(Date.UTC(year, month - 1, 1));
+        const endDate = new Date(Date.UTC(year, month, 1));
+
+        return {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          month: String(value)
+        };
+      }
     }
   }
 
@@ -104,90 +108,103 @@ function monthRange(value) {
   };
 }
 
-async function getVerifiedMonthlyProfit(db, range) {
-  // Commercial truth:
-  // revenue comes only from verified payments.
-  // product cost comes only from a real product cost configured in products.
-  // No quantity is guessed; orders.total_kg is the unit quantity for coffee.
-  const info = await db.prepare("PRAGMA table_info(products)").all();
-  const columns = (info.results || []).map(x => x.name);
+async function tableExists(db, table) {
+  const row = await db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+  ).bind(table).first();
 
-  const costColumn = columns.includes("cost_price")
-    ? "cost_price"
-    : columns.includes("cost")
-      ? "cost"
-      : null;
+  return !!row;
+}
 
-  if (!costColumn) {
+async function getActualMonthlyMoney(db, range) {
+  const hasRevenueLedger = await tableExists(db, "revenue_ledger");
+  const hasProfitLedger = await tableExists(db, "profit_ledger");
+
+  if (!hasRevenueLedger || !hasProfitLedger) {
     return {
       available: false,
-      reason: "PRODUCT_COST_COLUMN_NOT_FOUND",
-      revenue: 0,
-      cost: 0,
-      profit: 0,
-      records: 0
+      reason: "BUSINESS_MONEY_DATA_NOT_INITIALIZED",
+      verified_payment_records: 0,
+      verified_paid_revenue: 0,
+      gross_profit: 0,
+      recorded_cost: 0,
+      complete_profit_records: 0
     };
   }
 
-  const rows = await db.prepare(`
+  const revenueRow = await db.prepare(`
     SELECT
-      rl.id,
-      rl.order_id,
-      rl.amount AS revenue,
-      o.total_kg,
-      p.${costColumn} AS cost_per_kg,
-      p.name AS product_name
-    FROM revenue_ledger rl
-    JOIN orders o ON o.id = rl.order_id
-    LEFT JOIN products p ON p.id = o.product_id
-    WHERE rl.recognized_at >= ?
-      AND rl.recognized_at < ?
-  `).bind(range.start, range.end).all();
+      COUNT(*) AS records,
+      COALESCE(SUM(amount), 0) AS revenue
+    FROM revenue_ledger
+    WHERE recognized_at >= ?
+      AND recognized_at < ?
+      AND source = 'VERIFIED_PAYMENT'
+  `).bind(range.start, range.end).first();
 
-  let revenue = 0;
-  let cost = 0;
-  let completeRecords = 0;
-  let incompleteRecords = 0;
-  const details = [];
+  // profit_ledger can receive a later real cost record for the same order.
+  // Use the latest recorded profit per order in the requested month so a
+  // cost correction does not double-count the same sale.
+  const profitRows = await db.prepare(`
+    SELECT
+      p.order_id,
+      p.revenue,
+      p.cost,
+      p.gross_profit,
+      p.calculated_at,
+      p.source
+    FROM profit_ledger p
+    INNER JOIN (
+      SELECT order_id, MAX(calculated_at) AS latest_calculated_at
+      FROM profit_ledger
+      WHERE calculated_at >= ?
+        AND calculated_at < ?
+      GROUP BY order_id
+    ) latest
+      ON latest.order_id = p.order_id
+     AND latest.latest_calculated_at = p.calculated_at
+    WHERE p.calculated_at >= ?
+      AND p.calculated_at < ?
+  `).bind(
+    range.start,
+    range.end,
+    range.start,
+    range.end
+  ).all();
 
-  for (const row of (rows.results || [])) {
-    const rowRevenue = Number(row.revenue || 0);
-    const kg = Number(row.total_kg || 0);
-    const unitCost = Number(row.cost_per_kg);
+  let recordedCost = 0;
+  let grossProfit = 0;
+  let completeProfitRecords = 0;
 
-    revenue += rowRevenue;
+  for (const row of (profitRows.results || [])) {
+    const revenue = Number(row.revenue);
+    const cost = Number(row.cost);
+    const profit = Number(row.gross_profit);
 
-    if (Number.isFinite(unitCost) && unitCost >= 0 && kg >= 0) {
-      cost += unitCost * kg;
-      completeRecords += 1;
-      details.push({
-        order_id: row.order_id,
-        product: row.product_name || null,
-        kg,
-        revenue: rowRevenue,
-        cost: unitCost * kg,
-        gross_profit: rowRevenue - (unitCost * kg)
-      });
-    } else {
-      incompleteRecords += 1;
+    if (
+      Number.isFinite(revenue) &&
+      Number.isFinite(cost) &&
+      Number.isFinite(profit)
+    ) {
+      recordedCost += cost;
+      grossProfit += profit;
+      completeProfitRecords += 1;
     }
   }
 
   return {
-    available: completeRecords > 0 || (rows.results || []).length === 0,
-    revenue,
-    cost,
-    profit: revenue - cost,
-    records: (rows.results || []).length,
-    complete_cost_records: completeRecords,
-    incomplete_cost_records: incompleteRecords,
-    details
+    available: true,
+    verified_payment_records: Number(revenueRow?.records || 0),
+    verified_paid_revenue: Number(revenueRow?.revenue || 0),
+    gross_profit: grossProfit,
+    recorded_cost: recordedCost,
+    complete_profit_records: completeProfitRecords
   };
 }
 
 async function getUnitEconomics(db) {
   const info = await db.prepare("PRAGMA table_info(products)").all();
-  const columns = (info.results || []).map(x => x.name);
+  const columns = (info.results || []).map(row => row.name);
 
   const saleColumn = columns.includes("sale_price")
     ? "sale_price"
@@ -221,18 +238,19 @@ async function getUnitEconomics(db) {
 
   return {
     available: true,
-    products: (rows.results || []).map(p => {
-      const sale = Number(p.sale_price || 0);
-      const cost = Number(p.cost_price || 0);
-      const profitPerKg = sale - cost;
+    products: (rows.results || []).map(product => {
+      const sale = Number(product.sale_price || 0);
+      const cost = Number(product.cost_price || 0);
+      const grossProfitPerKg = sale - cost;
+
       return {
-        product_id: p.id,
-        name: p.name,
+        product_id: product.id,
+        name: product.name,
         sale_price_per_kg: sale,
         cost_per_kg: cost,
-        gross_profit_per_kg: profitPerKg,
-        required_kg_for_target: profitPerKg > 0
-          ? Number((TARGET_PROFIT / profitPerKg).toFixed(2))
+        gross_profit_per_kg: grossProfitPerKg,
+        required_kg_for_target: grossProfitPerKg > 0
+          ? Number((TARGET_PROFIT / grossProfitPerKg).toFixed(2))
           : null
       };
     })
@@ -242,17 +260,17 @@ async function getUnitEconomics(db) {
 async function dashboard(db, month) {
   const goal = await ensureTable(db);
   const range = monthRange(month);
-  const profit = await getVerifiedMonthlyProfit(db, range);
+  const money = await getActualMonthlyMoney(db, range);
   const economics = await getUnitEconomics(db);
 
   const target = Number(goal?.target_value || TARGET_PROFIT);
-  const achieved = profit.profit;
-  const gap = Math.max(target - achieved, 0);
+  const achieved = money.gross_profit;
+  const remaining = Math.max(target - achieved, 0);
 
   return {
     success: true,
     layer: LAYER,
-    version: "1.0",
+    version: "1.1",
     status: "GOAL_TRACKING_READY",
     goal: {
       id: goal.id,
@@ -264,28 +282,26 @@ async function dashboard(db, month) {
       period: range.month
     },
     actual: {
-      verified_paid_revenue: profit.revenue,
-      recorded_cost_from_real_product_cost: profit.cost,
+      verified_paid_revenue: money.verified_paid_revenue,
+      recorded_cost_from_profit_ledger: money.recorded_cost,
       gross_profit: achieved,
-      verified_payment_records: profit.records,
-      complete_cost_records: profit.complete_cost_records,
-      incomplete_cost_records: profit.incomplete_cost_records
+      verified_payment_records: money.verified_payment_records,
+      complete_profit_records: money.complete_profit_records
     },
     progress: {
-      target: target,
-      achieved: achieved,
-      remaining: gap,
+      target,
+      achieved,
+      remaining,
       percent: target > 0
         ? Number(((achieved / target) * 100).toFixed(2))
         : 0
     },
     unit_economics: economics,
     data_quality: {
-      revenue_source: "revenue_ledger_from_verified_payment",
-      cost_source: "orders.total_kg × products.cost_price",
+      revenue_source: "revenue_ledger.source=VERIFIED_PAYMENT",
+      profit_source: "latest profit_ledger record per order",
       uses_verified_payment_revenue: true,
-      uses_real_product_cost: true,
-      uses_order_total_kg: true,
+      uses_recorded_cost: true,
       invents_sales: false,
       invents_cost: false,
       invents_profit: false,
@@ -303,7 +319,7 @@ async function dashboard(db, month) {
       commercial_focus:
         "Increase verified profitable sales until the monthly gross-profit target is reached.",
       note:
-        "This target is GROSS_PROFIT. True NET_PROFIT requires real operating expenses to be recorded separately."
+        "This target is GROSS_PROFIT. TRUE NET_PROFIT requires real operating expenses to be recorded separately."
     }
   };
 }
@@ -311,12 +327,20 @@ async function dashboard(db, month) {
 export async function onRequestGet(context) {
   try {
     if (!context.env?.DB) {
-      return json({ success: false, layer: LAYER, status: "DB_BINDING_NOT_FOUND" }, 500);
+      return json({
+        success: false,
+        layer: LAYER,
+        status: "DB_BINDING_NOT_FOUND"
+      }, 500);
     }
 
     const url = new URL(context.request.url);
+
     return json(
-      await dashboard(context.env.DB, url.searchParams.get("month"))
+      await dashboard(
+        context.env.DB,
+        url.searchParams.get("month")
+      )
     );
   } catch (error) {
     return json({
@@ -331,7 +355,11 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   try {
     if (!context.env?.DB) {
-      return json({ success: false, layer: LAYER, status: "DB_BINDING_NOT_FOUND" }, 500);
+      return json({
+        success: false,
+        layer: LAYER,
+        status: "DB_BINDING_NOT_FOUND"
+      }, 500);
     }
 
     const body = await context.request.json().catch(() => ({}));
@@ -353,12 +381,16 @@ export async function onRequestPost(context) {
       UPDATE business_goals
       SET target_value=?, updated_at=?
       WHERE goal_code=?
-    `).bind(value, updatedAt, GOAL_CODE).run();
+    `).bind(
+      value,
+      updatedAt,
+      GOAL_CODE
+    ).run();
 
     return json({
       success: true,
       layer: LAYER,
-      version: "1.0",
+      version: "1.1",
       status: "GOAL_UPDATED",
       goal: {
         id: goal.id,
