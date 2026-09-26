@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TATO Coffee · Order</title>
+<style>
+body{margin:0;background:#111;color:#f5f2ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:620px;margin:auto;padding:28px 18px 50px}.card{background:#1b1b1b;border:1px solid #333;border-radius:18px;padding:20px;margin:14px 0}
+h1{margin:0 0 8px;font-size:28px}.muted{color:#aaa}.price{font-size:24px;font-weight:700;margin:14px 0}
+label{display:block;margin:14px 0 6px;color:#ccc}input{width:100%;box-sizing:border-box;padding:13px;border-radius:10px;border:1px solid #444;background:#101010;color:#fff;font-size:16px}
+button{width:100%;padding:14px;border:0;border-radius:12px;background:#f28c28;color:#111;font-weight:800;font-size:16px;margin-top:18px}.ok{border-color:#f28c28}.hidden{display:none}
+</style></head><body><main>
+<div class="card"><h1>TATO Coffee</h1><div id="product" class="muted">กำลังโหลดสินค้า…</div></div>
+<div class="card"><h2>สั่งซื้อ</h2>
+<label>ชื่อ</label><input id="name" autocomplete="name">
+<label>อีเมล</label><input id="email" type="email" autocomplete="email">
+<label>โทรศัพท์</label><input id="phone" autocomplete="tel">
+<label>จำนวน (กก.)</label><input id="kg" type="number" min="0.1" step="0.1" value="1">
+<div class="price" id="total">฿0</div><button id="buy">สร้างคำสั่งซื้อ</button><div id="result" class="hidden"></div></div>
+</main><script>
+const q=new URLSearchParams(location.search), productId=q.get('product_id')||'',contentId=q.get('content_id')||'',sessionId=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',sessionId);
+let product=null;
+const esc=s=>String(s??'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
+async function load(){const r=await fetch('/api/checkout?product_id='+encodeURIComponent(productId));const d=await r.json();if(!r.ok||!d.success)throw Error(d.error||'โหลดสินค้าไม่ได้');product=d.product;document.getElementById('product').innerHTML='<b>'+esc(product.name)+'</b><br>'+esc(product.description)+'<br><b>฿'+Number(product.price).toLocaleString('th-TH')+'/กก.</b>';calc();fetch('/api/behavior',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,event_type:'product_view',page:'/buy.html',product_id:product.id,metadata:{content_id:contentId,source:'PUBLIC_CHECKOUT'}})}).catch(()=>{});}
+function calc(){const kg=Number(document.getElementById('kg').value||0);document.getElementById('total').textContent='฿'+((product?.price||0)*kg).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+document.getElementById('kg').oninput=calc;
+document.getElementById('buy').onclick=async()=>{const b=document.getElementById('buy');b.disabled=true;try{const body={product_id:product.id,content_id:contentId,session_id:sessionId,name:document.getElementById('name').value,email:document.getElementById('email').value,phone:document.getElementById('phone').value,quantity_kg:Number(document.getElementById('kg').value)};const r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.success)throw Error(d.error||'สร้างคำสั่งซื้อไม่สำเร็จ');const p=d.payment_instructions||{};const box=document.getElementById('result');box.className='card ok';box.innerHTML='<h3>รับคำสั่งซื้อแล้ว</h3><p>Order: <b>'+esc(d.order.id)+'</b></p><p>ยอดชำระ: <b>฿'+Number(d.order.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></p><p>ธนาคาร: '+esc(p.bank_name||'ยังไม่ได้ตั้งค่า')+'<br>ชื่อบัญชี: '+esc(p.account_name||'—')+'<br>เลขบัญชี: '+esc(p.account_number||'—')+'<br>พร้อมเพย์: '+esc(p.promptpay||'—')+'</p><p class="muted">'+esc(p.note||'หลังโอนกรุณาส่งหลักฐานให้ TATO')+'</p>';box.classList.remove('hidden');b.textContent='สั่งซื้อสำเร็จ';}catch(e){alert(e.message);b.disabled=false;}};
+load().catch(e=>{document.getElementById('product').textContent=e.message});
+</script></body></html>
