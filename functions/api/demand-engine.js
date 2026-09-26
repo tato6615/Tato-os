@@ -90,7 +90,7 @@ async function readGoal(db) {
   };
 }
 
-async function readEconomics(db) {
+async function readEconomics(db, targetProfit = 100000) {
   if (!await tableExists(db, "products")) {
     return { available: false, products: [] };
   }
@@ -133,7 +133,7 @@ async function readEconomics(db) {
       cost_per_kg: cost,
       gross_profit_per_kg: profit,
       required_kg_for_target: profit > 0
-        ? Number((100000 / profit).toFixed(2))
+        ? Number((targetProfit / profit).toFixed(2))
         : null
     };
   });
@@ -174,18 +174,47 @@ async function readOrderSummary(db) {
     return { orders: 0, kg: 0, revenue: 0 };
   }
 
+  const columns = await db.prepare("PRAGMA table_info(orders)").all();
+  const names = (columns.results || []).map(row => row.name);
+
+  const revenueColumn = names.includes("total_amount")
+    ? "total_amount"
+    : names.includes("amount")
+      ? "amount"
+      : null;
+
+  const kgColumn = names.includes("total_kg")
+    ? "total_kg"
+    : names.includes("quantity")
+      ? "quantity"
+      : names.includes("qty")
+        ? "qty"
+        : null;
+
+  const revenueExpression = revenueColumn
+    ? `COALESCE(SUM(${revenueColumn}), 0)`
+    : "0";
+
+  const kgExpression = kgColumn
+    ? `COALESCE(SUM(${kgColumn}), 0)`
+    : "0";
+
   const row = await db.prepare(`
     SELECT
       COUNT(*) AS orders,
-      COALESCE(SUM(total_kg), 0) AS kg,
-      COALESCE(SUM(total_amount), 0) AS revenue
+      ${kgExpression} AS kg,
+      ${revenueExpression} AS revenue
     FROM orders
   `).first();
 
   return {
     orders: Number(row?.orders || 0),
     kg: Number(row?.kg || 0),
-    revenue: Number(row?.revenue || 0)
+    revenue: Number(row?.revenue || 0),
+    source_columns: {
+      revenue: revenueColumn,
+      kg: kgColumn
+    }
   };
 }
 
@@ -298,10 +327,9 @@ function nextActions(demand, economics, plans) {
 async function dashboard(db) {
   await ensureTables(db);
 
-  const [goal, economics, signals, content, summary, plansResult] =
+  const [goal, signals, content, summary, plansResult] =
     await Promise.all([
       readGoal(db),
-      readEconomics(db),
       readMarketSignals(db),
       readContent(db),
       readOrderSummary(db),
@@ -313,6 +341,7 @@ async function dashboard(db) {
       `).all()
     ]);
 
+  const economics = await readEconomics(db, goal.target_value);
   const plans = plansResult.results || [];
   const demand = deriveDemand(signals, content);
   const firstProduct = economics.products[0] || null;
