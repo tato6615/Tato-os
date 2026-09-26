@@ -98,7 +98,7 @@ function send(type){
  fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type})})
  .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error(t||"Invalid response")}if(!r.ok||!d.success)throw new Error(d.error||"Request failed");return d;});})
  .then(function(){setStatus(type+" recorded");})
- .catch(function(e){sent[type]=false;setStatus("Event failed");console.error(e);});
+ .catch(function(e){sent[type]=false;setStatus("Event failed: "+(e&&e.message?e.message:"unknown"));console.error(e);});
 }
 window.TATO_CLICK=function(){
  send("content_click");
