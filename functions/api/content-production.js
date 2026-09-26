@@ -241,6 +241,205 @@ export async function onRequestPost(context) {
     const body = await context.request.json().catch(() => ({}));
     const mode = String(body.mode || "create_brief").toLowerCase();
 
+    if (mode === "launch") {
+      if (!body.demand_plan_id) {
+        return json({
+          success: false,
+          layer: LAYER,
+          status: "DEMAND_PLAN_REQUIRED",
+          error: "demand_plan_id is required"
+        }, 400);
+      }
+
+      const plan = await db.prepare(
+        "SELECT * FROM demand_plans WHERE id=? LIMIT 1"
+      ).bind(body.demand_plan_id).first();
+
+      if (!plan) {
+        return json({
+          success: false,
+          layer: LAYER,
+          status: "DEMAND_PLAN_NOT_FOUND"
+        }, 404);
+      }
+
+      const product = await readLatestProduct(db);
+      let production = await db.prepare(
+        "SELECT * FROM content_production WHERE demand_plan_id=? ORDER BY created_at DESC LIMIT 1"
+      ).bind(plan.id).first();
+
+      if (!production) {
+        const brief = buildProduction(plan, product);
+        const id = crypto.randomUUID();
+        const timestamp = now();
+
+        await db.prepare(`
+          INSERT INTO content_production (
+            id, demand_plan_id, content_id, title, objective, audience, channel,
+            content_format, primary_keyword, secondary_keywords, search_intent,
+            seo_title, meta_description, slug, geo_context, entity_terms,
+            answer_summary, faq_json, cta, success_event, status, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          id,
+          plan.id,
+          body.content_id || null,
+          brief.title,
+          brief.objective,
+          brief.audience,
+          brief.channel,
+          brief.content_format,
+          brief.primary_keyword,
+          JSON.stringify(brief.secondary_keywords),
+          brief.search_intent,
+          brief.seo_title,
+          brief.meta_description,
+          brief.slug,
+          brief.geo_context,
+          JSON.stringify(brief.entity_terms),
+          brief.answer_summary,
+          JSON.stringify(brief.faq),
+          brief.cta,
+          brief.success_event,
+          "BRIEF_READY",
+          timestamp,
+          timestamp
+        ).run();
+
+        production = await db.prepare(
+          "SELECT * FROM content_production WHERE id=? LIMIT 1"
+        ).bind(id).first();
+      } else if (body.content_id && production.content_id !== body.content_id) {
+        await db.prepare(
+          "UPDATE content_production SET content_id=?, updated_at=? WHERE id=?"
+        ).bind(body.content_id, now(), production.id).run();
+        production = await db.prepare(
+          "SELECT * FROM content_production WHERE id=? LIMIT 1"
+        ).bind(production.id).first();
+      }
+
+      let asset = await db.prepare(
+        "SELECT * FROM content_assets WHERE production_id=? ORDER BY created_at DESC LIMIT 1"
+      ).bind(production.id).first();
+
+      if (!asset && body.canva_external_id && body.canva_external_url) {
+        const assetId = crypto.randomUUID();
+        const timestamp = now();
+        await db.prepare(`
+          INSERT INTO content_assets (
+            id, production_id, content_id, platform, asset_type, external_id,
+            external_url, status, published_url, published_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          assetId,
+          production.id,
+          production.content_id || body.content_id || null,
+          "CANVA",
+          String(body.canva_asset_type || "INSTAGRAM_POST"),
+          String(body.canva_external_id),
+          String(body.canva_external_url),
+          "DRAFT",
+          null,
+          null,
+          timestamp,
+          timestamp
+        ).run();
+        asset = await db.prepare(
+          "SELECT * FROM content_assets WHERE id=? LIMIT 1"
+        ).bind(assetId).first();
+      }
+
+      return json({
+        success: true,
+        layer: LAYER,
+        version: VERSION,
+        status: "PRODUCTION_LOOP_READY",
+        production: {
+          id: production.id,
+          demand_plan_id: production.demand_plan_id,
+          content_id: production.content_id || null,
+          title: production.title,
+          primary_keyword: production.primary_keyword,
+          search_intent: production.search_intent,
+          seo_title: production.seo_title,
+          meta_description: production.meta_description,
+          slug: production.slug,
+          geo_context: production.geo_context,
+          entity_terms: production.entity_terms,
+          answer_summary: production.answer_summary,
+          faq_json: production.faq_json,
+          cta: production.cta,
+          success_event: production.success_event,
+          status: production.status
+        },
+        asset: asset || null,
+        next: {
+          review: "Review the registered Canva asset.",
+          publish: "Founder publishes manually; TATO-OS does not auto-publish.",
+          measurement: "Send first-party Product View -> Customer -> Order -> Payment events using the linked content_id.",
+          success_event: production.success_event
+        },
+        guardrails: {
+          creates_duplicate_brief: false,
+          creates_duplicate_asset: false,
+          publishes_content: false,
+          contacts_customers: false,
+          reads_raw_behavior_events: false,
+          modifies_measurement: false,
+          automatic_execution: false
+        }
+      });
+    }
+
+    if (mode === "mark_published") {
+      if (!body.production_id || !body.asset_id) {
+        return json({
+          success: false,
+          layer: LAYER,
+          status: "PUBLISH_FIELDS_REQUIRED",
+          error: "production_id and asset_id are required"
+        }, 400);
+      }
+
+      const asset = await db.prepare(
+        "SELECT * FROM content_assets WHERE id=? AND production_id=? LIMIT 1"
+      ).bind(body.asset_id, body.production_id).first();
+
+      if (!asset) {
+        return json({
+          success: false,
+          layer: LAYER,
+          status: "ASSET_NOT_FOUND"
+        }, 404);
+      }
+
+      const publishedAt = body.published_at || now();
+      const publishedUrl = body.published_url || null;
+
+      await db.prepare(
+        "UPDATE content_assets SET status='PUBLISHED', published_url=?, published_at=?, updated_at=? WHERE id=?"
+      ).bind(publishedUrl, publishedAt, now(), asset.id).run();
+
+      return json({
+        success: true,
+        layer: LAYER,
+        version: VERSION,
+        status: "ASSET_MARKED_PUBLISHED",
+        asset: {
+          id: asset.id,
+          production_id: asset.production_id,
+          platform: asset.platform,
+          asset_type: asset.asset_type,
+          external_id: asset.external_id,
+          external_url: asset.external_url,
+          status: "PUBLISHED",
+          published_url: publishedUrl,
+          published_at: publishedAt
+        },
+        next: "Real first-party events can now be measured against the linked content_id."
+      });
+    }
+
     if (mode === "create_brief") {
       if (!body.demand_plan_id) {
         return json({
@@ -384,7 +583,7 @@ export async function onRequestPost(context) {
       success: false,
       layer: LAYER,
       status: "INVALID_MODE",
-      allowed_modes: ["create_brief", "register_asset"]
+      allowed_modes: ["launch", "create_brief", "register_asset", "mark_published"]
     }, 400);
   } catch (error) {
     return json({
