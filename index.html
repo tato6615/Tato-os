@@ -306,8 +306,17 @@ async function loadProduction(){
     let faq='—';try{faq=(JSON.parse(p.faq_json||'[]')||[]).map(x=>x.question).join(' · ')||'—'}catch(e){}
     set('prodFaq',faq);
     const rows=document.getElementById('prodAssetRows');
-    if(rows) rows.innerHTML=assets.length?assets.slice(0,20).map(a=>'<tr><td>'+String(a.platform||'—').replace(/[<>]/g,'')+'</td><td>'+String(a.asset_type||'—').replace(/[<>]/g,'')+'</td><td>'+String(a.external_id||'—').replace(/[<>]/g,'')+'</td><td><span class="tag">'+String(a.status||'DRAFT').replace(/[<>]/g,'')+'</span></td><td>'+(a.external_url?'<a href="'+String(a.external_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">Open</a>':'—')+'</td></tr>').join(''):'<tr><td colspan="5" class="muted">No assets registered.</td></tr>';
+    if(rows) rows.innerHTML=assets.length?assets.slice(0,20).map(a=>'<tr><td>'+String(a.platform||'—').replace(/[<>]/g,'')+'</td><td>'+String(a.asset_type||'—').replace(/[<>]/g,'')+'</td><td>'+String(a.external_id||'—').replace(/[<>]/g,'')+'</td><td><span class="tag">'+String(a.status||'DRAFT').replace(/[<>]/g,'')+'</span></td><td>'+(a.external_url?'<a href="'+String(a.external_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">Open</a>':'—')+'</td><td>'+(String(a.status||'DRAFT').toUpperCase()==='PUBLISHED'?'—':'<button class="btn asset-publish-btn" style="padding:5px 8px;font-size:9px" data-asset-id="'+String(a.id||'').replace(/"/g,'')+'" data-production-id="'+String(a.production_id||p.id||'').replace(/"/g,'')+'">Mark Published</button>')+'</td></tr>').join(''):'<tr><td colspan="5" class="muted">No assets registered.</td></tr>';
   }catch(e){const s=document.getElementById('prodStatus');if(s)s.textContent='ERROR';toast('Production error · '+e.message)}
+  const rows=document.getElementById('prodAssetRows');
+  if(rows&&!rows.dataset.bound){
+    rows.dataset.bound='1';
+    rows.addEventListener('click',e=>{
+      const btn=e.target.closest('.asset-publish-btn');
+      if(!btn)return;
+      markAssetPublished(btn.dataset.assetId,btn.dataset.productionId);
+    });
+  }
 }
 async function markAssetPublished(assetId,productionId){
   if(!assetId||!productionId) return toast('Asset reference missing');
