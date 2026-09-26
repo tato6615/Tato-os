@@ -418,50 +418,55 @@ async function createEventLink(
 ) {
   await ensureLinkTable(db);
 
-  const id = makeId("event-link");
-  const timestamp = now();
-  const stage = getEventStage(
-    behaviorEvent.event_type
+  const columns = await getColumns(
+    db,
+    "market_test_event_links"
   );
 
-  await db
-    .prepare(
-      "INSERT INTO market_test_event_links (" +
-      "id, " +
-      "measurement_id, " +
-      "distribution_id, " +
-      "market_test_id, " +
-      "behavior_event_id, " +
-      "event_type, " +
-      "event_stage, " +
-      "created_at" +
-      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(
-      id,
-      measurement.id,
-      distribution.id,
-      distribution.market_test_id,
-      behaviorEvent.id,
-      behaviorEvent.event_type,
-      stage,
-      timestamp
-    )
-    .run();
+  const values = {};
+  function set(name, value) {
+    if (hasColumn(columns, name) && value !== undefined) {
+      values[name] = value;
+    }
+  }
+
+  set("id", makeId("event-link"));
+  set("measurement_id", measurement.id);
+  set("distribution_id", distribution.id);
+  set("market_test_id", distribution.market_test_id);
+  set("behavior_event_id", behaviorEvent.id);
+  set("event_type", behaviorEvent.event_type);
+  set("event_stage", getEventStage(behaviorEvent.event_type));
+  set("created_at", now());
+
+  const names = Object.keys(values);
+  const placeholders = names.map(function () { return "?"; }).join(", ");
+  const params = names.map(function (name) { return values[name]; });
+
+  if (names.length === 0) {
+    throw new Error("No compatible market_test_event_links columns found");
+  }
+
+  const statement = db.prepare(
+    "INSERT INTO market_test_event_links (" +
+    names.join(", ") +
+    ") VALUES (" +
+    placeholders +
+    ")"
+  );
+
+  await statement.bind.apply(statement, params).run();
 
   return {
-    id: id,
-    measurement_id: measurement.id,
-    distribution_id: distribution.id,
-    behavior_event_id:
-      behaviorEvent.id,
-    event_type:
-      behaviorEvent.event_type,
-    event_stage: stage,
-    created_at: timestamp
+    id: values.id,
+    measurement_id: values.measurement_id,
+    distribution_id: values.distribution_id,
+    behavior_event_id: values.behavior_event_id,
+    event_type: values.event_type,
+    event_stage: values.event_stage || null,
+    created_at: values.created_at
   };
 }
-
 async function updateMeasurementTimestamp(
   db,
   measurementId
