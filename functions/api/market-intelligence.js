@@ -1,43 +1,41 @@
 // TATO-OS
-// Market Intelligence V1.0
+// Market Intelligence V1.1
 // Route: /api/market-intelligence
 //
 // Business Layer:
 //
-// Market
-//   ↓
-// Market Intelligence
-//   ↓
+// External Market Evidence
+//          ↓
+// Market Signal Collection
+//          ↓
+// Market Intelligence V1.1
+//          ↓
+// Cross-Source Evidence
+//          ↓
 // Opportunity Engine
 //
-// Market Intelligence DOES:
-// - read market_signals
-// - inspect the real D1 schema
-// - normalize market intent
-// - evaluate signal freshness
-// - evaluate evidence strength
-// - cluster related signals
-// - identify commercial market signals
-// - prepare handoff to Opportunity Engine
+// V1.1 adds:
+// - cross-source evidence aggregation
+// - market-theme normalization
+// - independent source counting
+// - aggregate evidence scoring
+// - D1 primary-key preservation
 //
-// Market Intelligence DOES NOT:
+// DOES NOT:
 // - invent market data
-// - create opportunities automatically
-// - change business strategy
+// - create opportunities
 // - create decisions
+// - change strategy
 // - execute actions
 //
 // Source of truth:
 // - D1 market_signals
 
-const MARKET_INTELLIGENCE_ENGINE = "MARKET_INTELLIGENCE_V1";
-const MARKET_INTELLIGENCE_VERSION = "1.0";
+const ENGINE = "MARKET_INTELLIGENCE_V1";
+const VERSION = "1.1";
 
-const COMMERCIAL_INTENTS = new Set([
-  "COMMERCIAL",
-  "CONSIDERATION",
-  "PLANNING"
-]);
+const OPPORTUNITY_ENGINE =
+  "OPPORTUNITY_ENGINE_V1";
 
 const TEST_SOURCES = new Set([
   "test",
@@ -47,17 +45,59 @@ const TEST_SOURCES = new Set([
   "fixture"
 ]);
 
+const STOP_WORDS = new Set([
+  "the",
+  "and",
+  "with",
+  "from",
+  "into",
+  "market",
+  "coffee",
+  "thailand",
+  "asia",
+  "pacific",
+  "marketplace",
+  "continues",
+  "continue",
+  "showing",
+  "growth",
+  "reached",
+  "approximately",
+  "million",
+  "billion",
+  "year",
+  "yearly",
+  "increase",
+  "increasing",
+  "2025",
+  "2026"
+]);
+
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=UTF-8"
+  return new Response(
+    JSON.stringify(data, null, 2),
+    {
+      status,
+      headers: {
+        "content-type":
+          "application/json; charset=UTF-8"
+      }
     }
-  });
+  );
 }
 
-function safeJson(value, fallback = {}) {
-  if (!value) return fallback;
+function text(value) {
+  return String(value ?? "").trim();
+}
+
+function normalize(value) {
+  return text(value).toLowerCase();
+}
+
+function safeJson(value) {
+  if (!value) {
+    return {};
+  }
 
   if (typeof value === "object") {
     return value;
@@ -66,106 +106,113 @@ function safeJson(value, fallback = {}) {
   try {
     return JSON.parse(value);
   } catch {
-    return fallback;
+    return {};
   }
 }
 
-function normalizeText(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
+function isTestSource(source) {
+  return TEST_SOURCES.has(
+    normalize(source)
+  );
 }
 
-function normalizeIntent(signal) {
-  const metadata = safeJson(signal.metadata, {});
+function isTestSignal(row, metadata) {
+  return (
+    metadata.test === true ||
+    metadata.demo === true ||
+    metadata.mock === true ||
+    metadata.sample === true ||
+    metadata.fixture === true ||
+    isTestSource(row.source)
+  );
+}
 
-  const intent =
-    metadata.intent ||
-    metadata.purchase_intent ||
-    metadata.user_intent ||
-    metadata.market_intent ||
-    "";
+function isExternalSignal(row, metadata) {
+  if (isTestSignal(row, metadata)) {
+    return false;
+  }
 
-  const normalized = normalizeText(intent);
+  if (metadata.external === true) {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeIntent(value) {
+  const raw = normalize(value);
 
   if (
-    normalized.includes("commercial") ||
-    normalized.includes("ซื้อ") ||
-    normalized.includes("buy") ||
-    normalized.includes("purchase")
+    raw.includes("commercial") ||
+    raw.includes("purchase") ||
+    raw.includes("buy") ||
+    raw.includes("ซื้อ")
   ) {
     return "COMMERCIAL";
   }
 
   if (
-    normalized.includes("consider") ||
-    normalized.includes("comparison") ||
-    normalized.includes("compare") ||
-    normalized.includes("เปรียบเทียบ")
+    raw.includes("consider") ||
+    raw.includes("comparison") ||
+    raw.includes("compare") ||
+    raw.includes("เปรียบเทียบ")
   ) {
     return "CONSIDERATION";
   }
 
   if (
-    normalized.includes("planning") ||
-    normalized.includes("plan") ||
-    normalized.includes("วางแผน")
+    raw.includes("planning") ||
+    raw.includes("plan") ||
+    raw.includes("วางแผน")
   ) {
     return "PLANNING";
+  }
+
+  if (
+    raw.includes("informational") ||
+    raw.includes("information") ||
+    raw.includes("learn") ||
+    raw.includes("ค้นหา") ||
+    raw.includes("ข้อมูล")
+  ) {
+    return "INFORMATIONAL";
   }
 
   return "UNKNOWN";
 }
 
-function normalizeSource(signal) {
-  const metadata = safeJson(signal.metadata, {});
-
-  return (
-    signal.source ||
-    metadata.source ||
-    metadata.source_type ||
-    metadata.platform ||
-    "unknown"
+function getIntent(row, metadata) {
+  return normalizeIntent(
+    row.intent ||
+    metadata.intent ||
+    metadata.purchase_intent ||
+    metadata.market_intent ||
+    ""
   );
 }
 
-function isTestSignal(signal) {
-  const metadata = safeJson(signal.metadata, {});
-
-  const explicitTest =
-    metadata.test === true ||
-    metadata.demo === true ||
-    metadata.mock === true ||
-    metadata.sample === true ||
-    metadata.fixture === true;
-
-  if (explicitTest) {
-    return true;
-  }
-
-  const source = normalizeText(normalizeSource(signal));
-
-  return TEST_SOURCES.has(source);
+function getTimestamp(row) {
+  return (
+    row.detected_at ||
+    row.created_at ||
+    row.created ||
+    null
+  );
 }
 
-function parseDate(value) {
-  if (!value) return null;
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
-
-function freshness(signal) {
-  const detectedAt =
-    parseDate(signal.detected_at) ||
-    parseDate(signal.created_at);
-
+function calculateFreshness(detectedAt) {
   if (!detectedAt) {
+    return {
+      score: 0,
+      status: "UNKNOWN",
+      age_hours: null
+    };
+  }
+
+  const timestamp =
+    new Date(detectedAt).getTime();
+
+  if (!Number.isFinite(timestamp)) {
     return {
       score: 0,
       status: "UNKNOWN",
@@ -176,210 +223,541 @@ function freshness(signal) {
   const ageHours =
     Math.max(
       0,
-      Date.now() - detectedAt.getTime()
-    ) / (1000 * 60 * 60);
+      (Date.now() - timestamp) /
+        3600000
+    );
+
+  let score = 1;
+  let status = "FRESH";
 
   if (ageHours <= 24) {
-    return {
-      score: 1,
-      status: "FRESH",
-      age_hours: Number(ageHours.toFixed(2))
-    };
-  }
-
-  if (ageHours <= 72) {
-    return {
-      score: 0.8,
-      status: "RECENT",
-      age_hours: Number(ageHours.toFixed(2))
-    };
-  }
-
-  if (ageHours <= 168) {
-    return {
-      score: 0.5,
-      status: "AGING",
-      age_hours: Number(ageHours.toFixed(2))
-    };
+    score = 1;
+    status = "FRESH";
+  } else if (ageHours <= 72) {
+    score = 0.75;
+    status = "RECENT";
+  } else if (ageHours <= 168) {
+    score = 0.5;
+    status = "AGING";
+  } else {
+    score = 0.25;
+    status = "STALE";
   }
 
   return {
-    score: 0.2,
-    status: "STALE",
-    age_hours: Number(ageHours.toFixed(2))
+    score,
+    status,
+    age_hours:
+      Number(ageHours.toFixed(2))
   };
 }
 
-function confidenceScore(signal) {
-  const value = Number(signal.confidence);
-
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  if (value > 1 && value <= 100) {
-    return Math.max(0, Math.min(1, value / 100));
-  }
-
-  return Math.max(0, Math.min(1, value));
+function tokenize(value) {
+  return normalize(value)
+    .replace(/[^a-z0-9ก-๙\s]/gi, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(
+      word => !STOP_WORDS.has(word)
+    );
 }
 
-function sourceDiversityScore(signals) {
-  const sources = new Set();
+function containsAny(value, terms) {
+  const normalized =
+    normalize(value);
 
-  for (const signal of signals) {
-    const source = normalizeSource(signal);
-
-    if (source && source !== "unknown") {
-      sources.add(normalizeText(source));
-    }
-  }
-
-  if (sources.size >= 4) return 1;
-  if (sources.size === 3) return 0.9;
-  if (sources.size === 2) return 0.75;
-  if (sources.size === 1) return 0.5;
-
-  return 0;
-}
-
-function evidenceScore(signal, relatedSignals) {
-  const confidence = confidenceScore(signal);
-  const fresh = freshness(signal);
-  const diversity = sourceDiversityScore(relatedSignals);
-
-  const score =
-    confidence * 0.45 +
-    fresh.score * 0.30 +
-    diversity * 0.25;
-
-  return Number(
-    Math.max(0, Math.min(1, score)).toFixed(3)
+  return terms.some(
+    term =>
+      normalized.includes(
+        normalize(term)
+      )
   );
 }
 
-function signalKey(signal) {
-  const metadata = safeJson(signal.metadata, {});
+function deriveMarketTheme(row, metadata) {
+  const title =
+    normalize(row.title);
 
-  const keyword =
-    metadata.keyword ||
-    metadata.market_keyword ||
-    metadata.topic ||
-    signal.title ||
-    "unknown";
+  const topic =
+    normalize(
+      metadata.topic ||
+      metadata.market ||
+      metadata.subcategory ||
+      ""
+    );
 
-  return normalizeText(keyword);
-}
+  const combined =
+    `${title} ${topic}`;
 
-function buildClusters(signals) {
-  const clusters = new Map();
-
-  for (const signal of signals) {
-    const key = signalKey(signal);
-
-    if (!clusters.has(key)) {
-      clusters.set(key, []);
-    }
-
-    clusters.get(key).push(signal);
-  }
-
-  return [...clusters.entries()].map(
-    ([key, items]) => {
-      const sources = [
-        ...new Set(
-          items.map(normalizeSource)
-        )
-      ];
-
-      const commercialCount =
-        items.filter(signal =>
-          COMMERCIAL_INTENTS.has(
-            normalizeIntent(signal)
-          )
-        ).length;
-
-      const verifiedCount =
-        items.filter(
-          signal => !isTestSignal(signal)
-        ).length;
-
-      const latestDate = items
-        .map(signal =>
-          parseDate(
-            signal.detected_at ||
-            signal.created_at
-          )
-        )
-        .filter(Boolean)
-        .sort((a, b) => b - a)[0];
-
-      const latestSignal =
-        latestDate
-          ? items.find(signal => {
-              const date = parseDate(
-                signal.detected_at ||
-                signal.created_at
-              );
-
-              return (
-                date &&
-                date.getTime() ===
-                  latestDate.getTime()
-              );
-            })
-          : items[0];
-
-      const evidence =
-        latestSignal
-          ? evidenceScore(
-              latestSignal,
-              items
-            )
-          : 0;
-
-      return {
-        cluster_key: key,
-        signal_count: items.length,
-        verified_signal_count: verifiedCount,
-        commercial_signal_count:
-          commercialCount,
-        source_count: sources.length,
-        sources,
-        latest_detected_at:
-          latestDate
-            ? latestDate.toISOString()
-            : null,
-        evidence_score: evidence
-      };
-    }
-  );
-}
-
-function classifyState({
-  totalSignals,
-  verifiedSignals,
-  commercialSignals,
-  strongestEvidence
-}) {
-  if (totalSignals === 0) {
-    return "NO_DATA";
-  }
-
-  if (verifiedSignals === 0) {
-    return "WEAK_SIGNAL";
+  if (
+    containsAny(
+      combined,
+      [
+        "specialty",
+        "single-origin",
+        "single origin",
+        "specialty coffee"
+      ]
+    )
+  ) {
+    return "coffee";
   }
 
   if (
-    commercialSignals >= 2 &&
-    strongestEvidence >= 0.65
+    containsAny(
+      combined,
+      [
+        "coffee trade",
+        "coffee import",
+        "coffee export",
+        "coffee market",
+        "coffee"
+      ]
+    )
+  ) {
+    return "coffee";
+  }
+
+  if (
+    metadata.market
+  ) {
+    return normalize(
+      metadata.market
+    );
+  }
+
+  const tokens =
+    tokenize(combined);
+
+  if (tokens.length > 0) {
+    return tokens
+      .slice(0, 3)
+      .join(" ");
+  }
+
+  return "unknown";
+}
+
+function deriveSubTheme(row, metadata) {
+  const combined =
+    `${normalize(row.title)} ${normalize(
+      JSON.stringify(metadata)
+    )}`;
+
+  if (
+    containsAny(
+      combined,
+      [
+        "specialty",
+        "single-origin",
+        "single origin"
+      ]
+    )
+  ) {
+    return "specialty coffee";
+  }
+
+  if (
+    containsAny(
+      combined,
+      [
+        "import",
+        "imports"
+      ]
+    )
+  ) {
+    return "coffee trade";
+  }
+
+  if (
+    containsAny(
+      combined,
+      [
+        "export",
+        "exports"
+      ]
+    )
+  ) {
+    return "coffee trade";
+  }
+
+  return "general market";
+}
+
+function calculateBaseEvidence(
+  row,
+  metadata,
+  freshness
+) {
+  let score = 0;
+
+  const external =
+    isExternalSignal(
+      row,
+      metadata
+    );
+
+  const test =
+    isTestSignal(
+      row,
+      metadata
+    );
+
+  if (external) {
+    score += 0.20;
+  }
+
+  if (!test) {
+    score += 0.10;
+  }
+
+  if (
+    metadata.evidence_url ||
+    metadata.external_id ||
+    metadata.evidence_reference
+  ) {
+    score += 0.15;
+  }
+
+  if (
+    getIntent(row, metadata) ===
+    "COMMERCIAL"
+  ) {
+    score += 0.10;
+  }
+
+  score +=
+    freshness.score * 0.25;
+
+  return Number(
+    Math.min(1, score).toFixed(3)
+  );
+}
+
+function calculateAggregateEvidence(
+  signals
+) {
+  if (!signals.length) {
+    return 0;
+  }
+
+  const sourceCount =
+    new Set(
+      signals.map(
+        signal =>
+          normalize(
+            signal.source
+          )
+      )
+    ).size;
+
+  const commercialCount =
+    signals.filter(
+      signal =>
+        signal.intent ===
+        "COMMERCIAL"
+    ).length;
+
+  const verifiedCount =
+    signals.filter(
+      signal =>
+        signal.data_quality
+          .externally_verified
+    ).length;
+
+  const averageBase =
+    signals.reduce(
+      (sum, signal) =>
+        sum +
+        signal.base_evidence_score,
+      0
+    ) / signals.length;
+
+  let score =
+    averageBase * 0.45;
+
+  if (verifiedCount >= 1) {
+    score += 0.10;
+  }
+
+  if (commercialCount >= 1) {
+    score += 0.10;
+  }
+
+  if (sourceCount >= 2) {
+    score += 0.25;
+  }
+
+  if (sourceCount >= 3) {
+    score += 0.05;
+  }
+
+  return Number(
+    Math.min(1, score).toFixed(3)
+  );
+}
+
+function buildMarketSignal(
+  row
+) {
+  const metadata =
+    safeJson(row.metadata);
+
+  const testSignal =
+    isTestSignal(
+      row,
+      metadata
+    );
+
+  const externalVerified =
+    isExternalSignal(
+      row,
+      metadata
+    );
+
+  const intent =
+    getIntent(
+      row,
+      metadata
+    );
+
+  const freshness =
+    calculateFreshness(
+      getTimestamp(row)
+    );
+
+  const marketTheme =
+    deriveMarketTheme(
+      row,
+      metadata
+    );
+
+  const subTheme =
+    deriveSubTheme(
+      row,
+      metadata
+    );
+
+  const baseEvidence =
+    calculateBaseEvidence(
+      row,
+      metadata,
+      freshness
+    );
+
+  return {
+    id:
+      row.id ??
+      null,
+
+    source:
+      row.source ?? null,
+
+    category:
+      row.category ?? null,
+
+    title:
+      row.title ?? null,
+
+    intent,
+
+    market_theme:
+      marketTheme,
+
+    sub_theme:
+      subTheme,
+
+    confidence:
+      Number(
+        metadata.confidence ??
+        row.confidence ??
+        0
+      ) || 0,
+
+    freshness,
+
+    base_evidence_score:
+      baseEvidence,
+
+    evidence_score:
+      baseEvidence,
+
+    data_quality: {
+      test_signal:
+        testSignal,
+
+      database_record:
+        true,
+
+      externally_verified:
+        externalVerified
+    },
+
+    detected_at:
+      getTimestamp(row)
+  };
+}
+
+function buildClusters(signals) {
+  const groups = new Map();
+
+  for (
+    const signal of signals
+  ) {
+    const key =
+      signal.market_theme ||
+      "unknown";
+
+    if (!groups.has(key)) {
+      groups.set(
+        key,
+        []
+      );
+    }
+
+    groups
+      .get(key)
+      .push(signal);
+  }
+
+  const clusters = [];
+
+  for (
+    const [
+      clusterKey,
+      group
+    ] of groups
+  ) {
+    const commercialSignals =
+      group.filter(
+        signal =>
+          signal.intent ===
+          "COMMERCIAL"
+      );
+
+    const verifiedSignals =
+      group.filter(
+        signal =>
+          signal.data_quality
+            .externally_verified
+      );
+
+    const externalSignals =
+      group.filter(
+        signal =>
+          signal.data_quality
+            .externally_verified &&
+          !signal.data_quality
+            .test_signal
+      );
+
+    const sources =
+      [
+        ...new Set(
+          externalSignals.map(
+            signal =>
+              signal.source
+          )
+        )
+      ];
+
+    const aggregateScore =
+      calculateAggregateEvidence(
+        externalSignals
+      );
+
+    const latest =
+      group
+        .map(
+          signal =>
+            signal.detected_at
+        )
+        .filter(Boolean)
+        .sort()
+        .reverse()[0] ||
+      null;
+
+    clusters.push({
+      cluster_key:
+        clusterKey,
+
+      signal_count:
+        group.length,
+
+      verified_signal_count:
+        verifiedSignals.length,
+
+      commercial_signal_count:
+        commercialSignals.length,
+
+      source_count:
+        sources.length,
+
+      sources,
+
+      sub_themes:
+        [
+          ...new Set(
+            group.map(
+              signal =>
+                signal.sub_theme
+            )
+          )
+        ],
+
+      latest_detected_at:
+        latest,
+
+      evidence_score:
+        aggregateScore
+    });
+  }
+
+  return clusters.sort(
+    (a, b) =>
+      b.evidence_score -
+      a.evidence_score
+  );
+}
+
+function getState(
+  clusters,
+  verifiedSignals
+) {
+  const commercialExternal =
+    verifiedSignals.filter(
+      signal =>
+        signal.intent ===
+        "COMMERCIAL"
+    );
+
+  if (
+    commercialExternal.length ===
+    0
+  ) {
+    return "NO_DATA";
+  }
+
+  const strongest =
+    clusters[0]?.evidence_score ||
+    0;
+
+  const strongestCluster =
+    clusters[0];
+
+  const independentSources =
+    strongestCluster?.source_count ||
+    0;
+
+  if (
+    independentSources >= 2 &&
+    strongest >= 0.70
   ) {
     return "COMMERCIAL_SIGNAL";
   }
 
   if (
-    commercialSignals >= 1 &&
-    strongestEvidence >= 0.45
+    strongest >= 0.50
   ) {
     return "EMERGING_SIGNAL";
   }
@@ -387,316 +765,179 @@ function classifyState({
   return "WEAK_SIGNAL";
 }
 
-function opportunityHandoff(state, clusters) {
-  if (state !== "COMMERCIAL_SIGNAL") {
+function buildOpportunityHandoff(
+  clusters
+) {
+  const commercialClusters =
+    clusters.filter(
+      cluster =>
+        cluster.commercial_signal_count >
+          0 &&
+        cluster.verified_signal_count >
+          0
+    );
+
+  if (
+    commercialClusters.length ===
+    0
+  ) {
     return {
       ready: false,
       next_layer:
         "MARKET_SIGNAL_COLLECTION",
       reason:
-        "Commercial market evidence is not yet strong enough for Opportunity Engine."
+        "No verified commercial market evidence is available."
     };
   }
 
-  const candidates = clusters
-    .filter(cluster =>
-      cluster.commercial_signal_count >= 2 &&
-      cluster.verified_signal_count >= 2 &&
-      cluster.evidence_score >= 0.65
-    )
-    .sort(
-      (a, b) =>
-        b.evidence_score -
-        a.evidence_score
-    );
+  const strongest =
+    commercialClusters[0];
 
-  if (candidates.length === 0) {
+  if (
+    strongest.source_count >= 2 &&
+    strongest.evidence_score >= 0.70
+  ) {
     return {
-      ready: false,
+      ready: true,
+
       next_layer:
-        "MARKET_SIGNAL_COLLECTION",
+        OPPORTUNITY_ENGINE,
+
       reason:
-        "Overall market state is commercial, but no verified cluster currently meets the Opportunity Engine threshold."
+        "Multiple independent external sources support the same commercial market theme.",
+
+      market_theme:
+        strongest.cluster_key,
+
+      source_count:
+        strongest.source_count,
+
+      evidence_score:
+        strongest.evidence_score
     };
   }
 
   return {
-    ready: true,
+    ready: false,
+
     next_layer:
-      "OPPORTUNITY_ENGINE_V1",
-    candidate_clusters:
-      candidates
+      "MARKET_SIGNAL_COLLECTION",
+
+    reason:
+      "Commercial market evidence exists, but cross-source evidence is not yet strong enough for Opportunity Engine.",
+
+    market_theme:
+      strongest.cluster_key,
+
+    source_count:
+      strongest.source_count,
+
+    evidence_score:
+      strongest.evidence_score
   };
 }
 
-/*
- * IMPORTANT
- *
- * Do not assume the schema of market_signals.
- * Read the actual D1 schema first.
- */
-async function getMarketSignalsSchema(env) {
-  const result = await env.DB
-    .prepare(`
-      PRAGMA table_info(market_signals)
-    `)
-    .all();
+async function getSchema(env) {
+  const result =
+    await env.DB
+      .prepare(
+        "PRAGMA table_info(market_signals)"
+      )
+      .all();
 
   return result.results || [];
 }
 
-function schemaColumnNames(schema) {
-  return new Set(
-    schema.map(column => column.name)
-  );
-}
-
-async function readMarketSignals(env) {
+async function getMarketSignals(env) {
   const schema =
-    await getMarketSignalsSchema(env);
+    await getSchema(env);
 
   const columns =
-    schemaColumnNames(schema);
+    new Set(
+      schema.map(
+        column =>
+          column.name
+      )
+    );
 
-  const preferredColumns = [
+  const selectColumns = [
     "id",
     "source",
-    "category",
     "title",
-    "confidence",
     "metadata",
-    "detected_at",
-    "created_at"
+    "detected_at"
   ];
 
-  const availableColumns =
-    preferredColumns.filter(
-      column => columns.has(column)
-    );
-
-  if (availableColumns.length === 0) {
-    throw new Error(
-      "MARKET_SIGNALS_SCHEMA_UNREADABLE"
+  if (
+    columns.has("category")
+  ) {
+    selectColumns.push(
+      "category"
     );
   }
 
-  const selectList =
-    availableColumns
-      .map(column => `"${column}"`)
-      .join(", ");
+  if (
+    columns.has("confidence")
+  ) {
+    selectColumns.push(
+      "confidence"
+    );
+  }
 
-  const orderColumn =
-    columns.has("detected_at")
-      ? "detected_at"
-      : columns.has("created_at")
-        ? "created_at"
-        : "rowid";
+  const sql =
+    `SELECT ${selectColumns.join(
+      ", "
+    )} FROM market_signals ORDER BY detected_at DESC LIMIT 100`;
 
-  const result = await env.DB
-    .prepare(`
-      SELECT ${selectList}
-      FROM market_signals
-      ORDER BY ${orderColumn} DESC
-      LIMIT 100
-    `)
-    .all();
+  const result =
+    await env.DB
+      .prepare(sql)
+      .all();
 
   return {
-    schema,
-    columns:
-      availableColumns,
     rows:
-      result.results || []
+      result.results || [],
+
+    schema,
+    
+    columns
   };
 }
 
-async function createMarketSignal(env, body) {
-  const schema =
-    await getMarketSignalsSchema(env);
+export async function onRequest(
+  context
+) {
+  const request =
+    context.request;
 
-  const columns =
-    schemaColumnNames(schema);
-
-  const source =
-    body.source ||
-    body.source_type ||
-    null;
-
-  const title =
-    body.title ||
-    null;
-
-  const confidence =
-    body.confidence ??
-    null;
-
-  const metadata =
-    body.metadata ||
-    {};
-
-  const detectedAt =
-    body.detected_at ||
-    new Date().toISOString();
-
-  if (!source) {
-    return {
-      error: "source_required"
-    };
-  }
-
-  if (!title) {
-    return {
-      error: "title_required"
-    };
-  }
-
-  /*
-   * Build INSERT dynamically from columns
-   * that actually exist in D1.
-   */
-  const payload = {};
-
-  if (columns.has("source")) {
-    payload.source = source;
-  }
-
-  if (columns.has("title")) {
-    payload.title = title;
-  }
-
-  if (columns.has("confidence")) {
-    payload.confidence = confidence;
-  }
-
-  if (columns.has("metadata")) {
-    payload.metadata =
-      JSON.stringify(metadata);
-  }
-
-  if (columns.has("detected_at")) {
-    payload.detected_at =
-      detectedAt;
-  }
-
-  if (columns.has("category")) {
-    payload.category =
-      body.category ||
-      "MARKET";
-  }
-
-  const insertColumns =
-    Object.keys(payload);
-
-  if (insertColumns.length === 0) {
-    return {
-      error:
-        "MARKET_SIGNALS_INSERT_SCHEMA_UNSUPPORTED"
-    };
-  }
-
-  const placeholders =
-    insertColumns
-      .map(() => "?")
-      .join(", ");
-
-  const values =
-    insertColumns.map(
-      column => payload[column]
-    );
-
-  const result = await env.DB
-    .prepare(`
-      INSERT INTO market_signals (
-        ${insertColumns
-          .map(column => `"${column}"`)
-          .join(", ")}
-      )
-      VALUES (${placeholders})
-    `)
-    .bind(...values)
-    .run();
-
-  return {
-    success: true,
-    id:
-      result.meta?.last_row_id ||
-      null
-  };
-}
-
-export async function onRequest(context) {
-  const {
-    request,
-    env
-  } = context;
+  const env =
+    context.env;
 
   try {
-    if (!env || !env.DB) {
+    if (
+      !env ||
+      !env.DB
+    ) {
       return json(
         {
           success: false,
+          engine: ENGINE,
+          version: VERSION,
           error:
-            "DB_BINDING_NOT_FOUND",
-          engine:
-            MARKET_INTELLIGENCE_ENGINE
+            "DB_BINDING_NOT_FOUND"
         },
         500
       );
     }
 
-    if (request.method === "POST") {
-      let body;
-
-      try {
-        body =
-          await request.json();
-      } catch {
-        return json(
-          {
-            success: false,
-            error:
-              "INVALID_JSON"
-          },
-          400
-        );
-      }
-
-      const created =
-        await createMarketSignal(
-          env,
-          body
-        );
-
-      if (created.error) {
-        return json(
-          {
-            success: false,
-            error:
-              created.error
-          },
-          400
-        );
-      }
-
-      return json({
-        success: true,
-        engine:
-          MARKET_INTELLIGENCE_ENGINE,
-        version:
-          MARKET_INTELLIGENCE_VERSION,
-        operation:
-          "MARKET_SIGNAL_CREATED",
-        result:
-          created,
-        handoff:
-          "MARKET_INTELLIGENCE_V1"
-      });
-    }
-
-    if (request.method !== "GET") {
+    if (
+      request.method !== "GET"
+    ) {
       return json(
         {
           success: false,
+          engine: ENGINE,
+          version: VERSION,
           error:
             "METHOD_NOT_ALLOWED"
         },
@@ -704,126 +945,54 @@ export async function onRequest(context) {
       );
     }
 
-    const marketData =
-      await readMarketSignals(env);
+    const data =
+      await getMarketSignals(
+        env
+      );
 
-    const signals =
-      marketData.rows || [];
+    const rawRows =
+      data.rows;
 
-    const analyzedSignals =
-      signals.map(signal => {
-        const relatedSignals =
-          signals.filter(
-            candidate =>
-              signalKey(candidate) ===
-              signalKey(signal)
-          );
-
-        const intent =
-          normalizeIntent(signal);
-
-        const freshnessData =
-          freshness(signal);
-
-        const testData =
-          isTestSignal(signal);
-
-        const evidence =
-          evidenceScore(
-            signal,
-            relatedSignals
-          );
-
-        return {
-          id:
-            signal.id ||
-            null,
-
-          source:
-            normalizeSource(signal),
-
-          category:
-            signal.category ||
-            null,
-
-          title:
-            signal.title ||
-            null,
-
-          intent,
-
-          confidence:
-            confidenceScore(signal),
-
-          freshness:
-            freshnessData,
-
-          evidence_score:
-            evidence,
-
-          data_quality: {
-            test_signal:
-              testData,
-
-            database_record:
-              true,
-
-            externally_verified:
-              !testData
-          },
-
-          detected_at:
-            signal.detected_at ||
-            signal.created_at ||
-            null
-        };
-      });
+    const marketSignals =
+      rawRows.map(
+        row =>
+          buildMarketSignal(row)
+      );
 
     const verifiedSignals =
-      analyzedSignals.filter(
+      marketSignals.filter(
         signal =>
-          !signal.data_quality
+          signal.data_quality
+            .externally_verified
+      );
+
+    const testSignals =
+      marketSignals.filter(
+        signal =>
+          signal.data_quality
             .test_signal
       );
 
     const commercialSignals =
       verifiedSignals.filter(
         signal =>
-          COMMERCIAL_INTENTS.has(
-            signal.intent
-          )
+          signal.intent ===
+          "COMMERCIAL"
       );
 
-    const strongestEvidence =
-      analyzedSignals.length > 0
-        ? Math.max(
-            ...analyzedSignals.map(
-              signal =>
-                signal.evidence_score
-            )
-          )
-        : 0;
+    const clusters =
+      buildClusters(
+        marketSignals
+      );
 
     const state =
-      classifyState({
-        totalSignals:
-          analyzedSignals.length,
+      getState(
+        clusters,
+        verifiedSignals
+      );
 
-        verifiedSignals:
-          verifiedSignals.length,
-
-        commercialSignals:
-          commercialSignals.length,
-
-        strongestEvidence
-      });
-
-    const clusters =
-      buildClusters(signals);
-
-    const handoff =
-      opportunityHandoff(
-        state,
+    const opportunityHandoff =
+      buildOpportunityHandoff(
         clusters
       );
 
@@ -831,10 +1000,10 @@ export async function onRequest(context) {
       success: true,
 
       engine:
-        MARKET_INTELLIGENCE_ENGINE,
+        ENGINE,
 
       version:
-        MARKET_INTELLIGENCE_VERSION,
+        VERSION,
 
       timestamp:
         new Date().toISOString(),
@@ -843,20 +1012,21 @@ export async function onRequest(context) {
 
       summary: {
         total_signals:
-          analyzedSignals.length,
+          marketSignals.length,
 
         verified_signals:
           verifiedSignals.length,
 
         test_signals:
-          analyzedSignals.length -
-          verifiedSignals.length,
+          testSignals.length,
 
         commercial_signals:
           commercialSignals.length,
 
         strongest_evidence_score:
-          strongestEvidence,
+          clusters[0]
+            ?.evidence_score ||
+          0,
 
         cluster_count:
           clusters.length
@@ -864,24 +1034,66 @@ export async function onRequest(context) {
 
       schema: {
         detected_columns:
-          marketData.columns,
+          data.schema.map(
+            column =>
+              column.name
+          ),
 
         schema_checked:
           true,
 
         category_available:
-          marketData.columns.includes(
+          data.columns.has(
             "category"
+          ),
+
+        confidence_available:
+          data.columns.has(
+            "confidence"
+          ),
+
+        metadata_available:
+          data.columns.has(
+            "metadata"
+          ),
+
+        detected_at_available:
+          data.columns.has(
+            "detected_at"
           )
       },
 
       market_signals:
-        analyzedSignals,
+        marketSignals,
 
       clusters,
 
+      cross_source_evidence: {
+        enabled:
+          true,
+
+        independent_external_sources:
+          [
+            ...new Set(
+              verifiedSignals.map(
+                signal =>
+                  signal.source
+              )
+            )
+          ].length,
+
+        verified_external_signals:
+          verifiedSignals.length,
+
+        commercial_external_signals:
+          commercialSignals.length,
+
+        test_signals_excluded:
+          true
+      },
+
       opportunity_handoff:
-        handoff,
+        opportunityHandoff,
 
       guardrails: {
         invents_market_data:
@@ -893,11 +1105,14 @@ export async function onRequest(context) {
         test_data_can_create_commercial_signal:
           false,
 
+        test_data_can_strengthen_cross_source_evidence:
+          false,
+
         changes_strategy:
           false,
 
         creates_opportunity:
-          handoff.ready,
+          false,
 
         creates_decision:
           false,
@@ -911,33 +1126,43 @@ export async function onRequest(context) {
           true,
 
         external_market_data_verified:
-          verifiedSignals.length > 0,
+          verifiedSignals.length >
+          0,
 
         test_records_excluded_from_commercial_readiness:
+          true,
+
+        primary_key_preserved:
           true
       },
 
       handoff_contract: {
         current_layer:
-          "MARKET_INTELLIGENCE_V1",
+          ENGINE,
 
         next_layer:
-          handoff.next_layer,
+          opportunityHandoff.ready
+            ? OPPORTUNITY_ENGINE
+            : "MARKET_SIGNAL_COLLECTION",
 
         ready:
-          handoff.ready
+          opportunityHandoff.ready,
+
+        evidence_requirement:
+          "AT_LEAST_2_INDEPENDENT_EXTERNAL_SOURCES_FOR_COMMERCIAL_READINESS"
       }
     });
+
   } catch (error) {
     return json(
       {
         success: false,
 
         engine:
-          MARKET_INTELLIGENCE_ENGINE,
+          ENGINE,
 
         version:
-          MARKET_INTELLIGENCE_VERSION,
+          VERSION,
 
         error:
           error?.message ||
