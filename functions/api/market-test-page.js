@@ -747,11 +747,13 @@ window.TATO_CLICK=function(){
 send("content_view");
 
 var orderForm=document.getElementById("order-form");
+var orderSubmit=orderForm ? orderForm.querySelector("button[type=\"submit\"]") : null;
 if(orderForm){
  orderForm.addEventListener("submit",function(event){
   event.preventDefault();
   var result=document.getElementById("order-result");
   result.textContent="กำลังสร้างคำสั่งซื้อ...";
+  if(orderSubmit) orderSubmit.disabled=true;
   var payload={
    name:document.getElementById("name").value.trim(),
    phone:document.getElementById("phone").value.trim(),
@@ -760,7 +762,7 @@ if(orderForm){
    content_id:cid,
    session_id:sid
   };
-  fetch("/api/business-order-entry",{
+  fetch(window.location.origin+"/api/business-order-entry",{
    method:"POST",
    headers:{"Content-Type":"application/json"},
    body:JSON.stringify(payload)
@@ -779,6 +781,7 @@ if(orderForm){
   })
   .catch(function(error){
    result.textContent="ยังสร้างคำสั่งซื้อไม่ได้: "+(error&&error.message?error.message:"unknown error");
+   if(orderSubmit) orderSubmit.disabled=false;
   });
 }
 var offer=document.getElementById("offer");
