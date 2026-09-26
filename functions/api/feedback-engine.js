@@ -20,10 +20,18 @@ function parseJSON(value, fallback = {}) {
   try { return JSON.parse(value); } catch (_) { return fallback; }
 }
 
-async function getExecution(DB, id) {
-  return await DB.prepare(
-    "SELECT * FROM execution_runs WHERE id = ? LIMIT 1"
-  ).bind(id).first();
+async function getExecution(DB, id, actionRunId = null) {
+  if (id) {
+    return await DB.prepare(
+      "SELECT * FROM execution_runs WHERE id = ? LIMIT 1"
+    ).bind(id).first();
+  }
+  if (actionRunId) {
+    return await DB.prepare(
+      "SELECT * FROM execution_runs WHERE action_run_id = ? ORDER BY created_at DESC LIMIT 1"
+    ).bind(actionRunId).first();
+  }
+  return null;
 }
 
 async function getAction(DB, id) {
@@ -97,15 +105,16 @@ export async function onRequestGet(context) {
 
     const url = new URL(context.request.url);
     const executionRunId = url.searchParams.get("execution_run_id");
+    const actionRunId = url.searchParams.get("action_run_id");
 
-    if (!executionRunId) return json({
+    if (!executionRunId && !actionRunId) return json({
       success: false,
       layer: LAYER,
       status: "ERROR",
-      error: "execution_run_id is required"
+      error: "execution_run_id or action_run_id is required"
     }, 400);
 
-    const execution = await getExecution(DB, executionRunId);
+    const execution = await getExecution(DB, executionRunId, actionRunId);
     if (!execution) return json({
       success: false,
       layer: LAYER,
@@ -188,7 +197,7 @@ export async function onRequestPost(context) {
       error: "execution_run_id is required"
     }, 400);
 
-    const execution = await getExecution(DB, executionRunId);
+    const execution = await getExecution(DB, executionRunId, null);
     if (!execution) return json({
       success: false,
       layer: LAYER,
