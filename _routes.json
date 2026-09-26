@@ -4,7 +4,6 @@
   "include": [
     "/api/*",
     "/market-test"
-  ],
-  "exclude": []
+  ]
 }
 ```
