@@ -1,36 +1,9 @@
-// TATO-OS
-// Orders API V1.2
-// Route: /api/orders
-//
-// D1-compatible
-// Current products schema:
-//   id, name, slug, category, description,
-//   price, currency, status, created_at, updated_at
-//
-// Current orders contract used by TATO UI:
-//   customer_id
-//   product_id
-//   amount
-//   currency
-//   status
-//
-// IMPORTANT:
-// - products uses status, NOT active
-// - This file never queries products.active
-// - GET /api/orders
-// - POST /api/orders
-
-const VERSION = "1.2";
-
-const HEADERS = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store"
-};
+const VERSION = "1.3";
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
+  return Response.json(data, {
     status,
-    headers: HEADERS
+    headers: { "Cache-Control": "no-store" }
   });
 }
 
@@ -38,172 +11,143 @@ function text(value) {
   return value == null ? "" : String(value).trim();
 }
 
-function number(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function createId(prefix = "ord") {
+function createId(prefix) {
   return prefix + "_" + crypto.randomUUID();
 }
 
-function now() {
-  return new Date().toISOString();
+async function tableColumns(db, table) {
+  const result = await db.prepare("PRAGMA table_info(" + table + ")").all();
+  return (result.results || []).map(function (row) {
+    return row.name;
+  });
 }
 
 async function ensureOrdersTable(db) {
+  const exists = await db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='orders'"
+  ).first();
+
+  if (exists) return;
+
   await db.prepare(
-    "CREATE TABLE IF NOT EXISTS orders (" +
-    "id TEXT PRIMARY KEY, " +
-    "customer_id TEXT, " +
-    "product_id TEXT, " +
-    "amount REAL DEFAULT 0, " +
-    "currency TEXT DEFAULT 'THB', " +
-    "status TEXT DEFAULT 'PENDING', " +
-    "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+    "CREATE TABLE orders (" +
+    "id TEXT PRIMARY KEY," +
+    "customer_id TEXT," +
+    "total_amount REAL NOT NULL DEFAULT 0," +
+    "total_kg REAL NOT NULL DEFAULT 0," +
+    "status TEXT NOT NULL DEFAULT 'pending'," +
+    "created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
     ")"
   ).run();
 }
 
 async function getOrders(db) {
-  const result = await db.prepare(
-    "SELECT " +
-    "o.id, " +
-    "o.customer_id, " +
-    "o.product_id, " +
-    "o.amount, " +
-    "o.currency, " +
-    "o.status, " +
-    "o.created_at, " +
-    "p.name AS product_name, " +
-    "p.price AS product_price, " +
-    "p.status AS product_status, " +
-    "c.name AS customer_name " +
+  const rows = await db.prepare(
+    "SELECT o.*, c.name AS customer_name " +
     "FROM orders o " +
-    "LEFT JOIN products p ON p.id = o.product_id " +
     "LEFT JOIN customers c ON c.id = o.customer_id " +
-    "ORDER BY datetime(o.created_at) DESC " +
-    "LIMIT 500"
+    "ORDER BY o.created_at DESC LIMIT 100"
   ).all();
 
-  return result && result.results ? result.results : [];
+  const orders = rows.results || [];
+
+  let revenue = 0;
+  let kg = 0;
+
+  for (const order of orders) {
+    revenue += Number(order.total_amount || order.amount || 0);
+    kg += Number(order.total_kg || order.quantity || order.qty || 0);
+  }
+
+  return json({
+    success: true,
+    version: VERSION,
+    orders: orders,
+    count: orders.length,
+    revenue: revenue,
+    total_kg: kg
+  });
 }
 
 async function createOrder(db, body) {
+  await ensureOrdersTable(db);
+
   const customerId = text(body.customer_id);
   const productId = text(body.product_id);
-  const amount = number(body.amount);
-  const currency = text(body.currency) || "THB";
-  const status = (text(body.status) || "PENDING").toUpperCase();
+  const status = text(body.status).toLowerCase() || "pending";
+  const amount = Number(body.amount);
+  const totalKg = Number(body.total_kg != null ? body.total_kg : body.quantity);
 
-  if (!customerId) {
-    return { error: "customer_id is required", status: 400 };
-  }
-
-  if (!productId) {
-    return { error: "product_id is required", status: 400 };
-  }
-
-  if (amount <= 0) {
-    return { error: "amount must be greater than 0", status: 400 };
-  }
+  if (!customerId) throw new Error("CUSTOMER_ID_REQUIRED");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("INVALID_AMOUNT");
+  if (!Number.isFinite(totalKg) || totalKg <= 0) throw new Error("INVALID_TOTAL_KG");
 
   const customer = await db.prepare(
     "SELECT id, name FROM customers WHERE id = ? LIMIT 1"
   ).bind(customerId).first();
 
-  if (!customer) {
-    return {
-      error: "customer_not_found",
-      customer_id: customerId,
-      status: 404
-    };
+  if (!customer) throw new Error("CUSTOMER_NOT_FOUND");
+
+  if (productId) {
+    const product = await db.prepare(
+      "SELECT id, name, price, currency, status FROM products WHERE id = ? LIMIT 1"
+    ).bind(productId).first();
+
+    if (!product) throw new Error("PRODUCT_NOT_FOUND");
+
+    if (text(product.status).toLowerCase() !== "active") {
+      throw new Error("PRODUCT_NOT_ACTIVE");
+    }
   }
 
-  const product = await db.prepare(
-    "SELECT id, name, price, currency, status " +
-    "FROM products WHERE id = ? LIMIT 1"
-  ).bind(productId).first();
+  const cols = await tableColumns(db, "orders");
+  const allowed = new Set(cols);
+  const id = createId("order");
+  const data = {
+    id: id,
+    customer_id: customerId,
+    product_id: productId || null,
+    amount: amount,
+    total_amount: amount,
+    total_kg: totalKg,
+    quantity: totalKg,
+    qty: totalKg,
+    currency: "THB",
+    status: status,
+    source: "TATO_OS_SALES",
+    created_at: new Date().toISOString()
+  };
 
-  if (!product) {
-    return {
-      error: "product_not_found",
-      product_id: productId,
-      status: 404
-    };
-  }
+  const names = Object.keys(data).filter(function (key) {
+    return allowed.has(key);
+  });
 
-  const productStatus = text(product.status).toLowerCase();
-
-  if (productStatus !== "active") {
-    return {
-      error: "product_inactive",
-      product_id: productId,
-      product_status: product.status,
-      status: 409
-    };
-  }
-
-  const id = createId();
-  const createdAt = now();
+  const placeholders = names.map(function () { return "?"; }).join(", ");
+  const values = names.map(function (key) { return data[key]; });
 
   await db.prepare(
-    "INSERT INTO orders " +
-    "(id, customer_id, product_id, amount, currency, status, created_at) " +
-    "VALUES (?, ?, ?, ?, ?, ?, ?)"
-  ).bind(
-    id,
-    customerId,
-    productId,
-    amount,
-    currency,
-    status,
-    createdAt
-  ).run();
+    "INSERT INTO orders (" + names.join(", ") + ") VALUES (" + placeholders + ")"
+  ).bind.apply(null, values).run();
 
-  const order = await db.prepare(
-    "SELECT " +
-    "o.id, o.customer_id, o.product_id, o.amount, o.currency, " +
-    "o.status, o.created_at, p.name AS product_name, " +
-    "p.price AS product_price, p.status AS product_status, " +
-    "c.name AS customer_name " +
-    "FROM orders o " +
-    "LEFT JOIN products p ON p.id = o.product_id " +
-    "LEFT JOIN customers c ON c.id = o.customer_id " +
+  const created = await db.prepare(
+    "SELECT o.*, c.name AS customer_name " +
+    "FROM orders o LEFT JOIN customers c ON c.id = o.customer_id " +
     "WHERE o.id = ? LIMIT 1"
   ).bind(id).first();
 
-  return {
+  return json({
     success: true,
-    order,
-    status: 201
-  };
+    version: VERSION,
+    order: created,
+    message: "Order created"
+  });
 }
 
-export async function onRequestGet({ env }) {
+export async function onRequestGet(context) {
   try {
-    if (!env || !env.DB) {
-      return json({
-        success: false,
-        error: "D1 binding DB is missing",
-        version: VERSION
-      }, 500);
-    }
-
-    const orders = await getOrders(env.DB);
-
-    const revenue = orders.reduce(
-      (sum, order) => sum + number(order.amount),
-      0
-    );
-
-    return json({
-      success: true,
-      version: VERSION,
-      orders,
-      count: orders.length,
-      revenue
-    });
+    const db = context.env && context.env.DB;
+    if (!db) return json({ success: false, error: "DB_BINDING_NOT_FOUND" }, 500);
+    return await getOrders(db);
   } catch (error) {
     return json({
       success: false,
@@ -213,52 +157,24 @@ export async function onRequestGet({ env }) {
   }
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
   try {
-    if (!env || !env.DB) {
-      return json({
-        success: false,
-        error: "D1 binding DB is missing",
-        version: VERSION
-      }, 500);
-    }
+    const db = context.env && context.env.DB;
+    if (!db) return json({ success: false, error: "DB_BINDING_NOT_FOUND" }, 500);
 
-    let body;
-
+    let body = {};
     try {
-      body = await request.json();
+      body = await context.request.json();
     } catch (_) {
-      return json({
-        success: false,
-        error: "invalid_json",
-        version: VERSION
-      }, 400);
+      return json({ success: false, error: "INVALID_JSON" }, 400);
     }
 
-    await ensureOrdersTable(env.DB);
-
-    const result = await createOrder(env.DB, body);
-
-    if (result.error) {
-      const status = result.status || 400;
-      delete result.status;
-
-      return json({
-        success: false,
-        version: VERSION,
-        ...result
-      }, status);
-    }
-
-    return json({
-      version: VERSION,
-      ...result
-    }, 201);
+    return await createOrder(db, body);
   } catch (error) {
     return json({
       success: false,
       version: VERSION,
       error: error && error.message ? error.message : String(error)
-    }, 500);
+    }, 400);
   }
 }
