@@ -5,71 +5,62 @@
 // Route:
 // /api/market-test-entry
 //
-// Purpose:
-// Market Test → Real Customer Behavior → Measurement V2.3
+// Flow:
+// Market Test
+// -> Real Customer
+// -> Real Behavior
+// -> Measurement V2.3
 //
-// This layer DOES:
-// - accept real market-test behavior events
-// - verify distribution
-// - verify active measurement session
-// - write compatible behavior_events
-// - create market_test_event_links
-// - preserve traceability
-//
-// This layer DOES NOT:
-// - invent behavior
-// - invent attention
-// - invent purchases
-// - invent revenue
-// - declare winners
-// - change strategy
-// - publish content
-// - spend money
-// - execute actions
+// No fake events.
+// No strategy change.
+// No automatic execution.
 
 const ENGINE = "REAL_MARKET_TEST_ENTRY_V1";
 const VERSION = "1.0";
-
 const MEASUREMENT_ENGINE = "MEASUREMENT_V2.3";
 
-const ALLOWED_EVENTS = new Set([
+const ALLOWED_EVENTS = [
   "content_view",
   "content_click",
   "engagement",
   "product_view",
   "order_created",
   "payment_completed",
-  "revenue_recorded",
-]);
+  "revenue_recorded"
+];
 
-const ATTENTION_EVENTS = new Set([
+const ATTENTION_EVENTS = [
   "content_view",
-  "content_click",
-]);
+  "content_click"
+];
 
-const INTEREST_EVENTS = new Set([
+const INTEREST_EVENTS = [
   "engagement",
-  "product_view",
-]);
+  "product_view"
+];
 
-const PURCHASE_EVENTS = new Set([
+const PURCHASE_EVENTS = [
   "order_created",
-  "payment_completed",
-]);
+  "payment_completed"
+];
 
-const REVENUE_EVENTS = new Set([
-  "revenue_recorded",
-]);
+const REVENUE_EVENTS = [
+  "revenue_recorded"
+];
 
-function json(data, status = 200) {
+function json(data, status) {
+  if (status === undefined) {
+    status = 200;
+  }
+
   return new Response(
     JSON.stringify(data, null, 2),
     {
-      status,
+      status: status,
       headers: {
         "content-type": "application/json; charset=UTF-8",
-        "cache-control": "no-store",
-      },
+        "cache-control": "no-store"
+      }
     }
   );
 }
@@ -79,16 +70,19 @@ function now() {
 }
 
 function makeId(prefix) {
-  return `${prefix}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  return (
+    prefix +
+    "-" +
+    Date.now() +
+    "-" +
+    crypto.randomUUID().slice(0, 8)
+  );
 }
 
 async function tableExists(db, tableName) {
   const result = await db
     .prepare(
-      `SELECT name
-       FROM sqlite_master
-       WHERE type = 'table'
-       AND name = ?`
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?"
     )
     .bind(tableName)
     .first();
@@ -98,49 +92,32 @@ async function tableExists(db, tableName) {
 
 async function getColumns(db, tableName) {
   const result = await db
-    .prepare(`PRAGMA table_info(${tableName})`)
+    .prepare("PRAGMA table_info(" + tableName + ")")
     .all();
 
   return result.results || [];
 }
 
 function hasColumn(columns, name) {
-  return columns.some(
-    (column) => column.name === name
-  );
-}
-
-function requiredColumnsMissing(columns, values) {
-  const missing = [];
-
-  for (const column of columns) {
-    const required =
-      column.notnull === 1 &&
-      column.pk !== 1 &&
-      column.dflt_value === null;
-
-    if (required && !(column.name in values)) {
-      missing.push(column.name);
-    }
-  }
-
-  return missing;
+  return columns.some(function (column) {
+    return column.name === name;
+  });
 }
 
 function getEventStage(eventType) {
-  if (ATTENTION_EVENTS.has(eventType)) {
+  if (ATTENTION_EVENTS.includes(eventType)) {
     return "ATTENTION";
   }
 
-  if (INTEREST_EVENTS.has(eventType)) {
+  if (INTEREST_EVENTS.includes(eventType)) {
     return "INTEREST";
   }
 
-  if (PURCHASE_EVENTS.has(eventType)) {
+  if (PURCHASE_EVENTS.includes(eventType)) {
     return "PURCHASE";
   }
 
-  if (REVENUE_EVENTS.has(eventType)) {
+  if (REVENUE_EVENTS.includes(eventType)) {
     return "REVENUE";
   }
 
@@ -150,40 +127,34 @@ function getEventStage(eventType) {
 async function ensureLinkTable(db) {
   await db
     .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS market_test_event_links (
-        id TEXT PRIMARY KEY,
-        measurement_id TEXT NOT NULL,
-        distribution_id TEXT NOT NULL,
-        market_test_id TEXT NOT NULL,
-        behavior_event_id TEXT NOT NULL,
-        event_type TEXT NOT NULL,
-        event_stage TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )
-      `
+      "CREATE TABLE IF NOT EXISTS market_test_event_links (" +
+      "id TEXT PRIMARY KEY," +
+      "measurement_id TEXT NOT NULL," +
+      "distribution_id TEXT NOT NULL," +
+      "market_test_id TEXT NOT NULL," +
+      "behavior_event_id TEXT NOT NULL," +
+      "event_type TEXT NOT NULL," +
+      "event_stage TEXT NOT NULL," +
+      "created_at TEXT NOT NULL" +
+      ")"
     )
     .run();
 }
 
 async function getDistribution(db, distributionId) {
-  if (
-    !(await tableExists(
-      db,
-      "market_test_distributions"
-    ))
-  ) {
+  const exists = await tableExists(
+    db,
+    "market_test_distributions"
+  );
+
+  if (!exists) {
     return null;
   }
 
   return await db
     .prepare(
-      `
-      SELECT *
-      FROM market_test_distributions
-      WHERE id = ?
-      LIMIT 1
-      `
+      "SELECT * FROM market_test_distributions " +
+      "WHERE id = ? LIMIT 1"
     )
     .bind(distributionId)
     .first();
@@ -193,63 +164,69 @@ async function getActiveMeasurement(
   db,
   distributionId
 ) {
-  if (
-    !(await tableExists(
-      db,
-      "market_test_measurements"
-    ))
-  ) {
+  const exists = await tableExists(
+    db,
+    "market_test_measurements"
+  );
+
+  if (!exists) {
     return null;
   }
 
   return await db
     .prepare(
-      `
-      SELECT *
-      FROM market_test_measurements
-      WHERE distribution_id = ?
-      AND status = 'COLLECTING'
-      ORDER BY created_at DESC
-      LIMIT 1
-      `
+      "SELECT * FROM market_test_measurements " +
+      "WHERE distribution_id = ? " +
+      "AND status = 'COLLECTING' " +
+      "ORDER BY created_at DESC LIMIT 1"
     )
     .bind(distributionId)
     .first();
 }
 
-function buildBehaviorValues({
+function buildBehaviorValues(
   columns,
   eventId,
   eventType,
   timestamp,
   distribution,
   measurement,
-  requestData,
-}) {
+  requestData
+) {
   const values = {};
 
-  const set = (name, value) => {
+  function set(name, value) {
     if (
       hasColumn(columns, name) &&
       value !== undefined
     ) {
       values[name] = value;
     }
-  };
+  }
 
   set("id", eventId);
   set("event_type", eventType);
   set("created_at", timestamp);
   set("updated_at", timestamp);
 
-  set("measurement_id", measurement.id);
-  set("distribution_id", distribution.id);
+  set(
+    "measurement_id",
+    measurement.id
+  );
+
+  set(
+    "distribution_id",
+    distribution.id
+  );
+
   set(
     "market_test_id",
     distribution.market_test_id
   );
 
-  if (requestData.content_id !== undefined) {
+  if (
+    requestData.content_id !== undefined
+  ) {
     set(
       "content_id",
       requestData.content_id
@@ -267,11 +244,12 @@ function buildBehaviorValues({
     "REAL_MARKET_TEST"
   );
 
-  if (requestData.metadata !== undefined) {
+  if (
+    requestData.metadata !== undefined
+  ) {
     set(
       "metadata",
-      typeof requestData.metadata ===
-        "string"
+      typeof requestData.metadata === "string"
         ? requestData.metadata
         : JSON.stringify(
             requestData.metadata
@@ -279,14 +257,18 @@ function buildBehaviorValues({
     );
   }
 
-  if (requestData.revenue !== undefined) {
+  if (
+    requestData.revenue !== undefined
+  ) {
     set(
       "revenue",
       requestData.revenue
     );
   }
 
-  if (requestData.order_id !== undefined) {
+  if (
+    requestData.order_id !== undefined
+  ) {
     set(
       "order_id",
       requestData.order_id
@@ -294,8 +276,7 @@ function buildBehaviorValues({
   }
 
   if (
-    requestData.customer_id !==
-    undefined
+    requestData.customer_id !== undefined
   ) {
     set(
       "customer_id",
@@ -306,6 +287,29 @@ function buildBehaviorValues({
   return values;
 }
 
+function findMissingRequiredColumns(
+  columns,
+  values
+) {
+  const missing = [];
+
+  columns.forEach(function (column) {
+    const required =
+      column.notnull === 1 &&
+      column.pk !== 1 &&
+      column.dflt_value === null;
+
+    if (
+      required &&
+      !(column.name in values)
+    ) {
+      missing.push(column.name);
+    }
+  });
+
+  return missing;
+}
+
 async function insertBehaviorEvent(
   db,
   distribution,
@@ -313,20 +317,17 @@ async function insertBehaviorEvent(
   eventType,
   requestData
 ) {
-  if (
-    !(await tableExists(
-      db,
-      "behavior_events"
-    ))
-  ) {
+  const exists = await tableExists(
+    db,
+    "behavior_events"
+  );
+
+  if (!exists) {
     throw new Error(
       "behavior_events table does not exist"
     );
   }
 
-  // IMPORTANT:
-  // Always inspect the real D1 schema before
-  // constructing the INSERT.
   const columns = await getColumns(
     db,
     "behavior_events"
@@ -335,27 +336,26 @@ async function insertBehaviorEvent(
   const eventId = makeId("behavior");
   const timestamp = now();
 
-  const values = buildBehaviorValues({
+  const values = buildBehaviorValues(
     columns,
     eventId,
     eventType,
     timestamp,
     distribution,
     measurement,
-    requestData,
-  });
+    requestData
+  );
 
   const missing =
-    requiredColumnsMissing(
+    findMissingRequiredColumns(
       columns,
       values
     );
 
   if (missing.length > 0) {
     throw new Error(
-      `behavior_events required columns missing: ${missing.join(
-        ", "
-      )}`
+      "behavior_events required columns missing: " +
+      missing.join(", ")
     );
   }
 
@@ -368,29 +368,34 @@ async function insertBehaviorEvent(
   }
 
   const placeholders = names
-    .map(() => "?")
+    .map(function () {
+      return "?";
+    })
     .join(", ");
 
-  const sql = `
-    INSERT INTO behavior_events
-    (${names.join(", ")})
-    VALUES
-    (${placeholders})
-  `;
+  const sql =
+    "INSERT INTO behavior_events (" +
+    names.join(", ") +
+    ") VALUES (" +
+    placeholders +
+    ")";
 
-  const params = names.map(
-    (name) => values[name]
-  );
+  const params = names.map(function (name) {
+    return values[name];
+  });
 
   await db
     .prepare(sql)
-    .bind(...params)
+    .bind.apply(
+      db.prepare(sql),
+      params
+    )
     .run();
 
   return {
     id: eventId,
     event_type: eventType,
-    created_at: timestamp,
+    created_at: timestamp
   };
 }
 
@@ -404,26 +409,22 @@ async function createEventLink(
 
   const id = makeId("event-link");
   const timestamp = now();
-
   const stage = getEventStage(
     behaviorEvent.event_type
   );
 
   await db
     .prepare(
-      `
-      INSERT INTO market_test_event_links (
-        id,
-        measurement_id,
-        distribution_id,
-        market_test_id,
-        behavior_event_id,
-        event_type,
-        event_stage,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `
+      "INSERT INTO market_test_event_links (" +
+      "id, " +
+      "measurement_id, " +
+      "distribution_id, " +
+      "market_test_id, " +
+      "behavior_event_id, " +
+      "event_type, " +
+      "event_stage, " +
+      "created_at" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(
       id,
@@ -438,7 +439,7 @@ async function createEventLink(
     .run();
 
   return {
-    id,
+    id: id,
     measurement_id: measurement.id,
     distribution_id: distribution.id,
     behavior_event_id:
@@ -446,7 +447,7 @@ async function createEventLink(
     event_type:
       behaviorEvent.event_type,
     event_stage: stage,
-    created_at: timestamp,
+    created_at: timestamp
   };
 }
 
@@ -454,12 +455,12 @@ async function updateMeasurementTimestamp(
   db,
   measurementId
 ) {
-  if (
-    !(await tableExists(
-      db,
-      "market_test_measurements"
-    ))
-  ) {
+  const exists = await tableExists(
+    db,
+    "market_test_measurements"
+  );
+
+  if (!exists) {
     return;
   }
 
@@ -468,17 +469,17 @@ async function updateMeasurementTimestamp(
     "market_test_measurements"
   );
 
-  if (!hasColumn(columns, "updated_at")) {
+  if (
+    !hasColumn(columns, "updated_at")
+  ) {
     return;
   }
 
   await db
     .prepare(
-      `
-      UPDATE market_test_measurements
-      SET updated_at = ?
-      WHERE id = ?
-      `
+      "UPDATE market_test_measurements " +
+      "SET updated_at = ? " +
+      "WHERE id = ?"
     )
     .bind(
       now(),
@@ -488,19 +489,20 @@ async function updateMeasurementTimestamp(
 }
 
 async function handleStatus(db) {
-  if (
-    !(await tableExists(
+  const distributionTable =
+    await tableExists(
       db,
       "market_test_distributions"
-    ))
-  ) {
+    );
+
+  if (!distributionTable) {
     return json(
       {
         success: false,
         engine: ENGINE,
         version: VERSION,
         error:
-          "market_test_distributions table does not exist",
+          "market_test_distributions table does not exist"
       },
       500
     );
@@ -509,12 +511,8 @@ async function handleStatus(db) {
   const distributionResult =
     await db
       .prepare(
-        `
-        SELECT *
-        FROM market_test_distributions
-        ORDER BY created_at DESC
-        LIMIT 20
-        `
+        "SELECT * FROM market_test_distributions " +
+        "ORDER BY created_at DESC LIMIT 20"
       )
       .all();
 
@@ -523,21 +521,18 @@ async function handleStatus(db) {
 
   let measurements = [];
 
-  if (
+  const measurementTable =
     await tableExists(
       db,
       "market_test_measurements"
-    )
-  ) {
+    );
+
+  if (measurementTable) {
     const measurementResult =
       await db
         .prepare(
-          `
-          SELECT *
-          FROM market_test_measurements
-          ORDER BY created_at DESC
-          LIMIT 20
-          `
+          "SELECT * FROM market_test_measurements " +
+          "ORDER BY created_at DESC LIMIT 20"
         )
         .all();
 
@@ -561,31 +556,31 @@ async function handleStatus(db) {
         measurements.length,
 
       collecting_measurements:
-        measurements.filter(
-          (item) =>
-            item.status ===
-            "COLLECTING"
-        ).length,
+        measurements.filter(function (
+          item
+        ) {
+          return item.status === "COLLECTING";
+        }).length
     },
 
     measurement_engine:
       MEASUREMENT_ENGINE,
 
     allowed_events:
-      Array.from(ALLOWED_EVENTS),
+      ALLOWED_EVENTS,
 
     stages: {
       attention:
-        Array.from(ATTENTION_EVENTS),
+        ATTENTION_EVENTS,
 
       interest:
-        Array.from(INTEREST_EVENTS),
+        INTEREST_EVENTS,
 
       purchase:
-        Array.from(PURCHASE_EVENTS),
+        PURCHASE_EVENTS,
 
       revenue:
-        Array.from(REVENUE_EVENTS),
+        REVENUE_EVENTS
     },
 
     guardrails: {
@@ -597,22 +592,23 @@ async function handleStatus(db) {
       changes_strategy: false,
       executes_action: false,
       publishes_content: false,
-      spends_money: false,
+      spends_money: false
     },
 
     contract: {
       previous_layer:
         "MARKET_TEST_MEASUREMENT_V1",
 
-      current_layer: ENGINE,
+      current_layer:
+        ENGINE,
 
       next_layer:
         "MEASUREMENT_V2.3",
 
       real_behavior_required: true,
 
-      real_customer_required: true,
-    },
+      real_customer_required: true
+    }
   });
 }
 
@@ -629,7 +625,7 @@ async function handlePost(
         engine: ENGINE,
         version: VERSION,
         error:
-          "D1 binding env.DB is not available",
+          "D1 binding env.DB is not available"
       },
       500
     );
@@ -639,14 +635,14 @@ async function handlePost(
 
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
     return json(
       {
         success: false,
         engine: ENGINE,
         version: VERSION,
         error:
-          "Request body must be valid JSON",
+          "Request body must be valid JSON"
       },
       400
     );
@@ -665,7 +661,7 @@ async function handlePost(
         engine: ENGINE,
         version: VERSION,
         error:
-          "distribution_id is required",
+          "distribution_id is required"
       },
       400
     );
@@ -678,22 +674,27 @@ async function handlePost(
         engine: ENGINE,
         version: VERSION,
         error:
-          "event_type is required",
+          "event_type is required"
       },
       400
     );
   }
 
-  if (!ALLOWED_EVENTS.has(eventType)) {
+  if (
+    !ALLOWED_EVENTS.includes(
+      eventType
+    )
+  ) {
     return json(
       {
         success: false,
         engine: ENGINE,
         version: VERSION,
         error:
-          `Unsupported event_type: ${eventType}`,
+          "Unsupported event_type: " +
+          eventType,
         allowed_events:
-          Array.from(ALLOWED_EVENTS),
+          ALLOWED_EVENTS
       },
       400
     );
@@ -714,7 +715,7 @@ async function handlePost(
         error:
           "Distribution not found",
         distribution_id:
-          distributionId,
+          distributionId
       },
       404
     );
@@ -737,7 +738,7 @@ async function handlePost(
         distribution_id:
           distributionId,
         expected_status:
-          "COLLECTING",
+          "COLLECTING"
       },
       409
     );
@@ -770,24 +771,19 @@ async function handlePost(
     engine: ENGINE,
     version: VERSION,
     timestamp: now(),
-
     state:
       "REAL_BEHAVIOR_RECORDED",
 
     measurement: {
       id: measurement.id,
-
       distribution_id:
         measurement.distribution_id,
-
       market_test_id:
         measurement.market_test_id,
-
       measurement_engine:
-        "MEASUREMENT_V2.3",
-
+        MEASUREMENT_ENGINE,
       status:
-        measurement.status,
+        measurement.status
     },
 
     behavior_event:
@@ -797,43 +793,30 @@ async function handlePost(
       eventLink,
 
     handoff: {
-      previous_layer: ENGINE,
+      previous_layer:
+        ENGINE,
 
-      current_layer: ENGINE,
+      current_layer:
+        ENGINE,
 
       next_layer:
         "MEASUREMENT_V2.3",
 
-      ready: true,
+      ready: true
     },
 
     guardrails: {
       real_event_required: true,
-
       event_created_by_system:
         false,
-
-      invents_behavior:
-        false,
-
-      invents_attention:
-        false,
-
-      invents_purchase:
-        false,
-
-      invents_revenue:
-        false,
-
-      declares_winner:
-        false,
-
-      changes_strategy:
-        false,
-
-      executes_action:
-        false,
-    },
+      invents_behavior: false,
+      invents_attention: false,
+      invents_purchase: false,
+      invents_revenue: false,
+      declares_winner: false,
+      changes_strategy: false,
+      executes_action: false
+    }
   });
 }
 
@@ -841,10 +824,11 @@ export async function onRequest(
   context
 ) {
   try {
-    const {
-      request,
-      env
-    } = context;
+    const request =
+      context.request;
+
+    const env =
+      context.env;
 
     if (request.method === "GET") {
       return await handleStatus(
@@ -865,10 +849,11 @@ export async function onRequest(
         engine: ENGINE,
         version: VERSION,
         error:
-          "Method not allowed",
+          "Method not allowed"
       },
       405
     );
+
   } catch (error) {
     return json(
       {
@@ -876,8 +861,9 @@ export async function onRequest(
         engine: ENGINE,
         version: VERSION,
         error:
-          error?.message ||
-          String(error),
+          error && error.message
+            ? error.message
+            : String(error)
       },
       500
     );
