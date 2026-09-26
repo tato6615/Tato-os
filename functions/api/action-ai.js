@@ -161,21 +161,21 @@ function buildAction(decisionResult) {
   const content = decisionResult.content || {};
 
   if (
-    decision.decision_type === "DOWNSTREAM_INVESTIGATION" &&
-    decision.decision === "INVESTIGATE_CLICK_TO_PRODUCT_PATH" &&
-    decision.next_action_candidate?.type === "FUNNEL_PATH_AUDIT"
+    decision.decision_type === "CONVERSION_INVESTIGATION" &&
+    decision.decision === "INVESTIGATE_PRODUCT_TO_CUSTOMER_PATH" &&
+    decision.next_action_candidate?.type === "CUSTOMER_CONVERSION_PATH_AUDIT"
   ) {
     return {
       state: "ACTION_PROPOSED",
-      action_type: "FUNNEL_PATH_AUDIT",
-      action_name: "AUDIT_CLICK_TO_PRODUCT_VIEW_PATH",
+      action_type: "CUSTOMER_CONVERSION_PATH_AUDIT",
+      action_name: "AUDIT_PRODUCT_TO_CUSTOMER_PATH",
       objective:
-        "ตรวจสอบว่า Click จาก Content สามารถเดินทางไปถึง Product View และถูกวัด attribution ได้จริงหรือไม่",
+        "ตรวจสอบเส้นทางจาก Product View ไป Customer ว่าการแสดงความสนใจสามารถถูกเปลี่ยนเป็น Customer และถูกวัด attribution ได้จริงหรือไม่",
       target: {
         content_id: content.id,
         content_title: content.title,
-        funnel_stage_from: "CONTENT_CLICK",
-        funnel_stage_to: "PRODUCT_VIEW"
+        funnel_stage_from: "PRODUCT_VIEW",
+        funnel_stage_to: "CUSTOMER"
       },
       trigger: {
         type: "DECISION_TRIGGER",
@@ -195,27 +195,27 @@ function buildAction(decisionResult) {
       proposed_steps: [
         {
           step: 1,
-          action: "VERIFY_CLICK_EVENT",
+          action: "VERIFY_PRODUCT_VIEW_EVENT",
           description:
-            "ตรวจสอบว่า Content Click ถูกส่ง event และบันทึก source/session ถูกต้อง"
+            "ตรวจสอบว่า Product View ถูกส่ง event และบันทึก source/session/content ถูกต้อง"
         },
         {
           step: 2,
-          action: "VERIFY_DESTINATION",
+          action: "VERIFY_CUSTOMER_PATH",
           description:
-            "ตรวจสอบปลายทางของ Click ว่าพาไปยัง Product path จริง"
+            "ตรวจสอบเส้นทางจาก Product View ไปยังจุดที่สร้างหรือระบุ Customer"
         },
         {
           step: 3,
-          action: "VERIFY_PRODUCT_VIEW_EVENT",
+          action: "VERIFY_CUSTOMER_EVENT",
           description:
-            "ตรวจสอบว่า Product View event ถูกยิงหลัง Click และผูก attribution ได้"
+            "ตรวจสอบว่า Customer event/record ถูกสร้างและผูกกับ source attribution ได้จริง"
         },
         {
           step: 4,
           action: "VERIFY_ATTRIBUTION",
           description:
-            "ตรวจสอบความสัมพันธ์ Click → Product View โดยใช้ session/time attribution"
+            "ตรวจสอบความสัมพันธ์ Product View → Customer โดยใช้ session/time/content attribution"
         },
         {
           step: 5,
@@ -224,7 +224,7 @@ function buildAction(decisionResult) {
             "เก็บ Measurement รอบใหม่หลังตรวจสอบ"
         }
       ],
-      expected_signal: "CLICK_TO_PRODUCT_VIEW_PATH_VERIFIED",
+      expected_signal: "PRODUCT_TO_CUSTOMER_PATH_VERIFIED",
       status: "PENDING_APPROVAL"
     };
   }
