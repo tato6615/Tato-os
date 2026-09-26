@@ -1,5 +1,5 @@
 
-// TATO OS — Public Content Feed + Tracking V1.1
+// TATO OS — Public Content Feed + Tracking V1.2
 // Route: /api/content-feed
 //
 // GET
@@ -13,10 +13,12 @@
 //   { mode: "event", event_type, content_id, distribution_id,
 //     session_id, metadata }
 //
-// V1.1
+// V1.2
 // - One page open = one content_view
 // - No server-side duplicate content_view
 // - content_click remains browser tracked
+// - product_view requires a prior content_click in the same page session
+// - product_view is recorded at most once per page session
 // - content_id + distribution_id + session_id preserved
 
 function json(data, status = 200) {
@@ -668,29 +670,21 @@ h1 {
   });
 
   const offer = document.getElementById("offer");
+  const cta = document.getElementById("cta");
+
+  let contentClicked = false;
   let productViewTracked = false;
 
   function trackProductView() {
-    if (productViewTracked) return;
+    if (!contentClicked || productViewTracked) return;
+
     productViewTracked = true;
+
     track("product_view", {
       page_type: "public_content_offer",
       source_event: "content_click"
     });
   }
-
-  if (offer && "IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(function (entries) {
-      if (entries.some(function (entry) { return entry.isIntersecting; })) {
-        trackProductView();
-        observer.disconnect();
-      }
-    }, { threshold: 0.25 });
-    observer.observe(offer);
-  }
-
-  const cta =
-    document.getElementById("cta");
 
   if (cta) {
 
@@ -698,12 +692,37 @@ h1 {
       "click",
       function () {
 
+        contentClicked = true;
+
         track("content_click", {
           cta: true
         });
 
       }
     );
+
+  }
+
+  if (offer && "IntersectionObserver" in window) {
+
+    const observer = new IntersectionObserver(function (entries) {
+
+      if (
+        contentClicked &&
+        entries.some(function (entry) {
+          return entry.isIntersecting;
+        })
+      ) {
+
+        trackProductView();
+
+        observer.disconnect();
+
+      }
+
+    }, { threshold: 0.25 });
+
+    observer.observe(offer);
 
   }
 
