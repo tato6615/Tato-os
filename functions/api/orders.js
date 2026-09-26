@@ -1,145 +1,312 @@
-export async function onRequestGet(context) {
-  try {
-    const { results } = await context.env.DB
-      .prepare(`
-        SELECT
-          o.*,
-          c.name AS customer_name,
-          c.email AS customer_email,
-          p.name AS product_name
-        FROM orders o
-        LEFT JOIN customers c
-          ON c.id = o.customer_id
-        LEFT JOIN products p
-          ON p.id = o.product_id
-        ORDER BY o.created_at DESC
-      `)
-      .all();
+```javascript
+// TATO-OS
+// Orders API V1.1
+// Route: /api/orders
+//
+// D1-compatible
+// Current products schema:
+//   id, name, slug, category, description,
+//   price, currency, status, created_at, updated_at
+//
+// Current orders contract used by TATO UI:
+//   customer_id
+//   product_id
+//   amount
+//   currency
+//   status
+//
+// IMPORTANT:
+// - products uses `status`, NOT `active`
+// - This file never queries products.active
+// - GET /api/orders
+// - POST /api/orders
 
-    return Response.json({
+const VERSION = "1.1";
+
+const HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store"
+};
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: HEADERS
+  });
+}
+
+function text(value) {
+  return value == null ? "" : String(value).trim();
+}
+
+function number(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function createId(prefix = "ord") {
+  return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function now() {
+  return new Date().toISOString();
+}
+
+async function ensureOrdersTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT,
+      product_id TEXT,
+      amount REAL DEFAULT 0,
+      currency TEXT DEFAULT 'THB',
+      status TEXT DEFAULT 'PENDING',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+async function getOrders(db) {
+  const result = await db.prepare(`
+    SELECT
+      o.id,
+      o.customer_id,
+      o.product_id,
+      o.amount,
+      o.currency,
+      o.status,
+      o.created_at,
+      p.name AS product_name,
+      p.price AS product_price,
+      p.status AS product_status,
+      c.name AS customer_name
+    FROM orders o
+    LEFT JOIN products p
+      ON p.id = o.product_id
+    LEFT JOIN customers c
+      ON c.id = o.customer_id
+    ORDER BY datetime(o.created_at) DESC
+    LIMIT 500
+  `).all();
+
+  return result?.results || [];
+}
+
+async function createOrder(db, body) {
+  const customerId = text(body.customer_id);
+  const productId = text(body.product_id);
+  const amount = number(body.amount);
+  const currency = text(body.currency) || "THB";
+  const status = (text(body.status) || "PENDING").toUpperCase();
+
+  if (!customerId) {
+    return {
+      error: "customer_id is required",
+      status: 400
+    };
+  }
+
+  if (!productId) {
+    return {
+      error: "product_id is required",
+      status: 400
+    };
+  }
+
+  if (amount <= 0) {
+    return {
+      error: "amount must be greater than 0",
+      status: 400
+    };
+  }
+
+  // Verify customer exists.
+  const customer = await db.prepare(`
+    SELECT id, name
+    FROM customers
+    WHERE id = ?
+    LIMIT 1
+  `).bind(customerId).first();
+
+  if (!customer) {
+    return {
+      error: "customer_not_found",
+      customer_id: customerId,
+      status: 404
+    };
+  }
+
+  // IMPORTANT:
+  // Current products table uses `status`.
+  // Do NOT use products.active here.
+  const product = await db.prepare(`
+    SELECT
+      id,
+      name,
+      price,
+      currency,
+      status
+    FROM products
+    WHERE id = ?
+    LIMIT 1
+  `).bind(productId).first();
+
+  if (!product) {
+    return {
+      error: "product_not_found",
+      product_id: productId,
+      status: 404
+    };
+  }
+
+  // Prevent orders against an explicitly inactive product.
+  // Supports the existing lowercase `active` default
+  // and the UI's uppercase `ACTIVE`.
+  const productStatus = text(product.status).toLowerCase();
+
+  if (productStatus !== "active") {
+    return {
+      error: "product_inactive",
+      product_id: productId,
+      product_status: product.status,
+      status: 409
+    };
+  }
+
+  const id = createId();
+  const createdAt = now();
+
+  await db.prepare(`
+    INSERT INTO orders (
+      id,
+      customer_id,
+      product_id,
+      amount,
+      currency,
+      status,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    customerId,
+    productId,
+    amount,
+    currency,
+    status,
+    createdAt
+  ).run();
+
+  const order = await db.prepare(`
+    SELECT
+      o.id,
+      o.customer_id,
+      o.product_id,
+      o.amount,
+      o.currency,
+      o.status,
+      o.created_at,
+      p.name AS product_name,
+      p.price AS product_price,
+      p.status AS product_status,
+      c.name AS customer_name
+    FROM orders o
+    LEFT JOIN products p
+      ON p.id = o.product_id
+    LEFT JOIN customers c
+      ON c.id = o.customer_id
+    WHERE o.id = ?
+    LIMIT 1
+  `).bind(id).first();
+
+  return {
+    success: true,
+    order,
+    status: 201
+  };
+}
+
+export async function onRequestGet({ env }) {
+  try {
+    if (!env?.DB) {
+      return json({
+        success: false,
+        error: "D1 binding DB is missing",
+        version: VERSION
+      }, 500);
+    }
+
+    const orders = await getOrders(env.DB);
+
+    const revenue = orders.reduce(
+      (sum, order) => sum + number(order.amount),
+      0
+    );
+
+    return json({
       success: true,
-      orders: results
+      version: VERSION,
+      orders,
+      count: orders.length,
+      revenue
     });
   } catch (error) {
-    return Response.json(
-      {
-        success: false,
-        error: error.message
-      },
-      { status: 500 }
-    );
+    return json({
+      success: false,
+      version: VERSION,
+      error: error?.message || String(error)
+    }, 500);
   }
 }
 
-export async function onRequestPost(context) {
+export async function onRequestPost({ request, env }) {
   try {
-    const body = await context.request.json();
-
-    const customerId = body.customer_id;
-    const productId = body.product_id;
-    const amount = Number(body.amount || 0);
-
-    if (!customerId) {
-      return Response.json(
-        { success: false, error: "customer_id is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!productId) {
-      return Response.json(
-        { success: false, error: "product_id is required" },
-        { status: 400 }
-      );
-    }
-
-    const customer = await context.env.DB
-      .prepare(`
-        SELECT id
-        FROM customers
-        WHERE id = ?
-        LIMIT 1
-      `)
-      .bind(customerId)
-      .first();
-
-    if (!customer) {
-      return Response.json(
-        { success: false, error: "Customer not found" },
-        { status: 400 }
-      );
-    }
-
-    const product = await context.env.DB
-      .prepare(`
-        SELECT id, price
-        FROM products
-        WHERE id = ?
-        LIMIT 1
-      `)
-      .bind(productId)
-      .first();
-
-    if (!product) {
-      return Response.json(
-        { success: false, error: "Product not found" },
-        { status: 400 }
-      );
-    }
-
-    const finalAmount = amount > 0
-      ? amount
-      : Number(product.price || 0);
-
-    const id = crypto.randomUUID();
-
-    await context.env.DB
-      .prepare(`
-        INSERT INTO orders
-        (
-          id,
-          customer_id,
-          product_id,
-          amount,
-          currency,
-          status,
-          payment_method,
-          external_order_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .bind(
-        id,
-        customerId,
-        productId,
-        finalAmount,
-        body.currency || "THB",
-        body.status || "pending",
-        body.payment_method || null,
-        body.external_order_id || null
-      )
-      .run();
-
-    return Response.json({
-      success: true,
-      order: {
-        id,
-        customer_id: customerId,
-        product_id: productId,
-        amount: finalAmount,
-        currency: body.currency || "THB",
-        status: body.status || "pending",
-        payment_method: body.payment_method || null,
-        external_order_id: body.external_order_id || null
-      }
-    });
-  } catch (error) {
-    return Response.json(
-      {
+    if (!env?.DB) {
+      return json({
         success: false,
-        error: error.message
-      },
-      { status: 400 }
-    );
+        error: "D1 binding DB is missing",
+        version: VERSION
+      }, 500);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch (_) {
+      return json({
+        success: false,
+        error: "invalid_json",
+        version: VERSION
+      }, 400);
+    }
+
+    await ensureOrdersTable(env.DB);
+
+    const result = await createOrder(env.DB, body);
+
+    if (result.error) {
+      const status = result.status || 400;
+      delete result.status;
+
+      return json({
+        success: false,
+        version: VERSION,
+        ...result
+      }, status);
+    }
+
+    return json({
+      version: VERSION,
+      ...result
+    }, 201);
+
+  } catch (error) {
+    return json({
+      success: false,
+      version: VERSION,
+      error: error?.message || String(error)
+    }, 500);
   }
 }
+```
