@@ -353,36 +353,54 @@ async function loadCanvaStatus(){
 async function createNewCanvaAsset(){
   const p=state.production||{};
   if(!p.id) return toast('Create NEW Content first');
-  const status=await fetch('/api/canva-connect',{cache:'no-store'}).then(async r=>({ok:r.ok,data:await r.json().catch(()=>({}))})).catch(e=>({ok:false,data:{error:e.message}}));
-  if(!status.ok||!status.data?.success) {
-    const d=status.data||{};
-    const detail=d.error||d.status||'Canva status unavailable';
-    const s=document.getElementById('canvaStatus'); if(s) s.textContent='CANVA ERROR · '+detail;
-    return toast('Canva error · '+detail);
-  }
-  if(!status.connected){
-    try{
-      const r=await fetch('/api/canva-connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'authorize'})});
-      const d=await r.json();
-      if(!r.ok||!d.success) throw new Error(d.error||((d.missing||[]).join(', '))||'Canva authorization failed');
-      window.location.href=d.authorization_url;
-    }catch(e){toast('Canva connect error · '+e.message)}
-    return;
-  }
+
   const b=document.getElementById('canvaBtn');
+  const s=document.getElementById('canvaStatus');
   if(b){b.disabled=true;b.textContent='⏳ Creating Canva…'}
-  toast('Creating NEW Canva Asset…');
+  if(s) s.textContent='CANVA · CHECKING';
+
   try{
-    const r=await fetch('/api/canva-connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'create',production_id:p.id})});
-    const d=await r.json();
-    if(!r.ok||!d.success) throw new Error(d.error||('HTTP '+r.status));
-    await loadProduction();
-    await loadCanvaStatus();
-    toast('NEW Canva Asset created · review before publish');
+    // Try the real create operation first. Do not block creation on the status endpoint.
+    const r=await fetch('/api/canva-connect',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      cache:'no-store',
+      body:JSON.stringify({mode:'create',production_id:p.id})
+    });
+    const d=await r.json().catch(()=>({}));
+    const detail=d.error||d.status||((d.missing||[]).join(', '))||('HTTP '+r.status);
+
+    if(r.ok&&d.success){
+      if(s) s.textContent='CANVA CONNECTED · NEW ASSET CREATED';
+      await loadProduction();
+      toast('NEW Canva Asset created · review before publish');
+      return;
+    }
+
+    // If Canva is not connected yet, start OAuth from the actual create response.
+    if(d.status==='CANVA_AUTH_REQUIRED'){
+      if(s) s.textContent='CANVA AUTH REQUIRED';
+      const a=await fetch('/api/canva-connect',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        cache:'no-store',
+        body:JSON.stringify({mode:'authorize'})
+      });
+      const ad=await a.json().catch(()=>({}));
+      if(!a.ok||!ad.success) throw new Error(ad.error||ad.status||((ad.missing||[]).join(', '))||('HTTP '+a.status));
+      if(!ad.authorization_url) throw new Error('Canva authorization URL missing');
+      window.location.href=ad.authorization_url;
+      return;
+    }
+
+    if(s) s.textContent='CANVA ERROR · '+detail;
+    throw new Error(detail);
   }catch(e){
-    toast('Canva error · '+e.message);
+    const msg=e.message||String(e);
+    if(s) s.textContent='CANVA ERROR · '+msg;
+    toast('Canva error · '+msg);
   }finally{
-    if(b){b.disabled=false}
+    if(b){b.disabled=false;b.textContent='🎨 Create NEW Canva Asset'}
   }
 }
 async function runProductionLoop(btn){
