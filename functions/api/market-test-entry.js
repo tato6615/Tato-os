@@ -3,8 +3,6 @@
 // Public Market Test Entry V1
 // Route: /market-test
 //
-// Flow:
-//
 // REAL CUSTOMER
 //      ↓
 // Market Test Entry
@@ -14,8 +12,6 @@
 // content_click
 //      ↓
 // Product Test
-//      ↓
-// product_view
 //      ↓
 // Measurement V2.3
 //
@@ -44,7 +40,6 @@ export async function onRequestGet({ request }) {
   try {
     const url = new URL(request.url);
 
-    // Optional debug/status mode
     if (url.searchParams.get("status") === "1") {
       return json({
         success: true,
@@ -80,6 +75,12 @@ export async function onRequestGet({ request }) {
 }
 
 function renderEntryPage() {
+  const distributionId =
+    JSON.stringify(DISTRIBUTION_ID);
+
+  const apiPath =
+    JSON.stringify(API_PATH);
+
   return `<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -122,7 +123,7 @@ function renderEntryPage() {
       border-radius: 22px;
       padding: 34px 26px;
       border: 1px solid #2b2b2b;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
     }
 
     .brand {
@@ -177,6 +178,11 @@ function renderEntryPage() {
       cursor: pointer;
     }
 
+    .cta:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
     .cta:active {
       transform: scale(0.99);
     }
@@ -195,6 +201,7 @@ function renderEntryPage() {
       text-align: center;
       color: #999;
       font-size: 13px;
+      line-height: 1.5;
     }
   </style>
 </head>
@@ -253,11 +260,8 @@ function renderEntryPage() {
   </main>
 
   <script>
-    const DISTRIBUTION_ID =
-      ${JSON.stringify(DISTRIBUTION_ID)};
-
-    const API_PATH =
-      ${JSON.stringify(API_PATH)};
+    const DISTRIBUTION_ID = ${distributionId};
+    const API_PATH = ${apiPath};
 
     async function recordEvent(eventType) {
       try {
@@ -274,6 +278,7 @@ function renderEntryPage() {
         });
 
         return await response.json();
+
       } catch (error) {
         return {
           success: false,
@@ -282,8 +287,7 @@ function renderEntryPage() {
       }
     }
 
-    // Real customer page view.
-    // This fires only when an actual visitor loads the page.
+    // This creates content_view only from a real visitor.
     recordEvent("content_view");
 
     const cta =
@@ -295,15 +299,14 @@ function renderEntryPage() {
     cta.addEventListener("click", async () => {
 
       cta.disabled = true;
+
       status.style.display = "block";
 
-      // Record the real click before navigation.
       await recordEvent("content_click");
 
       window.location.href =
         "/market-test/product";
     });
-
   </script>
 
 </body>
