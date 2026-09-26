@@ -2,53 +2,20 @@
 // Feedback Layer V1.1
 // Route: /api/feedback
 //
-// Pipeline:
+// Feedback records the operational result of Automation / Execution V1.1.
+// It does not create behavior, Attention, funnel metrics, strategy, or actions.
 //
-// Measurement V2.3
-//        ↓
-// Intelligence V2.1
-//        ↓
-// Learning V2.3
-//        ↓
-// Decision V1.3.4
-//        ↓
-// Action V1.4
-//        ↓
-// Approval V1
-//        ↓
-// Execution V1
-//        ↓
-// Feedback V1.1
-//        ↓
-// Measurement
+// Automation V1.1 persists executions in execution_queue.
+// Legacy action_runs / execution_runs are intentionally not required here.
 //
-// Feedback DOES:
-// - read completed execution result
-// - record operational outcome
-// - preserve execution status
-// - create measurement handoff
-// - keep feedback separate from behavioral evidence
-//
-// Feedback DOES NOT:
-// - create behavior events
-// - create attention
-// - change funnel metrics
-// - recalculate Measurement
-// - recalculate Intelligence
-// - recalculate Learning
-// - change strategy
-// - declare winners
-// - execute actions
-//
-// Cloudflare Pages Functions
-// Path: functions/api/feedback.js
+// Flow:
+// Measurement V2.3 -> Intelligence -> Learning -> Decision -> Action
+// -> Automation / Execution -> Feedback -> Measurement V2.3
 
 const LAYER = "FEEDBACK_LAYER_V1.1";
 const VERSION = "1.1";
-
-const ACTION_LAYER = "ACTION_ENGINE_V1.4";
-const APPROVAL_LAYER = "APPROVAL_ENGINE_V1";
-const EXECUTION_LAYER = "EXECUTION_ENGINE_V1";
+const EXECUTION_SOURCE = "AUTOMATION_EXECUTION_V1.1";
+const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.3";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -62,313 +29,171 @@ function json(data, status = 200) {
   });
 }
 
-function nowISO() {
-  return new Date().toISOString();
-}
-
 function s(value) {
   return value == null ? "" : String(value);
 }
 
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function parseJSON(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
+  }
 }
 
-function normalizeExecutionStatus(value) {
+function normalize(value) {
   return s(value).trim().toUpperCase();
 }
-
-function normalizeActionStatus(value) {
-  return s(value).trim().toUpperCase();
-}
-
-/* ---------------------------------------------------------
-   TABLE
---------------------------------------------------------- */
 
 async function ensureFeedbackTable(db) {
   await db.prepare(`
-    CREATE TABLE IF NOT EXISTS feedback_runs (
+    CREATE TABLE IF NOT EXISTS feedback_records (
       id TEXT PRIMARY KEY,
-      action_run_id TEXT NOT NULL,
-      execution_run_id TEXT,
+      execution_id TEXT NOT NULL,
       content_id TEXT,
       action_type TEXT,
-      operation TEXT,
-      execution_status TEXT,
-      outcome_status TEXT,
-      outcome TEXT,
-      message TEXT,
-      counted_as_behavior INTEGER DEFAULT 0,
-      counted_as_attention INTEGER DEFAULT 0,
-      alters_funnel_metrics INTEGER DEFAULT 0,
-      measurement_required INTEGER DEFAULT 1,
-      measurement_completed INTEGER DEFAULT 0,
-      source TEXT,
-      created_at TEXT
+      action_name TEXT,
+      execution_status TEXT NOT NULL,
+      outcome_status TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      result_payload TEXT,
+      operator_note TEXT,
+      counted_as_behavior INTEGER NOT NULL DEFAULT 0,
+      counted_as_attention INTEGER NOT NULL DEFAULT 0,
+      alters_funnel_metrics INTEGER NOT NULL DEFAULT 0,
+      measurement_required INTEGER NOT NULL DEFAULT 1,
+      measurement_completed INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL
     )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_feedback_records_execution
+    ON feedback_records(execution_id)
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_feedback_records_content
+    ON feedback_records(content_id)
   `).run();
 }
 
-/* ---------------------------------------------------------
-   REQUEST INPUT
---------------------------------------------------------- */
+async function getExecution(db, executionId) {
+  return await db.prepare(`
+    SELECT
+      id,
+      content_id,
+      action_type,
+      action_name,
+      action_code,
+      target,
+      priority,
+      status,
+      approved,
+      executed,
+      external_execution,
+      action_payload,
+      execution_payload,
+      result_payload,
+      error,
+      created_at,
+      approved_at,
+      executed_at,
+      updated_at
+    FROM execution_queue
+    WHERE id = ?
+    LIMIT 1
+  `).bind(executionId).first();
+}
 
-async function getInput(request) {
-  const url = new URL(request.url);
-
-  let body = {};
-
-  try {
-    body = await request.json();
-  } catch (_) {
-    body = {};
-  }
-
+function parsePayloads(execution) {
   return {
-    action_run_id:
-      body.action_run_id ||
-      url.searchParams.get("action_run_id"),
-
-    execution_run_id:
-      body.execution_run_id ||
-      url.searchParams.get("execution_run_id"),
-
-    mode:
-      s(body.mode || url.searchParams.get("mode") || "preview").toLowerCase()
+    action: parseJSON(execution.action_payload, {}),
+    execution: parseJSON(execution.execution_payload, {}),
+    result: parseJSON(execution.result_payload, {})
   };
 }
 
-/* ---------------------------------------------------------
-   LOAD ACTION
---------------------------------------------------------- */
+function normalizeOutcome(execution, payloads) {
+  const status = normalize(execution.status);
 
-async function getAction(db, actionRunId) {
-  const result = await db.prepare(`
-    SELECT
-      id,
-      action_type,
-      status,
-      action_status,
-      content_id,
-      measurement_id,
-      priority,
-      reason,
-      requires_approval,
-      approved_at,
-      executed_at,
-      result,
-      output_data,
-      action_payload,
-      created_at
-    FROM action_runs
-    WHERE id = ?
-    LIMIT 1
-  `).bind(actionRunId).first();
-
-  return result || null;
-}
-
-/* ---------------------------------------------------------
-   LOAD EXECUTION
---------------------------------------------------------- */
-
-async function getExecution(db, executionRunId, actionRunId) {
-  let result = null;
-
-  if (executionRunId) {
-    try {
-      result = await db.prepare(`
-        SELECT *
-        FROM execution_runs
-        WHERE id = ?
-        LIMIT 1
-      `).bind(executionRunId).first();
-    } catch (_) {
-      result = null;
-    }
-  }
-
-  /*
-   * V1 fallback:
-   * Execution Engine may not expose a persistent execution_runs
-   * record in every existing schema. In that case we use the
-   * action_runs execution result as the operational source.
-   */
-
-  if (!result && actionRunId) {
-    const action = await db.prepare(`
-      SELECT
-        id,
-        action_type,
-        action_status,
-        status,
-        content_id,
-        executed_at,
-        result,
-        output_data
-      FROM action_runs
-      WHERE id = ?
-      LIMIT 1
-    `).bind(actionRunId).first();
-
-    if (action) {
-      return {
-        id: executionRunId || null,
-        action_run_id: action.id,
-        action_type: action.action_type,
-        status:
-          action.result ||
-          action.output_data ||
-          "UNKNOWN",
-        executed_at: action.executed_at || null,
-        source: "ACTION_RUN_FALLBACK"
-      };
-    }
-  }
-
-  return result;
-}
-
-/* ---------------------------------------------------------
-   NORMALIZE EXECUTION RESULT
---------------------------------------------------------- */
-
-function normalizeExecution(execution, action) {
-  if (!execution) {
+  if (status === "EXECUTED" && execution.executed === 1) {
+    const result = payloads.result || {};
     return {
-      success: false,
-      error: "EXECUTION_NOT_FOUND"
+      execution_status: "EXECUTED",
+      outcome_status: "RELEASED_TO_OPERATOR",
+      outcome: normalize(result.result || "RELEASED_TO_OPERATOR"),
+      message:
+        result.message ||
+        "Controlled execution reached the manual operator boundary."
     };
   }
 
-  let rawStatus =
-    execution.execution_status ||
-    execution.status ||
-    execution.result ||
-    "";
-
-  let status = normalizeExecutionStatus(rawStatus);
-
-  let message =
-    execution.message ||
-    "";
-
-  /*
-   * If action.result/output_data is JSON,
-   * attempt to recover the execution status.
-   */
-
-  for (const raw of [
-    execution.result,
-    execution.output_data,
-    execution.status
-  ]) {
-    if (!raw || typeof raw !== "string") continue;
-
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (isObject(parsed)) {
-        if (!status || status === "UNKNOWN") {
-          status = normalizeExecutionStatus(
-            parsed.status ||
-            parsed.execution_status ||
-            parsed.result
-          );
-        }
-
-        if (!message) {
-          message = s(parsed.message);
-        }
-      }
-    } catch (_) {
-      // Not JSON. Keep raw value.
-    }
+  if (status === "APPROVED" && execution.approved === 1) {
+    return {
+      execution_status: "APPROVED",
+      outcome_status: "AWAITING_OPERATOR",
+      outcome: "AWAITING_OPERATOR",
+      message: "Execution is approved but has not reached the execution boundary."
+    };
   }
 
-  if (!status) {
-    status = "UNKNOWN";
-  }
-
-  let outcomeStatus = "UNKNOWN";
-  let outcome = "UNKNOWN";
-
-  if (status === "EXECUTED" || status === "SUCCESS") {
-    outcomeStatus = "EXECUTED";
-    outcome = "EXECUTED";
-  } else if (
-    status === "EXECUTION_NOT_IMPLEMENTED" ||
-    status === "NOT_IMPLEMENTED"
-  ) {
-    outcomeStatus = "NOT_IMPLEMENTED";
-    outcome = "NOT_IMPLEMENTED";
-  } else if (
-    status === "FAILED" ||
-    status === "ERROR"
-  ) {
-    outcomeStatus = "FAILED";
-    outcome = "FAILED";
-  } else if (
-    status === "WAITING_FOR_APPROVAL" ||
-    status === "BLOCKED"
-  ) {
-    outcomeStatus = "BLOCKED";
-    outcome = "BLOCKED";
-  } else {
-    outcomeStatus = status;
-    outcome = status;
+  if (status === "FAILED") {
+    return {
+      execution_status: "FAILED",
+      outcome_status: "FAILED",
+      outcome: "FAILED",
+      message: execution.error || "Controlled execution failed."
+    };
   }
 
   return {
-    success: true,
-    execution_status: status,
-    outcome_status: outcomeStatus,
-    outcome,
-    message,
-    executed_at: execution.executed_at || action.executed_at || null
+    execution_status: status || "UNKNOWN",
+    outcome_status: status || "UNKNOWN",
+    outcome: status || "UNKNOWN",
+    message: execution.error || ""
   };
 }
 
-/* ---------------------------------------------------------
-   DUPLICATE CHECK
---------------------------------------------------------- */
-
-async function findExistingFeedback(db, actionRunId) {
+async function findExisting(db, executionId) {
   return await db.prepare(`
     SELECT *
-    FROM feedback_runs
-    WHERE action_run_id = ?
+    FROM feedback_records
+    WHERE execution_id = ?
     ORDER BY created_at DESC
     LIMIT 1
-  `).bind(actionRunId).first();
+  `).bind(executionId).first();
 }
 
-/* ---------------------------------------------------------
-   CREATE FEEDBACK
---------------------------------------------------------- */
+async function persistFeedback(db, execution, normalized, payloads, operatorNote) {
+  const existing = await findExisting(db, execution.id);
 
-async function createFeedback(
-  db,
-  action,
-  execution,
-  normalized
-) {
+  if (existing) {
+    return {
+      id: existing.id,
+      duplicate: true,
+      created_at: existing.created_at
+    };
+  }
+
   const id = crypto.randomUUID();
-  const createdAt = nowISO();
+  const createdAt = new Date().toISOString();
 
   await db.prepare(`
-    INSERT INTO feedback_runs (
+    INSERT INTO feedback_records (
       id,
-      action_run_id,
-      execution_run_id,
+      execution_id,
       content_id,
       action_type,
-      operation,
+      action_name,
       execution_status,
       outcome_status,
       outcome,
-      message,
+      result_payload,
+      operator_note,
       counted_as_behavior,
       counted_as_attention,
       alters_funnel_metrics,
@@ -380,133 +205,116 @@ async function createFeedback(
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
-    action.id,
-    execution?.id || null,
-    action.content_id || null,
-    action.action_type || null,
-    action.action_type || null,
+    execution.id,
+    execution.content_id || null,
+    execution.action_type || null,
+    execution.action_name || execution.action_code || null,
     normalized.execution_status,
     normalized.outcome_status,
     normalized.outcome,
-    normalized.message || null,
-
-    // CRITICAL GUARDRAILS
+    JSON.stringify(payloads.result || {}),
+    operatorNote || null,
     0,
     0,
     0,
-
-    // Measurement must observe the system afterward.
     1,
     0,
-
-    `${LAYER}`,
+    LAYER,
     createdAt
   ).run();
 
-  return id;
+  return {
+    id,
+    duplicate: false,
+    created_at: createdAt
+  };
 }
 
-/* ---------------------------------------------------------
-   BUILD RESPONSE
---------------------------------------------------------- */
-
-function buildResponse({
-  action,
-  execution,
-  normalized,
-  feedbackId,
-  duplicate,
-  mode
-}) {
+function buildResponse(execution, normalized, payloads, mode, persisted = null) {
   return {
     success: true,
     layer: LAYER,
     version: VERSION,
     mode,
-
-    status: duplicate
-      ? "FEEDBACK_ALREADY_EXISTS"
-      : "FEEDBACK_SAVED",
-
-    action: {
-      action_run_id: action.id,
-      action_type: action.action_type,
-      content_id: action.content_id || null,
-      action_status:
-        action.action_status ||
-        action.status ||
-        null
-    },
+    status:
+      mode === "execute"
+        ? (persisted?.duplicate ? "FEEDBACK_ALREADY_EXISTS" : "FEEDBACK_SAVED")
+        : "FEEDBACK_READY",
 
     execution: {
-      execution_run_id:
-        execution?.id ||
-        null,
+      id: execution.id,
+      content_id: execution.content_id,
+      action_type: execution.action_type,
+      action_name: execution.action_name || execution.action_code,
+      status: normalized.execution_status,
+      approved: execution.approved === 1,
+      executed: execution.executed === 1,
+      executed_at: execution.executed_at || null
+    },
 
-      status:
-        normalized.execution_status,
-
-      outcome_status:
-        normalized.outcome_status,
-
-      outcome:
-        normalized.outcome,
-
-      message:
-        normalized.message || null,
-
-      executed_at:
-        normalized.executed_at
+    outcome: {
+      status: normalized.outcome_status,
+      outcome: normalized.outcome,
+      message: normalized.message,
+      result: payloads.result || {}
     },
 
     feedback: {
-      feedback_run_id: feedbackId,
-
+      feedback_id: persisted?.id || null,
       source: LAYER,
-
       role: "OPERATIONAL_OUTCOME_ONLY",
-
       counted_as_behavior: false,
-
       counted_as_attention: false,
-
       alters_funnel_metrics: false,
-
       measurement_required: true,
-
       measurement_completed: false
     },
 
+    source_chain: {
+      measurement: MEASUREMENT_SOURCE,
+      execution: EXECUTION_SOURCE,
+      feedback: LAYER
+    },
+
+    source_of_truth: {
+      type: EXECUTION_SOURCE,
+      version: "1.1",
+      execution_id: execution.id
+    },
+
     guardrails: {
+      reads_raw_behavior_events: false,
       creates_behavior_event: false,
       creates_attention: false,
       alters_funnel_metrics: false,
-
       recalculates_measurement: false,
       recalculates_intelligence: false,
       recalculates_learning: false,
-
       changes_strategy: false,
-      declares_winner: false,
-
+      winner_declared: false,
       executes_action: false,
-      automatic_execution: false
+      automatic_execution: false,
+      external_execution: false,
+      business_data_mutation: false,
+      content_mutation: false,
+      customer_contact: false,
+      payment_action: false,
+      human_approval_required: true
     },
 
     handoff: {
       next_layer: "MEASUREMENT_V2.3",
       measurement_required: true,
+      measurement_completed: false,
       execute: false
-    }
+    },
+
+    persistence: persisted || null
   };
 }
 
-/* ---------------------------------------------------------
-   MAIN
---------------------------------------------------------- */
-
-async function runFeedback(context) {
-  const db = context.env.DB;
+async function runFeedback(context, mode, body = {}) {
+  const db = context.env?.DB;
 
   if (!db) {
     return {
@@ -517,177 +325,115 @@ async function runFeedback(context) {
     };
   }
 
-  const input = await getInput(context.request);
-
-  if (!input.action_run_id) {
-    return {
-      success: false,
-      layer: LAYER,
-      version: VERSION,
-      error: "action_run_id_required"
-    };
-  }
-
   await ensureFeedbackTable(db);
 
-  const action = await getAction(
-    db,
-    input.action_run_id
-  );
+  const url = new URL(context.request.url);
+  const executionId =
+    body.execution_id ||
+    url.searchParams.get("execution_id");
 
-  if (!action) {
+  if (!executionId) {
     return {
       success: false,
       layer: LAYER,
       version: VERSION,
-      error: "ACTION_NOT_FOUND",
-      action_run_id: input.action_run_id
+      error: "execution_id_required"
     };
   }
 
-  /*
-   * Feedback must only observe an action that has reached
-   * the execution stage.
-   */
+  const execution = await getExecution(db, executionId);
 
-  const actionStatus = normalizeActionStatus(
-    action.action_status ||
-    action.status
-  );
-
-  if (
-    actionStatus !== "EXECUTED" &&
-    !action.executed_at &&
-    !action.result
-  ) {
+  if (!execution) {
     return {
       success: false,
       layer: LAYER,
       version: VERSION,
-      error: "ACTION_NOT_EXECUTED",
-      action: {
-        id: action.id,
-        status: action.status,
-        action_status: action.action_status,
-        executed_at: action.executed_at
+      error: "EXECUTION_NOT_FOUND",
+      execution_id: executionId
+    };
+  }
+
+  if (execution.executed !== 1 || normalize(execution.status) !== "EXECUTED") {
+    return {
+      success: false,
+      layer: LAYER,
+      version: VERSION,
+      error: "EXECUTION_NOT_COMPLETED",
+      execution: {
+        id: execution.id,
+        status: execution.status,
+        approved: execution.approved === 1,
+        executed: execution.executed === 1
       }
     };
   }
 
-  const execution = await getExecution(
-    db,
-    input.execution_run_id,
-    input.action_run_id
-  );
+  const payloads = parsePayloads(execution);
+  const normalized = normalizeOutcome(execution, payloads);
 
-  const normalized = normalizeExecution(
-    execution,
-    action
-  );
+  if (mode === "preview") {
+    return buildResponse(execution, normalized, payloads, "preview");
+  }
 
-  if (!normalized.success) {
+  if (body.approved !== true) {
     return {
       success: false,
       layer: LAYER,
       version: VERSION,
-      error: normalized.error,
-      action_run_id: input.action_run_id,
-      execution_run_id: input.execution_run_id || null
+      status: "APPROVAL_REQUIRED",
+      error: "approved:true is required to persist Feedback"
     };
   }
 
-  const existing = await findExistingFeedback(
+  const persisted = await persistFeedback(
     db,
-    action.id
-  );
-
-  /*
-   * Preview never creates a record.
-   */
-
-  if (input.mode !== "execute") {
-    return buildResponse({
-      action,
-      execution,
-      normalized,
-      feedbackId: existing?.id || null,
-      duplicate: !!existing,
-      mode: "preview"
-    });
-  }
-
-  /*
-   * Execute mode creates exactly one feedback record.
-   */
-
-  if (existing) {
-    return buildResponse({
-      action,
-      execution,
-      normalized,
-      feedbackId: existing.id,
-      duplicate: true,
-      mode: "execute"
-    });
-  }
-
-  const feedbackId = await createFeedback(
-    db,
-    action,
-    execution,
-    normalized
-  );
-
-  return buildResponse({
-    action,
     execution,
     normalized,
-    feedbackId,
-    duplicate: false,
-    mode: "execute"
-  });
-}
+    payloads,
+    body.operator_note || null
+  );
 
-/* ---------------------------------------------------------
-   GET
---------------------------------------------------------- */
+  return buildResponse(
+    execution,
+    normalized,
+    payloads,
+    "execute",
+    persisted
+  );
+}
 
 export async function onRequestGet(context) {
   try {
-    const result = await runFeedback(context);
-
-    return json(
-      result,
-      result.success ? 200 : 400
-    );
+    return json(await runFeedback(context, "preview"));
   } catch (error) {
     return json({
       success: false,
       layer: LAYER,
       version: VERSION,
+      status: "ERROR",
       error: "FEEDBACK_LAYER_ERROR",
       message: error?.message || String(error)
     }, 500);
   }
 }
 
-/* ---------------------------------------------------------
-   POST
---------------------------------------------------------- */
-
 export async function onRequestPost(context) {
   try {
-    const result = await runFeedback(context);
+    let body = {};
 
-    return json(
-      result,
-      result.success ? 200 : 400
-    );
+    try {
+      body = await context.request.json();
+    } catch (_) {
+      body = {};
+    }
+
+    return json(await runFeedback(context, "execute", body));
   } catch (error) {
     return json({
       success: false,
       layer: LAYER,
       version: VERSION,
+      status: "ERROR",
       error: "FEEDBACK_LAYER_ERROR",
       message: error?.message || String(error)
     }, 500);
