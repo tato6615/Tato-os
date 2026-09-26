@@ -18,6 +18,8 @@
 // - No server-side duplicate content_view
 // - content_click remains browser tracked
 // - product_view requires a prior content_click in the same page session
+// - Offer is revealed only after content_click
+// - product_view is recorded when the revealed Offer becomes visible
 // - product_view is recorded at most once per page session
 // - content_id + distribution_id + session_id preserved
 
@@ -595,18 +597,30 @@ h1 {
 
     </div>
 
-    <div id="offer" class="section" data-product-view="true">
-      <div class="label">Offer</div>
-      <div class="text">ดูรายละเอียดข้อเสนอ TATO Coffee</div>
-    </div>
-
     <a
       id="cta"
       class="cta"
-      href="/api/content-feed?mode=thank_you&content_id=${encodeURIComponent(contentId)}"
+      href="#offer"
     >
       ${cta}
     </a>
+
+    <div
+      id="offer"
+      class="section"
+      data-product-view="true"
+      hidden
+    >
+      <div class="label">Offer</div>
+      <div class="text">ดูรายละเอียดข้อเสนอ TATO Coffee</div>
+
+      <a
+        class="cta"
+        href="/api/content-feed?mode=thank_you&content_id=${encodeURIComponent(contentId)}"
+      >
+        ดูรายละเอียดข้อเสนอ TATO Coffee
+      </a>
+    </div>
 
     <div class="footer">
       TATO Coffee · Arabica 100% · Single Origin
@@ -686,26 +700,11 @@ h1 {
     });
   }
 
-  if (cta) {
-
-    cta.addEventListener(
-      "click",
-      function () {
-
-        contentClicked = true;
-
-        track("content_click", {
-          cta: true
-        });
-
-      }
-    );
-
-  }
+  let offerObserver = null;
 
   if (offer && "IntersectionObserver" in window) {
 
-    const observer = new IntersectionObserver(function (entries) {
+    offerObserver = new IntersectionObserver(function (entries) {
 
       if (
         contentClicked &&
@@ -716,13 +715,47 @@ h1 {
 
         trackProductView();
 
-        observer.disconnect();
+        offerObserver.disconnect();
 
       }
 
     }, { threshold: 0.25 });
 
-    observer.observe(offer);
+  }
+
+  if (cta) {
+
+    cta.addEventListener(
+      "click",
+      function (event) {
+
+        if (contentClicked) return;
+
+        event.preventDefault();
+
+        contentClicked = true;
+
+        track("content_click", {
+          cta: true
+        });
+
+        if (offer) {
+
+          offer.hidden = false;
+
+          if (offerObserver) {
+            offerObserver.observe(offer);
+          }
+
+          offer.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+
+        }
+
+      }
+    );
 
   }
 
