@@ -1,9 +1,0 @@
-```json
-{
-  "version": 1,
-  "include": [
-    "/api/*",
-    "/market-test"
-  ]
-}
-```
