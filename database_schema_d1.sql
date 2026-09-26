@@ -99,6 +99,20 @@ CREATE TABLE IF NOT EXISTS workflows (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Business goal configuration
+CREATE TABLE IF NOT EXISTS business_goals (
+  id TEXT PRIMARY KEY,
+  goal_code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  target_value REAL NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'THB',
+  period_type TEXT NOT NULL DEFAULT 'MONTH',
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 -- Indexes for the HQ's first queries
 CREATE INDEX IF NOT EXISTS behavior_events_event_idx
   ON behavior_events(event_name);
@@ -126,3 +140,6 @@ CREATE INDEX IF NOT EXISTS ai_insights_status_idx
 
 CREATE INDEX IF NOT EXISTS workflows_enabled_idx
   ON workflows(enabled);
+
+CREATE INDEX IF NOT EXISTS business_goals_active_idx
+  ON business_goals(active);
