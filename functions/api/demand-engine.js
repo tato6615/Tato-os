@@ -15,6 +15,7 @@
 // Measurement / Intelligence / Learning / Decision / Action layers.
 
 const LAYER = "DEMAND_CREATION_V1.0";
+const RUNTIME_BUILD = "20ee6f9-order-schema-compat-1";
 const GOAL_CODE = "TATO_COFFEE_MONTHLY_PROFIT";
 
 function json(data, status = 200) {
@@ -350,6 +351,7 @@ async function dashboard(db) {
     success: true,
     layer: LAYER,
     version: "1.0",
+    runtime_build: RUNTIME_BUILD,
     status: "DEMAND_ENGINE_READY",
     purpose:
       "Create measurable demand and customer acquisition plans without executing them automatically.",
@@ -517,6 +519,7 @@ export async function onRequestPost(context) {
       success: true,
       layer: LAYER,
       version: "1.0",
+      runtime_build: RUNTIME_BUILD,
       status: "DEMAND_PLAN_CREATED",
       plan,
       next: {
