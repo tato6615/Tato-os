@@ -1,5 +1,5 @@
 
-// TATO OS — Public Content Feed + Tracking V1.2
+// TATO OS — Public Content Feed + Tracking V1.5
 // Route: /api/content-feed
 //
 // GET
@@ -757,7 +757,9 @@ h1 {
   // IMPORTANT:
   // content_view is recorded ONLY here.
   // No server-side content_view exists.
-  track("content_view", {
+  // Keep the request promise so CTA interaction cannot be persisted
+  // before the initial content_view has completed.
+  const contentViewReady = track("content_view", {
     page_type: "public_content"
   });
 
@@ -811,10 +813,14 @@ h1 {
 
         event.preventDefault();
 
-        contentClicked = true;
+        contentViewReady.then(function () {
 
-        track("content_click", {
-          cta: true
+          contentClicked = true;
+
+          return track("content_click", {
+            cta: true
+          });
+
         }).then(function () {
 
           if (offer) {
