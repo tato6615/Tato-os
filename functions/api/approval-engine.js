@@ -1,10 +1,11 @@
-const LAYER = "APPROVAL_ENGINE_V1";
+const LAYER = "APPROVAL_ENGINE_V1.1";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
-      "content-type": "application/json; charset=UTF-8"
+      "content-type": "application/json; charset=UTF-8",
+      "cache-control": "no-store"
     }
   });
 }
@@ -26,9 +27,8 @@ async function getAction(DB, actionRunId) {
   return await DB.prepare(`
     SELECT *
     FROM action_runs
-    WHERE
-      status = 'PENDING'
-      OR action_status = 'PENDING_APPROVAL'
+    WHERE status = 'PENDING'
+       OR action_status = 'PENDING_APPROVAL'
     ORDER BY created_at DESC
     LIMIT 1
   `).first();
@@ -50,13 +50,138 @@ async function getPendingActions(DB) {
       executed_at,
       created_at
     FROM action_runs
-    WHERE
-      status = 'PENDING'
-      OR action_status = 'PENDING_APPROVAL'
+    WHERE status = 'PENDING'
+       OR action_status = 'PENDING_APPROVAL'
     ORDER BY created_at DESC
   `).all();
 
   return result.results || [];
+}
+
+async function processApproval(DB, actionRunId, decision) {
+  if (!actionRunId) {
+    return json({
+      success: false,
+      layer: LAYER,
+      mode: "execute",
+      status: "ERROR",
+      error: "action_run_id is required"
+    }, 400);
+  }
+
+  if (!["APPROVE", "REJECT"].includes(decision)) {
+    return json({
+      success: false,
+      layer: LAYER,
+      mode: "execute",
+      status: "ERROR",
+      error: "decision must be APPROVE or REJECT"
+    }, 400);
+  }
+
+  const action = await getAction(DB, actionRunId);
+
+  if (!action) {
+    return json({
+      success: false,
+      layer: LAYER,
+      mode: "execute",
+      status: "ACTION_NOT_FOUND",
+      error: `Action ${actionRunId} not found`
+    }, 404);
+  }
+
+  const pending =
+    action.status === "PENDING" ||
+    action.action_status === "PENDING_APPROVAL";
+
+  if (!pending) {
+    return json({
+      success: false,
+      layer: LAYER,
+      mode: "execute",
+      status: "APPROVAL_NOT_ALLOWED",
+      error: "Action is not waiting for approval",
+      action: {
+        id: action.id,
+        status: action.status,
+        action_status: action.action_status,
+        approved_at: action.approved_at,
+        executed_at: action.executed_at
+      }
+    }, 409);
+  }
+
+  const timestamp = now();
+
+  if (decision === "APPROVE") {
+    await DB.prepare(`
+      UPDATE action_runs
+      SET
+        status = 'APPROVED',
+        action_status = 'APPROVED',
+        approved_at = ?
+      WHERE id = ?
+    `).bind(timestamp, actionRunId).run();
+
+    const updated = await getAction(DB, actionRunId);
+
+    return json({
+      success: true,
+      layer: LAYER,
+      mode: "execute",
+      status: "APPROVED",
+      action: {
+        id: updated.id,
+        action_type: updated.action_type,
+        status: updated.status,
+        action_status: updated.action_status,
+        approved_at: updated.approved_at,
+        executed_at: updated.executed_at
+      },
+      control: {
+        approval_required: true,
+        approved: true,
+        automatic_execution: false,
+        execution_status: "READY"
+      },
+      next_step:
+        "POST to /api/execution-engine with the approved action_run_id."
+    });
+  }
+
+  await DB.prepare(`
+    UPDATE action_runs
+    SET
+      status = 'REJECTED',
+      action_status = 'REJECTED'
+    WHERE id = ?
+  `).bind(actionRunId).run();
+
+  const updated = await getAction(DB, actionRunId);
+
+  return json({
+    success: true,
+    layer: LAYER,
+    mode: "execute",
+    status: "REJECTED",
+    action: {
+      id: updated.id,
+      action_type: updated.action_type,
+      status: updated.status,
+      action_status: updated.action_status,
+      approved_at: updated.approved_at,
+      executed_at: updated.executed_at
+    },
+    control: {
+      approval_required: true,
+      approved: false,
+      automatic_execution: false,
+      execution_status: "BLOCKED"
+    },
+    next_step:
+      "No execution will occur for this Action."
+  });
 }
 
 export async function onRequestGet(context) {
@@ -71,6 +196,22 @@ export async function onRequestGet(context) {
         status: "ERROR",
         error: "D1 binding DB not found"
       }, 500);
+    }
+
+    const url = new URL(context.request.url);
+    const actionRunId = url.searchParams.get("action_run_id");
+    const decision = String(
+      url.searchParams.get("decision") ||
+      url.searchParams.get("action") ||
+      ""
+    ).trim().toUpperCase();
+
+    if (actionRunId || decision) {
+      return await processApproval(
+        DB,
+        actionRunId,
+        decision
+      );
     }
 
     const actions = await getPendingActions(DB);
@@ -92,7 +233,6 @@ export async function onRequestGet(context) {
         execution_allowed: false
       }
     });
-
   } catch (error) {
     return json({
       success: false,
@@ -132,155 +272,17 @@ export async function onRequestPost(context) {
         .searchParams
         .get("action_run_id");
 
-    const decision =
-      String(
-        body.decision ||
-        body.action ||
-        ""
-      ).trim().toUpperCase();
+    const decision = String(
+      body.decision ||
+      body.action ||
+      ""
+    ).trim().toUpperCase();
 
-    if (!actionRunId) {
-      return json({
-        success: false,
-        layer: LAYER,
-        mode: "execute",
-        status: "ERROR",
-        error: "action_run_id is required"
-      }, 400);
-    }
-
-    if (!["APPROVE", "REJECT"].includes(decision)) {
-      return json({
-        success: false,
-        layer: LAYER,
-        mode: "execute",
-        status: "ERROR",
-        error: "decision must be APPROVE or REJECT"
-      }, 400);
-    }
-
-    const action = await getAction(
+    return await processApproval(
       DB,
-      actionRunId
+      actionRunId,
+      decision
     );
-
-    if (!action) {
-      return json({
-        success: false,
-        layer: LAYER,
-        mode: "execute",
-        status: "ACTION_NOT_FOUND",
-        error: `Action ${actionRunId} not found`
-      }, 404);
-    }
-
-    /*
-      Approval is only valid while the Action is
-      waiting for approval.
-    */
-
-    const pending =
-      action.status === "PENDING" ||
-      action.action_status === "PENDING_APPROVAL";
-
-    if (!pending) {
-      return json({
-        success: false,
-        layer: LAYER,
-        mode: "execute",
-        status: "APPROVAL_NOT_ALLOWED",
-        error: "Action is not waiting for approval",
-        action: {
-          id: action.id,
-          status: action.status,
-          action_status: action.action_status,
-          approved_at: action.approved_at,
-          executed_at: action.executed_at
-        }
-      }, 409);
-    }
-
-    const timestamp = now();
-
-    if (decision === "APPROVE") {
-      await DB.prepare(`
-        UPDATE action_runs
-        SET
-          status = 'APPROVED',
-          action_status = 'APPROVED',
-          approved_at = ?
-        WHERE id = ?
-      `).bind(
-        timestamp,
-        actionRunId
-      ).run();
-
-      const updated = await getAction(
-        DB,
-        actionRunId
-      );
-
-      return json({
-        success: true,
-        layer: LAYER,
-        mode: "execute",
-        status: "APPROVED",
-        action: {
-          id: updated.id,
-          action_type: updated.action_type,
-          status: updated.status,
-          action_status: updated.action_status,
-          approved_at: updated.approved_at,
-          executed_at: updated.executed_at
-        },
-        control: {
-          approval_required: true,
-          approved: true,
-          automatic_execution: false,
-          execution_status: "READY"
-        },
-        next_step:
-          "POST to /api/execution-engine with the approved action_run_id."
-      });
-    }
-
-    await DB.prepare(`
-      UPDATE action_runs
-      SET
-        status = 'REJECTED',
-        action_status = 'REJECTED'
-      WHERE id = ?
-    `).bind(
-      actionRunId
-    ).run();
-
-    const updated = await getAction(
-      DB,
-      actionRunId
-    );
-
-    return json({
-      success: true,
-      layer: LAYER,
-      mode: "execute",
-      status: "REJECTED",
-      action: {
-        id: updated.id,
-        action_type: updated.action_type,
-        status: updated.status,
-        action_status: updated.action_status,
-        approved_at: updated.approved_at,
-        executed_at: updated.executed_at
-      },
-      control: {
-        approval_required: true,
-        approved: false,
-        automatic_execution: false,
-        execution_status: "BLOCKED"
-      },
-      next_step:
-        "No execution will occur for this Action."
-    });
   } catch (error) {
     return json({
       success: false,
