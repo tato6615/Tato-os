@@ -12,6 +12,7 @@
 //
 // Market Intelligence DOES:
 // - read market_signals
+// - inspect the real D1 schema
 // - normalize market intent
 // - evaluate signal freshness
 // - evaluate evidence strength
@@ -245,10 +246,7 @@ function sourceDiversityScore(signals) {
 function evidenceScore(signal, relatedSignals) {
   const confidence = confidenceScore(signal);
   const fresh = freshness(signal);
-
-  const diversity = sourceDiversityScore(
-    relatedSignals
-  );
+  const diversity = sourceDiversityScore(relatedSignals);
 
   const score =
     confidence * 0.45 +
@@ -267,15 +265,10 @@ function signalKey(signal) {
     metadata.keyword ||
     metadata.market_keyword ||
     metadata.topic ||
-    signal.category ||
+    signal.title ||
     "unknown";
 
-  const title =
-    signal.title ||
-    metadata.title ||
-    "";
-
-  return `${normalizeText(keyword)}|${normalizeText(title)}`;
+  return normalizeText(keyword);
 }
 
 function buildClusters(signals) {
@@ -313,7 +306,10 @@ function buildClusters(signals) {
 
       const latestDate = items
         .map(signal =>
-          parseDate(signal.detected_at)
+          parseDate(
+            signal.detected_at ||
+            signal.created_at
+          )
         )
         .filter(Boolean)
         .sort((a, b) => b - a)[0];
@@ -322,7 +318,8 @@ function buildClusters(signals) {
         latestDate
           ? items.find(signal => {
               const date = parseDate(
-                signal.detected_at
+                signal.detected_at ||
+                signal.created_at
               );
 
               return (
@@ -333,18 +330,20 @@ function buildClusters(signals) {
             })
           : items[0];
 
-      const evidence = latestSignal
-        ? evidenceScore(
-            latestSignal,
-            items
-          )
-        : 0;
+      const evidence =
+        latestSignal
+          ? evidenceScore(
+              latestSignal,
+              items
+            )
+          : 0;
 
       return {
         cluster_key: key,
         signal_count: items.length,
         verified_signal_count: verifiedCount,
-        commercial_signal_count: commercialCount,
+        commercial_signal_count:
+          commercialCount,
         source_count: sources.length,
         sources,
         latest_detected_at:
@@ -389,12 +388,11 @@ function classifyState({
 }
 
 function opportunityHandoff(state, clusters) {
-  if (
-    state !== "COMMERCIAL_SIGNAL"
-  ) {
+  if (state !== "COMMERCIAL_SIGNAL") {
     return {
       ready: false,
-      next_layer: "MARKET_SIGNAL_COLLECTION",
+      next_layer:
+        "MARKET_SIGNAL_COLLECTION",
       reason:
         "Commercial market evidence is not yet strong enough for Opportunity Engine."
     };
@@ -415,7 +413,8 @@ function opportunityHandoff(state, clusters) {
   if (candidates.length === 0) {
     return {
       ready: false,
-      next_layer: "MARKET_SIGNAL_COLLECTION",
+      next_layer:
+        "MARKET_SIGNAL_COLLECTION",
       reason:
         "Overall market state is commercial, but no verified cluster currently meets the Opportunity Engine threshold."
     };
@@ -423,40 +422,105 @@ function opportunityHandoff(state, clusters) {
 
   return {
     ready: true,
-    next_layer: "OPPORTUNITY_ENGINE_V1",
-    candidate_clusters: candidates
+    next_layer:
+      "OPPORTUNITY_ENGINE_V1",
+    candidate_clusters:
+      candidates
   };
 }
 
-async function readMarketSignals(env) {
-  const result = await env.DB.prepare(`
-    SELECT
-      id,
-      source,
-      category,
-      title,
-      confidence,
-      metadata,
-      detected_at,
-      created_at
-    FROM market_signals
-    ORDER BY
-      COALESCE(detected_at, created_at) DESC
-    LIMIT 100
-  `).all();
+/*
+ * IMPORTANT
+ *
+ * Do not assume the schema of market_signals.
+ * Read the actual D1 schema first.
+ */
+async function getMarketSignalsSchema(env) {
+  const result = await env.DB
+    .prepare(`
+      PRAGMA table_info(market_signals)
+    `)
+    .all();
 
   return result.results || [];
 }
 
+function schemaColumnNames(schema) {
+  return new Set(
+    schema.map(column => column.name)
+  );
+}
+
+async function readMarketSignals(env) {
+  const schema =
+    await getMarketSignalsSchema(env);
+
+  const columns =
+    schemaColumnNames(schema);
+
+  const preferredColumns = [
+    "id",
+    "source",
+    "category",
+    "title",
+    "confidence",
+    "metadata",
+    "detected_at",
+    "created_at"
+  ];
+
+  const availableColumns =
+    preferredColumns.filter(
+      column => columns.has(column)
+    );
+
+  if (availableColumns.length === 0) {
+    throw new Error(
+      "MARKET_SIGNALS_SCHEMA_UNREADABLE"
+    );
+  }
+
+  const selectList =
+    availableColumns
+      .map(column => `"${column}"`)
+      .join(", ");
+
+  const orderColumn =
+    columns.has("detected_at")
+      ? "detected_at"
+      : columns.has("created_at")
+        ? "created_at"
+        : "rowid";
+
+  const result = await env.DB
+    .prepare(`
+      SELECT ${selectList}
+      FROM market_signals
+      ORDER BY ${orderColumn} DESC
+      LIMIT 100
+    `)
+    .all();
+
+  return {
+    schema,
+    columns:
+      availableColumns,
+    rows:
+      result.results || []
+  };
+}
+
 async function createMarketSignal(env, body) {
+  const schema =
+    await getMarketSignalsSchema(env);
+
+  const columns =
+    schemaColumnNames(schema);
+
   const source =
     body.source ||
     body.source_type ||
     null;
-
-  const category =
-    body.category ||
-    "MARKET";
 
   const title =
     body.title ||
@@ -486,30 +550,77 @@ async function createMarketSignal(env, body) {
     };
   }
 
-  const result = await env.DB.prepare(`
-    INSERT INTO market_signals (
-      source,
-      category,
-      title,
-      confidence,
-      metadata,
-      detected_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-  `)
-    .bind(
-      source,
-      category,
-      title,
-      confidence,
-      JSON.stringify(metadata),
-      detectedAt
-    )
+  /*
+   * Build INSERT dynamically from columns
+   * that actually exist in D1.
+   */
+  const payload = {};
+
+  if (columns.has("source")) {
+    payload.source = source;
+  }
+
+  if (columns.has("title")) {
+    payload.title = title;
+  }
+
+  if (columns.has("confidence")) {
+    payload.confidence = confidence;
+  }
+
+  if (columns.has("metadata")) {
+    payload.metadata =
+      JSON.stringify(metadata);
+  }
+
+  if (columns.has("detected_at")) {
+    payload.detected_at =
+      detectedAt;
+  }
+
+  if (columns.has("category")) {
+    payload.category =
+      body.category ||
+      "MARKET";
+  }
+
+  const insertColumns =
+    Object.keys(payload);
+
+  if (insertColumns.length === 0) {
+    return {
+      error:
+        "MARKET_SIGNALS_INSERT_SCHEMA_UNSUPPORTED"
+    };
+  }
+
+  const placeholders =
+    insertColumns
+      .map(() => "?")
+      .join(", ");
+
+  const values =
+    insertColumns.map(
+      column => payload[column]
+    );
+
+  const result = await env.DB
+    .prepare(`
+      INSERT INTO market_signals (
+        ${insertColumns
+          .map(column => `"${column}"`)
+          .join(", ")}
+      )
+      VALUES (${placeholders})
+    `)
+    .bind(...values)
     .run();
 
   return {
     success: true,
-    id: result.meta?.last_row_id || null
+    id:
+      result.meta?.last_row_id ||
+      null
   };
 }
 
@@ -524,7 +635,8 @@ export async function onRequest(context) {
       return json(
         {
           success: false,
-          error: "DB_BINDING_NOT_FOUND",
+          error:
+            "DB_BINDING_NOT_FOUND",
           engine:
             MARKET_INTELLIGENCE_ENGINE
         },
@@ -532,19 +644,18 @@ export async function onRequest(context) {
       );
     }
 
-    const url =
-      new URL(request.url);
-
     if (request.method === "POST") {
       let body;
 
       try {
-        body = await request.json();
+        body =
+          await request.json();
       } catch {
         return json(
           {
             success: false,
-            error: "INVALID_JSON"
+            error:
+              "INVALID_JSON"
           },
           400
         );
@@ -560,7 +671,8 @@ export async function onRequest(context) {
         return json(
           {
             success: false,
-            error: created.error
+            error:
+              created.error
           },
           400
         );
@@ -574,7 +686,8 @@ export async function onRequest(context) {
           MARKET_INTELLIGENCE_VERSION,
         operation:
           "MARKET_SIGNAL_CREATED",
-        result: created,
+        result:
+          created,
         handoff:
           "MARKET_INTELLIGENCE_V1"
       });
@@ -584,14 +697,18 @@ export async function onRequest(context) {
       return json(
         {
           success: false,
-          error: "METHOD_NOT_ALLOWED"
+          error:
+            "METHOD_NOT_ALLOWED"
         },
         405
       );
     }
 
-    const signals =
+    const marketData =
       await readMarketSignals(env);
+
+    const signals =
+      marketData.rows || [];
 
     const analyzedSignals =
       signals.map(signal => {
@@ -618,26 +735,43 @@ export async function onRequest(context) {
           );
 
         return {
-          id: signal.id,
+          id:
+            signal.id ||
+            null,
+
           source:
             normalizeSource(signal),
+
           category:
-            signal.category || null,
+            signal.category ||
+            null,
+
           title:
-            signal.title || null,
+            signal.title ||
+            null,
+
           intent,
+
           confidence:
             confidenceScore(signal),
+
           freshness:
             freshnessData,
+
           evidence_score:
             evidence,
+
           data_quality: {
-            test_signal: testData,
-            database_record: true,
+            test_signal:
+              testData,
+
+            database_record:
+              true,
+
             externally_verified:
               !testData
           },
+
           detected_at:
             signal.detected_at ||
             signal.created_at ||
@@ -648,7 +782,8 @@ export async function onRequest(context) {
     const verifiedSignals =
       analyzedSignals.filter(
         signal =>
-          !signal.data_quality.test_signal
+          !signal.data_quality
+            .test_signal
       );
 
     const commercialSignals =
@@ -673,10 +808,13 @@ export async function onRequest(context) {
       classifyState({
         totalSignals:
           analyzedSignals.length,
+
         verifiedSignals:
           verifiedSignals.length,
+
         commercialSignals:
           commercialSignals.length,
+
         strongestEvidence
       });
 
@@ -724,6 +862,19 @@ export async function onRequest(context) {
           clusters.length
       },
 
+      schema: {
+        detected_columns:
+          marketData.columns,
+
+        schema_checked:
+          true,
+
+        category_available:
+          marketData.columns.includes(
+            "category"
+          )
+      },
+
       market_signals:
         analyzedSignals,
 
@@ -733,21 +884,35 @@ export async function onRequest(context) {
         handoff,
 
       guardrails: {
-        invents_market_data: false,
-        uses_mock_data: false,
+        invents_market_data:
+          false,
+
+        uses_mock_data:
+          false,
+
         test_data_can_create_commercial_signal:
           false,
-        changes_strategy: false,
+
+        changes_strategy:
+          false,
+
         creates_opportunity:
           handoff.ready,
-        creates_decision: false,
-        executes_action: false
+
+        creates_decision:
+          false,
+
+        executes_action:
+          false
       },
 
       data_integrity: {
-        records_from_database: true,
+        records_from_database:
+          true,
+
         external_market_data_verified:
           verifiedSignals.length > 0,
+
         test_records_excluded_from_commercial_readiness:
           true
       },
@@ -767,10 +932,13 @@ export async function onRequest(context) {
     return json(
       {
         success: false,
+
         engine:
           MARKET_INTELLIGENCE_ENGINE,
+
         version:
           MARKET_INTELLIGENCE_VERSION,
+
         error:
           error?.message ||
           "UNKNOWN_ERROR"
