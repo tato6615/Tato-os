@@ -536,8 +536,18 @@ async function getFeedbackContext(db, contentId) {
   try {
     const result = await db
       .prepare(
-        `SELECT *
-         FROM feedback_events
+        `SELECT
+           id,
+           content_id,
+           action_name AS action_code,
+           NULL AS action_target,
+           outcome AS actual_outcome,
+           outcome_status,
+           measurement_required,
+           measurement_completed,
+           created_at,
+           created_at AS updated_at
+         FROM feedback_records
          WHERE content_id = ?
          ORDER BY created_at DESC
          LIMIT 1`
