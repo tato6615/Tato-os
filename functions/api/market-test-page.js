@@ -18,7 +18,7 @@ body{margin:0;background:#111;color:#f5f5f5;font-family:-apple-system,BlinkMacSy
 .brand{color:#f28c28;font-weight:800;letter-spacing:4px;margin-bottom:24px}
 h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 .sub{font-size:20px;line-height:1.6;color:#ccc;margin:0 auto 32px;max-width:650px}
-.cta{display:inline-flex;padding:17px 28px;border-radius:12px;background:#f28c28;color:#111;font-weight:800;text-decoration:none}
+.cta{display:inline-flex;padding:17px 28px;border:0;border-radius:12px;background:#f28c28;color:#111;font-weight:800;font-size:16px;cursor:pointer;appearance:none}
 .offer{padding:80px 22px;background:#f4f1eb;color:#161616}
 .offer-in{max-width:850px;margin:auto}
 .offer h2{font-size:clamp(30px,5vw,48px);margin:0 0 18px}
@@ -36,7 +36,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <div class="brand">TATO COFFEE</div>
 <h1>กาแฟที่เริ่มจากความสนใจของคนดื่มจริง</h1>
 <p class="sub">ทดลองทำความรู้จัก TATO Coffee และดูว่ากาแฟแบบไหนเหมาะกับคุณ</p>
-<a id="cta" class="cta" href="#offer">ดูรายละเอียด TATO Coffee</a>
+<button id="cta" class="cta" type="button">ดูรายละเอียด TATO Coffee</button>
 </div>
 </section>
 <section id="offer" class="offer">
@@ -58,6 +58,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 var did="distribution-1790392496602-lhk96nmd";
 var api="https://8f91cd42.tato-os.pages.dev/api/market-test-entry";
 var sent={};
+var statusEl=document.getElementById("status");
 
 function send(type){
   if(sent[type])return;
@@ -75,19 +76,21 @@ function send(type){
     });
   })
   .then(function(){
-    document.getElementById("status").textContent=type+" recorded";
+    statusEl.textContent=type+" recorded";
   })
   .catch(function(e){
     sent[type]=false;
     console.error(e);
-    document.getElementById("status").textContent="Ready";
+    statusEl.textContent="Ready";
   });
 }
 
 send("content_view");
 
-document.getElementById("cta").addEventListener("click",function(){
+document.getElementById("cta").addEventListener("click",function(e){
+  e.preventDefault();
   send("content_click");
+  document.getElementById("offer").scrollIntoView({behavior:"smooth",block:"start"});
 });
 
 var offer=document.getElementById("offer");
