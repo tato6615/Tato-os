@@ -1,8 +1,10 @@
 // TATO-OS
-// Feedback Engine V1.0
+// Feedback Engine V1.1
 // Route: /api/feedback-engine
+// Purpose: persist verified execution feedback and hand it back to the loop.
+// Guardrails: no strategy change, no winner declaration, no automatic execution.
 
-const LAYER = "FEEDBACK_ENGINE_V1.0";
+const LAYER = "FEEDBACK_ENGINE_V1.1";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -22,9 +24,7 @@ function parseJSON(value, fallback = {}) {
 
 async function getExecution(DB, id, actionRunId = null) {
   if (id) {
-    return await DB.prepare(
-      "SELECT * FROM execution_runs WHERE id = ? LIMIT 1"
-    ).bind(id).first();
+    return await DB.prepare("SELECT * FROM execution_runs WHERE id = ? LIMIT 1").bind(id).first();
   }
   if (actionRunId) {
     return await DB.prepare(
@@ -36,28 +36,17 @@ async function getExecution(DB, id, actionRunId = null) {
 
 async function getAction(DB, id) {
   if (!id) return null;
-  return await DB.prepare(
-    "SELECT * FROM action_runs WHERE id = ? LIMIT 1"
-  ).bind(id).first();
+  return await DB.prepare("SELECT * FROM action_runs WHERE id = ? LIMIT 1").bind(id).first();
 }
 
 function resolveContentId(execution, action) {
   const input = parseJSON(execution?.input_data);
   const output = parseJSON(execution?.output_data);
-  return (
-    output.content_id ||
-    output.investigation?.content_id ||
-    input.content_id ||
-    action?.content_id ||
-    null
-  );
+  return output.content_id || output.investigation?.content_id || input.content_id || action?.content_id || null;
 }
 
 async function callJSON(url) {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { accept: "application/json" }
-  });
+  const response = await fetch(url, { method: "GET", headers: { accept: "application/json" } });
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.success) {
     throw new Error(data?.error || data?.status || `HTTP ${response.status}`);
@@ -83,199 +72,158 @@ async function buildFeedback(context, execution) {
   const learning = await callJSON(learningUrl);
 
   const output = parseJSON(execution.output_data);
-  const investigation = output.investigation || {};
-
   return {
     contentId,
     action,
-    investigation,
+    investigation: output.investigation || {},
     measurement,
     learning
+  };
+}
+
+async function persistFeedback(DB, execution, data, approvalSource = "HUMAN") {
+  await DB.prepare(`
+    CREATE TABLE IF NOT EXISTS feedback_runs (
+      id TEXT PRIMARY KEY,
+      execution_run_id TEXT NOT NULL,
+      action_run_id TEXT,
+      content_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      input_data TEXT,
+      output_data TEXT,
+      created_at TEXT NOT NULL
+    )
+  `).run();
+
+  const existing = await DB.prepare(
+    "SELECT * FROM feedback_runs WHERE execution_run_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(execution.id).first();
+
+  if (existing) return { id: existing.id, duplicate: true, created_at: existing.created_at };
+
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+
+  await DB.prepare(`
+    INSERT INTO feedback_runs
+    (id, execution_run_id, action_run_id, content_id, status, input_data, output_data, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id,
+    execution.id,
+    execution.action_run_id || null,
+    data.contentId,
+    "COMPLETED",
+    JSON.stringify({ approved: true, approval_source: approvalSource }),
+    JSON.stringify({
+      investigation: data.investigation,
+      measurement: data.measurement,
+      learning: data.learning
+    }),
+    createdAt
+  ).run();
+
+  return { id, duplicate: false, created_at: createdAt };
+}
+
+function responsePayload(data, execution, mode, persisted = null) {
+  return {
+    success: true,
+    layer: LAYER,
+    version: "1.1",
+    mode,
+    status: mode === "execute" ? "FEEDBACK_REENTERED" : "FEEDBACK_READY",
+    content_id: data.contentId,
+    execution: {
+      execution_run_id: execution.id,
+      action_run_id: execution.action_run_id,
+      status: execution.status,
+      investigation: data.investigation
+    },
+    measurement: {
+      measurement_id: data.measurement.measurement_id || null,
+      status: data.measurement.status || null,
+      metrics: data.measurement.metrics || {}
+    },
+    learning: {
+      state: data.learning.learning?.state || null,
+      decision_input: data.learning.learning?.decision_input || null,
+      confidence: data.learning.learning?.confidence || null
+    },
+    feedback_signal: {
+      finding: data.investigation.finding || null,
+      next_action: data.investigation.next_action || null
+    },
+    persisted: persisted ? {
+      feedback_run_id: persisted.id,
+      duplicate: persisted.duplicate
+    } : false,
+    guardrails: {
+      strategy_change: false,
+      winner_declared: false,
+      automatic_execution: false,
+      business_data_mutation: false,
+      requires_human_approval: true
+    },
+    next_step: mode === "execute" ? "MEASUREMENT_REENTRY" : "POST approved:true to persist feedback."
   };
 }
 
 export async function onRequestGet(context) {
   try {
     const DB = context.env?.DB;
-    if (!DB) return json({
-      success: false,
-      layer: LAYER,
-      status: "DB_BINDING_NOT_FOUND"
-    }, 500);
+    if (!DB) return json({ success: false, layer: LAYER, status: "DB_BINDING_NOT_FOUND" }, 500);
 
     const url = new URL(context.request.url);
     const executionRunId = url.searchParams.get("execution_run_id");
     const actionRunId = url.searchParams.get("action_run_id");
+    const persist = url.searchParams.get("persist") === "1";
 
-    if (!executionRunId && !actionRunId) return json({
-      success: false,
-      layer: LAYER,
-      status: "ERROR",
-      error: "execution_run_id or action_run_id is required"
-    }, 400);
+    if (!executionRunId && !actionRunId) {
+      return json({ success: false, layer: LAYER, status: "ERROR", error: "execution_run_id or action_run_id is required" }, 400);
+    }
 
     const execution = await getExecution(DB, executionRunId, actionRunId);
-    if (!execution) return json({
-      success: false,
-      layer: LAYER,
-      status: "EXECUTION_NOT_FOUND"
-    }, 404);
+    if (!execution) return json({ success: false, layer: LAYER, status: "EXECUTION_NOT_FOUND" }, 404);
 
     const data = await buildFeedback(context, execution);
 
-    return json({
-      success: true,
-      layer: LAYER,
-      version: "1.0",
-      mode: "preview",
-      status: "FEEDBACK_READY",
-      content_id: data.contentId,
-      execution: {
-        execution_run_id: execution.id,
-        action_run_id: execution.action_run_id,
-        status: execution.status,
-        investigation: data.investigation
-      },
-      measurement: {
-        measurement_id: data.measurement.measurement_id || null,
-        status: data.measurement.status || null,
-        metrics: data.measurement.metrics || {}
-      },
-      learning: {
-        state: data.learning.learning?.state || null,
-        decision_input: data.learning.learning?.decision_input || null,
-        confidence: data.learning.learning?.confidence || null
-      },
-      feedback_signal: {
-        finding: data.investigation.finding || null,
-        next_action: data.investigation.next_action || null
-      },
-      guardrails: {
-        strategy_change: false,
-        winner_declared: false,
-        automatic_execution: false,
-        business_data_mutation: false,
-        requires_human_approval: true
-      },
-      next_step: "POST approved:true to persist feedback."
-    });
+    if (persist) {
+      const persisted = await persistFeedback(DB, execution, data, "HUMAN_BROWSER");
+      return json(responsePayload(data, execution, "execute", persisted));
+    }
+
+    return json(responsePayload(data, execution, "preview"));
   } catch (error) {
-    return json({
-      success: false,
-      layer: LAYER,
-      version: "1.0",
-      status: "ERROR",
-      error: error?.message || String(error)
-    }, 500);
+    return json({ success: false, layer: LAYER, version: "1.1", status: "ERROR", error: error?.message || String(error) }, 500);
   }
 }
 
 export async function onRequestPost(context) {
   try {
     const DB = context.env?.DB;
-    if (!DB) return json({
-      success: false,
-      layer: LAYER,
-      status: "DB_BINDING_NOT_FOUND"
-    }, 500);
+    if (!DB) return json({ success: false, layer: LAYER, status: "DB_BINDING_NOT_FOUND" }, 500);
 
     let body = {};
     try { body = await context.request.json(); } catch (_) {}
 
-    if (body.approved !== true) return json({
-      success: false,
-      layer: LAYER,
-      status: "APPROVAL_REQUIRED",
-      error: "approved:true is required"
-    }, 403);
+    if (body.approved !== true) {
+      return json({ success: false, layer: LAYER, status: "APPROVAL_REQUIRED", error: "approved:true is required" }, 403);
+    }
 
     const executionRunId = body.execution_run_id;
-    if (!executionRunId) return json({
-      success: false,
-      layer: LAYER,
-      status: "ERROR",
-      error: "execution_run_id is required"
-    }, 400);
+    if (!executionRunId) {
+      return json({ success: false, layer: LAYER, status: "ERROR", error: "execution_run_id is required" }, 400);
+    }
 
-    const execution = await getExecution(DB, executionRunId, null);
-    if (!execution) return json({
-      success: false,
-      layer: LAYER,
-      status: "EXECUTION_NOT_FOUND"
-    }, 404);
+    const execution = await getExecution(DB, executionRunId);
+    if (!execution) return json({ success: false, layer: LAYER, status: "EXECUTION_NOT_FOUND" }, 404);
 
     const data = await buildFeedback(context, execution);
+    const persisted = await persistFeedback(DB, execution, data, body.approval_source || "HUMAN");
 
-    await DB.prepare(`
-      CREATE TABLE IF NOT EXISTS feedback_runs (
-        id TEXT PRIMARY KEY,
-        execution_run_id TEXT NOT NULL,
-        action_run_id TEXT,
-        content_id TEXT NOT NULL,
-        status TEXT NOT NULL,
-        input_data TEXT,
-        output_data TEXT,
-        created_at TEXT NOT NULL
-      )
-    `).run();
-
-    const feedbackId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-
-    await DB.prepare(`
-      INSERT INTO feedback_runs
-      (id, execution_run_id, action_run_id, content_id, status,
-       input_data, output_data, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      feedbackId,
-      execution.id,
-      execution.action_run_id || null,
-      data.contentId,
-      "COMPLETED",
-      JSON.stringify({
-        approved: true,
-        approval_source: body.approval_source || "HUMAN"
-      }),
-      JSON.stringify({
-        investigation: data.investigation,
-        measurement: data.measurement,
-        learning: data.learning
-      }),
-      createdAt
-    ).run();
-
-    return json({
-      success: true,
-      layer: LAYER,
-      version: "1.0",
-      mode: "execute",
-      status: "FEEDBACK_REENTERED",
-      feedback_run_id: feedbackId,
-      content_id: data.contentId,
-      execution_run_id: execution.id,
-      feedback_signal: {
-        finding: data.investigation.finding || null,
-        next_action: data.investigation.next_action || null
-      },
-      measurement: data.measurement.metrics || {},
-      learning: data.learning.learning || null,
-      guardrails: {
-        strategy_change: false,
-        winner_declared: false,
-        automatic_execution: false,
-        business_data_mutation: false,
-        requires_decision_layer: true
-      },
-      next_stage: "DECISION_LAYER"
-    });
+    return json(responsePayload(data, execution, "execute", persisted));
   } catch (error) {
-    return json({
-      success: false,
-      layer: LAYER,
-      version: "1.0",
-      status: "ERROR",
-      error: error?.message || String(error)
-    }, 500);
+    return json({ success: false, layer: LAYER, version: "1.1", status: "ERROR", error: error?.message || String(error) }, 500);
   }
 }
