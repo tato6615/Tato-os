@@ -442,7 +442,7 @@ export async function onRequest(context) {
       }, 400);
     }
 
-    return handleCreate(db, body);
+    return await handleCreate(db, body);
   } catch (error) {
     return json({
       success: false,
