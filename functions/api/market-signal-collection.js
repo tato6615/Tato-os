@@ -11,23 +11,20 @@
 //        ↓
 // Market Intelligence
 //
-// Market Signal Collection DOES:
-// - inspect the real D1 schema
+// DOES:
+// - inspect real D1 schema
 // - collect externally verified market evidence
 // - store evidence in market_signals
 // - preserve source and evidence metadata
 // - distinguish test data from external data
 // - prepare handoff to Market Intelligence
 //
-// Market Signal Collection DOES NOT:
+// DOES NOT:
 // - invent market data
 // - treat test data as external evidence
 // - create opportunities
 // - create decisions
 // - execute actions
-//
-// Source of truth:
-// - D1 market_signals
 
 const COLLECTION_ENGINE = "MARKET_SIGNAL_COLLECTION_V1";
 const COLLECTION_VERSION = "1.0.2";
@@ -40,17 +37,30 @@ const TEST_SOURCES = new Set([
   "fixture"
 ]);
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=UTF-8"
+function json(data, status) {
+  if (status === undefined) {
+    status = 200;
+  }
+
+  return new Response(
+    JSON.stringify(data, null, 2),
+    {
+      status: status,
+      headers: {
+        "content-type": "application/json; charset=UTF-8"
+      }
     }
-  });
+  );
 }
 
-function safeJson(value, fallback = {}) {
-  if (!value) return fallback;
+function safeJson(value, fallback) {
+  if (fallback === undefined) {
+    fallback = {};
+  }
+
+  if (!value) {
+    return fallback;
+  }
 
   if (typeof value === "object") {
     return value;
@@ -58,7 +68,7 @@ function safeJson(value, fallback = {}) {
 
   try {
     return JSON.parse(value);
-  } catch {
+  } catch (error) {
     return fallback;
   }
 }
@@ -100,22 +110,14 @@ function isExternalVerified(metadata, source) {
     return false;
   }
 
-  /*
-   * A non-test source is not automatically considered
-   * externally verified unless the caller explicitly
-   * provides evidence metadata.
-   */
   return false;
 }
 
 async function getMarketSignalsSchema(env) {
-  /*
-   * IMPORTANT:
-   * Keep PRAGMA SQL inside a JavaScript string.
-   * Do not write raw PRAGMA syntax directly in JS.
-   */
   const result = await env.DB
-    .prepare("PRAGMA table_info(market_signals)")
+    .prepare(
+      "PRAGMA table_info(market_signals)"
+    )
     .all();
 
   return result.results || [];
@@ -123,7 +125,9 @@ async function getMarketSignalsSchema(env) {
 
 function schemaColumnNames(schema) {
   return new Set(
-    schema.map(column => column.name)
+    schema.map(function(column) {
+      return column.name;
+    })
   );
 }
 
@@ -147,11 +151,15 @@ async function getCollectionStatus(env) {
 
   const availableColumns =
     preferredColumns.filter(
-      column => columns.has(column)
+      function(column) {
+        return columns.has(column);
+      }
     );
 
-  if (!availableColumns.includes("source") ||
-      !availableColumns.includes("title")) {
+  if (
+    !availableColumns.includes("source") ||
+    !availableColumns.includes("title")
+  ) {
     throw new Error(
       "MARKET_SIGNALS_REQUIRED_COLUMNS_MISSING"
     );
@@ -159,28 +167,33 @@ async function getCollectionStatus(env) {
 
   const selectList =
     availableColumns
-      .map(column => `"${column}"`)
+      .map(function(column) {
+        return "\"" + column + "\"";
+      })
       .join(", ");
 
-  const orderColumn =
-    columns.has("detected_at")
-      ? "detected_at"
-      : columns.has("created_at")
-        ? "created_at"
-        : "rowid";
+  let orderColumn = "rowid";
+
+  if (columns.has("detected_at")) {
+    orderColumn = "detected_at";
+  } else if (columns.has("created_at")) {
+    orderColumn = "created_at";
+  }
+
+  const sql =
+    "SELECT " +
+    selectList +
+    " FROM market_signals" +
+    " ORDER BY " +
+    orderColumn +
+    " DESC LIMIT 100";
 
   const result = await env.DB
-    .prepare(
-      "SELECT " +
-      selectList +
-      " FROM market_signals" +
-      " ORDER BY " +
-      orderColumn +
-      " DESC LIMIT 100"
-    )
+    .prepare(sql)
     .all();
 
-  const rows = result.results || [];
+  const rows =
+    result.results || [];
 
   let externalVerifiedRecords = 0;
   let testRecords = 0;
@@ -192,12 +205,15 @@ async function getCollectionStatus(env) {
     const source =
       row.source || "";
 
-    if (isTestSource(source) ||
-        metadata.test === true ||
-        metadata.demo === true ||
-        metadata.mock === true ||
-        metadata.sample === true ||
-        metadata.fixture === true) {
+    const testSignal =
+      isTestSource(source) ||
+      metadata.test === true ||
+      metadata.demo === true ||
+      metadata.mock === true ||
+      metadata.sample === true ||
+      metadata.fixture === true;
+
+    if (testSignal) {
       testRecords++;
     }
 
@@ -212,7 +228,8 @@ async function getCollectionStatus(env) {
   }
 
   return {
-    total_records: rows.length,
+    total_records:
+      rows.length,
 
     external_verified_records:
       externalVerifiedRecords,
@@ -303,14 +320,9 @@ async function createMarketSignal(env, body) {
   const metadata =
     body.metadata &&
     typeof body.metadata === "object"
-      ? {
-          ...body.metadata
-        }
+      ? Object.assign({}, body.metadata)
       : {};
 
-  /*
-   * External verification must be explicit.
-   */
   const externalVerified =
     body.external_verified === true ||
     metadata.external_verified === true ||
@@ -325,9 +337,6 @@ async function createMarketSignal(env, body) {
     metadata.fixture === true ||
     isTestSource(source);
 
-  /*
-   * Test data must never be marked as externally verified.
-   */
   if (testSignal) {
     metadata.test = true;
     metadata.external_verified = false;
@@ -342,24 +351,22 @@ async function createMarketSignal(env, body) {
     new Date().toISOString();
 
   const confidence =
-    body.confidence ??
-    null;
+    body.confidence !== undefined
+      ? body.confidence
+      : null;
 
   const payload = {};
 
   if (columns.has("source")) {
-    payload.source =
-      source;
+    payload.source = source;
   }
 
   if (columns.has("title")) {
-    payload.title =
-      title;
+    payload.title = title;
   }
 
   if (columns.has("confidence")) {
-    payload.confidence =
-      confidence;
+    payload.confidence = confidence;
   }
 
   if (columns.has("metadata")) {
@@ -368,8 +375,7 @@ async function createMarketSignal(env, body) {
   }
 
   if (columns.has("detected_at")) {
-    payload.detected_at =
-      detectedAt;
+    payload.detected_at = detectedAt;
   }
 
   if (columns.has("category")) {
@@ -390,36 +396,64 @@ async function createMarketSignal(env, body) {
 
   const placeholders =
     insertColumns
-      .map(() => "?")
+      .map(function() {
+        return "?";
+      })
       .join(", ");
 
   const values =
     insertColumns.map(
-      column =>
-        payload[column]
+      function(column) {
+        return payload[column];
+      }
     );
+
+  const quotedColumns =
+    insertColumns
+      .map(function(column) {
+        return "\"" + column + "\"";
+      })
+      .join(", ");
 
   const sql =
     "INSERT INTO market_signals (" +
-    insertColumns
-      .map(column => `"${column}"`)
-      .join(", ") +
+    quotedColumns +
     ") VALUES (" +
     placeholders +
     ")";
 
   const result = await env.DB
     .prepare(sql)
-    .bind(...values)
-    .run();
+    .bind.apply(
+      env.DB.prepare(sql),
+      values
+    );
+
+  /*
+   * The previous bind construction above is intentionally
+   * replaced below with a single prepared statement so that
+   * D1 receives the values correctly.
+   */
+  const statement =
+    env.DB
+      .prepare(sql)
+      .bind.apply(
+        env.DB.prepare(sql),
+        values
+      );
+
+  const insertResult =
+    await statement.run();
 
   return {
     success:
       true,
 
     id:
-      result.meta?.last_row_id ||
-      null,
+      insertResult.meta &&
+      insertResult.meta.last_row_id
+        ? insertResult.meta.last_row_id
+        : null,
 
     external_verified:
       !testSignal &&
@@ -431,10 +465,11 @@ async function createMarketSignal(env, body) {
 }
 
 export async function onRequest(context) {
-  const {
-    request,
-    env
-  } = context;
+  const request =
+    context.request;
+
+  const env =
+    context.env;
 
   try {
     if (!env || !env.DB) {
@@ -473,7 +508,26 @@ export async function onRequest(context) {
         operation:
           "COLLECTION_STATUS",
 
-        ...status
+        total_records:
+          status.total_records,
+
+        external_verified_records:
+          status.external_verified_records,
+
+        test_records:
+          status.test_records,
+
+        real_market_evidence_available:
+          status.real_market_evidence_available,
+
+        schema:
+          status.schema,
+
+        handoff:
+          status.handoff,
+
+        guardrails:
+          status.guardrails
       });
     }
 
@@ -483,7 +537,7 @@ export async function onRequest(context) {
       try {
         body =
           await request.json();
-      } catch {
+      } catch (error) {
         return json(
           {
             success:
@@ -600,8 +654,10 @@ export async function onRequest(context) {
           COLLECTION_VERSION,
 
         error:
-          error?.message ||
-          "UNKNOWN_ERROR"
+          error &&
+          error.message
+            ? error.message
+            : "UNKNOWN_ERROR"
       },
       500
     );
