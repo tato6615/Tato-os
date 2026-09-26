@@ -8,7 +8,7 @@
 // - Keep missing real-world costs as missing; never invent them.
 //
 // Current target:
-//   PROFIT = THB 100,000 / month
+//   GROSS PROFIT = THB 100,000 / month
 //
 // This is a business-domain service. It does not modify the closed
 // Measurement / Intelligence / Learning / Decision / Action layers.
@@ -77,12 +77,19 @@ async function ensureTable(db) {
 }
 
 function monthRange(value) {
+  let month = null;
+
   if (value) {
     const m = String(value).match(/^(\\d{4})-(\\d{2})$/);
     if (m) {
-      const start = `${m[1]}-${m[2]}-01T00:00:00.000Z`;
+      month = `${m[1]}-${m[2]}`;
+      const startDate = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
       const endDate = new Date(Date.UTC(Number(m[1]), Number(m[2]), 1));
-      return { start, end: endDate.toISOString() };
+      return {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        month
+      };
     }
   }
 
@@ -97,33 +104,85 @@ function monthRange(value) {
   };
 }
 
-async function getMonthlyProfit(db, range) {
-  const row = await db.prepare(`
+async function getVerifiedMonthlyProfit(db, range) {
+  // Commercial truth:
+  // revenue comes only from verified payments.
+  // product cost comes only from a real product cost configured in products.
+  // No quantity is guessed; orders.total_kg is the unit quantity for coffee.
+  const info = await db.prepare("PRAGMA table_info(products)").all();
+  const columns = (info.results || []).map(x => x.name);
+
+  const costColumn = columns.includes("cost_price")
+    ? "cost_price"
+    : columns.includes("cost")
+      ? "cost"
+      : null;
+
+  if (!costColumn) {
+    return {
+      available: false,
+      reason: "PRODUCT_COST_COLUMN_NOT_FOUND",
+      revenue: 0,
+      cost: 0,
+      profit: 0,
+      records: 0
+    };
+  }
+
+  const rows = await db.prepare(`
     SELECT
-      COALESCE(SUM(revenue), 0) AS revenue,
-      COALESCE(SUM(cost), 0) AS cost,
-      COALESCE(SUM(gross_profit), 0) AS profit,
-      COUNT(*) AS records
-    FROM profit_ledger
-    WHERE calculated_at >= ? AND calculated_at < ?
-  `).bind(range.start, range.end).first();
+      rl.id,
+      rl.order_id,
+      rl.amount AS revenue,
+      o.total_kg,
+      p.${costColumn} AS cost_per_kg,
+      p.name AS product_name
+    FROM revenue_ledger rl
+    JOIN orders o ON o.id = rl.order_id
+    LEFT JOIN products p ON p.id = o.product_id
+    WHERE rl.recognized_at >= ?
+      AND rl.recognized_at < ?
+  `).bind(range.start, range.end).all();
+
+  let revenue = 0;
+  let cost = 0;
+  let completeRecords = 0;
+  let incompleteRecords = 0;
+  const details = [];
+
+  for (const row of (rows.results || [])) {
+    const rowRevenue = Number(row.revenue || 0);
+    const kg = Number(row.total_kg || 0);
+    const unitCost = Number(row.cost_per_kg);
+
+    revenue += rowRevenue;
+
+    if (Number.isFinite(unitCost) && unitCost >= 0 && kg >= 0) {
+      cost += unitCost * kg;
+      completeRecords += 1;
+      details.push({
+        order_id: row.order_id,
+        product: row.product_name || null,
+        kg,
+        revenue: rowRevenue,
+        cost: unitCost * kg,
+        gross_profit: rowRevenue - (unitCost * kg)
+      });
+    } else {
+      incompleteRecords += 1;
+    }
+  }
 
   return {
-    revenue: Number(row?.revenue || 0),
-    cost: Number(row?.cost || 0),
-    profit: Number(row?.profit || 0),
-    records: Number(row?.records || 0)
+    available: completeRecords > 0 || (rows.results || []).length === 0,
+    revenue,
+    cost,
+    profit: revenue - cost,
+    records: (rows.results || []).length,
+    complete_cost_records: completeRecords,
+    incomplete_cost_records: incompleteRecords,
+    details
   };
-}
-
-async function getMonthlyPaidRevenue(db, range) {
-  const row = await db.prepare(`
-    SELECT COALESCE(SUM(amount), 0) AS revenue
-    FROM revenue_ledger
-    WHERE recognized_at >= ? AND recognized_at < ?
-  `).bind(range.start, range.end).first();
-
-  return Number(row?.revenue || 0);
 }
 
 async function getUnitEconomics(db) {
@@ -145,7 +204,8 @@ async function getUnitEconomics(db) {
   if (!saleColumn || !costColumn) {
     return {
       available: false,
-      reason: "PRODUCT_PRICE_OR_COST_COLUMN_NOT_FOUND"
+      reason: "PRODUCT_PRICE_OR_COST_COLUMN_NOT_FOUND",
+      products: []
     };
   }
 
@@ -182,8 +242,7 @@ async function getUnitEconomics(db) {
 async function dashboard(db, month) {
   const goal = await ensureTable(db);
   const range = monthRange(month);
-  const profit = await getMonthlyProfit(db, range);
-  const paidRevenue = await getMonthlyPaidRevenue(db, range);
+  const profit = await getVerifiedMonthlyProfit(db, range);
   const economics = await getUnitEconomics(db);
 
   const target = Number(goal?.target_value || TARGET_PROFIT);
@@ -202,13 +261,15 @@ async function dashboard(db, month) {
       metric: goal.metric,
       target_value: target,
       currency: goal.currency,
-      period: range.month || String(month || "").slice(0, 7)
+      period: range.month
     },
     actual: {
-      verified_paid_revenue: paidRevenue,
-      recorded_profit: achieved,
-      recorded_cost: profit.cost,
-      profit_ledger_records: profit.records
+      verified_paid_revenue: profit.revenue,
+      recorded_cost_from_real_product_cost: profit.cost,
+      gross_profit: achieved,
+      verified_payment_records: profit.records,
+      complete_cost_records: profit.complete_cost_records,
+      incomplete_cost_records: profit.incomplete_cost_records
     },
     progress: {
       target: target,
@@ -220,9 +281,11 @@ async function dashboard(db, month) {
     },
     unit_economics: economics,
     data_quality: {
-      profit_source: "profit_ledger",
-      revenue_source: "revenue_ledger",
+      revenue_source: "revenue_ledger_from_verified_payment",
+      cost_source: "orders.total_kg × products.cost_price",
       uses_verified_payment_revenue: true,
+      uses_real_product_cost: true,
+      uses_order_total_kg: true,
       invents_sales: false,
       invents_cost: false,
       invents_profit: false,
@@ -237,10 +300,10 @@ async function dashboard(db, month) {
       automatic_execution: false
     },
     next: {
-      required_for_true_net_profit:
-        "Record real operating expenses separately before treating the target as NET_PROFIT.",
       commercial_focus:
-        "Increase verified profitable sales until the monthly profit target is reached."
+        "Increase verified profitable sales until the monthly gross-profit target is reached.",
+      note:
+        "This target is GROSS_PROFIT. True NET_PROFIT requires real operating expenses to be recorded separately."
     }
   };
 }
