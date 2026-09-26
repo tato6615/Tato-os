@@ -312,7 +312,7 @@ async function runProductionLoop(btn){
   if(b){b.disabled=true;b.textContent='⏳ Running…'}
   if(runStatus)runStatus.textContent='RUNNING';
   setStatus('RUNNING');
-  toast('Starting Demand → Content → Canva handoff…');
+  toast('Creating NEW Content from Demand…');
   try{
     if(!state.demand?.plans?.length) await loadDemand();
     const plans=state.demand?.plans||[];
@@ -329,10 +329,7 @@ async function runProductionLoop(btn){
         mode:'launch',
         demand_plan_id:preferred.id,
         content_id:CONTENT_ID,
-        canva_external_id:'DAHWTAi70fI',
-        canva_external_url:'https://www.canva.com/d/YaQTllOOvYu_EoB',
-        canva_asset_type:'INSTAGRAM_POST'
-      })
+              })
     });
     clearTimeout(timer);
     const out=await r.json();
@@ -340,7 +337,7 @@ async function runProductionLoop(btn){
     await loadProduction();
     go('production');
     setStatus('PRODUCTION_LOOP_READY');
-    toast(out.asset?'Production loop ready · Canva linked':'Production brief ready · Canva asset required');
+    toast(out.content?'NEW Content created · ready for Canva':'Production loop ready');
   }catch(e){
     const msg=e.name==='AbortError'?'Request timed out after 15s':(e.message||String(e));
     setStatus('ERROR');
