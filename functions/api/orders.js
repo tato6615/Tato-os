@@ -1,4 +1,4 @@
-const VERSION = "1.3";
+const VERSION = "1.4";
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -125,9 +125,10 @@ async function createOrder(db, body) {
   const placeholders = names.map(function () { return "?"; }).join(", ");
   const values = names.map(function (key) { return data[key]; });
 
-  await db.prepare(
+  const insertStatement = db.prepare(
     "INSERT INTO orders (" + names.join(", ") + ") VALUES (" + placeholders + ")"
-  ).bind.apply(null, values).run();
+  );
+  await insertStatement.bind(...values).run();
 
   const created = await db.prepare(
     "SELECT o.*, c.name AS customer_name " +
