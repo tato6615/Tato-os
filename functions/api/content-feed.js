@@ -21,6 +21,7 @@
 // - Offer is revealed only after content_click
 // - product_view is recorded when the revealed Offer becomes visible
 // - product_view is recorded at most once per page session
+// - server enforces product_view attribution and idempotency
 // - content_id + distribution_id + session_id preserved
 
 function json(data, status = 200) {
@@ -221,6 +222,83 @@ async function recordEvent(db, options) {
     metadata = {},
     customerId = null
   } = options;
+
+  // Product view is a session-level funnel milestone.
+  // Enforce idempotency server-side so reloads/retries cannot
+  // create a second product_view for the same content session.
+  if (
+    eventType === "product_view" &&
+    contentId &&
+    distributionId &&
+    sessionId
+  ) {
+    const existing = await first(
+      db,
+      `
+      SELECT id, event_type, session_id
+      FROM behavior_events
+      WHERE event_type = 'product_view'
+        AND session_id = ?
+        AND json_extract(metadata, '$.content_id') = ?
+        AND json_extract(metadata, '$.distribution_id') = ?
+      ORDER BY datetime(created_at) ASC
+      LIMIT 1
+      `,
+      sessionId,
+      contentId,
+      distributionId
+    );
+
+    if (existing) {
+      return {
+        id: existing.id,
+        event_type: "product_view",
+        content_id: contentId,
+        distribution_id: distributionId,
+        session_id: sessionId,
+        duplicate: true
+      };
+    }
+  }
+
+  // Server-side attribution guard:
+  // product_view is valid only when a content_click already exists
+  // for the same content, distribution and session.
+  if (
+    eventType === "product_view" &&
+    contentId &&
+    distributionId &&
+    sessionId
+  ) {
+    const priorClick = await first(
+      db,
+      `
+      SELECT id
+      FROM behavior_events
+      WHERE event_type = 'content_click'
+        AND session_id = ?
+        AND json_extract(metadata, '$.content_id') = ?
+        AND json_extract(metadata, '$.distribution_id') = ?
+      ORDER BY datetime(created_at) ASC
+      LIMIT 1
+      `,
+      sessionId,
+      contentId,
+      distributionId
+    );
+
+    if (!priorClick) {
+      return {
+        id: null,
+        event_type: "product_view",
+        content_id: contentId,
+        distribution_id: distributionId,
+        session_id: sessionId,
+        rejected: true,
+        reason: "CONTENT_CLICK_REQUIRED"
+      };
+    }
+  }
 
   const id = uid();
 
@@ -737,22 +815,24 @@ h1 {
 
         track("content_click", {
           cta: true
-        });
+        }).then(function () {
 
-        if (offer) {
+          if (offer) {
 
-          offer.hidden = false;
+            offer.hidden = false;
 
-          if (offerObserver) {
-            offerObserver.observe(offer);
+            if (offerObserver) {
+              offerObserver.observe(offer);
+            }
+
+            offer.scrollIntoView({
+              behavior: "smooth",
+              block: "start"
+            });
+
           }
 
-          offer.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-          });
-
-        }
+        });
 
       }
     );
@@ -977,11 +1057,21 @@ export async function onRequest(context) {
           }
         );
 
+      if (event.rejected) {
+        return json({
+          success: false,
+          layer: "CONTENT_FEED_V1",
+          mode: "event",
+          status: "REJECTED",
+          event
+        }, 409);
+      }
+
       return json({
         success: true,
         layer: "CONTENT_FEED_V1",
         mode: "event",
-        status: "RECORDED",
+        status: event.duplicate ? "DUPLICATE_IGNORED" : "RECORDED",
         event
       });
 
