@@ -1,4 +1,3 @@
-```javascript
 // TATO-OS
 // Orders API V1.1
 // Route: /api/orders
@@ -16,7 +15,7 @@
 //   status
 //
 // IMPORTANT:
-// - products uses `status`, NOT `active`
+// - products uses status, NOT active
 // - This file never queries products.active
 // - GET /api/orders
 // - POST /api/orders
@@ -137,7 +136,7 @@ async function createOrder(db, body) {
   }
 
   // IMPORTANT:
-  // Current products table uses `status`.
+  // Current products table uses status.
   // Do NOT use products.active here.
   const product = await db.prepare(`
     SELECT
@@ -160,7 +159,7 @@ async function createOrder(db, body) {
   }
 
   // Prevent orders against an explicitly inactive product.
-  // Supports the existing lowercase `active` default
+  // Supports the existing lowercase active default
   // and the UI's uppercase `ACTIVE`.
   const productStatus = text(product.status).toLowerCase();
 
