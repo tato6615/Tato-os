@@ -1,6 +1,6 @@
-```js
+```javascript
 // TATO-OS
-// Market Signal Collection V1.0
+// Market Signal Collection V1.0.1
 // Route: /api/market-signal-collection
 //
 // Business Layer:
@@ -17,26 +17,27 @@
 //
 // DOES:
 // - accept externally observed market evidence
-// - validate required evidence fields
+// - validate evidence
 // - store evidence in D1 market_signals
 // - preserve source/evidence metadata
-// - distinguish VERIFIED_EXTERNAL from TEST/MOCK
+// - distinguish external evidence from test data
 // - expose collection status
 //
 // DOES NOT:
-// - invent market signals
-// - scrape the internet automatically
-// - declare opportunities
-// - change strategy
+// - invent market data
+// - create opportunities
 // - create decisions
 // - execute actions
 //
-// Source of truth:
-// - external evidence supplied to this endpoint
-// - D1 market_signals
+// Confirmed market_signals schema:
+// id
+// source
+// title
+// metadata
+// detected_at
 
 const ENGINE = "MARKET_SIGNAL_COLLECTION_V1";
-const VERSION = "1.0";
+const VERSION = "1.0.1";
 
 const TEST_SOURCES = new Set([
   "test",
@@ -46,19 +47,13 @@ const TEST_SOURCES = new Set([
   "fixture"
 ]);
 
-const REQUIRED_EXTERNAL_FIELDS = [
-  "source",
-  "title"
-];
-
 function json(data, status = 200) {
   return new Response(
     JSON.stringify(data, null, 2),
     {
       status,
       headers: {
-        "content-type":
-          "application/json; charset=UTF-8"
+        "content-type": "application/json; charset=UTF-8"
       }
     }
   );
@@ -72,8 +67,10 @@ function normalize(value) {
   return text(value).toLowerCase();
 }
 
-function safeJson(value, fallback = {}) {
-  if (!value) return fallback;
+function safeJson(value) {
+  if (!value) {
+    return {};
+  }
 
   if (typeof value === "object") {
     return value;
@@ -82,7 +79,7 @@ function safeJson(value, fallback = {}) {
   try {
     return JSON.parse(value);
   } catch {
-    return fallback;
+    return {};
   }
 }
 
@@ -92,14 +89,12 @@ function isTestSource(source) {
   );
 }
 
-function isExternalSource(source) {
-  if (!source) return false;
-
-  return !isTestSource(source);
-}
-
 function normalizeConfidence(value) {
-  if (value === null || value === undefined) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
@@ -111,10 +106,7 @@ function normalizeConfidence(value) {
 
   if (number > 1 && number <= 100) {
     return Number(
-      Math.max(
-        0,
-        Math.min(1, number / 100)
-      ).toFixed(3)
+      (number / 100).toFixed(3)
     );
   }
 
@@ -177,77 +169,51 @@ function normalizeIntent(body, metadata) {
   return "UNKNOWN";
 }
 
-async function getSchema(env) {
-  const result = await env.DB
-    .prepare(`
-      PRAGMA table_info(market_signals)
-    `)
-    .all();
-
-  return result.results || [];
-}
-
-function getColumns(schema) {
-  return new Set(
-    schema.map(column => column.name)
-  );
-}
-
-function validateExternalEvidence(body) {
+function validateEvidence(body) {
   const errors = [];
 
-  for (
-    const field of REQUIRED_EXTERNAL_FIELDS
-  ) {
-    if (!text(body[field])) {
-      errors.push(`${field}_required`);
-    }
+  const source =
+    text(body.source);
+
+  const title =
+    text(body.title);
+
+  if (!source) {
+    errors.push("source_required");
   }
 
-  const source = text(body.source);
+  if (!title) {
+    errors.push("title_required");
+  }
 
   if (
     source &&
     isTestSource(source)
   ) {
     errors.push(
-      "test_source_not_allowed_for_external_collection"
+      "test_source_not_allowed"
     );
   }
 
-  /*
-   * External collection must contain
-   * some evidence reference.
-   *
-   * This can be:
-   * - URL
-   * - external_id
-   * - evidence_reference
-   * - platform_post
-   * - search_reference
-   */
   const metadata =
-    safeJson(body.metadata, {});
+    safeJson(body.metadata);
 
   const evidenceUrl =
     text(
       body.evidence_url ||
-      metadata.evidence_url ||
-      ""
+      metadata.evidence_url
     );
 
   const externalId =
     text(
       body.external_id ||
-      metadata.external_id ||
-      ""
+      metadata.external_id
     );
 
   const evidenceReference =
     text(
       body.evidence_reference ||
-      metadata.evidence_reference ||
-      ""
+      metadata.evidence_reference
     );
 
   if (
@@ -265,12 +231,13 @@ function validateExternalEvidence(body) {
 
 function buildMetadata(body) {
   const existing =
-    safeJson(body.metadata, {});
+    safeJson(body.metadata);
 
   const metadata = {
     ...existing,
 
-    collection_engine: ENGINE,
+    collection_engine:
+      ENGINE,
 
     evidence_type:
       text(
@@ -285,17 +252,23 @@ function buildMetadata(body) {
         existing
       ),
 
-    external: true,
+    external:
+      true,
 
-    test: false,
+    test:
+      false,
 
-    demo: false,
+    demo:
+      false,
 
-    mock: false,
+    mock:
+      false,
 
-    sample: false,
+    sample:
+      false,
 
-    fixture: false,
+    fixture:
+      false,
 
     collected_at:
       new Date().toISOString()
@@ -304,8 +277,7 @@ function buildMetadata(body) {
   const evidenceUrl =
     text(
       body.evidence_url ||
-      existing.evidence_url ||
-      ""
+      existing.evidence_url
     );
 
   if (evidenceUrl) {
@@ -316,8 +288,7 @@ function buildMetadata(body) {
   const externalId =
     text(
       body.external_id ||
-      existing.external_id ||
-      ""
+      existing.external_id
     );
 
   if (externalId) {
@@ -328,8 +299,7 @@ function buildMetadata(body) {
   const evidenceReference =
     text(
       body.evidence_reference ||
-      existing.evidence_reference ||
-      ""
+      existing.evidence_reference
     );
 
   if (evidenceReference) {
@@ -341,12 +311,6 @@ function buildMetadata(body) {
 }
 
 async function insertSignal(env, body) {
-  const schema =
-    await getSchema(env);
-
-  const columns =
-    getColumns(schema);
-
   const source =
     text(body.source);
 
@@ -365,76 +329,24 @@ async function insertSignal(env, body) {
   const metadata =
     buildMetadata(body);
 
-  const payload = {};
-
-  /*
-   * Only write columns that actually
-   * exist in the current D1 schema.
-   */
-
-  if (columns.has("source")) {
-    payload.source = source;
-  }
-
-  if (columns.has("title")) {
-    payload.title = title;
-  }
-
-  if (columns.has("confidence")) {
-    payload.confidence =
-      confidence;
-  }
-
-  if (columns.has("metadata")) {
-    payload.metadata =
-      JSON.stringify(metadata);
-  }
-
-  if (columns.has("detected_at")) {
-    payload.detected_at =
-      detectedAt;
-  }
-
-  if (columns.has("category")) {
-    payload.category =
-      text(body.category) ||
-      "MARKET";
-  }
-
-  if (
-    Object.keys(payload).length === 0
-  ) {
-    throw new Error(
-      "MARKET_SIGNALS_SCHEMA_UNSUPPORTED"
-    );
-  }
-
-  const insertColumns =
-    Object.keys(payload);
-
-  const placeholders =
-    insertColumns
-      .map(() => "?")
-      .join(", ");
-
-  const values =
-    insertColumns.map(
-      column => payload[column]
-    );
-
   const result =
     await env.DB
       .prepare(`
-        INSERT INTO market_signals (
-          ${insertColumns
-            .map(
-              column => `"${column}"`
-            )
-            .join(", ")}
+        INSERT INTO market_signals
+        (
+          source,
+          title,
+          metadata,
+          detected_at
         )
-        VALUES (${placeholders})
+        VALUES (?, ?, ?, ?)
       `)
-      .bind(...values)
+      .bind(
+        source,
+        title,
+        JSON.stringify(metadata),
+        detectedAt
+      )
       .run();
 
   return {
@@ -442,14 +354,17 @@ async function insertSignal(env, body) {
       result.meta?.last_row_id ??
       null,
 
-    source,
+    source:
+      source,
 
-    title,
+    title:
+      title,
 
     intent:
       metadata.intent,
 
-    confidence,
+    confidence:
+      confidence,
 
     external_verified:
       true,
@@ -462,71 +377,58 @@ async function insertSignal(env, body) {
   };
 }
 
-async function collectionStatus(env) {
-  const schema =
-    await getSchema(env);
-
-  const columns =
-    getColumns(schema);
-
-  const result =
+async function getCollectionStatus(env) {
+  const totalResult =
     await env.DB
       .prepare(`
-        SELECT
-          COUNT(*) AS total
+        SELECT COUNT(*) AS total
         FROM market_signals
       `)
       .all();
 
   const total =
     Number(
-      result.results?.[0]?.total || 0
+      totalResult.results?.[0]?.total || 0
     );
 
-  /*
-   * Read metadata only where possible.
-   * Current schema has metadata.
-   */
+  const rowsResult =
+    await env.DB
+      .prepare(`
+        SELECT
+          source,
+          metadata
+        FROM market_signals
+        ORDER BY datetime(detected_at) DESC
+        LIMIT 100
+      `)
+      .all();
+
   let externalCount = 0;
   let testCount = 0;
 
-  if (columns.has("metadata")) {
-    const rows =
-      await env.DB
-        .prepare(`
-          SELECT
-            source,
-            metadata
-          FROM market_signals
-          ORDER BY
-            detected_at DESC
-          LIMIT 100
-        `)
-        .all();
+  for (
+    const row of rowsResult.results || []
+  ) {
+    const metadata =
+      safeJson(row.metadata);
 
-    for (
-      const row of rows.results || []
+    if (
+      metadata.external === true
     ) {
-      const metadata =
-        safeJson(row.metadata, {});
+      externalCount++;
+    }
 
-      if (
-        metadata.external === true
-      ) {
-        externalCount++;
-      }
-
-      if (
-        metadata.test === true ||
-        isTestSource(row.source)
-      ) {
-        testCount++;
-      }
+    if (
+      metadata.test === true ||
+      isTestSource(row.source)
+    ) {
+      testCount++;
     }
   }
 
   return {
-    total_records: total,
+    total_records:
+      total,
 
     external_verified_records:
       externalCount,
@@ -538,38 +440,40 @@ async function collectionStatus(env) {
       externalCount > 0,
 
     schema: {
-      detected_columns:
-        schema.map(
-          column => column.name
-        ),
+      detected_columns: [
+        "id",
+        "source",
+        "title",
+        "metadata",
+        "detected_at"
+      ],
 
-      schema_checked: true,
-
-      metadata_available:
-        columns.has("metadata"),
+      schema_checked:
+        true,
 
       category_available:
-        columns.has("category"),
+        false,
 
       confidence_available:
-        columns.has("confidence"),
+        false,
+
+      metadata_available:
+        true,
 
       detected_at_available:
-        columns.has("detected_at")
+        true
     }
   };
 }
 
-export async function onRequest(
-  context
-) {
+export async function onRequest(context) {
   const {
     request,
     env
   } = context;
 
   try {
-    if (!env?.DB) {
+    if (!env || !env.DB) {
       return json(
         {
           success: false,
@@ -582,23 +486,22 @@ export async function onRequest(
       );
     }
 
-    /*
-     * GET
-     *
-     * Collection readiness/status.
-     */
     if (
       request.method === "GET"
     ) {
       const status =
-        await collectionStatus(env);
+        await getCollectionStatus(
+          env
+        );
 
       return json({
         success: true,
 
-        engine: ENGINE,
+        engine:
+          ENGINE,
 
-        version: VERSION,
+        version:
+          VERSION,
 
         operation:
           "COLLECTION_STATUS",
@@ -621,9 +524,6 @@ export async function onRequest(
           accepts_test_as_external:
             false,
 
-          writes_only_to_market_signals:
-            true,
-
           creates_opportunity:
             false,
 
@@ -636,12 +536,6 @@ export async function onRequest(
       });
     }
 
-    /*
-     * POST
-     *
-     * Add externally observed
-     * market evidence.
-     */
     if (
       request.method === "POST"
     ) {
@@ -664,7 +558,7 @@ export async function onRequest(
       }
 
       const errors =
-        validateExternalEvidence(
+        validateEvidence(
           body
         );
 
@@ -673,9 +567,11 @@ export async function onRequest(
           {
             success: false,
 
-            engine: ENGINE,
+            engine:
+              ENGINE,
 
-            version: VERSION,
+            version:
+              VERSION,
 
             operation:
               "MARKET_SIGNAL_REJECTED",
@@ -686,7 +582,7 @@ export async function onRequest(
         );
       }
 
-      const inserted =
+      const signal =
         await insertSignal(
           env,
           body
@@ -695,15 +591,17 @@ export async function onRequest(
       return json({
         success: true,
 
-        engine: ENGINE,
+        engine:
+          ENGINE,
 
-        version: VERSION,
+        version:
+          VERSION,
 
         operation:
           "EXTERNAL_MARKET_SIGNAL_COLLECTED",
 
         signal:
-          inserted,
+          signal,
 
         data_integrity: {
           records_from_external_evidence:
@@ -720,7 +618,8 @@ export async function onRequest(
           next_layer:
             "MARKET_INTELLIGENCE_V1",
 
-          ready: true
+          ready:
+            true
         },
 
         guardrails: {
@@ -745,8 +644,13 @@ export async function onRequest(
     return json(
       {
         success: false,
-        engine: ENGINE,
-        version: VERSION,
+
+        engine:
+          ENGINE,
+
+        version:
+          VERSION,
+
         error:
           "METHOD_NOT_ALLOWED"
       },
@@ -758,9 +662,11 @@ export async function onRequest(
       {
         success: false,
 
-        engine: ENGINE,
+        engine:
+          ENGINE,
 
-        version: VERSION,
+        version:
+          VERSION,
 
         error:
           error?.message ||
