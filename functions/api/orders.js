@@ -1,4 +1,4 @@
-const VERSION = "1.4";
+const VERSION = "1.5";
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -27,21 +27,32 @@ async function ensureOrdersTable(db) {
     "SELECT name FROM sqlite_master WHERE type='table' AND name='orders'"
   ).first();
 
-  if (exists) return;
+  if (!exists) {
+    await db.prepare(
+      "CREATE TABLE orders (" +
+      "id TEXT PRIMARY KEY," +
+      "customer_id TEXT," +
+      "total_amount REAL NOT NULL DEFAULT 0," +
+      "total_kg REAL NOT NULL DEFAULT 0," +
+      "status TEXT NOT NULL DEFAULT 'pending'," +
+      "created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
+      ")"
+    ).run();
+    return;
+  }
 
-  await db.prepare(
-    "CREATE TABLE orders (" +
-    "id TEXT PRIMARY KEY," +
-    "customer_id TEXT," +
-    "total_amount REAL NOT NULL DEFAULT 0," +
-    "total_kg REAL NOT NULL DEFAULT 0," +
-    "status TEXT NOT NULL DEFAULT 'pending'," +
-    "created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
-    ")"
-  ).run();
+  const cols = await tableColumns(db, "orders");
+
+  if (!cols.includes("total_kg")) {
+    await db.prepare(
+      "ALTER TABLE orders ADD COLUMN total_kg REAL NOT NULL DEFAULT 0"
+    ).run();
+  }
 }
 
 async function getOrders(db) {
+  await ensureOrdersTable(db);
+
   const rows = await db.prepare(
     "SELECT o.*, c.name AS customer_name " +
     "FROM orders o " +
@@ -103,6 +114,7 @@ async function createOrder(db, body) {
   const cols = await tableColumns(db, "orders");
   const allowed = new Set(cols);
   const id = createId("order");
+
   const data = {
     id: id,
     customer_id: customerId,
@@ -128,6 +140,7 @@ async function createOrder(db, body) {
   const insertStatement = db.prepare(
     "INSERT INTO orders (" + names.join(", ") + ") VALUES (" + placeholders + ")"
   );
+
   await insertStatement.bind(...values).run();
 
   const created = await db.prepare(
