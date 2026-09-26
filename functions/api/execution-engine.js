@@ -1,10 +1,11 @@
-const LAYER = "EXECUTION_ENGINE_V1";
+const LAYER = "EXECUTION_ENGINE_V1.1";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
-      "content-type": "application/json; charset=UTF-8"
+      "content-type": "application/json; charset=UTF-8",
+      "cache-control": "no-store"
     }
   });
 }
@@ -43,22 +44,10 @@ async function ensureExecutionRuns(DB) {
       )
     `).run();
 
-    return {
-      created: true
-    };
+    return { created: true };
   }
 
-  return {
-    created: false
-  };
-}
-
-async function getColumns(DB, table) {
-  const result = await DB.prepare(
-    `PRAGMA table_info(${table})`
-  ).all();
-
-  return (result.results || []).map(row => row.name);
+  return { created: false };
 }
 
 async function getAction(DB, actionRunId) {
@@ -79,27 +68,16 @@ async function getAction(DB, actionRunId) {
   `).first();
 }
 
-async function createExecutionRun(
-  DB,
-  action,
-  executionType,
-  inputData
-) {
+async function createExecutionRun(DB, action, executionType, inputData) {
   const id = uuid();
   const createdAt = now();
   const startedAt = now();
 
   await DB.prepare(`
     INSERT INTO execution_runs (
-      id,
-      action_run_id,
-      execution_type,
-      status,
-      input_data,
-      output_data,
-      started_at,
-      completed_at,
-      created_at
+      id, action_run_id, execution_type, status,
+      input_data, output_data, started_at,
+      completed_at, created_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
@@ -114,27 +92,15 @@ async function createExecutionRun(
     createdAt
   ).run();
 
-  return {
-    id,
-    started_at: startedAt,
-    created_at: createdAt
-  };
+  return { id, started_at: startedAt, created_at: createdAt };
 }
 
-async function completeExecutionRun(
-  DB,
-  executionId,
-  status,
-  outputData
-) {
+async function completeExecutionRun(DB, executionId, status, outputData) {
   const completedAt = now();
 
   await DB.prepare(`
     UPDATE execution_runs
-    SET
-      status = ?,
-      output_data = ?,
-      completed_at = ?
+    SET status = ?, output_data = ?, completed_at = ?
     WHERE id = ?
   `).bind(
     status,
@@ -146,45 +112,34 @@ async function completeExecutionRun(
   return completedAt;
 }
 
-async function executeMeasureContent(context, action) {
-  let payload = {};
-
+function parsePayload(action) {
   try {
-    payload = action.action_payload
+    return action.action_payload
       ? JSON.parse(action.action_payload)
       : {};
   } catch (_) {
-    payload = {};
+    return {};
   }
+}
 
-  const contentId =
-    payload.content_id ||
-    action.content_id ||
-    null;
+async function executeMeasureContent(context, action) {
+  const payload = parsePayload(action);
+  const contentId = payload.content_id || action.content_id || null;
 
   if (!contentId) {
-    throw new Error(
-      "MEASURE_CONTENT requires content_id"
-    );
+    throw new Error("MEASURE_CONTENT requires content_id");
   }
 
   const url = new URL(context.request.url);
-
   const measurementUrl =
-    `${url.origin}/api/content-measurement`;
+    `${url.origin}/api/content-measurement?content_id=${encodeURIComponent(contentId)}`;
 
   const response = await fetch(measurementUrl, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      content_id: contentId
-    })
+    method: "GET",
+    headers: { accept: "application/json" }
   });
 
   let result;
-
   try {
     result = await response.json();
   } catch (_) {
@@ -209,42 +164,103 @@ async function executeMeasureContent(context, action) {
   };
 }
 
-async function executeAction(context, action) {
-  let payload = {};
+async function executeInvestigateDownstreamPath(context, action) {
+  const payload = parsePayload(action);
+  const contentId = payload.content_id || action.content_id || null;
 
-  try {
-    payload = action.action_payload
-      ? JSON.parse(action.action_payload)
-      : {};
-  } catch (_) {
-    payload = {};
-  }
-
-  const operation =
-    payload.operation ||
-    action.action_type;
-
-  if (operation === "MEASURE_CONTENT") {
-    return await executeMeasureContent(
-      context,
-      action
+  if (!contentId) {
+    throw new Error(
+      "INVESTIGATE_CLICK_TO_PRODUCT_VIEW requires content_id"
     );
   }
 
-  /*
-    Other action types are deliberately NOT executed
-    automatically in V1.
+  const url = new URL(context.request.url);
+  const measurementUrl =
+    `${url.origin}/api/content-measurement?content_id=${encodeURIComponent(contentId)}`;
 
-    This protects the system from performing an
-    unsupported real-world action before its executor
-    has been explicitly implemented.
-  */
+  const response = await fetch(measurementUrl, {
+    method: "GET",
+    headers: { accept: "application/json" }
+  });
+
+  let measurement;
+  try {
+    measurement = await response.json();
+  } catch (_) {
+    throw new Error(
+      "Measurement Engine returned non-JSON response"
+    );
+  }
+
+  if (!response.ok || measurement.success === false) {
+    throw new Error(
+      measurement.error ||
+      `Measurement Engine HTTP ${response.status}`
+    );
+  }
+
+  const metrics = measurement.metrics || {};
+  const diagnostics = measurement.diagnostics || {};
+
+  const clicks = Number(metrics.clicks || 0);
+  const productViews = Number(metrics.product_views || 0);
+  const downstreamEvents =
+    Number(diagnostics.downstream_events || 0);
+  const attributedProductViews =
+    Number(diagnostics.attributed_product_views || 0);
+
+  const pathStatus =
+    clicks > 0 && productViews === 0
+      ? "CLICK_WITHOUT_PRODUCT_VIEW"
+      : clicks > 0 && productViews > 0
+        ? "CLICK_TO_PRODUCT_VIEW_PRESENT"
+        : "INSUFFICIENT_CLICK_EVIDENCE";
+
+  return {
+    operation: "INVESTIGATE_CLICK_TO_PRODUCT_VIEW",
+    content_id: contentId,
+    investigation: {
+      status: pathStatus,
+      clicks,
+      product_views: productViews,
+      downstream_events: downstreamEvents,
+      attributed_product_views: attributedProductViews,
+      finding:
+        pathStatus === "CLICK_WITHOUT_PRODUCT_VIEW"
+          ? "Real clicks exist but no attributed product view was measured after the click."
+          : pathStatus === "CLICK_TO_PRODUCT_VIEW_PRESENT"
+            ? "At least one product view is attributed downstream of a click."
+            : "There is not enough click evidence to diagnose the downstream path.",
+      next_action:
+        pathStatus === "CLICK_WITHOUT_PRODUCT_VIEW"
+          ? "Inspect the click-to-product navigation and product_view event emission."
+          : "No downstream-path defect identified by current measurement."
+    },
+    measurement_reference: {
+      measurement_id: measurement.measurement_id || null,
+      measurement_start: measurement.measurement_start || null,
+      status: measurement.status || null
+    },
+    executed_at: now()
+  };
+}
+
+async function executeAction(context, action) {
+  const payload = parsePayload(action);
+  const operation = payload.operation || action.action_type;
+
+  if (operation === "MEASURE_CONTENT") {
+    return await executeMeasureContent(context, action);
+  }
+
+  if (operation === "INVESTIGATE_CLICK_TO_PRODUCT_VIEW") {
+    return await executeInvestigateDownstreamPath(context, action);
+  }
 
   return {
     operation,
     status: "NOT_IMPLEMENTED",
-    message:
-      "This action type has no Execution Handler in V1.",
+    message: "This action type has no Execution Handler in V1.1.",
     executed_at: now()
   };
 }
@@ -264,16 +280,10 @@ export async function onRequestGet(context) {
     }
 
     const schema = await ensureExecutionRuns(DB);
-
     const actionId =
-      new URL(context.request.url)
-        .searchParams
-        .get("action_run_id");
+      new URL(context.request.url).searchParams.get("action_run_id");
 
-    const action = await getAction(
-      DB,
-      actionId
-    );
+    const action = await getAction(DB, actionId);
 
     if (!action) {
       return json({
@@ -292,9 +302,7 @@ export async function onRequestGet(context) {
       success: true,
       layer: LAYER,
       mode: "preview",
-      status: approved
-        ? "EXECUTION_READY"
-        : "WAITING_FOR_APPROVAL",
+      status: approved ? "EXECUTION_READY" : "WAITING_FOR_APPROVAL",
       action: {
         id: action.id,
         action_type: action.action_type,
@@ -310,13 +318,10 @@ export async function onRequestGet(context) {
         approval_required: true,
         approved,
         automatic_execution: false,
-        execution_status: approved
-          ? "READY"
-          : "BLOCKED"
+        execution_status: approved ? "READY" : "BLOCKED"
       },
       schema
     });
-
   } catch (error) {
     return json({
       success: false,
@@ -347,7 +352,6 @@ export async function onRequestPost(context) {
     await ensureExecutionRuns(DB);
 
     let body = {};
-
     try {
       body = await context.request.json();
     } catch (_) {
@@ -370,10 +374,7 @@ export async function onRequestPost(context) {
       }, 400);
     }
 
-    const action = await getAction(
-      DB,
-      actionRunId
-    );
+    const action = await getAction(DB, actionRunId);
 
     if (!action) {
       return json({
@@ -384,12 +385,6 @@ export async function onRequestPost(context) {
         error: `Action ${actionRunId} not found`
       }, 404);
     }
-
-    /*
-      HARD SAFETY GATE:
-      Execution is impossible unless the action
-      has already been approved.
-    */
 
     const approved =
       action.status === "APPROVED" ||
@@ -417,10 +412,6 @@ export async function onRequestPost(context) {
       }, 403);
     }
 
-    /*
-      Prevent duplicate execution.
-    */
-
     if (
       action.executed_at ||
       action.status === "EXECUTED" ||
@@ -436,40 +427,20 @@ export async function onRequestPost(context) {
       });
     }
 
-    let inputData = {};
-
-    try {
-      inputData = action.action_payload
-        ? JSON.parse(action.action_payload)
-        : {};
-    } catch (_) {
-      inputData = {
-        raw_action_payload:
-          action.action_payload || null
-      };
-    }
+    const inputData = parsePayload(action);
 
     const execution = await createExecutionRun(
       DB,
       action,
-      inputData.operation ||
-        action.action_type ||
-        "UNKNOWN",
+      inputData.operation || action.action_type || "UNKNOWN",
       inputData
     );
 
     executionId = execution.id;
 
-    /*
-      Mark action as EXECUTING before real execution.
-    */
-
     await DB.prepare(`
       UPDATE action_runs
-      SET
-        status = ?,
-        action_status = ?,
-        result = ?
+      SET status = ?, action_status = ?, result = ?
       WHERE id = ?
     `).bind(
       "EXECUTING",
@@ -481,35 +452,19 @@ export async function onRequestPost(context) {
       action.id
     ).run();
 
-    const result =
-      await executeAction(
-        context,
-        action
-      );
+    const result = await executeAction(context, action);
 
-    const completedAt =
-      await completeExecutionRun(
-        DB,
-        executionId,
-        result.status === "NOT_IMPLEMENTED"
-          ? "NOT_IMPLEMENTED"
-          : "SUCCESS",
-        result
-      );
-
-    /*
-      If the operation has no executor yet,
-      do NOT pretend it was executed.
-    */
+    const completedAt = await completeExecutionRun(
+      DB,
+      executionId,
+      result.status === "NOT_IMPLEMENTED" ? "NOT_IMPLEMENTED" : "SUCCESS",
+      result
+    );
 
     if (result.status === "NOT_IMPLEMENTED") {
       await DB.prepare(`
         UPDATE action_runs
-        SET
-          status = ?,
-          action_status = ?,
-          result = ?,
-          executed_at = ?
+        SET status = ?, action_status = ?, result = ?, executed_at = ?
         WHERE id = ?
       `).bind(
         "NOT_IMPLEMENTED",
@@ -536,11 +491,7 @@ export async function onRequestPost(context) {
 
     await DB.prepare(`
       UPDATE action_runs
-      SET
-        status = ?,
-        action_status = ?,
-        result = ?,
-        executed_at = ?
+      SET status = ?, action_status = ?, result = ?, executed_at = ?
       WHERE id = ?
     `).bind(
       "EXECUTED",
@@ -568,7 +519,6 @@ export async function onRequestPost(context) {
       },
       result
     });
-
   } catch (error) {
     const DB = context.env?.DB;
 
@@ -578,10 +528,7 @@ export async function onRequestPost(context) {
       try {
         await DB.prepare(`
           UPDATE execution_runs
-          SET
-            status = ?,
-            output_data = ?,
-            completed_at = ?
+          SET status = ?, output_data = ?, completed_at = ?
           WHERE id = ?
         `).bind(
           "FAILED",
@@ -595,17 +542,14 @@ export async function onRequestPost(context) {
 
       try {
         const actionId =
-          (await new URL(context.request.url)
+          new URL(context.request.url)
             .searchParams
-            .get("action_run_id")) || null;
+            .get("action_run_id");
 
         if (actionId) {
           await DB.prepare(`
             UPDATE action_runs
-            SET
-              status = ?,
-              action_status = ?,
-              result = ?
+            SET status = ?, action_status = ?, result = ?
             WHERE id = ?
           `).bind(
             "FAILED",
