@@ -1,5 +1,5 @@
 // TATO-OS
-// Orders API V1.1
+// Orders API V1.2
 // Route: /api/orders
 //
 // D1-compatible
@@ -20,7 +20,7 @@
 // - GET /api/orders
 // - POST /api/orders
 
-const VERSION = "1.1";
+const VERSION = "1.2";
 
 const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -44,7 +44,7 @@ function number(value) {
 }
 
 function createId(prefix = "ord") {
-  return `${prefix}_${crypto.randomUUID()}`;
+  return prefix + "_" + crypto.randomUUID();
 }
 
 function now() {
@@ -52,43 +52,41 @@ function now() {
 }
 
 async function ensureOrdersTable(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS orders (
-      id TEXT PRIMARY KEY,
-      customer_id TEXT,
-      product_id TEXT,
-      amount REAL DEFAULT 0,
-      currency TEXT DEFAULT 'THB',
-      status TEXT DEFAULT 'PENDING',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run();
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS orders (" +
+    "id TEXT PRIMARY KEY, " +
+    "customer_id TEXT, " +
+    "product_id TEXT, " +
+    "amount REAL DEFAULT 0, " +
+    "currency TEXT DEFAULT 'THB', " +
+    "status TEXT DEFAULT 'PENDING', " +
+    "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+    ")"
+  ).run();
 }
 
 async function getOrders(db) {
-  const result = await db.prepare(`
-    SELECT
-      o.id,
-      o.customer_id,
-      o.product_id,
-      o.amount,
-      o.currency,
-      o.status,
-      o.created_at,
-      p.name AS product_name,
-      p.price AS product_price,
-      p.status AS product_status,
-      c.name AS customer_name
-    FROM orders o
-    LEFT JOIN products p
-      ON p.id = o.product_id
-    LEFT JOIN customers c
-      ON c.id = o.customer_id
-    ORDER BY datetime(o.created_at) DESC
-    LIMIT 500
-  `).all();
+  const result = await db.prepare(
+    "SELECT " +
+    "o.id, " +
+    "o.customer_id, " +
+    "o.product_id, " +
+    "o.amount, " +
+    "o.currency, " +
+    "o.status, " +
+    "o.created_at, " +
+    "p.name AS product_name, " +
+    "p.price AS product_price, " +
+    "p.status AS product_status, " +
+    "c.name AS customer_name " +
+    "FROM orders o " +
+    "LEFT JOIN products p ON p.id = o.product_id " +
+    "LEFT JOIN customers c ON c.id = o.customer_id " +
+    "ORDER BY datetime(o.created_at) DESC " +
+    "LIMIT 500"
+  ).all();
 
-  return result?.results || [];
+  return result && result.results ? result.results : [];
 }
 
 async function createOrder(db, body) {
@@ -99,33 +97,20 @@ async function createOrder(db, body) {
   const status = (text(body.status) || "PENDING").toUpperCase();
 
   if (!customerId) {
-    return {
-      error: "customer_id is required",
-      status: 400
-    };
+    return { error: "customer_id is required", status: 400 };
   }
 
   if (!productId) {
-    return {
-      error: "product_id is required",
-      status: 400
-    };
+    return { error: "product_id is required", status: 400 };
   }
 
   if (amount <= 0) {
-    return {
-      error: "amount must be greater than 0",
-      status: 400
-    };
+    return { error: "amount must be greater than 0", status: 400 };
   }
 
-  // Verify customer exists.
-  const customer = await db.prepare(`
-    SELECT id, name
-    FROM customers
-    WHERE id = ?
-    LIMIT 1
-  `).bind(customerId).first();
+  const customer = await db.prepare(
+    "SELECT id, name FROM customers WHERE id = ? LIMIT 1"
+  ).bind(customerId).first();
 
   if (!customer) {
     return {
@@ -135,20 +120,10 @@ async function createOrder(db, body) {
     };
   }
 
-  // IMPORTANT:
-  // Current products table uses status.
-  // Do NOT use products.active here.
-  const product = await db.prepare(`
-    SELECT
-      id,
-      name,
-      price,
-      currency,
-      status
-    FROM products
-    WHERE id = ?
-    LIMIT 1
-  `).bind(productId).first();
+  const product = await db.prepare(
+    "SELECT id, name, price, currency, status " +
+    "FROM products WHERE id = ? LIMIT 1"
+  ).bind(productId).first();
 
   if (!product) {
     return {
@@ -158,9 +133,6 @@ async function createOrder(db, body) {
     };
   }
 
-  // Prevent orders against an explicitly inactive product.
-  // Supports the existing lowercase active default
-  // and the UI's uppercase `ACTIVE`.
   const productStatus = text(product.status).toLowerCase();
 
   if (productStatus !== "active") {
@@ -175,18 +147,11 @@ async function createOrder(db, body) {
   const id = createId();
   const createdAt = now();
 
-  await db.prepare(`
-    INSERT INTO orders (
-      id,
-      customer_id,
-      product_id,
-      amount,
-      currency,
-      status,
-      created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(
+  await db.prepare(
+    "INSERT INTO orders " +
+    "(id, customer_id, product_id, amount, currency, status, created_at) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).bind(
     id,
     customerId,
     productId,
@@ -196,27 +161,17 @@ async function createOrder(db, body) {
     createdAt
   ).run();
 
-  const order = await db.prepare(`
-    SELECT
-      o.id,
-      o.customer_id,
-      o.product_id,
-      o.amount,
-      o.currency,
-      o.status,
-      o.created_at,
-      p.name AS product_name,
-      p.price AS product_price,
-      p.status AS product_status,
-      c.name AS customer_name
-    FROM orders o
-    LEFT JOIN products p
-      ON p.id = o.product_id
-    LEFT JOIN customers c
-      ON c.id = o.customer_id
-    WHERE o.id = ?
-    LIMIT 1
-  `).bind(id).first();
+  const order = await db.prepare(
+    "SELECT " +
+    "o.id, o.customer_id, o.product_id, o.amount, o.currency, " +
+    "o.status, o.created_at, p.name AS product_name, " +
+    "p.price AS product_price, p.status AS product_status, " +
+    "c.name AS customer_name " +
+    "FROM orders o " +
+    "LEFT JOIN products p ON p.id = o.product_id " +
+    "LEFT JOIN customers c ON c.id = o.customer_id " +
+    "WHERE o.id = ? LIMIT 1"
+  ).bind(id).first();
 
   return {
     success: true,
@@ -227,7 +182,7 @@ async function createOrder(db, body) {
 
 export async function onRequestGet({ env }) {
   try {
-    if (!env?.DB) {
+    if (!env || !env.DB) {
       return json({
         success: false,
         error: "D1 binding DB is missing",
@@ -253,14 +208,14 @@ export async function onRequestGet({ env }) {
     return json({
       success: false,
       version: VERSION,
-      error: error?.message || String(error)
+      error: error && error.message ? error.message : String(error)
     }, 500);
   }
 }
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env?.DB) {
+    if (!env || !env.DB) {
       return json({
         success: false,
         error: "D1 binding DB is missing",
@@ -299,13 +254,11 @@ export async function onRequestPost({ request, env }) {
       version: VERSION,
       ...result
     }, 201);
-
   } catch (error) {
     return json({
       success: false,
       version: VERSION,
-      error: error?.message || String(error)
+      error: error && error.message ? error.message : String(error)
     }, 500);
   }
 }
-```
