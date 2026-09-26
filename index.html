@@ -197,6 +197,7 @@ body{font-size:15px;line-height:1.55;background:var(--bg)}
 <div class="item"><strong>FAQ</strong><small id="prodFaq">—</small></div>
 </div></div>
 </div>
+<div class="card gap"><div class="head"><h3>Generated Content</h3><span class="pill">NEW CONTENT</span></div><div class="list"><div class="item"><strong>Content ID</strong><small id="prodContentId">—</small></div><div class="item"><strong>Content</strong><small id="prodContentText" style="white-space:pre-wrap">—</small></div></div></div>
 <div class="card gap"><div class="head"><h3>Canva / External Assets</h3><span class="pill">MANUAL PUBLISH</span></div><div class="tablewrap"><table><thead><tr><th>Platform</th><th>Type</th><th>External ID</th><th>Status</th><th>Link</th></tr></thead><tbody id="prodAssetRows"><tr><td colspan="5" class="muted">No assets registered.</td></tr></tbody></table></div></div>
 <div class="card gap"><div class="head"><h3>Content Contract</h3><span class="pill">SEO + GEO + PURCHASE</span></div><p class="muted">SEO/GEO help the right people and answer engines discover and understand the content. They are not treated as conversion success. The success event remains Purchase, measured through the existing core loop.</p></div>
 </section><section class="module" id="p-automation"><header class="top"><div><div class="ey">Automation Engine</div><div class="title">Let the system repeat the work.</div><div class="sub">Trigger → rule → action → outcome → feedback.</div></div><div class="actions"><button class="btn" onclick="toast('Workflow logs refreshed')">Logs</button><button class="btn primary" onclick="modal('automation')">＋ Workflow</button></div></header><div class="grid three"><div class="card"><div class="label">Active workflows</div><div class="value">7</div><div class="up" style="font-size:10px">Healthy</div></div><div class="card"><div class="label">Runs · 30d</div><div class="value">2,481</div><div class="up" style="font-size:10px">↑31%</div></div><div class="card"><div class="label">Manual hours saved</div><div class="value">46h</div><div style="font-size:10px">Estimated</div></div></div><div class="card gap"><div class="head"><h3>Workflow control</h3><span class="pill">FOUNDER CONTROLLED</span></div><div class="list"><div class="item"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>Reorder window alert</strong><small>Customer enters predicted replenishment window → create review task.</small></div><button class="toggle on" onclick="toggle(this)"><i></i></button></div></div><div class="item"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>High-intent behavior alert</strong><small>Score crosses threshold → surface in Founder Cockpit.</small></div><button class="toggle on" onclick="toggle(this)"><i></i></button></div></div><div class="item"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>Weekly market intelligence</strong><small>Monday 08:00 → Research → Market → Strategy.</small></div><button class="toggle on" onclick="toggle(this)"><i></i></button></div></div><div class="item"><div style="display:flex;justify-content:space-between;gap:10px"><div><strong>Content performance digest</strong><small>Weekly close → generate experiment report.</small></div><button class="toggle" onclick="toggle(this)"><i></i></button></div></div></div></div></section>
@@ -290,6 +291,9 @@ async function loadProduction(){
     set('prodEntities',entities);
     set('prodAssets',assets.length);
     set('prodStatus',p.status||d.status||'READY');
+    const generated=d.latest_content||null;
+    set('prodContentId',generated?.id||p.content_id||'—');
+    set('prodContentText',generated?.content_text||'—');
     set('prodObjective',p.objective||'—');
     set('prodAudience',p.audience||'—');
     set('prodCta',p.cta||'—');
@@ -328,7 +332,7 @@ async function runProductionLoop(btn){
       body:JSON.stringify({
         mode:'launch',
         demand_plan_id:preferred.id,
-        content_id:CONTENT_ID,
+
               })
     });
     clearTimeout(timer);
