@@ -167,13 +167,37 @@ function buildBehaviorValues(
     distribution.market_test_id
   );
 
-  if (
-    requestData.content_id !== undefined
-  ) {
+  if (requestData.content_id !== undefined) {
+    if (hasColumn(columns, "content_id")) {
+      set("content_id", requestData.content_id);
+    } else if (hasColumn(columns, "metadata")) {
+      let metadataObject = {};
+      if (requestData.metadata !== undefined) {
+        try {
+          metadataObject = typeof requestData.metadata === "string"
+            ? JSON.parse(requestData.metadata)
+            : requestData.metadata;
+        } catch (error) {
+          metadataObject = { raw_metadata: requestData.metadata };
+        }
+      }
+      if (!metadataObject || typeof metadataObject !== "object" || Array.isArray(metadataObject)) {
+        metadataObject = { raw_metadata: metadataObject };
+      }
+      metadataObject.content_id = requestData.content_id;
+      set("metadata", JSON.stringify(metadataObject));
+    }
+  } else if (requestData.metadata !== undefined) {
     set(
-      "content_id",
-      requestData.content_id
+      "metadata",
+      typeof requestData.metadata === "string"
+        ? requestData.metadata
+        : JSON.stringify(requestData.metadata)
     );
+  }
+
+  if (requestData.session_id !== undefined) {
+    set("session_id", requestData.session_id);
   }
 
   set(
@@ -186,19 +210,6 @@ function buildBehaviorValues(
     "source_type",
     "REAL_MARKET_TEST"
   );
-
-  if (
-    requestData.metadata !== undefined
-  ) {
-    set(
-      "metadata",
-      typeof requestData.metadata === "string"
-        ? requestData.metadata
-        : JSON.stringify(
-            requestData.metadata
-          )
-    );
-  }
 
   if (
     requestData.revenue !== undefined
@@ -700,13 +711,18 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 var did="distribution-1790392496602-lhk96nmd";
 var api="/api/market-test-page";
 var cid="5127d38f-6601-41dd-bb30-9e4346dd9a4c";
+var sid;
+try{
+ sid=sessionStorage.getItem("tato_market_session");
+ if(!sid){sid="mts-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);sessionStorage.setItem("tato_market_session",sid);}
+}catch(e){sid="mts-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);}
 var sent={};
 function setStatus(t){var el=document.getElementById("status");if(el)el.textContent=t;}
 function send(type){
  if(sent[type])return;
  sent[type]=true;
  setStatus("กำลังบันทึก "+type+"...");
- fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type,content_id:cid})})
+ fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type,content_id:cid,session_id:sid})})
  .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error(t||"Invalid response")}if(!r.ok||!d.success)throw new Error(d.error||"Request failed");return d;});})
  .then(function(){setStatus(type+" recorded");})
  .catch(function(e){sent[type]=false;setStatus("Event failed: "+(e&&e.message?e.message:"unknown"));console.error(e);});
