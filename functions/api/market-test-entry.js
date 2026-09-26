@@ -1,317 +1,65 @@
 ```javascript
 // TATO-OS
-// Public Market Test Entry V1
-// Route: /market-test
+// Real Market Test Entry V1.0
 //
-// REAL CUSTOMER
-//      ↓
-// Market Test Entry
-//      ↓
-// content_view
-//      ↓
-// content_click
-//      ↓
-// Product Test
-//      ↓
-// Measurement V2.3
+// Route:
+// /api/market-test-entry
 //
-// IMPORTANT:
-// - No fake events
-// - No winner declaration
-// - No strategy change
-// - No purchase invention
-// - No revenue invention
-// - No automatic publishing
-// - No spending
+// Purpose:
+// Market Test → Real Customer Behavior → Measurement V2.3
+//
+// This layer DOES:
+// - accept real market-test behavior events
+// - verify distribution
+// - verify active measurement session
+// - write compatible behavior_events
+// - create market_test_event_links
+// - preserve traceability
+//
+// This layer DOES NOT:
+// - invent behavior
+// - invent attention
+// - invent purchases
+// - invent revenue
+// - declare winners
+// - change strategy
+// - publish content
+// - spend money
+// - execute actions
 
-const DISTRIBUTION_ID =
-  "distribution-1790392496602-lhk96nmd";
+const ENGINE = "REAL_MARKET_TEST_ENTRY_V1";
+const VERSION = "1.0";
 
-const ENGINE =
-  "PUBLIC_MARKET_TEST_ENTRY_V1";
+const MEASUREMENT_ENGINE = "MEASUREMENT_V2.3";
 
-const VERSION =
-  "1.0";
+const ALLOWED_EVENTS = new Set([
+  "content_view",
+  "content_click",
+  "engagement",
+  "product_view",
+  "order_created",
+  "payment_completed",
+  "revenue_recorded",
+]);
 
-const API_PATH =
-  "/api/market-test-entry";
+const ATTENTION_EVENTS = new Set([
+  "content_view",
+  "content_click",
+]);
 
-export async function onRequestGet({ request }) {
-  try {
-    const url = new URL(request.url);
+const INTEREST_EVENTS = new Set([
+  "engagement",
+  "product_view",
+]);
 
-    if (url.searchParams.get("status") === "1") {
-      return json({
-        success: true,
-        engine: ENGINE,
-        version: VERSION,
-        state: "PUBLIC_MARKET_TEST_READY",
-        distribution_id: DISTRIBUTION_ID,
-        tracking: {
-          content_view: true,
-          content_click: true,
-          product_view: true
-        },
-        next_layer: "MEASUREMENT_V2.3",
-        real_customer_required: true
-      });
-    }
+const PURCHASE_EVENTS = new Set([
+  "order_created",
+  "payment_completed",
+]);
 
-    return new Response(renderEntryPage(), {
-      status: 200,
-      headers: {
-        "content-type": "text/html; charset=UTF-8",
-        "cache-control": "no-store"
-      }
-    });
-  } catch (error) {
-    return json({
-      success: false,
-      engine: ENGINE,
-      version: VERSION,
-      error: error?.message || String(error)
-    }, 500);
-  }
-}
-
-function renderEntryPage() {
-  const distributionId =
-    JSON.stringify(DISTRIBUTION_ID);
-
-  const apiPath =
-    JSON.stringify(API_PATH);
-
-  return `<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>กาแฟที่ใช่ สำหรับช่วงเวลาของคุณ | TATO</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background: #111111;
-      color: #ffffff;
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-    }
-
-    .page {
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 24px;
-    }
-
-    .card {
-      width: 100%;
-      max-width: 620px;
-      background: #1b1b1b;
-      border-radius: 22px;
-      padding: 34px 26px;
-      border: 1px solid #2b2b2b;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    }
-
-    .brand {
-      font-size: 14px;
-      letter-spacing: 3px;
-      font-weight: 700;
-      color: #f28c28;
-      margin-bottom: 28px;
-    }
-
-    h1 {
-      margin: 0 0 18px;
-      font-size: 34px;
-      line-height: 1.2;
-    }
-
-    .lead {
-      color: #cfcfcf;
-      font-size: 17px;
-      line-height: 1.7;
-      margin-bottom: 26px;
-    }
-
-    .coffee-box {
-      background: #121212;
-      border: 1px solid #303030;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-
-    .coffee-box strong {
-      display: block;
-      font-size: 20px;
-      margin-bottom: 8px;
-    }
-
-    .coffee-box span {
-      color: #aaa;
-      line-height: 1.6;
-    }
-
-    .cta {
-      width: 100%;
-      border: 0;
-      border-radius: 14px;
-      padding: 17px 20px;
-      background: #f28c28;
-      color: #111111;
-      font-size: 17px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .cta:disabled {
-      opacity: 0.7;
-      cursor: wait;
-    }
-
-    .cta:active {
-      transform: scale(0.99);
-    }
-
-    .small {
-      margin-top: 16px;
-      text-align: center;
-      color: #777;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .status {
-      display: none;
-      margin-top: 16px;
-      text-align: center;
-      color: #999;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-  </style>
-</head>
-
-<body>
-
-  <main class="page">
-
-    <section class="card">
-
-      <div class="brand">
-        TATO COFFEE
-      </div>
-
-      <h1>
-        ทำไมลูกค้าถึงสนใจ coffee ตอนนี้?
-      </h1>
-
-      <p class="lead">
-        กาแฟไม่ได้มีแค่เรื่องความเข้มหรือความขม
-        แต่สิ่งที่สำคัญคือ
-        <strong>กาแฟแบบไหนที่เหมาะกับช่วงเวลาของคุณ</strong>
-      </p>
-
-      <div class="coffee-box">
-        <strong>Arabica 100% · Single Origin</strong>
-
-        <span>
-          เมล็ดกาแฟจากดอยเวียง
-          ความสูงประมาณ 1,250 เมตร
-          คั่วสดใหม่ตามออเดอร์
-        </span>
-      </div>
-
-      <button
-        id="cta"
-        class="cta"
-        type="button"
-      >
-        ดูรายละเอียดและทดลอง TATO
-      </button>
-
-      <div
-        id="status"
-        class="status"
-      >
-        กำลังเปิดรายละเอียด...
-      </div>
-
-      <div class="small">
-        TATO Coffee · Fresh Roasted
-      </div>
-
-    </section>
-
-  </main>
-
-  <script>
-    const DISTRIBUTION_ID = ${distributionId};
-    const API_PATH = ${apiPath};
-
-    async function recordEvent(eventType) {
-      try {
-        const response = await fetch(API_PATH, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            distribution_id: DISTRIBUTION_ID,
-            event_type: eventType
-          }),
-          keepalive: true
-        });
-
-        return await response.json();
-
-      } catch (error) {
-        return {
-          success: false,
-          error: error?.message || String(error)
-        };
-      }
-    }
-
-    // This creates content_view only from a real visitor.
-    recordEvent("content_view");
-
-    const cta =
-      document.getElementById("cta");
-
-    const status =
-      document.getElementById("status");
-
-    cta.addEventListener("click", async () => {
-
-      cta.disabled = true;
-
-      status.style.display = "block";
-
-      await recordEvent("content_click");
-
-      window.location.href =
-        "/market-test/product";
-    });
-  </script>
-
-</body>
-</html>`;
-}
+const REVENUE_EVENTS = new Set([
+  "revenue_recorded",
+]);
 
 function json(data, status = 200) {
   return new Response(
@@ -320,9 +68,819 @@ function json(data, status = 200) {
       status,
       headers: {
         "content-type": "application/json; charset=UTF-8",
-        "cache-control": "no-store"
-      }
+        "cache-control": "no-store",
+      },
     }
   );
+}
+
+function now() {
+  return new Date().toISOString();
+}
+
+function makeId(prefix) {
+  return `${prefix}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function tableExists(db, tableName) {
+  const result = await db
+    .prepare(
+      `SELECT name
+       FROM sqlite_master
+       WHERE type = 'table'
+       AND name = ?`
+    )
+    .bind(tableName)
+    .first();
+
+  return !!result;
+}
+
+async function getColumns(db, tableName) {
+  const result = await db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all();
+
+  return result.results || [];
+}
+
+function hasColumn(columns, name) {
+  return columns.some(
+    (column) => column.name === name
+  );
+}
+
+function requiredColumnsMissing(columns, values) {
+  const missing = [];
+
+  for (const column of columns) {
+    const required =
+      column.notnull === 1 &&
+      column.pk !== 1 &&
+      column.dflt_value === null;
+
+    if (required && !(column.name in values)) {
+      missing.push(column.name);
+    }
+  }
+
+  return missing;
+}
+
+function getEventStage(eventType) {
+  if (ATTENTION_EVENTS.has(eventType)) {
+    return "ATTENTION";
+  }
+
+  if (INTEREST_EVENTS.has(eventType)) {
+    return "INTEREST";
+  }
+
+  if (PURCHASE_EVENTS.has(eventType)) {
+    return "PURCHASE";
+  }
+
+  if (REVENUE_EVENTS.has(eventType)) {
+    return "REVENUE";
+  }
+
+  return "UNKNOWN";
+}
+
+async function ensureLinkTable(db) {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS market_test_event_links (
+        id TEXT PRIMARY KEY,
+        measurement_id TEXT NOT NULL,
+        distribution_id TEXT NOT NULL,
+        market_test_id TEXT NOT NULL,
+        behavior_event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        event_stage TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+      `
+    )
+    .run();
+}
+
+async function getDistribution(db, distributionId) {
+  if (
+    !(await tableExists(
+      db,
+      "market_test_distributions"
+    ))
+  ) {
+    return null;
+  }
+
+  return await db
+    .prepare(
+      `
+      SELECT *
+      FROM market_test_distributions
+      WHERE id = ?
+      LIMIT 1
+      `
+    )
+    .bind(distributionId)
+    .first();
+}
+
+async function getActiveMeasurement(
+  db,
+  distributionId
+) {
+  if (
+    !(await tableExists(
+      db,
+      "market_test_measurements"
+    ))
+  ) {
+    return null;
+  }
+
+  return await db
+    .prepare(
+      `
+      SELECT *
+      FROM market_test_measurements
+      WHERE distribution_id = ?
+      AND status = 'COLLECTING'
+      ORDER BY created_at DESC
+      LIMIT 1
+      `
+    )
+    .bind(distributionId)
+    .first();
+}
+
+function buildBehaviorValues({
+  columns,
+  eventId,
+  eventType,
+  timestamp,
+  distribution,
+  measurement,
+  requestData,
+}) {
+  const values = {};
+
+  const set = (name, value) => {
+    if (
+      hasColumn(columns, name) &&
+      value !== undefined
+    ) {
+      values[name] = value;
+    }
+  };
+
+  set("id", eventId);
+  set("event_type", eventType);
+  set("created_at", timestamp);
+  set("updated_at", timestamp);
+
+  set("measurement_id", measurement.id);
+  set("distribution_id", distribution.id);
+  set(
+    "market_test_id",
+    distribution.market_test_id
+  );
+
+  if (requestData.content_id !== undefined) {
+    set(
+      "content_id",
+      requestData.content_id
+    );
+  }
+
+  set(
+    "source",
+    requestData.source ||
+      "REAL_MARKET_TEST"
+  );
+
+  set(
+    "source_type",
+    "REAL_MARKET_TEST"
+  );
+
+  if (requestData.metadata !== undefined) {
+    set(
+      "metadata",
+      typeof requestData.metadata ===
+        "string"
+        ? requestData.metadata
+        : JSON.stringify(
+            requestData.metadata
+          )
+    );
+  }
+
+  if (requestData.revenue !== undefined) {
+    set(
+      "revenue",
+      requestData.revenue
+    );
+  }
+
+  if (requestData.order_id !== undefined) {
+    set(
+      "order_id",
+      requestData.order_id
+    );
+  }
+
+  if (
+    requestData.customer_id !==
+    undefined
+  ) {
+    set(
+      "customer_id",
+      requestData.customer_id
+    );
+  }
+
+  return values;
+}
+
+async function insertBehaviorEvent(
+  db,
+  distribution,
+  measurement,
+  eventType,
+  requestData
+) {
+  if (
+    !(await tableExists(
+      db,
+      "behavior_events"
+    ))
+  ) {
+    throw new Error(
+      "behavior_events table does not exist"
+    );
+  }
+
+  // IMPORTANT:
+  // Always inspect the real D1 schema before
+  // constructing the INSERT.
+  const columns = await getColumns(
+    db,
+    "behavior_events"
+  );
+
+  const eventId = makeId("behavior");
+  const timestamp = now();
+
+  const values = buildBehaviorValues({
+    columns,
+    eventId,
+    eventType,
+    timestamp,
+    distribution,
+    measurement,
+    requestData,
+  });
+
+  const missing =
+    requiredColumnsMissing(
+      columns,
+      values
+    );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `behavior_events required columns missing: ${missing.join(
+        ", "
+      )}`
+    );
+  }
+
+  const names = Object.keys(values);
+
+  if (names.length === 0) {
+    throw new Error(
+      "No compatible behavior_events columns found"
+    );
+  }
+
+  const placeholders = names
+    .map(() => "?")
+    .join(", ");
+
+  const sql = `
+    INSERT INTO behavior_events
+    (${names.join(", ")})
+    VALUES
+    (${placeholders})
+  `;
+
+  const params = names.map(
+    (name) => values[name]
+  );
+
+  await db
+    .prepare(sql)
+    .bind(...params)
+    .run();
+
+  return {
+    id: eventId,
+    event_type: eventType,
+    created_at: timestamp,
+  };
+}
+
+async function createEventLink(
+  db,
+  distribution,
+  measurement,
+  behaviorEvent
+) {
+  await ensureLinkTable(db);
+
+  const id = makeId("event-link");
+  const timestamp = now();
+
+  const stage = getEventStage(
+    behaviorEvent.event_type
+  );
+
+  await db
+    .prepare(
+      `
+      INSERT INTO market_test_event_links (
+        id,
+        measurement_id,
+        distribution_id,
+        market_test_id,
+        behavior_event_id,
+        event_type,
+        event_stage,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `
+    )
+    .bind(
+      id,
+      measurement.id,
+      distribution.id,
+      distribution.market_test_id,
+      behaviorEvent.id,
+      behaviorEvent.event_type,
+      stage,
+      timestamp
+    )
+    .run();
+
+  return {
+    id,
+    measurement_id: measurement.id,
+    distribution_id: distribution.id,
+    behavior_event_id:
+      behaviorEvent.id,
+    event_type:
+      behaviorEvent.event_type,
+    event_stage: stage,
+    created_at: timestamp,
+  };
+}
+
+async function updateMeasurementTimestamp(
+  db,
+  measurementId
+) {
+  if (
+    !(await tableExists(
+      db,
+      "market_test_measurements"
+    ))
+  ) {
+    return;
+  }
+
+  const columns = await getColumns(
+    db,
+    "market_test_measurements"
+  );
+
+  if (!hasColumn(columns, "updated_at")) {
+    return;
+  }
+
+  await db
+    .prepare(
+      `
+      UPDATE market_test_measurements
+      SET updated_at = ?
+      WHERE id = ?
+      `
+    )
+    .bind(
+      now(),
+      measurementId
+    )
+    .run();
+}
+
+async function handleStatus(db) {
+  if (
+    !(await tableExists(
+      db,
+      "market_test_distributions"
+    ))
+  ) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "market_test_distributions table does not exist",
+      },
+      500
+    );
+  }
+
+  const distributionResult =
+    await db
+      .prepare(
+        `
+        SELECT *
+        FROM market_test_distributions
+        ORDER BY created_at DESC
+        LIMIT 20
+        `
+      )
+      .all();
+
+  const distributions =
+    distributionResult.results || [];
+
+  let measurements = [];
+
+  if (
+    await tableExists(
+      db,
+      "market_test_measurements"
+    )
+  ) {
+    const measurementResult =
+      await db
+        .prepare(
+          `
+          SELECT *
+          FROM market_test_measurements
+          ORDER BY created_at DESC
+          LIMIT 20
+          `
+        )
+        .all();
+
+    measurements =
+      measurementResult.results || [];
+  }
+
+  return json({
+    success: true,
+    engine: ENGINE,
+    version: VERSION,
+    timestamp: now(),
+    state:
+      "REAL_MARKET_TEST_ENTRY_READY",
+
+    summary: {
+      distributions:
+        distributions.length,
+
+      measurements:
+        measurements.length,
+
+      collecting_measurements:
+        measurements.filter(
+          (item) =>
+            item.status ===
+            "COLLECTING"
+        ).length,
+    },
+
+    measurement_engine:
+      MEASUREMENT_ENGINE,
+
+    allowed_events:
+      Array.from(ALLOWED_EVENTS),
+
+    stages: {
+      attention:
+        Array.from(ATTENTION_EVENTS),
+
+      interest:
+        Array.from(INTEREST_EVENTS),
+
+      purchase:
+        Array.from(PURCHASE_EVENTS),
+
+      revenue:
+        Array.from(REVENUE_EVENTS),
+    },
+
+    guardrails: {
+      invents_behavior: false,
+      invents_attention: false,
+      invents_purchase: false,
+      invents_revenue: false,
+      declares_winner: false,
+      changes_strategy: false,
+      executes_action: false,
+      publishes_content: false,
+      spends_money: false,
+    },
+
+    contract: {
+      previous_layer:
+        "MARKET_TEST_MEASUREMENT_V1",
+
+      current_layer: ENGINE,
+
+      next_layer:
+        "MEASUREMENT_V2.3",
+
+      real_behavior_required: true,
+
+      real_customer_required: true,
+    },
+  });
+}
+
+async function handlePost(
+  request,
+  env
+) {
+  const db = env.DB;
+
+  if (!db) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "D1 binding env.DB is not available",
+      },
+      500
+    );
+  }
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "Request body must be valid JSON",
+      },
+      400
+    );
+  }
+
+  const distributionId =
+    body.distribution_id;
+
+  const eventType =
+    body.event_type;
+
+  if (!distributionId) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "distribution_id is required",
+      },
+      400
+    );
+  }
+
+  if (!eventType) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "event_type is required",
+      },
+      400
+    );
+  }
+
+  if (!ALLOWED_EVENTS.has(eventType)) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          `Unsupported event_type: ${eventType}`,
+        allowed_events:
+          Array.from(ALLOWED_EVENTS),
+      },
+      400
+    );
+  }
+
+  const distribution =
+    await getDistribution(
+      db,
+      distributionId
+    );
+
+  if (!distribution) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "Distribution not found",
+        distribution_id:
+          distributionId,
+      },
+      404
+    );
+  }
+
+  const measurement =
+    await getActiveMeasurement(
+      db,
+      distributionId
+    );
+
+  if (!measurement) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "No active measurement session found",
+        distribution_id:
+          distributionId,
+        expected_status:
+          "COLLECTING",
+      },
+      409
+    );
+  }
+
+  const behaviorEvent =
+    await insertBehaviorEvent(
+      db,
+      distribution,
+      measurement,
+      eventType,
+      body
+    );
+
+  const eventLink =
+    await createEventLink(
+      db,
+      distribution,
+      measurement,
+      behaviorEvent
+    );
+
+  await updateMeasurementTimestamp(
+    db,
+    measurement.id
+  );
+
+  return json({
+    success: true,
+    engine: ENGINE,
+    version: VERSION,
+    timestamp: now(),
+
+    state:
+      "REAL_BEHAVIOR_RECORDED",
+
+    measurement: {
+      id: measurement.id,
+
+      distribution_id:
+        measurement.distribution_id,
+
+      market_test_id:
+        measurement.market_test_id,
+
+      measurement_engine:
+        "MEASUREMENT_V2.3",
+
+      status:
+        measurement.status,
+    },
+
+    behavior_event:
+      behaviorEvent,
+
+    event_link:
+      eventLink,
+
+    handoff: {
+      previous_layer: ENGINE,
+
+      current_layer: ENGINE,
+
+      next_layer:
+        "MEASUREMENT_V2.3",
+
+      ready: true,
+    },
+
+    guardrails: {
+      real_event_required: true,
+
+      event_created_by_system:
+        false,
+
+      invents_behavior:
+        false,
+
+      invents_attention:
+        false,
+
+      invents_purchase:
+        false,
+
+      invents_revenue:
+        false,
+
+      declares_winner:
+        false,
+
+      changes_strategy:
+        false,
+
+      executes_action:
+        false,
+    },
+  });
+}
+
+export async function onRequest(
+  context
+) {
+  try {
+    const {
+      request,
+      env
+    } = context;
+
+    if (request.method === "GET") {
+      return await handleStatus(
+        env.DB
+      );
+    }
+
+    if (request.method === "POST") {
+      return await handlePost(
+        request,
+        env
+      );
+    }
+
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "Method not allowed",
+      },
+      405
+    );
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          error?.message ||
+          String(error),
+      },
+      500
+    );
+  }
 }
 ```
