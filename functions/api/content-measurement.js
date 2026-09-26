@@ -715,7 +715,8 @@ async function insertMeasurement(
 
 async function measure(
   db,
-  requestedContentId
+  requestedContentId,
+  mode = "preview"
 ) {
   const content =
     await getContent(
@@ -973,15 +974,21 @@ async function measure(
    * the Measurement record has been successfully saved.
    */
   let feedbackIntegration = {
-    detected: false,
+    detected: Boolean(pendingFeedback),
     completed: false,
     verified: false,
-    record_id: null,
-    measurement_required: false,
-    measurement_completed: false
+    record_id: pendingFeedback ? pendingFeedback.id : null,
+    execution_id: pendingFeedback ? pendingFeedback.execution_id || null : null,
+    action_code: pendingFeedback ? pendingFeedback.action_code || null : null,
+    action_target: pendingFeedback ? pendingFeedback.action_target || null : null,
+    actual_outcome: pendingFeedback ? pendingFeedback.actual_outcome || null : null,
+    outcome_status: pendingFeedback ? pendingFeedback.outcome_status || null : null,
+    measurement_required: pendingFeedback ? Number(pendingFeedback.measurement_required) === 1 : false,
+    measurement_completed: pendingFeedback ? Number(pendingFeedback.measurement_completed) === 1 : false,
+    updated_at: pendingFeedback ? pendingFeedback.updated_at || null : null
   };
 
-  if (pendingFeedback) {
+  if (pendingFeedback && mode === "execute") {
     const completion =
       await markFeedbackMeasurementCompleted(
         db,
@@ -1277,7 +1284,8 @@ export async function onRequestGet(
     const result =
       await measure(
         context.env.DB,
-        contentId
+        contentId,
+        "preview"
       );
 
     return json({
@@ -1327,7 +1335,8 @@ export async function onRequestPost(
     const result =
       await measure(
         context.env.DB,
-        contentId
+        contentId,
+        "execute"
       );
 
     return json({
