@@ -1,13 +1,14 @@
 const DISTRIBUTION_ID = "distribution-1790392496602-lhk96nmd";
 const MARKET_TEST_ID = "market-test-1790392032678-c80dkx3f";
 const MEASUREMENT_ID = "measurement-1790395426049-7wjtgs3p";
-const ENTRY_API = "https://8f91cd42.tato-os.pages.dev/api/market-test-entry";
+const ENTRY_API = "/api/market-test-entry";
 
 export async function onRequest(context) {
   if (context.request.method === "POST") {
     try {
       const body = await context.request.text();
-      const response = await fetch(ENTRY_API, {
+      const entryUrl = new URL(ENTRY_API, context.request.url).href;
+      const response = await fetch(entryUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
