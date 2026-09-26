@@ -22,7 +22,7 @@
 // - Does NOT execute an action
 // - Human approval remains required
 
-const LAYER = "DECISION_LAYER_V1";
+const LAYER = "DECISION_LAYER_V1.1";
 const VERSION = "1.1";
 
 const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.3";
@@ -492,7 +492,7 @@ async function analyze(request, env, mode = "preview") {
     source_chain: {
       measurement: MEASUREMENT_SOURCE,
       intelligence: INTELLIGENCE_SOURCE,
-      learning: `${LEARNING_SOURCE}_V${LEARNING_VERSION.replace(".", "_")}`,
+      learning: "LEARNING_V2.3_FEEDBACK_AWARE",
       decision: LAYER
     },
 
