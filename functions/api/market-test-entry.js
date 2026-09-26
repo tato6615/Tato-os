@@ -128,9 +128,10 @@ function getEventStage(eventType) {
 }
 
 async function ensureLinkTable(db) {
-  await db
-    .prepare(
-      "CREATE TABLE IF NOT EXISTS market_test_event_links (" +
+  const exists = await tableExists(db, "market_test_event_links");
+  if (!exists) {
+    await db.prepare(
+      "CREATE TABLE market_test_event_links (" +
       "id TEXT PRIMARY KEY," +
       "measurement_id TEXT NOT NULL," +
       "distribution_id TEXT NOT NULL," +
@@ -138,10 +139,17 @@ async function ensureLinkTable(db) {
       "behavior_event_id TEXT NOT NULL," +
       "event_type TEXT NOT NULL," +
       "event_stage TEXT NOT NULL," +
-      "created_at TEXT NOT NULL" +
-      ")"
-    )
-    .run();
+      "created_at TEXT NOT NULL)"
+    ).run();
+    return;
+  }
+
+  const columns = await getColumns(db, "market_test_event_links");
+  if (!hasColumn(columns, "event_stage")) {
+    await db.prepare(
+      "ALTER TABLE market_test_event_links ADD COLUMN event_stage TEXT"
+    ).run();
+  }
 }
 
 async function getDistribution(db, distributionId) {
