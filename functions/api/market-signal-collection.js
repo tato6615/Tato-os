@@ -1,42 +1,36 @@
-```js
+```javascript
 // TATO-OS
-// Market Signal Collection V1.0
+// Market Signal Collection V1.0.2
 // Route: /api/market-signal-collection
 //
 // Business Layer:
 //
 // External Market Evidence
-//          ↓
+//        ↓
 // Market Signal Collection
-//          ↓
-// market_signals (D1)
-//          ↓
+//        ↓
 // Market Intelligence
-//          ↓
-// Opportunity Engine
 //
-// DOES:
-// - accept externally observed market evidence
-// - validate required evidence fields
-// - store evidence in D1 market_signals
-// - preserve source/evidence metadata
-// - distinguish VERIFIED_EXTERNAL from TEST/MOCK
-// - expose collection status
+// Market Signal Collection DOES:
+// - inspect the real D1 schema
+// - collect externally verified market evidence
+// - store evidence in market_signals
+// - preserve source and evidence metadata
+// - distinguish test data from external data
+// - prepare handoff to Market Intelligence
 //
-// DOES NOT:
-// - invent market signals
-// - scrape the internet automatically
-// - declare opportunities
-// - change strategy
+// Market Signal Collection DOES NOT:
+// - invent market data
+// - treat test data as external evidence
+// - create opportunities
 // - create decisions
 // - execute actions
 //
 // Source of truth:
-// - external evidence supplied to this endpoint
 // - D1 market_signals
 
-const ENGINE = "MARKET_SIGNAL_COLLECTION_V1";
-const VERSION = "1.0";
+const COLLECTION_ENGINE = "MARKET_SIGNAL_COLLECTION_V1";
+const COLLECTION_VERSION = "1.0.2";
 
 const TEST_SOURCES = new Set([
   "test",
@@ -46,30 +40,13 @@ const TEST_SOURCES = new Set([
   "fixture"
 ]);
 
-const REQUIRED_EXTERNAL_FIELDS = [
-  "source",
-  "title"
-];
-
 function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data, null, 2),
-    {
-      status,
-      headers: {
-        "content-type":
-          "application/json; charset=UTF-8"
-      }
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=UTF-8"
     }
-  );
-}
-
-function text(value) {
-  return String(value ?? "").trim();
-}
-
-function normalize(value) {
-  return text(value).toLowerCase();
+  });
 }
 
 function safeJson(value, fallback = {}) {
@@ -86,298 +63,298 @@ function safeJson(value, fallback = {}) {
   }
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 function isTestSource(source) {
   return TEST_SOURCES.has(
-    normalize(source)
+    normalizeText(source)
   );
 }
 
-function isExternalSource(source) {
-  if (!source) return false;
+function isExternalVerified(metadata, source) {
+  const data = safeJson(metadata, {});
 
-  return !isTestSource(source);
+  if (
+    data.test === true ||
+    data.demo === true ||
+    data.mock === true ||
+    data.sample === true ||
+    data.fixture === true
+  ) {
+    return false;
+  }
+
+  if (data.external_source === true) {
+    return true;
+  }
+
+  if (data.external_verified === true) {
+    return true;
+  }
+
+  if (isTestSource(source)) {
+    return false;
+  }
+
+  /*
+   * A non-test source is not automatically considered
+   * externally verified unless the caller explicitly
+   * provides evidence metadata.
+   */
+  return false;
 }
 
-function normalizeConfidence(value) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-
-  if (number > 1 && number <= 100) {
-    return Number(
-      Math.max(
-        0,
-        Math.min(1, number / 100)
-      ).toFixed(3)
-    );
-  }
-
-  return Number(
-    Math.max(
-      0,
-      Math.min(1, number)
-    ).toFixed(3)
-  );
-}
-
-function normalizeIntent(body, metadata) {
-  const raw =
-    body.intent ||
-    body.purchase_intent ||
-    body.market_intent ||
-    metadata.intent ||
-    metadata.purchase_intent ||
-    metadata.market_intent ||
-    "";
-
-  const value = normalize(raw);
-
-  if (
-    value.includes("commercial") ||
-    value.includes("purchase") ||
-    value.includes("buy") ||
-    value.includes("ซื้อ")
-  ) {
-    return "COMMERCIAL";
-  }
-
-  if (
-    value.includes("consider") ||
-    value.includes("comparison") ||
-    value.includes("compare") ||
-    value.includes("เปรียบเทียบ")
-  ) {
-    return "CONSIDERATION";
-  }
-
-  if (
-    value.includes("planning") ||
-    value.includes("plan") ||
-    value.includes("วางแผน")
-  ) {
-    return "PLANNING";
-  }
-
-  if (
-    value.includes("informational") ||
-    value.includes("information") ||
-    value.includes("learn") ||
-    value.includes("ค้นหา") ||
-    value.includes("ข้อมูล")
-  ) {
-    return "INFORMATIONAL";
-  }
-
-  return "UNKNOWN";
-}
-
-async function getSchema(env) {
+async function getMarketSignalsSchema(env) {
+  /*
+   * IMPORTANT:
+   * Keep PRAGMA SQL inside a JavaScript string.
+   * Do not write raw PRAGMA syntax directly in JS.
+   */
   const result = await env.DB
-    .prepare(`
-      PRAGMA table_info(market_signals)
-    `)
+    .prepare("PRAGMA table_info(market_signals)")
     .all();
 
   return result.results || [];
 }
 
-function getColumns(schema) {
+function schemaColumnNames(schema) {
   return new Set(
     schema.map(column => column.name)
   );
 }
 
-function validateExternalEvidence(body) {
-  const errors = [];
+async function getCollectionStatus(env) {
+  const schema =
+    await getMarketSignalsSchema(env);
 
-  for (
-    const field of REQUIRED_EXTERNAL_FIELDS
-  ) {
-    if (!text(body[field])) {
-      errors.push(`${field}_required`);
+  const columns =
+    schemaColumnNames(schema);
+
+  const preferredColumns = [
+    "id",
+    "source",
+    "title",
+    "category",
+    "confidence",
+    "metadata",
+    "detected_at",
+    "created_at"
+  ];
+
+  const availableColumns =
+    preferredColumns.filter(
+      column => columns.has(column)
+    );
+
+  if (!availableColumns.includes("source") ||
+      !availableColumns.includes("title")) {
+    throw new Error(
+      "MARKET_SIGNALS_REQUIRED_COLUMNS_MISSING"
+    );
+  }
+
+  const selectList =
+    availableColumns
+      .map(column => `"${column}"`)
+      .join(", ");
+
+  const orderColumn =
+    columns.has("detected_at")
+      ? "detected_at"
+      : columns.has("created_at")
+        ? "created_at"
+        : "rowid";
+
+  const result = await env.DB
+    .prepare(
+      "SELECT " +
+      selectList +
+      " FROM market_signals" +
+      " ORDER BY " +
+      orderColumn +
+      " DESC LIMIT 100"
+    )
+    .all();
+
+  const rows = result.results || [];
+
+  let externalVerifiedRecords = 0;
+  let testRecords = 0;
+
+  for (const row of rows) {
+    const metadata =
+      safeJson(row.metadata, {});
+
+    const source =
+      row.source || "";
+
+    if (isTestSource(source) ||
+        metadata.test === true ||
+        metadata.demo === true ||
+        metadata.mock === true ||
+        metadata.sample === true ||
+        metadata.fixture === true) {
+      testRecords++;
+    }
+
+    if (
+      isExternalVerified(
+        metadata,
+        source
+      )
+    ) {
+      externalVerifiedRecords++;
     }
   }
 
-  const source = text(body.source);
+  return {
+    total_records: rows.length,
 
-  if (
-    source &&
-    isTestSource(source)
-  ) {
-    errors.push(
-      "test_source_not_allowed_for_external_collection"
-    );
-  }
+    external_verified_records:
+      externalVerifiedRecords,
 
-  /*
-   * External collection must contain
-   * some evidence reference.
-   *
-   * This can be:
-   * - URL
-   * - external_id
-   * - evidence_reference
-   * - platform_post
-   * - search_reference
-   */
-  const metadata =
-    safeJson(body.metadata, {});
+    test_records:
+      testRecords,
 
-  const evidenceUrl =
-    text(
-      body.evidence_url ||
-      metadata.evidence_url ||
-      ""
-    );
+    real_market_evidence_available:
+      externalVerifiedRecords > 0,
 
-  const externalId =
-    text(
-      body.external_id ||
-      metadata.external_id ||
-      ""
-    );
+    schema: {
+      detected_columns:
+        availableColumns,
 
-  const evidenceReference =
-    text(
-      body.evidence_reference ||
-      metadata.evidence_reference ||
-      ""
-    );
+      schema_checked:
+        true,
 
-  if (
-    !evidenceUrl &&
-    !externalId &&
-    !evidenceReference
-  ) {
-    errors.push(
-      "external_evidence_reference_required"
-    );
-  }
+      category_available:
+        columns.has("category"),
 
-  return errors;
-}
+      confidence_available:
+        columns.has("confidence"),
 
-function buildMetadata(body) {
-  const existing =
-    safeJson(body.metadata, {});
+      metadata_available:
+        columns.has("metadata"),
 
-  const metadata = {
-    ...existing,
+      detected_at_available:
+        columns.has("detected_at")
+    },
 
-    collection_engine: ENGINE,
+    handoff: {
+      next_layer:
+        "MARKET_INTELLIGENCE_V1",
 
-    evidence_type:
-      text(
-        body.evidence_type ||
-        existing.evidence_type ||
-        "EXTERNAL_MARKET_EVIDENCE"
-      ),
+      ready:
+        externalVerifiedRecords > 0
+    },
 
-    intent:
-      normalizeIntent(
-        body,
-        existing
-      ),
+    guardrails: {
+      invents_market_data:
+        false,
 
-    external: true,
+      accepts_test_as_external:
+        false,
 
-    test: false,
+      creates_opportunity:
+        false,
 
-    demo: false,
+      creates_decision:
+        false,
 
-    mock: false,
-
-    sample: false,
-
-    fixture: false,
-
-    collected_at:
-      new Date().toISOString()
+      executes_action:
+        false
+    }
   };
-
-  const evidenceUrl =
-    text(
-      body.evidence_url ||
-      existing.evidence_url ||
-      ""
-    );
-
-  if (evidenceUrl) {
-    metadata.evidence_url =
-      evidenceUrl;
-  }
-
-  const externalId =
-    text(
-      body.external_id ||
-      existing.external_id ||
-      ""
-    );
-
-  if (externalId) {
-    metadata.external_id =
-      externalId;
-  }
-
-  const evidenceReference =
-    text(
-      body.evidence_reference ||
-      existing.evidence_reference ||
-      ""
-    );
-
-  if (evidenceReference) {
-    metadata.evidence_reference =
-      evidenceReference;
-  }
-
-  return metadata;
 }
 
-async function insertSignal(env, body) {
+async function createMarketSignal(env, body) {
   const schema =
-    await getSchema(env);
+    await getMarketSignalsSchema(env);
 
   const columns =
-    getColumns(schema);
+    schemaColumnNames(schema);
 
   const source =
-    text(body.source);
+    body.source ||
+    body.source_type ||
+    null;
 
   const title =
-    text(body.title);
+    body.title ||
+    null;
 
-  const confidence =
-    normalizeConfidence(
-      body.confidence
-    );
+  if (!source) {
+    return {
+      error:
+        "source_required"
+    };
+  }
 
-  const detectedAt =
-    text(body.detected_at) ||
-    new Date().toISOString();
+  if (!title) {
+    return {
+      error:
+        "title_required"
+    };
+  }
 
   const metadata =
-    buildMetadata(body);
+    body.metadata &&
+    typeof body.metadata === "object"
+      ? {
+          ...body.metadata
+        }
+      : {};
+
+  /*
+   * External verification must be explicit.
+   */
+  const externalVerified =
+    body.external_verified === true ||
+    metadata.external_verified === true ||
+    metadata.external_source === true;
+
+  const testSignal =
+    body.test === true ||
+    metadata.test === true ||
+    metadata.demo === true ||
+    metadata.mock === true ||
+    metadata.sample === true ||
+    metadata.fixture === true ||
+    isTestSource(source);
+
+  /*
+   * Test data must never be marked as externally verified.
+   */
+  if (testSignal) {
+    metadata.test = true;
+    metadata.external_verified = false;
+    metadata.external_source = false;
+  } else if (externalVerified) {
+    metadata.external_verified = true;
+    metadata.external_source = true;
+  }
+
+  const detectedAt =
+    body.detected_at ||
+    new Date().toISOString();
+
+  const confidence =
+    body.confidence ??
+    null;
 
   const payload = {};
 
-  /*
-   * Only write columns that actually
-   * exist in the current D1 schema.
-   */
-
   if (columns.has("source")) {
-    payload.source = source;
+    payload.source =
+      source;
   }
 
   if (columns.has("title")) {
-    payload.title = title;
+    payload.title =
+      title;
   }
 
   if (columns.has("confidence")) {
@@ -397,20 +374,19 @@ async function insertSignal(env, body) {
 
   if (columns.has("category")) {
     payload.category =
-      text(body.category) ||
+      body.category ||
       "MARKET";
-  }
-
-  if (
-    Object.keys(payload).length === 0
-  ) {
-    throw new Error(
-      "MARKET_SIGNALS_SCHEMA_UNSUPPORTED"
-    );
   }
 
   const insertColumns =
     Object.keys(payload);
+
+  if (insertColumns.length === 0) {
+    return {
+      error:
+        "MARKET_SIGNALS_INSERT_SCHEMA_UNSUPPORTED"
+    };
+  }
 
   const placeholders =
     insertColumns
@@ -419,162 +395,60 @@ async function insertSignal(env, body) {
 
   const values =
     insertColumns.map(
-      column => payload[column]
+      column =>
+        payload[column]
     );
 
-  const result =
-    await env.DB
-      .prepare(`
-        INSERT INTO market_signals (
-          ${insertColumns
-            .map(
-              column => `"${column}"`
-            )
-            .join(", ")}
-        )
-        VALUES (${placeholders})
-      `)
-      .bind(...values)
-      .run();
+  const sql =
+    "INSERT INTO market_signals (" +
+    insertColumns
+      .map(column => `"${column}"`)
+      .join(", ") +
+    ") VALUES (" +
+    placeholders +
+    ")";
+
+  const result = await env.DB
+    .prepare(sql)
+    .bind(...values)
+    .run();
 
   return {
-    id:
-      result.meta?.last_row_id ??
-      null,
-
-    source,
-
-    title,
-
-    intent:
-      metadata.intent,
-
-    confidence,
-
-    external_verified:
+    success:
       true,
 
-    test_signal:
-      false,
+    id:
+      result.meta?.last_row_id ||
+      null,
 
-    detected_at:
-      detectedAt
+    external_verified:
+      !testSignal &&
+      externalVerified,
+
+    test:
+      testSignal
   };
 }
 
-async function collectionStatus(env) {
-  const schema =
-    await getSchema(env);
-
-  const columns =
-    getColumns(schema);
-
-  const result =
-    await env.DB
-      .prepare(`
-        SELECT
-          COUNT(*) AS total
-        FROM market_signals
-      `)
-      .all();
-
-  const total =
-    Number(
-      result.results?.[0]?.total || 0
-    );
-
-  /*
-   * Read metadata only where possible.
-   * Current schema has metadata.
-   */
-  let externalCount = 0;
-  let testCount = 0;
-
-  if (columns.has("metadata")) {
-    const rows =
-      await env.DB
-        .prepare(`
-          SELECT
-            source,
-            metadata
-          FROM market_signals
-          ORDER BY
-            detected_at DESC
-          LIMIT 100
-        `)
-        .all();
-
-    for (
-      const row of rows.results || []
-    ) {
-      const metadata =
-        safeJson(row.metadata, {});
-
-      if (
-        metadata.external === true
-      ) {
-        externalCount++;
-      }
-
-      if (
-        metadata.test === true ||
-        isTestSource(row.source)
-      ) {
-        testCount++;
-      }
-    }
-  }
-
-  return {
-    total_records: total,
-
-    external_verified_records:
-      externalCount,
-
-    test_records:
-      testCount,
-
-    real_market_evidence_available:
-      externalCount > 0,
-
-    schema: {
-      detected_columns:
-        schema.map(
-          column => column.name
-        ),
-
-      schema_checked: true,
-
-      metadata_available:
-        columns.has("metadata"),
-
-      category_available:
-        columns.has("category"),
-
-      confidence_available:
-        columns.has("confidence"),
-
-      detected_at_available:
-        columns.has("detected_at")
-    }
-  };
-}
-
-export async function onRequest(
-  context
-) {
+export async function onRequest(context) {
   const {
     request,
     env
   } = context;
 
   try {
-    if (!env?.DB) {
+    if (!env || !env.DB) {
       return json(
         {
-          success: false,
-          engine: ENGINE,
-          version: VERSION,
+          success:
+            false,
+
+          engine:
+            COLLECTION_ENGINE,
+
+          version:
+            COLLECTION_VERSION,
+
           error:
             "DB_BINDING_NOT_FOUND"
         },
@@ -582,69 +456,28 @@ export async function onRequest(
       );
     }
 
-    /*
-     * GET
-     *
-     * Collection readiness/status.
-     */
-    if (
-      request.method === "GET"
-    ) {
+    if (request.method === "GET") {
       const status =
-        await collectionStatus(env);
+        await getCollectionStatus(env);
 
       return json({
-        success: true,
+        success:
+          true,
 
-        engine: ENGINE,
+        engine:
+          COLLECTION_ENGINE,
 
-        version: VERSION,
+        version:
+          COLLECTION_VERSION,
 
         operation:
           "COLLECTION_STATUS",
 
-        ...status,
-
-        handoff: {
-          next_layer:
-            "MARKET_INTELLIGENCE_V1",
-
-          ready:
-            status
-              .real_market_evidence_available
-        },
-
-        guardrails: {
-          invents_market_data:
-            false,
-
-          accepts_test_as_external:
-            false,
-
-          writes_only_to_market_signals:
-            true,
-
-          creates_opportunity:
-            false,
-
-          creates_decision:
-            false,
-
-          executes_action:
-            false
-        }
+        ...status
       });
     }
 
-    /*
-     * POST
-     *
-     * Add externally observed
-     * market evidence.
-     */
-    if (
-      request.method === "POST"
-    ) {
+    if (request.method === "POST") {
       let body;
 
       try {
@@ -653,9 +486,15 @@ export async function onRequest(
       } catch {
         return json(
           {
-            success: false,
-            engine: ENGINE,
-            version: VERSION,
+            success:
+              false,
+
+            engine:
+              COLLECTION_ENGINE,
+
+            version:
+              COLLECTION_VERSION,
+
             error:
               "INVALID_JSON"
           },
@@ -663,64 +502,53 @@ export async function onRequest(
         );
       }
 
-      const errors =
-        validateExternalEvidence(
+      const created =
+        await createMarketSignal(
+          env,
           body
         );
 
-      if (errors.length > 0) {
+      if (created.error) {
         return json(
           {
-            success: false,
+            success:
+              false,
 
-            engine: ENGINE,
+            engine:
+              COLLECTION_ENGINE,
 
-            version: VERSION,
+            version:
+              COLLECTION_VERSION,
 
-            operation:
-              "MARKET_SIGNAL_REJECTED",
-
-            errors
+            error:
+              created.error
           },
           400
         );
       }
 
-      const inserted =
-        await insertSignal(
-          env,
-          body
-        );
-
       return json({
-        success: true,
+        success:
+          true,
 
-        engine: ENGINE,
+        engine:
+          COLLECTION_ENGINE,
 
-        version: VERSION,
+        version:
+          COLLECTION_VERSION,
 
         operation:
-          "EXTERNAL_MARKET_SIGNAL_COLLECTED",
+          "MARKET_SIGNAL_CREATED",
 
-        signal:
-          inserted,
-
-        data_integrity: {
-          records_from_external_evidence:
-            true,
-
-          externally_verified:
-            true,
-
-          test_record:
-            false
-        },
+        result:
+          created,
 
         handoff: {
           next_layer:
             "MARKET_INTELLIGENCE_V1",
 
-          ready: true
+          ready:
+            created.external_verified === true
         },
 
         guardrails: {
@@ -744,9 +572,15 @@ export async function onRequest(
 
     return json(
       {
-        success: false,
-        engine: ENGINE,
-        version: VERSION,
+        success:
+          false,
+
+        engine:
+          COLLECTION_ENGINE,
+
+        version:
+          COLLECTION_VERSION,
+
         error:
           "METHOD_NOT_ALLOWED"
       },
@@ -756,11 +590,14 @@ export async function onRequest(
   } catch (error) {
     return json(
       {
-        success: false,
+        success:
+          false,
 
-        engine: ENGINE,
+        engine:
+          COLLECTION_ENGINE,
 
-        version: VERSION,
+        version:
+          COLLECTION_VERSION,
 
         error:
           error?.message ||
