@@ -17,7 +17,7 @@ function json(data, status = 200) {
 function now() { return new Date().toISOString(); }
 function b64url(bytes) {
   let s = ""; for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 function randomToken(n = 32) { const a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a); }
 async function sha256url(value) {
