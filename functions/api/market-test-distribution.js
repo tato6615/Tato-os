@@ -1,43 +1,48 @@
 // TATO-OS
-// Market Test Distribution V1.0.1
-// Route: /api/market-test-distribution
+// Market Test Measurement Integration V1.0
+// Route: /api/market-test-measurement
 //
 // Pipeline:
 //
-// Business Execution
-//        ↓
 // Market Test Distribution
 //        ↓
-// Measurement
+// Market Test Measurement
+//        ↓
+// Real Behavior Event
+//        ↓
+// behavior_events
+//        ↓
+// Measurement V2.3
 //
-// V1.0.1 DOES:
-// - read READY_FOR_DISTRIBUTION market tests
-// - create a controlled distribution record
-// - persist distribution in D1
-// - define tracking requirements
-// - preserve full traceability
-// - handoff to Measurement
+// V1 DOES:
+// - read READY_FOR_MEASUREMENT distributions
+// - create a measurement session for a market test
+// - accept real behavior events
+// - preserve market-test attribution
+// - write events into behavior_events when compatible columns exist
+// - maintain an attribution table for traceability
+// - summarize observed events
 //
-// V1.0.1 DOES NOT:
-// - publish content
-// - run ads
-// - spend money
-// - change strategy
-// - claim revenue
-// - create purchase data
-// - create revenue data
+// V1 DOES NOT:
+// - invent traffic
+// - invent attention
+// - invent purchases
+// - invent revenue
 // - declare a winner
+// - change strategy
+// - execute actions
+// - publish content
+// - spend money
 
-const ENGINE = "MARKET_TEST_DISTRIBUTION_V1";
-const VERSION = "1.0.1";
+const ENGINE = "MARKET_TEST_MEASUREMENT_V1";
+const VERSION = "1.0";
 
-const PREVIOUS_LAYER = "BUSINESS_EXECUTION_V1";
-const NEXT_LAYER = "MEASUREMENT";
+const PREVIOUS_LAYER = "MARKET_TEST_DISTRIBUTION_V1";
+const NEXT_LAYER = "MEASUREMENT_V2.3";
 
-const ACCEPTED_MARKET_TEST_STATUS = "READY_FOR_DISTRIBUTION";
-const DISTRIBUTION_STATUS_READY = "READY_FOR_MEASUREMENT";
+const READY_DISTRIBUTION_STATUS = "READY_FOR_MEASUREMENT";
 
-const REQUIRED_EVENTS = [
+const ALLOWED_EVENTS = [
   "content_view",
   "content_click",
   "engagement",
@@ -65,9 +70,6 @@ const PURCHASE_EVENTS = [
 const REVENUE_EVENTS = [
   "revenue_recorded"
 ];
-
-const DEFAULT_CHANNEL = "ORGANIC_CONTENT";
-const DEFAULT_ENTRY_POINT = "CONTROLLED_MARKET_TEST_ENTRY";
 
 function now() {
   return new Date().toISOString();
@@ -103,39 +105,57 @@ function safeString(value) {
   return String(value).trim();
 }
 
+function safeNumber(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return number;
+}
+
 async function ensureTables(env) {
   await env.DB.prepare(`
-    CREATE TABLE IF NOT EXISTS market_test_distributions (
+    CREATE TABLE IF NOT EXISTS market_test_measurements (
       id TEXT PRIMARY KEY,
       market_test_id TEXT NOT NULL,
-      execution_id TEXT,
-      action_id TEXT,
-      approval_id TEXT,
-      decision_id TEXT,
+      distribution_id TEXT NOT NULL,
       market_theme TEXT,
       opportunity_type TEXT,
-      channel TEXT,
-      entry_point TEXT,
       status TEXT,
-      external_distribution_status TEXT,
-      tracking_status TEXT,
       created_at TEXT,
       updated_at TEXT
     )
   `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS market_test_event_links (
+      id TEXT PRIMARY KEY,
+      market_test_id TEXT NOT NULL,
+      distribution_id TEXT NOT NULL,
+      measurement_id TEXT NOT NULL,
+      behavior_event_id TEXT,
+      event_type TEXT NOT NULL,
+      customer_id TEXT,
+      product_id TEXT,
+      content_id TEXT,
+      revenue_amount REAL,
+      source TEXT,
+      created_at TEXT
+    )
+  `).run();
 }
 
-async function getMarketTests(env) {
-  const result = await env.DB.prepare(`
-    SELECT *
-    FROM business_market_tests
-    ORDER BY rowid DESC
-  `).all();
-
-  return result.results || [];
-}
-
-async function getDistributionRecords(env) {
+async function getDistributions(env) {
   const result = await env.DB.prepare(`
     SELECT *
     FROM market_test_distributions
@@ -145,14 +165,34 @@ async function getDistributionRecords(env) {
   return result.results || [];
 }
 
-async function findMarketTest(env, marketTestId) {
+async function getMeasurements(env) {
   const result = await env.DB.prepare(`
     SELECT *
-    FROM business_market_tests
+    FROM market_test_measurements
+    ORDER BY rowid DESC
+  `).all();
+
+  return result.results || [];
+}
+
+async function getEventLinks(env) {
+  const result = await env.DB.prepare(`
+    SELECT *
+    FROM market_test_event_links
+    ORDER BY rowid DESC
+  `).all();
+
+  return result.results || [];
+}
+
+async function findDistribution(env, distributionId) {
+  const result = await env.DB.prepare(`
+    SELECT *
+    FROM market_test_distributions
     WHERE id = ?
     LIMIT 1
   `)
-    .bind(marketTestId)
+    .bind(distributionId)
     .all();
 
   if (
@@ -165,15 +205,18 @@ async function findMarketTest(env, marketTestId) {
   return result.results[0];
 }
 
-async function findExistingDistribution(env, marketTestId) {
+async function findMeasurementByDistribution(
+  env,
+  distributionId
+) {
   const result = await env.DB.prepare(`
     SELECT *
-    FROM market_test_distributions
-    WHERE market_test_id = ?
+    FROM market_test_measurements
+    WHERE distribution_id = ?
     ORDER BY rowid DESC
     LIMIT 1
   `)
-    .bind(marketTestId)
+    .bind(distributionId)
     .all();
 
   if (
@@ -186,150 +229,335 @@ async function findExistingDistribution(env, marketTestId) {
   return result.results[0];
 }
 
-function buildDistributionPlan(marketTest) {
-  return {
-    objective:
-      "Distribute the approved market test through a controlled entry point and measure real customer behavior.",
+async function getBehaviorSchema(env) {
+  const result = await env.DB
+    .prepare(
+      "PRAGMA table_info(behavior_events)"
+    )
+    .all();
 
-    market_theme:
-      marketTest.market_theme || "unknown",
+  const columns = result.results || [];
 
-    opportunity_type:
-      marketTest.opportunity_type || "unknown",
+  return columns.map(function (column) {
+    return column.name;
+  });
+}
 
-    channel: DEFAULT_CHANNEL,
+function hasColumn(columns, name) {
+  return columns.indexOf(name) !== -1;
+}
 
-    entry_point: DEFAULT_ENTRY_POINT,
+function buildBehaviorInsert(
+  columns,
+  event
+) {
+  const values = [];
+  const insertColumns = [];
+  const placeholders = [];
 
-    tracking: {
-      required: true,
-      event_types: REQUIRED_EVENTS,
-      measurement_owner: "MEASUREMENT_LAYER"
-    },
-
-    control_rules: {
-      controlled_test: true,
-      test_data_as_market_evidence: false,
-      automatic_scaling: false,
-      strategy_change: false,
-      paid_advertising: false,
-      external_publishing: false
+  function add(column, value) {
+    if (!hasColumn(columns, column)) {
+      return;
     }
+
+    insertColumns.push(column);
+    placeholders.push("?");
+    values.push(value);
+  }
+
+  add("id", event.behaviorEventId);
+  add("event_id", event.behaviorEventId);
+  add("event_type", event.eventType);
+  add("customer_id", event.customerId);
+  add("product_id", event.productId);
+  add("content_id", event.contentId);
+  add("revenue", event.revenueAmount);
+  add("revenue_amount", event.revenueAmount);
+  add("source", event.source);
+  add("created_at", event.createdAt);
+  add("timestamp", event.createdAt);
+  add("metadata", event.metadata);
+
+  if (insertColumns.length === 0) {
+    return null;
+  }
+
+  return {
+    sql:
+      "INSERT INTO behavior_events (" +
+      insertColumns.join(", ") +
+      ") VALUES (" +
+      placeholders.join(", ") +
+      ")",
+
+    values: values
   };
 }
 
-async function createDistribution(env, marketTest) {
-  const existing = await findExistingDistribution(
-    env,
-    marketTest.id
-  );
+async function insertBehaviorEvent(
+  env,
+  event
+) {
+  const columns =
+    await getBehaviorSchema(env);
+
+  const statement =
+    buildBehaviorInsert(
+      columns,
+      event
+    );
+
+  if (!statement) {
+    return {
+      inserted: false,
+      reason:
+        "NO_COMPATIBLE_BEHAVIOR_EVENT_COLUMNS",
+      columns: columns
+    };
+  }
+
+  try {
+    await env.DB
+      .prepare(statement.sql)
+      .bind.apply(
+        env.DB.prepare(statement.sql),
+        statement.values
+      )
+      .run();
+
+    return {
+      inserted: true,
+      columns_used:
+        statement.sql
+          .replace(
+            "INSERT INTO behavior_events (",
+            ""
+          )
+          .split(") VALUES")[0]
+          .split(", ")
+    };
+  } catch (error) {
+    return {
+      inserted: false,
+      reason:
+        error && error.message
+          ? error.message
+          : String(error),
+      columns: columns
+    };
+  }
+}
+
+function eventStage(eventType) {
+  if (
+    ATTENTION_EVENTS.indexOf(eventType) !== -1
+  ) {
+    return "ATTENTION";
+  }
+
+  if (
+    INTEREST_EVENTS.indexOf(eventType) !== -1
+  ) {
+    return "INTEREST";
+  }
+
+  if (
+    PURCHASE_EVENTS.indexOf(eventType) !== -1
+  ) {
+    return "PURCHASE";
+  }
+
+  if (
+    REVENUE_EVENTS.indexOf(eventType) !== -1
+  ) {
+    return "REVENUE";
+  }
+
+  return "UNKNOWN";
+}
+
+function calculateSummary(links) {
+  const counts = {
+    content_view: 0,
+    content_click: 0,
+    engagement: 0,
+    product_view: 0,
+    order_created: 0,
+    payment_completed: 0,
+    revenue_recorded: 0
+  };
+
+  let revenue = 0;
+
+  links.forEach(function (item) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        counts,
+        item.event_type
+      )
+    ) {
+      counts[item.event_type] += 1;
+    }
+
+    if (
+      item.event_type === "revenue_recorded" &&
+      item.revenue_amount !== null &&
+      item.revenue_amount !== undefined
+    ) {
+      const amount =
+        Number(item.revenue_amount);
+
+      if (Number.isFinite(amount)) {
+        revenue += amount;
+      }
+    }
+  });
+
+  return {
+    attention: {
+      content_view:
+        counts.content_view,
+      content_click:
+        counts.content_click
+    },
+
+    interest: {
+      engagement:
+        counts.engagement,
+      product_view:
+        counts.product_view
+    },
+
+    purchase: {
+      order_created:
+        counts.order_created,
+      payment_completed:
+        counts.payment_completed
+    },
+
+    revenue: {
+      revenue_recorded:
+        counts.revenue_recorded,
+      observed_revenue:
+        revenue
+    },
+
+    total_events:
+      links.length
+  };
+}
+
+async function createMeasurement(
+  env,
+  distribution
+) {
+  const existing =
+    await findMeasurementByDistribution(
+      env,
+      distribution.id
+    );
 
   if (existing) {
     return {
       duplicate: true,
-      distribution: existing,
-      plan: null
+      measurement: existing
     };
   }
 
-  const id = randomId("distribution");
+  const id =
+    randomId("measurement");
+
   const timestamp = now();
 
-  const plan = buildDistributionPlan(
-    marketTest
-  );
-
   await env.DB.prepare(`
-    INSERT INTO market_test_distributions (
+    INSERT INTO market_test_measurements (
       id,
       market_test_id,
-      execution_id,
-      action_id,
-      approval_id,
-      decision_id,
+      distribution_id,
       market_theme,
       opportunity_type,
-      channel,
-      entry_point,
       status,
-      external_distribution_status,
-      tracking_status,
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
     .bind(
       id,
-      marketTest.id,
-      marketTest.execution_id || null,
-      marketTest.action_id || null,
-      marketTest.approval_id || null,
-      marketTest.decision_id || null,
-      marketTest.market_theme || null,
-      marketTest.opportunity_type || null,
-      plan.channel,
-      plan.entry_point,
-      DISTRIBUTION_STATUS_READY,
-      "NOT_STARTED",
-      "READY",
+      distribution.market_test_id,
+      distribution.id,
+      distribution.market_theme || null,
+      distribution.opportunity_type || null,
+      "COLLECTING",
       timestamp,
       timestamp
-    )
-    .run();
-
-  await env.DB.prepare(`
-    UPDATE business_market_tests
-    SET status = ?,
-        updated_at = ?
-    WHERE id = ?
-  `)
-    .bind(
-      DISTRIBUTION_STATUS_READY,
-      timestamp,
-      marketTest.id
     )
     .run();
 
   return {
     duplicate: false,
 
-    distribution: {
+    measurement: {
       id: id,
-      market_test_id: marketTest.id,
-      execution_id: marketTest.execution_id || null,
-      action_id: marketTest.action_id || null,
-      approval_id: marketTest.approval_id || null,
-      decision_id: marketTest.decision_id || null,
-      market_theme: marketTest.market_theme || null,
-      opportunity_type: marketTest.opportunity_type || null,
-      channel: plan.channel,
-      entry_point: plan.entry_point,
-      status: DISTRIBUTION_STATUS_READY,
-      external_distribution_status: "NOT_STARTED",
-      tracking_status: "READY",
+      market_test_id:
+        distribution.market_test_id,
+      distribution_id:
+        distribution.id,
+      market_theme:
+        distribution.market_theme || null,
+      opportunity_type:
+        distribution.opportunity_type || null,
+      status: "COLLECTING",
       created_at: timestamp,
       updated_at: timestamp
-    },
-
-    plan: plan
+    }
   };
 }
 
 async function handleGet(env) {
   await ensureTables(env);
 
-  const marketTests = await getMarketTests(env);
-  const distributions = await getDistributionRecords(env);
+  const distributions =
+    await getDistributions(env);
 
-  const readyMarketTests = marketTests.filter(
-    function (item) {
-      return (
-        item.status === ACCEPTED_MARKET_TEST_STATUS ||
-        item.status === DISTRIBUTION_STATUS_READY
-      );
-    }
-  );
+  const measurements =
+    await getMeasurements(env);
+
+  const eventLinks =
+    await getEventLinks(env);
+
+  const ready =
+    distributions.filter(
+      function (item) {
+        return (
+          item.status ===
+            READY_DISTRIBUTION_STATUS ||
+          item.tracking_status === "READY"
+        );
+      }
+    );
+
+  const measurementSummaries =
+    measurements.map(
+      function (measurement) {
+        const links =
+          eventLinks.filter(
+            function (event) {
+              return (
+                event.measurement_id ===
+                measurement.id
+              );
+            }
+          );
+
+        return {
+          measurement: measurement,
+          observed: calculateSummary(
+            links
+          )
+        };
+      }
+    );
 
   return json({
     success: true,
@@ -339,83 +567,94 @@ async function handleGet(env) {
     timestamp: now(),
 
     state:
-      distributions.length > 0
-        ? "DISTRIBUTION_READY"
-        : "WAITING_FOR_MARKET_TEST",
+      measurements.length > 0
+        ? "MEASUREMENT_ACTIVE"
+        : ready.length > 0
+          ? "READY_TO_START_MEASUREMENT"
+          : "WAITING_FOR_DISTRIBUTION",
 
     summary: {
-      market_tests: marketTests.length,
-      ready_market_tests: readyMarketTests.length,
-      distributions: distributions.length,
+      distributions:
+        distributions.length,
 
-      measurement_ready_distributions:
-        distributions.filter(
-          function (item) {
-            return (
-              item.status ===
-              DISTRIBUTION_STATUS_READY
-            );
-          }
-        ).length
+      ready_distributions:
+        ready.length,
+
+      measurements:
+        measurements.length,
+
+      linked_behavior_events:
+        eventLinks.length
     },
 
-    market_tests: marketTests,
+    distributions:
+      distributions,
 
-    distributions: distributions,
+    measurements:
+      measurementSummaries,
+
+    event_links:
+      eventLinks,
+
+    measurement_contract: {
+      required_events:
+        ALLOWED_EVENTS,
+
+      attention_events:
+        ATTENTION_EVENTS,
+
+      interest_events:
+        INTEREST_EVENTS,
+
+      purchase_events:
+        PURCHASE_EVENTS,
+
+      revenue_events:
+        REVENUE_EVENTS,
+
+      measurement_engine:
+        "MEASUREMENT_V2.3"
+    },
+
+    guardrails: {
+      invents_behavior: false,
+      invents_attention: false,
+      invents_purchase: false,
+      invents_revenue: false,
+      declares_winner: false,
+      changes_strategy: false,
+      executes_action: false,
+      publishes_content: false,
+      spends_money: false,
+      automatic_scaling: false
+    },
+
+    data_integrity: {
+      measurement_persistence: "D1",
+      distribution_traceability: true,
+      market_test_traceability: true,
+      execution_traceability: true,
+      approval_traceability: true,
+      decision_traceability: true,
+      behavior_event_attribution: true,
+      real_event_required: true
+    },
 
     contract: {
       current_layer: ENGINE,
       version: VERSION,
       previous_layer: PREVIOUS_LAYER,
       next_layer: NEXT_LAYER,
-
-      accepted_market_test_status:
-        ACCEPTED_MARKET_TEST_STATUS,
-
-      distribution_status:
-        DISTRIBUTION_STATUS_READY,
-
-      duplicate_distribution_blocked: true,
-
-      external_distribution_started: false
-    },
-
-    tracking_contract: {
-      required_events: REQUIRED_EVENTS,
-
-      attention_events: ATTENTION_EVENTS,
-
-      interest_events: INTEREST_EVENTS,
-
-      purchase_events: PURCHASE_EVENTS,
-
-      revenue_events: REVENUE_EVENTS
-    },
-
-    guardrails: {
-      publishes_content: false,
-      spends_money: false,
-      runs_ads: false,
-      changes_strategy: false,
-      creates_purchase_data: false,
-      creates_revenue_data: false,
-      guarantees_revenue: false,
-      automatic_scaling: false,
-      duplicate_distribution_blocked: true
-    },
-
-    data_integrity: {
-      distribution_persistence: "D1",
-      market_test_traceability: true,
-      execution_traceability: true,
-      approval_traceability: true,
-      decision_traceability: true,
-      test_data_not_promoted_to_market_evidence: true
+      real_behavior_required: true,
+      revenue_confirmation_required: true
     }
   });
 }
 
-async function handlePost(request, env) {
+async function handlePost(
+  request,
+  env
+) {
   await ensureTables(env);
 
   let body;
@@ -434,49 +673,50 @@ async function handlePost(request, env) {
     );
   }
 
-  const marketTestId = safeString(
-    body.market_test_id
-  );
+  const distributionId =
+    safeString(
+      body.distribution_id
+    );
 
-  if (!marketTestId) {
+  if (!distributionId) {
     return json(
       {
         success: false,
         engine: ENGINE,
         version: VERSION,
-        error: "market_test_id_required"
+        error:
+          "distribution_id_required"
       },
       400
     );
   }
 
-  const marketTest = await findMarketTest(
-    env,
-    marketTestId
-  );
+  const distribution =
+    await findDistribution(
+      env,
+      distributionId
+    );
 
-  if (!marketTest) {
+  if (!distribution) {
     return json(
       {
         success: false,
         engine: ENGINE,
         version: VERSION,
-        error: "MARKET_TEST_NOT_FOUND",
-        market_test_id: marketTestId
+        error:
+          "DISTRIBUTION_NOT_FOUND",
+        distribution_id:
+          distributionId
       },
       404
     );
   }
 
-  const currentStatus = safeString(
-    marketTest.status
-  );
-
   if (
-    currentStatus !==
-      ACCEPTED_MARKET_TEST_STATUS &&
-    currentStatus !==
-      DISTRIBUTION_STATUS_READY
+    distribution.status !==
+      READY_DISTRIBUTION_STATUS &&
+    distribution.tracking_status !==
+      "READY"
   ) {
     return json(
       {
@@ -484,23 +724,26 @@ async function handlePost(request, env) {
         engine: ENGINE,
         version: VERSION,
         error:
-          "MARKET_TEST_NOT_READY_FOR_DISTRIBUTION",
+          "DISTRIBUTION_NOT_READY_FOR_MEASUREMENT",
 
-        market_test_id: marketTestId,
+        distribution_id:
+          distributionId,
 
-        current_status: currentStatus,
+        current_status:
+          distribution.status,
 
         required_status:
-          ACCEPTED_MARKET_TEST_STATUS
+          READY_DISTRIBUTION_STATUS
       },
       409
     );
   }
 
-  const result = await createDistribution(
-    env,
-    marketTest
-  );
+  const result =
+    await createMeasurement(
+      env,
+      distribution
+    );
 
   if (result.duplicate) {
     return json({
@@ -510,24 +753,26 @@ async function handlePost(request, env) {
       version: VERSION,
       timestamp: now(),
 
-      state: "DISTRIBUTION_ALREADY_EXISTS",
+      state:
+        "MEASUREMENT_ALREADY_EXISTS",
 
-      distribution: result.distribution,
+      measurement:
+        result.measurement,
 
       handoff: {
         ready: true,
-        next_layer: NEXT_LAYER,
+        next_layer:
+          NEXT_LAYER,
 
         reason:
-          "A distribution record already exists for this market test."
+          "A measurement session already exists for this distribution."
       },
 
       guardrails: {
-        external_distribution_started: false,
-        publishes_content: false,
-        spends_money: false,
-        runs_ads: false,
-        duplicate_distribution_blocked: true
+        invents_behavior: false,
+        invents_attention: false,
+        invents_purchase: false,
+        invents_revenue: false
       }
     });
   }
@@ -539,75 +784,433 @@ async function handlePost(request, env) {
     version: VERSION,
     timestamp: now(),
 
-    state: "DISTRIBUTION_READY",
+    state:
+      "MEASUREMENT_ACTIVE",
 
-    market_test: {
-      id: marketTest.id,
+    distribution: {
+      id:
+        distribution.id,
+
+      market_test_id:
+        distribution.market_test_id,
+
       execution_id:
-        marketTest.execution_id || null,
+        distribution.execution_id || null,
+
       action_id:
-        marketTest.action_id || null,
+        distribution.action_id || null,
+
       approval_id:
-        marketTest.approval_id || null,
+        distribution.approval_id || null,
+
       decision_id:
-        marketTest.decision_id || null,
+        distribution.decision_id || null,
+
       market_theme:
-        marketTest.market_theme || null,
+        distribution.market_theme || null,
+
       opportunity_type:
-        marketTest.opportunity_type || null
+        distribution.opportunity_type || null
     },
 
-    distribution: result.distribution,
+    measurement:
+      result.measurement,
 
-    plan: result.plan,
+    event_ingestion: {
+      enabled: true,
+      real_event_required: true,
+      allowed_events:
+        ALLOWED_EVENTS,
+
+      attribution:
+        "MARKET_TEST_EVENT_LINK"
+    },
 
     handoff: {
       ready: true,
-      next_layer: NEXT_LAYER,
+      next_layer:
+        NEXT_LAYER,
 
       reason:
-        "The market test has been converted into a controlled distribution record and is ready to connect to Measurement."
-    },
-
-    external_distribution: {
-      published: false,
-      distributed: false,
-      advertising_started: false,
-      money_spent: false
+        "Measurement is active and waiting for real customer behavior."
     },
 
     guardrails: {
-      publishes_content: false,
-      spends_money: false,
-      runs_ads: false,
+      invents_behavior: false,
+      invents_attention: false,
+      invents_purchase: false,
+      invents_revenue: false,
+      declares_winner: false,
       changes_strategy: false,
-      creates_purchase_data: false,
-      creates_revenue_data: false,
-      guarantees_revenue: false,
-      automatic_scaling: false,
-      duplicate_distribution_blocked: true
-    },
-
-    data_integrity: {
-      distribution_persistence: "D1",
-      market_test_traceability: true,
-      execution_traceability: true,
-      approval_traceability: true,
-      decision_traceability: true
+      executes_action: false,
+      publishes_content: false,
+      spends_money: false
     },
 
     contract: {
       current_layer: ENGINE,
       version: VERSION,
-      previous_layer: PREVIOUS_LAYER,
-      next_layer: NEXT_LAYER,
+      previous_layer:
+        PREVIOUS_LAYER,
+      next_layer:
+        NEXT_LAYER,
 
-      distribution_status:
-        DISTRIBUTION_STATUS_READY,
+      measurement_engine:
+        "MEASUREMENT_V2.3",
 
-      external_distribution: "NOT_STARTED",
+      real_behavior_required: true
+    }
+  });
+}
 
-      measurement_required: true
+async function handleEventPost(
+  request,
+  env
+) {
+  await ensureTables(env);
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch (error) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error: "INVALID_JSON"
+      },
+      400
+    );
+  }
+
+  const measurementId =
+    safeString(
+      body.measurement_id
+    );
+
+  const eventType =
+    safeString(
+      body.event_type
+    );
+
+  if (!measurementId) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "measurement_id_required"
+      },
+      400
+    );
+  }
+
+  if (
+    ALLOWED_EVENTS.indexOf(
+      eventType
+    ) === -1
+  ) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "INVALID_EVENT_TYPE",
+
+        allowed_events:
+          ALLOWED_EVENTS
+      },
+      400
+    );
+  }
+
+  const measurementResult =
+    await env.DB.prepare(`
+      SELECT *
+      FROM market_test_measurements
+      WHERE id = ?
+      LIMIT 1
+    `)
+      .bind(measurementId)
+      .all();
+
+  if (
+    !measurementResult.results ||
+    measurementResult.results.length === 0
+  ) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+        error:
+          "MEASUREMENT_NOT_FOUND",
+        measurement_id:
+          measurementId
+      },
+      404
+    );
+  }
+
+  const measurement =
+    measurementResult.results[0];
+
+  const behaviorEventId =
+    randomId("behavior");
+
+  const createdAt =
+    safeString(
+      body.created_at
+    ) || now();
+
+  const revenueAmount =
+    safeNumber(
+      body.revenue_amount
+    );
+
+  const metadataObject =
+    body.metadata &&
+    typeof body.metadata === "object"
+      ? body.metadata
+      : {};
+
+  metadataObject.market_test_id =
+    measurement.market_test_id;
+
+  metadataObject.distribution_id =
+    measurement.distribution_id;
+
+  metadataObject.measurement_id =
+    measurement.id;
+
+  metadataObject.source =
+    "MARKET_TEST_MEASUREMENT_V1";
+
+  const behaviorEvent = {
+    behaviorEventId:
+      behaviorEventId,
+
+    eventType:
+      eventType,
+
+    customerId:
+      safeString(
+        body.customer_id
+      ) || null,
+
+    productId:
+      safeString(
+        body.product_id
+      ) || null,
+
+    contentId:
+      safeString(
+        body.content_id
+      ) || null,
+
+    revenueAmount:
+      revenueAmount,
+
+    source:
+      "MARKET_TEST",
+
+    createdAt:
+      createdAt,
+
+    metadata:
+      JSON.stringify(
+        metadataObject
+      )
+  };
+
+  const insertion =
+    await insertBehaviorEvent(
+      env,
+      behaviorEvent
+    );
+
+  if (!insertion.inserted) {
+    return json(
+      {
+        success: false,
+        engine: ENGINE,
+        version: VERSION,
+
+        error:
+          "BEHAVIOR_EVENT_INSERT_FAILED",
+
+        reason:
+          insertion.reason,
+
+        schema:
+          insertion.columns,
+
+        guardrails: {
+          event_created: false,
+          measurement_changed: false,
+          invents_behavior: false
+        }
+      },
+      500
+    );
+  }
+
+  const linkId =
+    randomId("event-link");
+
+  await env.DB.prepare(`
+    INSERT INTO market_test_event_links (
+      id,
+      market_test_id,
+      distribution_id,
+      measurement_id,
+      behavior_event_id,
+      event_type,
+      customer_id,
+      product_id,
+      content_id,
+      revenue_amount,
+      source,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      linkId,
+      measurement.market_test_id,
+      measurement.distribution_id,
+      measurement.id,
+      behaviorEventId,
+      eventType,
+      behaviorEvent.customerId,
+      behaviorEvent.productId,
+      behaviorEvent.contentId,
+      revenueAmount,
+      "MARKET_TEST",
+      createdAt
+    )
+    .run();
+
+  const linksResult =
+    await env.DB.prepare(`
+      SELECT *
+      FROM market_test_event_links
+      WHERE measurement_id = ?
+      ORDER BY rowid ASC
+    `)
+      .bind(measurement.id)
+      .all();
+
+  const links =
+    linksResult.results || [];
+
+  const summary =
+    calculateSummary(links);
+
+  await env.DB.prepare(`
+    UPDATE market_test_measurements
+    SET updated_at = ?
+    WHERE id = ?
+  `)
+    .bind(
+      now(),
+      measurement.id
+    )
+    .run();
+
+  return json({
+    success: true,
+
+    engine: ENGINE,
+    version: VERSION,
+    timestamp: now(),
+
+    state:
+      "EVENT_RECORDED",
+
+    measurement: {
+      id:
+        measurement.id,
+
+      market_test_id:
+        measurement.market_test_id,
+
+      distribution_id:
+        measurement.distribution_id,
+
+      status:
+        measurement.status
+    },
+
+    event: {
+      behavior_event_id:
+        behaviorEventId,
+
+      link_id:
+        linkId,
+
+      event_type:
+        eventType,
+
+      stage:
+        eventStage(eventType),
+
+      customer_id:
+        behaviorEvent.customerId,
+
+      product_id:
+        behaviorEvent.productId,
+
+      content_id:
+        behaviorEvent.contentId,
+
+      revenue_amount:
+        revenueAmount
+    },
+
+    observed_summary:
+      summary,
+
+    measurement_handoff: {
+      next_layer:
+        "MEASUREMENT_V2.3",
+
+      behavior_event_written:
+        true,
+
+      measurement_engine_reads_behavior_events:
+        true
+    },
+
+    guardrails: {
+      invents_behavior: false,
+      invents_attention: false,
+      invents_purchase: false,
+      invents_revenue: false,
+      declares_winner: false,
+      changes_strategy: false,
+      executes_action: false
+    },
+
+    data_integrity: {
+      behavior_event_persistence:
+        "D1",
+
+      market_test_attribution:
+        true,
+
+      distribution_traceability:
+        true,
+
+      measurement_traceability:
+        true,
+
+      real_event_required:
+        true
     }
   });
 }
@@ -635,6 +1238,25 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    const url =
+      new URL(
+        context.request.url
+      );
+
+    const pathname =
+      url.pathname;
+
+    if (
+      pathname.endsWith(
+        "/event"
+      )
+    ) {
+      return await handleEventPost(
+        context.request,
+        context.env
+      );
+    }
+
     return await handlePost(
       context.request,
       context.env
