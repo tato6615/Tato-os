@@ -1,18 +1,15 @@
 // TATO-OS
-// Feedback Engine V1.1
+// Feedback Engine V1.2
 // Route: /api/feedback-engine
 // Purpose: persist verified execution feedback and hand it back to the loop.
 // Guardrails: no strategy change, no winner declaration, no automatic execution.
 
-const LAYER = "FEEDBACK_ENGINE_V1.1";
+const LAYER = "FEEDBACK_ENGINE_V1.2";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
-    headers: {
-      "content-type": "application/json; charset=UTF-8",
-      "cache-control": "no-store"
-    }
+    headers: { "content-type": "application/json; charset=UTF-8", "cache-control": "no-store" }
   });
 }
 
@@ -23,9 +20,7 @@ function parseJSON(value, fallback = {}) {
 }
 
 async function getExecution(DB, id, actionRunId = null) {
-  if (id) {
-    return await DB.prepare("SELECT * FROM execution_runs WHERE id = ? LIMIT 1").bind(id).first();
-  }
+  if (id) return await DB.prepare("SELECT * FROM execution_runs WHERE id = ? LIMIT 1").bind(id).first();
   if (actionRunId) {
     return await DB.prepare(
       "SELECT * FROM execution_runs WHERE action_run_id = ? ORDER BY created_at DESC LIMIT 1"
@@ -48,10 +43,44 @@ function resolveContentId(execution, action) {
 async function callJSON(url) {
   const response = await fetch(url, { method: "GET", headers: { accept: "application/json" } });
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.success) {
-    throw new Error(data?.error || data?.status || `HTTP ${response.status}`);
-  }
+  if (!response.ok || !data?.success) throw new Error(data?.error || data?.status || `HTTP ${response.status}`);
   return data;
+}
+
+async function ensureFeedbackTable(DB) {
+  await DB.prepare(`
+    CREATE TABLE IF NOT EXISTS feedback_runs (
+      id TEXT PRIMARY KEY,
+      execution_run_id TEXT NOT NULL,
+      action_run_id TEXT,
+      content_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      input_data TEXT,
+      output_data TEXT,
+      created_at TEXT NOT NULL
+    )
+  `).run();
+
+  // Existing TATO-OS installations may already have feedback_runs
+  // with an older schema. Upgrade only missing columns; never delete data.
+  const info = await DB.prepare("PRAGMA table_info(feedback_runs)").all();
+  const columns = new Set((info.results || []).map(row => row.name));
+
+  const additions = [
+    ["execution_run_id", "TEXT"],
+    ["action_run_id", "TEXT"],
+    ["content_id", "TEXT"],
+    ["status", "TEXT"],
+    ["input_data", "TEXT"],
+    ["output_data", "TEXT"],
+    ["created_at", "TEXT"]
+  ];
+
+  for (const [name, type] of additions) {
+    if (!columns.has(name)) {
+      await DB.prepare(`ALTER TABLE feedback_runs ADD COLUMN ${name} ${type}`).run();
+    }
+  }
 }
 
 async function buildFeedback(context, execution) {
@@ -82,18 +111,7 @@ async function buildFeedback(context, execution) {
 }
 
 async function persistFeedback(DB, execution, data, approvalSource = "HUMAN") {
-  await DB.prepare(`
-    CREATE TABLE IF NOT EXISTS feedback_runs (
-      id TEXT PRIMARY KEY,
-      execution_run_id TEXT NOT NULL,
-      action_run_id TEXT,
-      content_id TEXT NOT NULL,
-      status TEXT NOT NULL,
-      input_data TEXT,
-      output_data TEXT,
-      created_at TEXT NOT NULL
-    )
-  `).run();
+  await ensureFeedbackTable(DB);
 
   const existing = await DB.prepare(
     "SELECT * FROM feedback_runs WHERE execution_run_id = ? ORDER BY created_at DESC LIMIT 1"
@@ -130,7 +148,7 @@ function responsePayload(data, execution, mode, persisted = null) {
   return {
     success: true,
     layer: LAYER,
-    version: "1.1",
+    version: "1.2",
     mode,
     status: mode === "execute" ? "FEEDBACK_REENTERED" : "FEEDBACK_READY",
     content_id: data.contentId,
@@ -154,10 +172,7 @@ function responsePayload(data, execution, mode, persisted = null) {
       finding: data.investigation.finding || null,
       next_action: data.investigation.next_action || null
     },
-    persisted: persisted ? {
-      feedback_run_id: persisted.id,
-      duplicate: persisted.duplicate
-    } : false,
+    persisted: persisted ? { feedback_run_id: persisted.id, duplicate: persisted.duplicate } : false,
     guardrails: {
       strategy_change: false,
       winner_declared: false,
@@ -195,7 +210,7 @@ export async function onRequestGet(context) {
 
     return json(responsePayload(data, execution, "preview"));
   } catch (error) {
-    return json({ success: false, layer: LAYER, version: "1.1", status: "ERROR", error: error?.message || String(error) }, 500);
+    return json({ success: false, layer: LAYER, version: "1.2", status: "ERROR", error: error?.message || String(error) }, 500);
   }
 }
 
@@ -224,6 +239,6 @@ export async function onRequestPost(context) {
 
     return json(responsePayload(data, execution, "execute", persisted));
   } catch (error) {
-    return json({ success: false, layer: LAYER, version: "1.1", status: "ERROR", error: error?.message || String(error) }, 500);
+    return json({ success: false, layer: LAYER, version: "1.2", status: "ERROR", error: error?.message || String(error) }, 500);
   }
 }
