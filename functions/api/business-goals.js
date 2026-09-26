@@ -154,6 +154,9 @@ async function getActualMonthlyMoney(db, range) {
       p.calculated_at,
       p.source
     FROM profit_ledger p
+    INNER JOIN revenue_ledger r
+      ON r.order_id = p.order_id
+     AND r.source = 'VERIFIED_PAYMENT'
     INNER JOIN (
       SELECT order_id, MAX(calculated_at) AS latest_calculated_at
       FROM profit_ledger
