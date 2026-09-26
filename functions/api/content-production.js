@@ -193,6 +193,14 @@ export async function onRequestGet(context) {
           : { results: [] })
     ]);
 
+    const latestProduction = production.results?.[0] || null;
+    let generatedContent = null;
+    if (latestProduction?.content_id && await tableExists(db, "content_engine")) {
+      generatedContent = await db.prepare(
+        "SELECT id, source, status, title, objective, market_keyword, cta, content_text, created_at FROM content_engine WHERE id=? LIMIT 1"
+      ).bind(latestProduction.content_id).first();
+    }
+
     return json({
       success: true,
       layer: LAYER,
@@ -206,6 +214,7 @@ export async function onRequestGet(context) {
       production: production.results || [],
       assets: assets.results || [],
       demand_plans: plans.results || [],
+      latest_content: generatedContent,
       next: "Select one Demand Plan -> create production brief -> create/edit Canva asset -> register asset -> publish manually -> measure first-party events.",
       guardrails: {
         reads_raw_behavior_events: false,
