@@ -80,6 +80,79 @@ body{font-size:15px;line-height:1.55;background:var(--bg)}
   .card{padding:16px;border-radius:15px}
   .value{font-size:25px}
 }
+
+/* TATO-OS MOBILE V3 — smartphone-first founder console */
+@media(max-width:760px){
+  body{font-size:15px;padding-bottom:76px}
+  .side{display:none!important}
+  .main{margin:0!important;width:100%!important;max-width:none;padding:14px 14px 28px!important}
+  .mobile{
+    display:flex!important;position:sticky;top:0;z-index:10;
+    background:rgba(9,9,9,.94);backdrop-filter:blur(12px);
+    margin:-14px -14px 18px!important;padding:12px 15px;
+    border-bottom:1px solid #222;align-items:center
+  }
+  .mobile b{font-size:16px}
+  .top{display:block;margin-bottom:18px}
+  .ey{font-size:9px}
+  .title{font-size:25px!important;line-height:1.18;margin-top:5px}
+  .sub{font-size:12px;line-height:1.5;margin-top:7px}
+  .top .actions{display:flex;margin-top:14px;width:100%}
+  .top .actions .search{display:block!important;flex:1;min-width:0;width:auto!important;font-size:13px;padding:12px}
+  .top .actions .btn{font-size:12px;padding:11px 12px;white-space:nowrap}
+  .top .actions .btn.primary{display:none}
+  .grid.kpis{grid-template-columns:1fr 1fr!important;gap:9px}
+  .card{padding:16px!important;border-radius:15px}
+  .kpis .card{min-height:112px}
+  .label{font-size:9px}
+  .value{font-size:26px!important;margin:8px 0 3px}
+  .muted{font-size:11px}
+  .grid.two,.grid.three,.learning-grid,.ai{grid-template-columns:1fr!important}
+  .gap{margin-top:10px}
+  .head{margin-bottom:12px}
+  .head h3{font-size:14px}
+  .metric{font-size:12px;padding:12px 0}
+  .sig{padding:12px 0;grid-template-columns:7px 1fr auto;gap:9px}
+  .sig strong{font-size:12px}
+  .sig p{font-size:10px}
+  .item{padding:13px;border-radius:11px}
+  .tablebox{margin-left:-2px;margin-right:-2px}
+  .table{min-width:580px}
+  .table th{font-size:8px;padding:10px}
+  .table td{font-size:10px;padding:11px}
+  .form{grid-template-columns:1fr!important}
+  .modal{padding:12px;align-items:flex-end}
+  .box{width:100%;max-height:88vh;border-radius:18px 18px 0 0;padding:17px}
+  .foot{font-size:9px;line-height:1.5;padding-bottom:8px}
+  .toast{left:14px;right:14px;bottom:88px;text-align:center}
+  /* Fixed thumb-friendly navigation */
+  .app:after{
+    content:"";position:fixed;left:0;right:0;bottom:0;height:76px;
+    background:#0b0b0b;border-top:1px solid #292929;z-index:40
+  }
+  .mobile:after{
+    content:"";position:fixed;left:0;right:0;bottom:0;height:76px;
+    background:transparent;z-index:41;pointer-events:none
+  }
+  .mobile:before{
+    content:"⌂  ◉  ♙  ▣  ✦";
+    position:fixed;left:0;right:0;bottom:0;height:76px;
+    display:flex;align-items:center;justify-content:space-around;
+    padding:0 22px;color:#777;font-size:22px;letter-spacing:8px;
+    z-index:42;pointer-events:none
+  }
+  .module.active{padding-bottom:4px}
+}
+@media(max-width:420px){
+  .main{padding-left:11px!important;padding-right:11px!important}
+  .mobile{margin-left:-11px!important;margin-right:-11px!important}
+  .grid.kpis{gap:7px}
+  .card{padding:14px!important}
+  .kpis .card{min-height:105px}
+  .value{font-size:23px!important}
+  .title{font-size:23px!important}
+  .top .actions .btn{padding:10px 9px}
+}
 </style></head><body><div class="app"><aside class="side"><div class="brand"><div class="logo">◈</div><div><b>TATO</b><small>COFFEE INTELLIGENCE OS</small></div></div><div class="nt">COMMAND</div><nav class="nav"><button class="on" data-p="overview"><i class="ico">⌂</i><span>Overview</span></button><button data-p="market"><i class="ico">◌</i><span>Market</span></button><button data-p="behavior"><i class="ico">◉</i><span>Behavior</span></button><button data-p="customers"><i class="ico">♙</i><span>Customers</span></button><button data-p="products"><i class="ico">▣</i><span>Products</span></button><button data-p="sales"><i class="ico">฿</i><span>Sales</span></button></nav><div class="nt">GROWTH</div><nav class="nav"><button data-p="ai"><i class="ico">✦</i><span>AI Team</span></button><button data-p="content"><i class="ico">↗</i><span>Content</span></button><button data-p="automation"><i class="ico">⚙</i><span>Automation</span></button><button data-p="settings"><i class="ico">⌘</i><span>Settings</span></button></nav><div class="status">TATO OS V1 · <i>● LIVE</i></div></aside><main class="main"><div class="mobile"><b style="letter-spacing:.2em">TATO</b><span style="color:var(--o)">◈</span></div>
 <section class="module active" id="p-overview"><header class="top"><div><div class="ey">Founder Cockpit</div><div class="title">Good evening, TATO.</div><div class="sub">Business + market + behavior + AI in one command center.</div></div><div class="actions"><input class="search" id="global" placeholder="Search TATO HQ…"><button class="btn" onclick="toast('Demo system synced')">↻ Sync</button><button class="btn primary" onclick="modal('quick')">＋ Quick</button></div></header><div class="grid kpis"><div class="card"><div class="label">Revenue · live</div><div class="value" id="dashRevenue">฿0</div><div class="muted" id="dashOrders">0 orders</div></div><div class="card"><div class="label">Customers · live</div><div class="value" id="dashCustomers">0</div><div class="muted">D1 records</div></div><div class="card"><div class="label">Beans shipped · live</div><div class="value" id="dashKg">0 kg</div><div class="muted">from orders</div></div><div class="card"><div class="label">Repeat customers</div><div class="value" id="dashRepeat">0%</div><div class="muted" id="dashRepeatMeta">0 repeat</div></div><div class="card"><div class="label">Behavior events</div><div class="value" id="dashBehavior">0</div><div class="muted" id="dashMarket">0 market signals</div></div></div><div class="grid two gap"><div class="card"><div class="head"><h3>Live market & behavior</h3><span class="pill">D1 · LIVE</span></div><div id="dashSignals"><div class="sig"><i class="dot"></i><div><strong>Loading live signals…</strong><p>Reading behavior_events and market_signals.</p></div><span class="time">NOW</span></div></div></div><div class="card"><div class="head"><h3>Live funnel evidence</h3><span class="pill">MEASUREMENT V2.3</span></div><div class="metric"><span>Attention</span><b id="dashAttention">0</b></div><div class="metric"><span>Clicks</span><b id="dashClicks">0</b></div><div class="metric"><span>Product views</span><b id="dashProductViews">0</b></div><div class="metric"><span>Customers</span><b id="dashFunnelCustomers">0</b></div><div class="metric"><span>Orders</span><b id="dashFunnelOrders">0</b></div><div class="metric"><span>Revenue</span><b id="dashFunnelRevenue">฿0</b></div><div class="item" style="margin-top:12px"><strong id="dashFunnelState">Loading Measurement V2.3…</strong><small id="dashFunnelMeta">—</small></div></div></div><div class="card gap"><div class="head"><h3>Live learning handoff</h3><span class="pill">LEARNING V2.3</span></div><div class="metric"><span>State</span><b id="dashLearningState">—</b></div><div class="metric"><span>Confidence</span><b id="dashLearningConfidence">—</b></div><div class="metric"><span>Repeated signals</span><b id="dashLearningSignals">0</b></div><div class="metric"><span>Hypotheses</span><b id="dashLearningHypotheses">0</b></div><div class="item" style="margin-top:12px"><strong id="dashLearningDecision">—</strong><small id="dashLearningMeta">Decision input from Learning V2.3.</small></div></div><div class="foot">Overview KPI, market/behavior signals, learning handoff and sales figures are read from live TATO-OS APIs. Funnel evidence is read from Learning V2.3 using its Measurement evidence. No demo KPI is used in the live overview.</div></section>
 <section class="module" id="p-market"><header class="top"><div><div class="ey">Market Intelligence</div><div class="title">What is the market doing?</div><div class="sub">Signals → evidence → hypothesis → action.</div></div><div class="actions"><button class="btn" onclick="toast('Market scan queued')">↻ Scan</button><button class="btn primary" onclick="modal('signal')">＋ Signal</button></div></header><div class="grid kpis"><div class="card"><div class="label">Active signals</div><div class="value">38</div><div class="up" style="font-size:10px">+9 this week</div></div><div class="card"><div class="label">Rising topics</div><div class="value">12</div><div style="font-size:10px">4 high intent</div></div><div class="card"><div class="label">Opportunity themes</div><div class="value">7</div><div class="up" style="font-size:10px">2 new</div></div><div class="card"><div class="label">Sources monitored</div><div class="value">6</div><div style="font-size:10px">Expandable</div></div><div class="card"><div class="label">Last scan</div><div class="value">20:41</div><div class="up" style="font-size:10px">Healthy</div></div></div><div class="grid two gap"><div class="card"><div class="head"><h3>Signal board</h3><span class="pill">RECENT</span></div><div class="list"><div class="item"><strong>Opening a coffee shop</strong><span class="tag to">HIGH INTENT</span><small>Search / social / content signals · detected today.</small></div><div class="item"><strong>Wholesale supplier comparison</strong><span class="tag to">COMMERCIAL</span><small>Pricing and consistency questions clustering.</small></div><div class="item"><strong>Espresso roast profile</strong><span class="tag tg">RISING</span><small>Higher engagement on espresso education.</small></div><div class="item"><strong>Low-cost café startup planning</strong><span class="tag tb">EARLY</span><small>Planning content attracting first-time operators.</small></div></div></div><div class="card"><div class="head"><h3>Opportunity matrix</h3><span class="pill">AI</span></div><div class="metric"><span>Demand strength</span><b>82 / 100</b></div><div class="metric"><span>Commercial intent</span><b>74 / 100</b></div><div class="metric"><span>TATO fit</span><b>91 / 100</b></div><div class="metric"><span>Evidence freshness</span><b>96 / 100</b></div><div class="hero card" style="margin-top:12px;padding:12px"><div class="label">Hypothesis</div><div style="font-size:10px;margin-top:5px">Decision tools may capture café planning intent earlier than supplier-first messaging.</div></div></div></div><div class="card gap"><div class="head"><h3>Source architecture</h3><span class="pill">ADAPTER READY</span></div><div class="grid three"><div class="item"><strong>Search trends</strong><small>Trend / query signals</small><span class="tag tg">ACTIVE</span></div><div class="item"><strong>Social / communities</strong><small>Questions / pain points</small><span class="tag tg">ACTIVE</span></div><div class="item"><strong>Business signals</strong><small>New shop / business activity</small><span class="tag">READY</span></div></div></div></section>
