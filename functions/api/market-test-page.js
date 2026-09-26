@@ -89,7 +89,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <script>
 (function(){
 var did="distribution-1790392496602-lhk96nmd";
-var api="/api/market-test-page";
+var api="/api/market-test-entry";
 var sent={};
 function setStatus(t){var el=document.getElementById("status");if(el)el.textContent=t;}
 function send(type){
