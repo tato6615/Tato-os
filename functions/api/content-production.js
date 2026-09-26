@@ -332,7 +332,8 @@ export async function onRequestPost(context) {
       let aiGenerated = false;
 
       if (context.env.AI) {
-        const aiPrompt = `
+        try {
+          const aiPrompt = `
 สร้างโพสต์ Social Media ภาษาไทยสำหรับ TATO Coffee จากข้อมูลด้านล่าง
 
 Demand:
@@ -357,42 +358,59 @@ ${String(product?.name || plan.offer || "TATO Coffee")}
 CTA:
 ${brief.cta}
 
+Purchase URL:
+${new URL("/buy.html?content_id=" + contentId, context.request.url).toString()}
+
 กฎ:
 - ภาษาไทยธรรมชาติ
 - ต้องเชื่อมกับความสนใจเรื่อง ${brief.primary_keyword}
 - ต้องทำให้คนอยากรู้จักสินค้าและไปดูรายละเอียด
+- ต้องมีทางไปซื้อจริงด้วย URL ที่ให้
 - ห้ามแต่งรีวิว รางวัล ส่วนลด ผลลัพธ์ หรือคุณสมบัติที่ไม่ได้ให้มา
 - ห้ามเปรียบเทียบคู่แข่ง
 - ส่งเฉพาะโพสต์พร้อมใช้
 - รูปแบบ HOOK / BODY / CTA
-        `.trim();
+          `.trim();
 
-        const aiResult = await context.env.AI.run("@cf/zai-org/glm-4.7-flash", {
-          messages: [
-            {
-              role: "system",
-              content: "You are a Thai content writer for TATO Coffee. Return only the final post."
-            },
-            { role: "user", content: aiPrompt }
-          ],
-          reasoning_effort: "low",
-          max_completion_tokens: 1400,
-          temperature: 0.6
-        });
+          const aiResult = await context.env.AI.run("@cf/zai-org/glm-4.7-flash", {
+            messages: [
+              { role: "system", content: "You are a Thai content writer for TATO Coffee. Return only the final post." },
+              { role: "user", content: aiPrompt }
+            ],
+            reasoning_effort: "low",
+            max_completion_tokens: 1400,
+            temperature: 0.6
+          });
 
-        const msg = aiResult?.choices?.[0]?.message;
-        if (typeof msg?.content === "string" && msg.content.trim()) {
-          finalContent = msg.content.trim();
-          aiGenerated = true;
-        } else if (Array.isArray(msg?.content)) {
-          const textContent = msg.content.map(item =>
-            typeof item === "string" ? item : (item?.text || "")
-          ).join("").trim();
-          if (textContent) {
-            finalContent = textContent;
+          const msg = aiResult?.choices?.[0]?.message;
+          if (typeof msg?.content === "string" && msg.content.trim()) {
+            finalContent = msg.content.trim();
             aiGenerated = true;
+          } else if (Array.isArray(msg?.content)) {
+            const textContent = msg.content.map(item =>
+              typeof item === "string" ? item : (item?.text || "")
+            ).join("").trim();
+            if (textContent) {
+              finalContent = textContent;
+              aiGenerated = true;
+            }
           }
+        } catch (_) {
+          aiGenerated = false;
         }
+      }
+
+      if (!aiGenerated) {
+        finalContent = [
+          "HOOK: " + brief.primary_keyword + " ที่คุณกำลังสนใจ",
+          "",
+          "BODY: " + String(product?.name || plan.offer || "TATO Coffee"),
+          "Arabica 100% · Single Origin · Doi Wiang",
+          "คั่วสดใหม่ทุกออเดอร์",
+          "",
+          "CTA: " + brief.cta,
+          new URL("/buy.html?content_id=" + contentId, context.request.url).toString()
+        ].join("\n");
       }
 
       await db.prepare(
