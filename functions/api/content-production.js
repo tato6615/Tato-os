@@ -264,90 +264,164 @@ export async function onRequestPost(context) {
       }
 
       const product = await readLatestProduct(db);
-      let production = await db.prepare(
-        "SELECT * FROM content_production WHERE demand_plan_id=? ORDER BY created_at DESC LIMIT 1"
-      ).bind(plan.id).first();
+      const brief = buildProduction(plan, product);
+      const productionId = crypto.randomUUID();
+      const contentId = crypto.randomUUID();
+      const timestamp = now();
 
-      if (!production) {
-        const brief = buildProduction(plan, product);
-        const id = crypto.randomUUID();
-        const timestamp = now();
-
-        await db.prepare(`
-          INSERT INTO content_production (
-            id, demand_plan_id, content_id, title, objective, audience, channel,
-            content_format, primary_keyword, secondary_keywords, search_intent,
-            seo_title, meta_description, slug, geo_context, entity_terms,
-            answer_summary, faq_json, cta, success_event, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          id,
-          plan.id,
-          body.content_id || null,
-          brief.title,
-          brief.objective,
-          brief.audience,
-          brief.channel,
-          brief.content_format,
-          brief.primary_keyword,
-          JSON.stringify(brief.secondary_keywords),
-          brief.search_intent,
-          brief.seo_title,
-          brief.meta_description,
-          brief.slug,
-          brief.geo_context,
-          JSON.stringify(brief.entity_terms),
-          brief.answer_summary,
-          JSON.stringify(brief.faq),
-          brief.cta,
-          brief.success_event,
-          "BRIEF_READY",
-          timestamp,
-          timestamp
-        ).run();
-
-        production = await db.prepare(
-          "SELECT * FROM content_production WHERE id=? LIMIT 1"
-        ).bind(id).first();
-      } else if (body.content_id && production.content_id !== body.content_id) {
-        await db.prepare(
-          "UPDATE content_production SET content_id=?, updated_at=? WHERE id=?"
-        ).bind(body.content_id, now(), production.id).run();
-        production = await db.prepare(
-          "SELECT * FROM content_production WHERE id=? LIMIT 1"
-        ).bind(production.id).first();
+      // Create a NEW Content Intelligence record for every Run Production Loop.
+      // Never reuse the previous content or Canva asset.
+      if (!await tableExists(db, "content_engine")) {
+        return json({
+          success: false,
+          layer: LAYER,
+          status: "CONTENT_ENGINE_NOT_FOUND",
+          error: "content_engine table is required for new content production"
+        }, 500);
       }
 
-      let asset = await db.prepare(
-        "SELECT * FROM content_assets WHERE production_id=? ORDER BY created_at DESC LIMIT 1"
-      ).bind(production.id).first();
+      const contentTitle = "TATO Content · " + brief.primary_keyword + " · " +
+        new Date().toISOString().slice(0, 10) + " · " + contentId.slice(0, 8);
 
-      if (!asset && body.canva_external_id && body.canva_external_url) {
-        const assetId = crypto.randomUUID();
-        const timestamp = now();
-        await db.prepare(`
-          INSERT INTO content_assets (
-            id, production_id, content_id, platform, asset_type, external_id,
-            external_url, status, published_url, published_at, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          assetId,
-          production.id,
-          production.content_id || body.content_id || null,
-          "CANVA",
-          String(body.canva_asset_type || "INSTAGRAM_POST"),
-          String(body.canva_external_id),
-          String(body.canva_external_url),
-          "DRAFT",
-          null,
-          null,
-          timestamp,
-          timestamp
-        ).run();
-        asset = await db.prepare(
-          "SELECT * FROM content_assets WHERE id=? LIMIT 1"
-        ).bind(assetId).first();
+      const contentBrief = [
+        "HOOK:",
+        "ลูกค้ากำลังสนใจเรื่อง " + brief.primary_keyword,
+        "",
+        "INSIGHT:",
+        "สร้าง Content จาก Demand ที่ตรวจพบ แล้วเชื่อมเข้าสู่ TATO",
+        "",
+        "PRODUCT:",
+        String(product?.name || plan.offer || "TATO Coffee"),
+        "",
+        "ANGLE:",
+        brief.answer_summary,
+        "",
+        "CTA:",
+        brief.cta
+      ].join("\n");
+
+      await db.prepare(`
+        INSERT INTO content_engine
+        (id, source, status, title, objective, attention_type, market_keyword, angle, direction, cta, content_text)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        contentId,
+        "DEMAND_ENGINE",
+        "IDEA",
+        contentTitle,
+        brief.objective,
+        "market_demand",
+        brief.primary_keyword,
+        brief.answer_summary,
+        "Connect verified demand to a specific TATO product and purchase path.",
+        brief.cta,
+        contentBrief
+      ).run();
+
+      // Generate the actual new content inside TATO-OS when Cloudflare AI is available.
+      let finalContent = contentBrief;
+      let aiGenerated = false;
+
+      if (context.env.AI) {
+        const aiPrompt = `
+สร้างโพสต์ Social Media ภาษาไทยสำหรับ TATO Coffee จากข้อมูลด้านล่าง
+
+Demand:
+${plan.name || ""}
+
+Keyword:
+${brief.primary_keyword}
+
+Audience:
+${brief.audience}
+
+Product:
+${String(product?.name || plan.offer || "TATO Coffee")}
+
+ข้อมูลจริงที่อนุญาต:
+- TATO Coffee
+- Arabica 100%
+- Single Origin
+- Doi Wiang
+- คั่วสดใหม่ทุกออเดอร์
+
+CTA:
+${brief.cta}
+
+กฎ:
+- ภาษาไทยธรรมชาติ
+- ต้องเชื่อมกับความสนใจเรื่อง ${brief.primary_keyword}
+- ต้องทำให้คนอยากรู้จักสินค้าและไปดูรายละเอียด
+- ห้ามแต่งรีวิว รางวัล ส่วนลด ผลลัพธ์ หรือคุณสมบัติที่ไม่ได้ให้มา
+- ห้ามเปรียบเทียบคู่แข่ง
+- ส่งเฉพาะโพสต์พร้อมใช้
+- รูปแบบ HOOK / BODY / CTA
+        `.trim();
+
+        const aiResult = await context.env.AI.run("@cf/zai-org/glm-4.7-flash", {
+          messages: [
+            {
+              role: "system",
+              content: "You are a Thai content writer for TATO Coffee. Return only the final post."
+            },
+            { role: "user", content: aiPrompt }
+          ],
+          reasoning_effort: "low",
+          max_completion_tokens: 1400,
+          temperature: 0.6
+        });
+
+        const msg = aiResult?.choices?.[0]?.message;
+        if (typeof msg?.content === "string" && msg.content.trim()) {
+          finalContent = msg.content.trim();
+          aiGenerated = true;
+        } else if (Array.isArray(msg?.content)) {
+          const textContent = msg.content.map(item =>
+            typeof item === "string" ? item : (item?.text || "")
+          ).join("").trim();
+          if (textContent) {
+            finalContent = textContent;
+            aiGenerated = true;
+          }
+        }
       }
+
+      await db.prepare(
+        "UPDATE content_engine SET status=?, content_text=? WHERE id=?"
+      ).bind("GENERATED", finalContent, contentId).run();
+
+      await db.prepare(`
+        INSERT INTO content_production (
+          id, demand_plan_id, content_id, title, objective, audience, channel,
+          content_format, primary_keyword, secondary_keywords, search_intent,
+          seo_title, meta_description, slug, geo_context, entity_terms,
+          answer_summary, faq_json, cta, success_event, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        productionId,
+        plan.id,
+        contentId,
+        brief.title,
+        brief.objective,
+        brief.audience,
+        brief.channel,
+        brief.content_format,
+        brief.primary_keyword,
+        JSON.stringify(brief.secondary_keywords),
+        brief.search_intent,
+        brief.seo_title,
+        brief.meta_description,
+        brief.slug + "-" + productionId.slice(0, 8),
+        brief.geo_context,
+        JSON.stringify(brief.entity_terms),
+        brief.answer_summary,
+        JSON.stringify(brief.faq),
+        brief.cta,
+        brief.success_event,
+        "CONTENT_READY",
+        timestamp,
+        timestamp
+      ).run();
 
       return json({
         success: true,
@@ -355,33 +429,42 @@ export async function onRequestPost(context) {
         version: VERSION,
         status: "PRODUCTION_LOOP_READY",
         production: {
-          id: production.id,
-          demand_plan_id: production.demand_plan_id,
-          content_id: production.content_id || null,
-          title: production.title,
-          primary_keyword: production.primary_keyword,
-          search_intent: production.search_intent,
-          seo_title: production.seo_title,
-          meta_description: production.meta_description,
-          slug: production.slug,
-          geo_context: production.geo_context,
-          entity_terms: production.entity_terms,
-          answer_summary: production.answer_summary,
-          faq_json: production.faq_json,
-          cta: production.cta,
-          success_event: production.success_event,
-          status: production.status
+          id: productionId,
+          demand_plan_id: plan.id,
+          content_id: contentId,
+          title: brief.title,
+          primary_keyword: brief.primary_keyword,
+          search_intent: brief.search_intent,
+          seo_title: brief.seo_title,
+          meta_description: brief.meta_description,
+          slug: brief.slug + "-" + productionId.slice(0, 8),
+          geo_context: brief.geo_context,
+          entity_terms: JSON.stringify(brief.entity_terms),
+          answer_summary: brief.answer_summary,
+          faq_json: JSON.stringify(brief.faq),
+          cta: brief.cta,
+          success_event: brief.success_event,
+          status: "CONTENT_READY"
         },
-        asset: asset || null,
+        content: {
+          id: contentId,
+          title: contentTitle,
+          status: "GENERATED",
+          content_text: finalContent,
+          ai_generated: aiGenerated
+        },
+        asset: null,
         next: {
-          review: "Review the registered Canva asset.",
-          publish: "Founder publishes manually; TATO-OS does not auto-publish.",
-          measurement: "Send first-party Product View -> Customer -> Order -> Payment events using the linked content_id.",
-          success_event: production.success_event
+          canva: "Create a NEW Canva asset from this newly generated content; do not reuse a previous asset.",
+          publish: "Founder publishes the new asset manually after review.",
+          measurement: "Send first-party Product View -> Customer -> Order -> Payment events using this new content_id.",
+          success_event: brief.success_event
         },
         guardrails: {
+          creates_new_content: true,
+          reuses_previous_content: false,
           creates_duplicate_brief: false,
-          creates_duplicate_asset: false,
+          reuses_previous_asset: false,
           publishes_content: false,
           contacts_customers: false,
           reads_raw_behavior_events: false,
