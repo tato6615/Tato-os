@@ -59,7 +59,10 @@ function json(data, status) {
       status: status,
       headers: {
         "content-type": "application/json; charset=UTF-8",
-        "cache-control": "no-store"
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "Content-Type"
       }
     }
   );
@@ -826,6 +829,17 @@ export async function onRequest(
   try {
     const request =
       context.request;
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET, POST, OPTIONS",
+          "access-control-allow-headers": "Content-Type"
+        }
+      });
+    }
 
     const env =
       context.env;
