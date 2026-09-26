@@ -19,7 +19,7 @@
 // Intelligence V2.0
 //
 // V2.3 adds:
-// - read persisted feedback_events
+// - read persisted feedback_records
 // - detect pending measurement feedback
 // - run normal Measurement V2.2 logic
 // - mark feedback measurement_completed = 1
@@ -281,20 +281,20 @@ async function getPendingFeedback(
           id,
           execution_id,
           content_id,
-          action_code,
-          action_target,
-          execution_code,
+          action_name AS action_code,
+          NULL AS action_target,
+          NULL AS execution_code,
           execution_status,
-          expected_outcome,
-          actual_outcome,
+          NULL AS expected_outcome,
+          outcome AS actual_outcome,
           outcome_status,
           operator_note,
           measurement_required,
           measurement_completed,
-          feedback_payload,
+          result_payload AS feedback_payload,
           created_at,
-          updated_at
-         FROM feedback_events
+          created_at AS updated_at
+         FROM feedback_records
          WHERE content_id = ?
            AND measurement_required = 1
            AND measurement_completed = 0
@@ -328,16 +328,8 @@ async function markFeedbackMeasurementCompleted(
 
     await db
       .prepare(
-        `UPDATE feedback_events
-         SET
-           measurement_completed = 1,
-           updated_at = ?
-         WHERE id = ?`
-      )
-      .bind(
-        updatedAt,
-        feedbackId
-      )
+        `UPDATE feedback_records SET measurement_completed = 1 WHERE id = ?`)
+      .bind(feedbackId)
       .run();
 
     const row =
@@ -347,8 +339,8 @@ async function markFeedbackMeasurementCompleted(
             id,
             measurement_required,
             measurement_completed,
-            updated_at
-           FROM feedback_events
+            created_at AS updated_at
+           FROM feedback_records
            WHERE id = ?
            LIMIT 1`
         )
