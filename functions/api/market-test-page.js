@@ -702,6 +702,18 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <div class="fact"><strong>คั่วสด</strong><span>คั่วสดใหม่ทุกออเดอร์</span></div>
 <div class="fact"><strong>หลายระดับคั่ว</strong><span>เลือกตามสไตล์การดื่ม</span></div>
 </div>
+<div style="margin-top:36px;max-width:560px">
+<h3 style="font-size:28px;margin:0 0 10px">สนใจทดลอง TATO Coffee</h3>
+<p style="color:#555;line-height:1.6">กรอกข้อมูลเพื่อส่งคำสั่งซื้อจริง ระบบจะสร้างออเดอร์สถานะรอชำระ และจะไม่บันทึกยอดเงินจนกว่าจะตรวจสอบการชำระจริง</p>
+<form id="order-form">
+<input id="name" required placeholder="ชื่อ" style="width:100%;padding:15px;margin:6px 0;border:1px solid #ccc;border-radius:10px;font-size:16px">
+<input id="phone" placeholder="เบอร์โทร" style="width:100%;padding:15px;margin:6px 0;border:1px solid #ccc;border-radius:10px;font-size:16px">
+<input id="email" type="email" placeholder="อีเมล" style="width:100%;padding:15px;margin:6px 0;border:1px solid #ccc;border-radius:10px;font-size:16px">
+<input id="quantity" type="number" min="1" step="1" value="1" required placeholder="จำนวน" style="width:100%;padding:15px;margin:6px 0;border:1px solid #ccc;border-radius:10px;font-size:16px">
+<button type="submit" style="width:100%;padding:16px;margin-top:10px;border:0;border-radius:10px;background:#f28c28;color:#111;font-weight:800;font-size:16px">ส่งคำสั่งซื้อ</button>
+</form>
+<div id="order-result" style="margin-top:14px;font-weight:700"></div>
+</div>
 </div>
 </section>
 <footer style="padding:30px;text-align:center;background:#0b0b0b;color:#777;font-size:12px">TATO Coffee · Controlled Market Test</footer>
@@ -733,6 +745,42 @@ window.TATO_CLICK=function(){
  if(offer)offer.scrollIntoView({behavior:"smooth",block:"start"});
 };
 send("content_view");
+
+var orderForm=document.getElementById("order-form");
+if(orderForm){
+ orderForm.addEventListener("submit",function(event){
+  event.preventDefault();
+  var result=document.getElementById("order-result");
+  result.textContent="กำลังสร้างคำสั่งซื้อ...";
+  var payload={
+   name:document.getElementById("name").value.trim(),
+   phone:document.getElementById("phone").value.trim(),
+   email:document.getElementById("email").value.trim(),
+   quantity:Number(document.getElementById("quantity").value||1),
+   content_id:cid,
+   session_id:sid
+  };
+  fetch("/api/business-order-entry",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify(payload)
+  })
+  .then(function(response){
+   return response.text().then(function(text){
+    var data;
+    try{data=JSON.parse(text)}catch(e){throw new Error(text||"Invalid response")}
+    if(!response.ok||!data.success)throw new Error(data.error||"Order creation failed");
+    return data;
+   });
+  })
+  .then(function(data){
+   send("order_created");
+   result.textContent="รับคำสั่งซื้อแล้ว เลขออเดอร์: "+data.order.id+" · ยอด "+data.order.total_amount+" บาท";
+  })
+  .catch(function(error){
+   result.textContent="ยังสร้างคำสั่งซื้อไม่ได้: "+(error&&error.message?error.message:"unknown error");
+  });
+}
 var offer=document.getElementById("offer");
 if("IntersectionObserver" in window && offer){
  var o=new IntersectionObserver(function(es){
