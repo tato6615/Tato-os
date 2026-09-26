@@ -699,13 +699,14 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 (function(){
 var did="distribution-1790392496602-lhk96nmd";
 var api="/api/market-test-page";
+var cid="5127d38f-6601-41dd-bb30-9e4346dd9a4c";
 var sent={};
 function setStatus(t){var el=document.getElementById("status");if(el)el.textContent=t;}
 function send(type){
  if(sent[type])return;
  sent[type]=true;
  setStatus("กำลังบันทึก "+type+"...");
- fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type})})
+ fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type,content_id:cid})})
  .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error(t||"Invalid response")}if(!r.ok||!d.success)throw new Error(d.error||"Request failed");return d;});})
  .then(function(){setStatus(type+" recorded");})
  .catch(function(e){sent[type]=false;setStatus("Event failed: "+(e&&e.message?e.message:"unknown"));console.error(e);});
