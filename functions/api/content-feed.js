@@ -593,6 +593,11 @@ h1 {
 
     </div>
 
+    <div id="offer" class="section" data-product-view="true">
+      <div class="label">Offer</div>
+      <div class="text">ดูรายละเอียดข้อเสนอ TATO Coffee</div>
+    </div>
+
     <a
       id="cta"
       class="cta"
@@ -661,6 +666,28 @@ h1 {
   track("content_view", {
     page_type: "public_content"
   });
+
+  const offer = document.getElementById("offer");
+  let productViewTracked = false;
+
+  function trackProductView() {
+    if (productViewTracked) return;
+    productViewTracked = true;
+    track("product_view", {
+      page_type: "public_content_offer",
+      source_event: "content_click"
+    });
+  }
+
+  if (offer && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(function (entries) {
+      if (entries.some(function (entry) { return entry.isIntersecting; })) {
+        trackProductView();
+        observer.disconnect();
+      }
+    }, { threshold: 0.25 });
+    observer.observe(offer);
+  }
 
   const cta =
     document.getElementById("cta");
@@ -1001,4 +1028,3 @@ export async function onRequest(context) {
 
   }
 }
-```
