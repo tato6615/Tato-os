@@ -1,16 +1,21 @@
 // TATO-OS
 // Market Test Measurement V1.1
+//
 // Route:
-//   GET  /api/market-test-measurement
-//   GET  /api/market-test-measurement/start?distribution_id=...
-//   POST /api/market-test-measurement
-//   POST /api/market-test-measurement/event
+// GET  /api/market-test-measurement
+// GET  /api/market-test-measurement/start?distribution_id=...
+// POST /api/market-test-measurement
+// POST /api/market-test-measurement/event
 //
 // Purpose:
 // Connect READY_FOR_MEASUREMENT distribution
 // to existing Measurement V2.3.
 //
-// IMPORTANT:
+// V1.1 change:
+// Added browser-safe GET /start endpoint.
+// This avoids requiring Safari/iPad to send POST bodies.
+//
+// Guardrails:
 // - Does NOT invent behavior
 // - Does NOT invent attention
 // - Does NOT invent purchase
@@ -18,9 +23,8 @@
 // - Does NOT declare winner
 // - Does NOT change strategy
 // - Does NOT execute actions
-//
-// V1.1 adds a browser-safe START endpoint because
-// the operational environment may not provide a usable POST client.
+// - Does NOT publish content
+// - Does NOT spend money
 
 const ENGINE = "MARKET_TEST_MEASUREMENT_V1";
 const VERSION = "1.1";
@@ -137,7 +141,7 @@ function stageForEvent(eventType) {
 }
 
 async function getDistribution(db, distributionId) {
-  const row = await db
+  return await db
     .prepare(`
       SELECT *
       FROM market_test_distributions
@@ -146,8 +150,6 @@ async function getDistribution(db, distributionId) {
     `)
     .bind(distributionId)
     .first();
-
-  return row || null;
 }
 
 async function getMeasurement(db, distributionId) {
@@ -164,7 +166,10 @@ async function getMeasurement(db, distributionId) {
 }
 
 async function createMeasurement(db, distribution) {
-  const existing = await getMeasurement(db, distribution.id);
+  const existing = await getMeasurement(
+    db,
+    distribution.id
+  );
 
   if (existing) {
     return {
@@ -227,7 +232,10 @@ async function startMeasurement(db, distributionId) {
 
   await ensureTables(db);
 
-  const distribution = await getDistribution(db, distributionId);
+  const distribution = await getDistribution(
+    db,
+    distributionId
+  );
 
   if (!distribution) {
     return json({
@@ -253,7 +261,10 @@ async function startMeasurement(db, distributionId) {
     }, 409);
   }
 
-  const result = await createMeasurement(db, distribution);
+  const result = await createMeasurement(
+    db,
+    distribution
+  );
 
   return json({
     success: true,
@@ -262,7 +273,9 @@ async function startMeasurement(db, distributionId) {
     operation: "START_MEASUREMENT",
     state: "MEASUREMENT_ACTIVE",
     created: result.created,
+
     measurement: result.measurement,
+
     distribution: {
       id: distribution.id,
       market_test_id: distribution.market_test_id,
@@ -272,6 +285,7 @@ async function startMeasurement(db, distributionId) {
       entry_point: distribution.entry_point,
       status: distribution.status
     },
+
     measurement_contract: {
       measurement_engine: "MEASUREMENT_V2.3",
       required_events: REQUIRED_EVENTS,
@@ -282,6 +296,7 @@ async function startMeasurement(db, distributionId) {
       real_behavior_required: true,
       revenue_confirmation_required: true
     },
+
     guardrails: {
       invents_behavior: false,
       invents_attention: false,
@@ -294,6 +309,7 @@ async function startMeasurement(db, distributionId) {
       spends_money: false,
       automatic_scaling: false
     },
+
     next: "REAL_BEHAVIOR_EVENT_REQUIRED"
   });
 }
@@ -319,11 +335,19 @@ async function getStatus(db) {
     ORDER BY created_at DESC
   `).all();
 
+  const distributionRows =
+    distributions.results || [];
+
+  const measurementRows =
+    measurements.results || [];
+
+  const eventLinkRows =
+    eventLinks.results || [];
+
   const readyDistributions =
-    (distributions.results || []).filter(
-      row =>
-        row.status === "READY_FOR_MEASUREMENT" ||
-        row.status === "MEASUREMENT_ACTIVE"
+    distributionRows.filter(row =>
+      row.status === "READY_FOR_MEASUREMENT" ||
+      row.status === "MEASUREMENT_ACTIVE"
     );
 
   return json({
@@ -331,21 +355,25 @@ async function getStatus(db) {
     engine: ENGINE,
     version: VERSION,
     timestamp: now(),
+
     state:
-      (measurements.results || []).length > 0
+      measurementRows.length > 0
         ? "MEASUREMENT_ACTIVE"
         : readyDistributions.length > 0
           ? "READY_TO_START_MEASUREMENT"
           : "WAITING_FOR_DISTRIBUTION",
+
     summary: {
-      distributions: (distributions.results || []).length,
+      distributions: distributionRows.length,
       ready_distributions: readyDistributions.length,
-      measurements: (measurements.results || []).length,
-      linked_behavior_events: (eventLinks.results || []).length
+      measurements: measurementRows.length,
+      linked_behavior_events: eventLinkRows.length
     },
-    distributions: distributions.results || [],
-    measurements: measurements.results || [],
-    event_links: eventLinks.results || [],
+
+    distributions: distributionRows,
+    measurements: measurementRows,
+    event_links: eventLinkRows,
+
     measurement_contract: {
       required_events: REQUIRED_EVENTS,
       attention_events: ATTENTION_EVENTS,
@@ -354,6 +382,7 @@ async function getStatus(db) {
       revenue_events: REVENUE_EVENTS,
       measurement_engine: "MEASUREMENT_V2.3"
     },
+
     guardrails: {
       invents_behavior: false,
       invents_attention: false,
@@ -366,6 +395,7 @@ async function getStatus(db) {
       spends_money: false,
       automatic_scaling: false
     },
+
     contract: {
       current_layer: ENGINE,
       version: VERSION,
@@ -377,7 +407,12 @@ async function getStatus(db) {
   });
 }
 
-async function createBehaviorEvent(db, measurement, eventType, payload) {
+async function createBehaviorEvent(
+  db,
+  measurement,
+  eventType,
+  payload
+) {
   if (!REQUIRED_EVENTS.includes(eventType)) {
     return json({
       success: false,
@@ -388,19 +423,21 @@ async function createBehaviorEvent(db, measurement, eventType, payload) {
     }, 400);
   }
 
-  const behaviorColumns = await getColumns(
-    db,
-    "behavior_events"
-  );
+  const behaviorColumns =
+    await getColumns(db, "behavior_events");
 
-  const behaviorEventId = makeId("behavior");
+  const behaviorEventId =
+    makeId("behavior");
 
   const timestamp = now();
 
   const values = {
     id: behaviorEventId,
+
     event_type: eventType,
+
     created_at: timestamp,
+
     metadata: JSON.stringify({
       source: ENGINE,
       measurement_id: measurement.id,
@@ -411,9 +448,10 @@ async function createBehaviorEvent(db, measurement, eventType, payload) {
     })
   };
 
-  const usableColumns = Object.keys(values).filter(
-    column => behaviorColumns.includes(column)
-  );
+  const usableColumns =
+    Object.keys(values).filter(column =>
+      behaviorColumns.includes(column)
+    );
 
   if (!usableColumns.includes("event_type")) {
     return json({
@@ -425,10 +463,13 @@ async function createBehaviorEvent(db, measurement, eventType, payload) {
     }, 500);
   }
 
-  const placeholders = usableColumns.map(() => "?").join(", ");
-  const bindValues = usableColumns.map(
-    column => values[column]
-  );
+  const placeholders =
+    usableColumns.map(() => "?").join(", ");
+
+  const bindValues =
+    usableColumns.map(column =>
+      values[column]
+    );
 
   await db.prepare(`
     INSERT INTO behavior_events (
@@ -437,8 +478,11 @@ async function createBehaviorEvent(db, measurement, eventType, payload) {
     VALUES (${placeholders})
   `).bind(...bindValues).run();
 
-  const linkId = makeId("event-link");
-  const stage = stageForEvent(eventType);
+  const linkId =
+    makeId("event-link");
+
+  const stage =
+    stageForEvent(eventType);
 
   await db.prepare(`
     INSERT INTO market_test_event_links (
@@ -496,15 +540,22 @@ export async function onRequestGet(context) {
     const { request, env } = context;
     const url = new URL(request.url);
 
-    // Browser-safe start endpoint.
+    // Browser-safe measurement start.
     //
     // Example:
-    // /api/market-test-measurement/start?distribution_id=...
     //
-    // This is intentionally separate from the normal status endpoint.
-    if (url.pathname.endsWith("/start")) {
+    // /api/market-test-measurement/start
+    // ?distribution_id=distribution-...
+    //
+    if (
+      url.pathname.endsWith("/start")
+    ) {
       const distributionId =
-        normalize(url.searchParams.get("distribution_id"));
+        normalize(
+          url.searchParams.get(
+            "distribution_id"
+          )
+        );
 
       return await startMeasurement(
         env.DB,
@@ -529,14 +580,22 @@ export async function onRequestPost(context) {
     const { request, env } = context;
     const url = new URL(request.url);
 
-    const body = await request.json().catch(() => ({}));
+    const body =
+      await request.json().catch(() => ({}));
 
-    if (url.pathname.endsWith("/event")) {
+    // Real behavior event endpoint.
+    if (
+      url.pathname.endsWith("/event")
+    ) {
       const measurementId =
-        normalize(body.measurement_id);
+        normalize(
+          body.measurement_id
+        );
 
       const eventType =
-        normalize(body.event_type);
+        normalize(
+          body.event_type
+        );
 
       if (!measurementId) {
         return json({
@@ -549,8 +608,8 @@ export async function onRequestPost(context) {
 
       await ensureTables(env.DB);
 
-      const measurement = await env.DB
-        .prepare(`
+      const measurement =
+        await env.DB.prepare(`
           SELECT *
           FROM market_test_measurements
           WHERE id = ?
@@ -577,8 +636,11 @@ export async function onRequestPost(context) {
       );
     }
 
+    // Original POST start contract remains supported.
     const distributionId =
-      normalize(body.distribution_id);
+      normalize(
+        body.distribution_id
+      );
 
     return await startMeasurement(
       env.DB,
