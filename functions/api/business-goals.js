@@ -215,16 +215,21 @@ async function getUnitEconomics(db) {
       ? "price"
       : null;
 
-  const costColumn = columns.includes("cost_price")
+  let costColumn = columns.includes("cost_price")
     ? "cost_price"
     : columns.includes("cost")
       ? "cost"
       : null;
 
-  if (!saleColumn || !costColumn) {
+  if (!costColumn) {
+    await db.prepare("ALTER TABLE products ADD COLUMN cost_price REAL").run();
+    costColumn = "cost_price";
+  }
+
+  if (!saleColumn) {
     return {
       available: false,
-      reason: "PRODUCT_PRICE_OR_COST_COLUMN_NOT_FOUND",
+      reason: "PRODUCT_PRICE_COLUMN_NOT_FOUND",
       products: []
     };
   }
