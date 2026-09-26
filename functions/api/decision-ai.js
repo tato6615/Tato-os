@@ -221,14 +221,14 @@ function buildDecision(content, learningSource) {
   const evidenceItems = [];
 
   if (
-    decisionInput.type === "INVESTIGATE_DOWNSTREAM_PATH" &&
-    decisionInput.target === "CLICK_TO_PRODUCT_VIEW_PATH"
+    decisionInput.type === "INVESTIGATE_PRODUCT_TO_CUSTOMER" &&
+    decisionInput.target === "PRODUCT_TO_CUSTOMER_PATH"
   ) {
-    decisionType = "DOWNSTREAM_INVESTIGATION";
-    decision = "INVESTIGATE_CLICK_TO_PRODUCT_PATH";
+    decisionType = "CONVERSION_INVESTIGATION";
+    decision = "INVESTIGATE_PRODUCT_TO_CUSTOMER_PATH";
     priority = "HIGH";
     reason =
-      "Learning พบ Click ต่อเนื่อง แต่ยังไม่มี Product View จึงควรตรวจสอบเส้นทางหลัง Click ก่อนเปลี่ยนกลยุทธ์";
+      "Learning พบ Product View ต่อเนื่อง แต่ยังไม่เกิด Customer จึงควรตรวจสอบเส้นทาง Product View → Customer ก่อนเปลี่ยนกลยุทธ์";
 
     evidenceItems.push(
       {
@@ -244,7 +244,7 @@ function buildDecision(content, learningSource) {
       {
         signal: "PRODUCT_VIEW",
         value: productViews,
-        interpretation: "ยังไม่มี Product View ที่ถูกวัดได้"
+        interpretation: "มี Product View ที่ถูกวัดได้"
       },
       {
         signal: "CUSTOMER",
@@ -312,10 +312,10 @@ function buildDecision(content, learningSource) {
     },
 
     next_action_candidate:
-      decision === "INVESTIGATE_CLICK_TO_PRODUCT_PATH"
+      decision === "INVESTIGATE_PRODUCT_TO_CUSTOMER_PATH"
         ? {
-            type: "FUNNEL_PATH_AUDIT",
-            target: "CLICK_TO_PRODUCT_VIEW_PATH",
+            type: "CUSTOMER_CONVERSION_PATH_AUDIT",
+            target: "PRODUCT_VIEW_TO_CUSTOMER_PATH",
             status: "PROPOSED_ONLY",
             approval_required: true
           }
