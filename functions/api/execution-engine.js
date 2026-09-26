@@ -279,9 +279,15 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
+    const url = new URL(context.request.url);
+    const actionId = url.searchParams.get("action_run_id");
+
+    // Browser-safe execution link. POST remains the canonical API.
+    if (url.searchParams.get("execute") === "1") {
+      return await onRequestPost(context);
+    }
+
     const schema = await ensureExecutionRuns(DB);
-    const actionId =
-      new URL(context.request.url).searchParams.get("action_run_id");
 
     const action = await getAction(DB, actionId);
 
