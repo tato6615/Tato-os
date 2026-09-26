@@ -3,108 +3,118 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#080604">
-<meta name="description" content="TATO Coffee — เรื่องราวของเมล็ด Arabica 100% Single Origin จากดอยเวียง 1,250 เมตร">
-<title>TATO — จากเมล็ดหนึ่งเมล็ด สู่รสชาติที่คุณเลือก</title>
+<meta name="theme-color" content="#f0e9de">
+<meta name="description" content="TATO Coffee — specialty coffee from Doi Wiang, 1,250 m.">
+<title>TATO Coffee — From Bean to Cup</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;1,400;1,500;1,600&display=swap');
-:root{--bg:#080604;--paper:#eee8dd;--muted:#a59b91;--orange:#ef762d;--line:#2c2520}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--paper);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}
-body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-a{color:inherit}.page{background:var(--bg)}.serif{font-family:"Playfair Display",serif;font-style:italic}
-.nav{position:fixed;z-index:100;top:0;left:0;right:0;padding:18px 24px;display:flex;align-items:center;justify-content:space-between}.brand{font-family:"Playfair Display",serif;font-size:27px;text-decoration:none}.brand-dot{color:var(--orange)}.navlinks{display:flex;gap:5px;padding:7px;border:1px solid #ffffff24;border-radius:999px;background:#0b090780;backdrop-filter:blur(16px)}.navlinks a{padding:7px 15px;border-radius:999px;text-decoration:none;font-size:12px;color:#ffffffb8}.navlinks a:hover{background:#ffffff12;color:#fff}.nav-cta{font-size:12px;text-decoration:none;border:1px solid #ffffff40;border-radius:999px;padding:10px 17px}.hamb{display:none;background:#ffffff10;border:1px solid #ffffff30;color:#fff;border-radius:50%;width:42px;height:42px}
-.hero{height:100dvh;min-height:650px;position:relative;overflow:hidden;background:#050403}.base,.reveal{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat}.base{z-index:1;background-image:linear-gradient(180deg,#00000035,#00000055),url("https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260609_195923_b0ba8ace-1d1d-4f2c-9a28-1ab84b330680.png&w=1280&q=85")}.reveal{z-index:3;pointer-events:none;background-image:url("https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260609_201152_bba90a12-bf12-459f-91f0-51f237dbaf3b.png&w=1280&q=85");mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-size:100% 100%;-webkit-mask-size:100% 100%}.hero:after{content:"";position:absolute;inset:0;z-index:4;background:linear-gradient(180deg,#05040375 0%,transparent 35%,transparent 55%,#050403e8 100%);pointer-events:none}
-.hero-copy{position:absolute;z-index:6;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:90px 20px 120px}.kicker{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#ffffff9e;margin-bottom:22px}.hero h1{font-size:clamp(52px,10vw,128px);line-height:.88;letter-spacing:-.075em;font-weight:400;margin:0;max-width:1100px}.hero h1 em{font-family:"Playfair Display",serif}.hero h1 .orange{color:var(--orange)}.hero-sub{margin:27px auto 0;max-width:560px;color:#ffffffb8;font-size:14px;line-height:1.8}.scroll{position:absolute;z-index:7;bottom:28px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.25em;color:#ffffff80}.scroll:after{content:"";display:block;width:1px;height:34px;background:#ffffff55;margin:10px auto 0}
-.story{padding:150px 6vw 130px;border-top:1px solid var(--line);position:relative;overflow:hidden}.story-head{max-width:1100px;margin:auto;display:grid;grid-template-columns:.75fr 1.25fr;gap:7vw;align-items:end}.eyebrow{font-size:10px;letter-spacing:.25em;color:var(--orange);font-weight:700}.story h2{font-size:clamp(42px,6vw,82px);font-weight:400;line-height:.95;letter-spacing:-.065em;margin:15px 0 0}.story h2 em{font-family:"Playfair Display",serif}.story-intro{font-size:17px;line-height:1.9;color:#b9b0a7;max-width:570px}.bean-stage{height:520px;max-width:1200px;margin:90px auto 0;position:relative;display:flex;align-items:center;justify-content:center}.bean{width:245px;height:360px;border-radius:52% 48% 50% 50%/58% 56% 44% 42%;background:radial-gradient(circle at 35% 28%,#9a6541 0,#60361e 20%,#2a140b 57%,#0e0704 100%);box-shadow:inset -30px -35px 50px #000b,inset 16px 12px 25px #c18a5d30,0 45px 100px #000;transform:rotate(-22deg);position:relative}.bean:before{content:"";position:absolute;left:50%;top:9%;width:25px;height:82%;transform:translateX(-50%) rotate(8deg);border-radius:50%;background:linear-gradient(90deg,transparent,#070301b8 45%,#bd7b4935 52%,transparent);filter:blur(2px)}.bean:after{content:"";position:absolute;inset:9%;border-radius:50%;background:repeating-linear-gradient(125deg,transparent 0 16px,#d39a6a12 17px 19px);mix-blend-mode:screen}.bean-label{position:absolute;bottom:18px;left:18px;font-size:10px;letter-spacing:.18em;color:#ffffff80}
-.bean-orbit{position:absolute;width:min(72vw,720px);height:min(72vw,720px);border:1px solid #ffffff13;border-radius:50%;transform:rotate(-12deg)}.bean-orbit:before,.bean-orbit:after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 20px var(--orange)}.bean-orbit:before{top:11%;left:18%}.bean-orbit:after{bottom:17%;right:13%}.stage-caption{position:absolute;right:2%;bottom:12%;width:220px;color:#8e857d;font-size:12px;line-height:1.7}
-.beans{max-width:1200px;margin:40px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.bean-card{min-height:300px;border:1px solid var(--line);border-radius:28px;padding:24px;position:relative;overflow:hidden;background:linear-gradient(145deg,#15100d,#0b0806);transition:transform .5s,border-color .5s}.bean-card:hover{transform:translateY(-8px);border-color:#665047}.mini-bean{position:absolute;width:130px;height:180px;border-radius:52% 48% 50% 50%/58% 56% 44% 42%;right:-10px;top:25px;transform:rotate(25deg);background:radial-gradient(circle at 32% 28%,#a56b44,#4a2413 38%,#160904 78%);box-shadow:inset -15px -20px 25px #000b,0 20px 45px #000}.bean-card:nth-child(2) .mini-bean{background:radial-gradient(circle at 35% 28%,#c29162,#765036 35%,#2b170c 75%);transform:rotate(-18deg)}.bean-card:nth-child(3) .mini-bean{background:radial-gradient(circle at 35% 28%,#6d4933,#3b2114 35%,#120905 75%);transform:rotate(8deg)}.bean-card:nth-child(4) .mini-bean{background:radial-gradient(circle at 35% 28%,#a36f48,#552b18 35%,#1a0b05 75%);transform:rotate(-32deg)}.bean-card .num{font-size:10px;letter-spacing:.2em;color:var(--orange)}.bean-card h3{position:absolute;left:24px;bottom:62px;margin:0;font-size:25px;font-weight:400}.bean-card p{position:absolute;left:24px;bottom:23px;margin:0;color:#81776f;font-size:11px}
-.quote{padding:170px 8vw;background:#0d0907;display:grid;grid-template-columns:1fr 1fr;gap:7vw;align-items:center}.quote-mark{font-family:"Playfair Display",serif;font-size:150px;line-height:.5;color:var(--orange)}.quote h2{font-size:clamp(38px,5vw,70px);line-height:1;letter-spacing:-.06em;font-weight:400;margin:0}.quote p{color:#938980;line-height:1.8;font-size:14px;max-width:470px;margin-top:28px}
-.product-story{padding:150px 6vw}.product-wrap{max-width:1200px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:7vw;align-items:center}.pack{min-height:540px;border-radius:35px;border:1px solid #3b2b22;background:radial-gradient(circle at 50% 35%,#63351f,#241109 38%,#0d0805 75%);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}.pack:before{content:"TATO";font-family:"Playfair Display",serif;font-size:110px;letter-spacing:-.08em;position:absolute;opacity:.12;transform:rotate(-90deg)}.pack-bean{width:185px;height:270px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#bc8052,#5b2e18 35%,#160a05 78%);transform:rotate(25deg);box-shadow:inset -25px -30px 35px #000c,0 40px 90px #000}.product-copy h2{font-size:clamp(48px,6vw,82px);line-height:.92;letter-spacing:-.065em;font-weight:400;margin:15px 0 24px}.product-copy p{color:#9e948b;line-height:1.85;font-size:15px;max-width:500px}.facts{display:flex;gap:8px;flex-wrap:wrap;margin:28px 0}.fact{border:1px solid var(--line);border-radius:999px;padding:9px 13px;font-size:10px;color:#c2b7ad}.buy{display:inline-flex;background:var(--orange);text-decoration:none;border-radius:999px;padding:13px 23px;font-size:13px;margin-top:10px}.price{font-size:28px;margin-top:24px}
-.final{padding:170px 20px 190px;text-align:center;border-top:1px solid var(--line)}.final h2{font-size:clamp(50px,9vw,115px);line-height:.88;letter-spacing:-.075em;font-weight:400;margin:15px auto 30px}.final h2 em{font-family:"Playfair Display",serif}.final p{color:#8f867e;line-height:1.8;max-width:500px;margin:0 auto 30px}.final .buy{font-size:14px;padding:14px 28px}
-.reveal-anim{opacity:0;animation:up 1s cubic-bezier(.16,1,.3,1) forwards}@keyframes up{from{opacity:0;transform:translateY(25px)}to{opacity:1;transform:translateY(0)}}@keyframes drift{from{transform:rotate(-22deg) translateY(0)}to{transform:rotate(-17deg) translateY(-12px)}}.bean{animation:drift 4s ease-in-out infinite alternate}
-@media(max-width:850px){.nav{padding:15px 17px}.navlinks,.nav-cta{display:none}.hamb{display:block}.hero{min-height:680px}.hero-copy{padding-top:120px}.story,.product-story{padding:100px 20px}.story-head,.quote,.product-wrap{grid-template-columns:1fr;gap:40px}.bean-stage{height:390px;margin-top:55px}.bean{width:170px;height:255px}.stage-caption{right:0;bottom:2%;width:170px}.beans{grid-template-columns:1fr 1fr}.bean-card{min-height:250px}.mini-bean{width:90px;height:125px}.bean-card h3{font-size:20px}.quote{padding:110px 25px}.quote-mark{font-size:100px}.pack{min-height:390px}.pack:before{font-size:75px}}
-@media(max-width:520px){.beans{grid-template-columns:1fr}.bean-card{min-height:220px}.bean-stage{height:330px}.stage-caption{width:145px;font-size:10px}.hero h1{font-size:56px}.hero-sub{font-size:13px}.story h2{font-size:48px}}
-@media(prefers-reduced-motion:reduce){.bean,.reveal-anim{animation:none;opacity:1}}
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;1,400;1,500&display=swap');
+:root{--cream:#f0e9de;--paper:#f8f4ed;--ink:#171411;--brown:#4a2a18;--coffee:#6f3e20;--orange:#e8752d;--muted:#756b62;--line:#d6ccc0}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:inherit}.mono{font-family:"DM Mono",monospace}.serif{font-family:"Playfair Display",serif;font-style:italic}
+.nav{position:fixed;z-index:100;top:0;left:0;right:0;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;mix-blend-mode:multiply}.logo{font-family:"Playfair Display",serif;font-size:29px;text-decoration:none}.logo i{color:var(--orange)}.navlinks{display:flex;gap:22px;font-size:11px}.navlinks a{text-decoration:none}.navlinks a:hover{color:var(--orange)}.navbuy{border:1px solid var(--ink);padding:10px 17px;border-radius:999px;text-decoration:none;font-size:11px}.hamb{display:none}
+.intro{min-height:100svh;background:var(--cream);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}.intro-inner{text-align:center;position:relative;z-index:2}.intro-kicker{font-size:10px;letter-spacing:.28em;color:var(--muted);margin-bottom:22px}.cup-drawing{width:210px;height:160px;margin:0 auto 30px;position:relative}.cup-outline{position:absolute;left:20px;right:20px;bottom:10px;height:115px;border:3px solid var(--ink);border-top:none;border-radius:0 0 48px 48px;overflow:hidden;background:var(--paper)}.cup-outline:before{content:"";position:absolute;left:-5%;right:-5%;bottom:0;height:0;background:var(--coffee);animation:fillCup 2.1s cubic-bezier(.16,1,.3,1) .45s forwards}.cup-rim{position:absolute;left:17px;right:17px;top:18px;height:18px;border:3px solid var(--ink);border-radius:50%;background:var(--paper);z-index:3}.cup-rim:after{content:"";position:absolute;left:10px;right:10px;top:3px;height:8px;border-radius:50%;background:#2c170c}.handle{position:absolute;right:4px;top:47px;width:48px;height:50px;border:3px solid var(--ink);border-left:0;border-radius:0 30px 30px 0}.steam{position:absolute;top:-28px;left:70px;font-size:35px;font-family:serif;opacity:0;animation:steam 1.5s ease 1.2s forwards}.intro h1{font-size:clamp(46px,8vw,94px);font-weight:400;line-height:.9;letter-spacing:-.07em;margin:0}.intro h1 em{font-family:"Playfair Display",serif}.intro p{max-width:470px;margin:24px auto 0;color:var(--muted);line-height:1.8;font-size:13px}.enter{display:inline-block;margin-top:28px;background:var(--ink);color:var(--paper);padding:13px 24px;border-radius:999px;text-decoration:none;font-size:12px;opacity:0;animation:appear .8s 1.5s forwards}.pour{position:absolute;z-index:5;left:50%;top:56%;width:3px;height:0;background:var(--coffee);transform:translateX(-50%) rotate(20deg);transform-origin:top;animation:pour 1.2s 2.25s ease-in forwards}.intro.open .cup-drawing{animation:cupAway 1s .1s cubic-bezier(.76,0,.24,1) forwards}.intro.open .intro-inner{animation:introAway 1s forwards}.intro.open .pour{animation:pourOut .9s forwards}
+@keyframes fillCup{to{height:88%}}@keyframes steam{to{opacity:.35;transform:translateY(-10px)}}@keyframes appear{to{opacity:1}}@keyframes pour{to{height:180px}}@keyframes pourOut{from{height:180px}to{height:0;opacity:0}}@keyframes cupAway{to{transform:translateY(-110px) rotate(13deg);opacity:0}}@keyframes introAway{to{transform:translateY(-35px);opacity:0}}
+.hero{background:#17120e;color:#f5efe6;min-height:88svh;position:relative;display:flex;align-items:center;overflow:hidden;padding:120px 7vw}.hero-copy{position:relative;z-index:5;max-width:760px}.hero .kicker{font-size:10px;letter-spacing:.3em;color:#ffffff80}.hero h2{font-size:clamp(55px,10vw,130px);line-height:.82;letter-spacing:-.08em;font-weight:400;margin:24px 0}.hero h2 em{font-family:"Playfair Display",serif}.hero h2 span{color:var(--orange)}.hero p{max-width:470px;color:#c0b5aa;font-size:14px;line-height:1.8}.hero-bean{position:absolute;width:420px;height:620px;right:8%;top:13%;border-radius:50% 48% 52% 45%;background:radial-gradient(circle at 35% 25%,#9b6642,#5b3018 32%,#1d0d06 76%);transform:rotate(28deg);box-shadow:inset -55px -70px 80px #0009,0 60px 120px #0008}.hero-bean:before{content:"";position:absolute;left:48%;top:7%;width:45px;height:86%;border-radius:50%;background:linear-gradient(90deg,transparent,#090503 46%,#c58b6040 53%,transparent);transform:rotate(9deg)}.float-beans{position:absolute;inset:0;z-index:2;pointer-events:none}.float-beans i{position:absolute;width:34px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#b47a4e,#512914 60%,#160905);opacity:.7;animation:float 9s ease-in-out infinite}.float-beans i:nth-child(1){left:57%;top:16%;animation-delay:-2s}.float-beans i:nth-child(2){left:78%;top:70%;transform:rotate(50deg);animation-delay:-6s}.float-beans i:nth-child(3){left:68%;top:47%;transform:rotate(-20deg);animation-delay:-4s}.float-beans i:nth-child(4){left:91%;top:28%;transform:rotate(30deg);animation-delay:-1s}@keyframes float{0%,100%{transform:translate3d(0,0,0) rotate(20deg)}50%{transform:translate3d(-25px,-45px,0) rotate(-25deg)}}
+.section{padding:130px 7vw;background:var(--paper)}.section-head{max-width:1120px;margin:auto;display:grid;grid-template-columns:.7fr 1.3fr;gap:8vw}.eyebrow{font-size:10px;letter-spacing:.25em;color:var(--orange);font-weight:700}.section h3{font-size:clamp(44px,6vw,82px);font-weight:400;line-height:.92;letter-spacing:-.07em;margin:14px 0}.section h3 em{font-family:"Playfair Display",serif}.section-intro{color:var(--muted);font-size:15px;line-height:1.9;max-width:540px}
+.grab-stage{max-width:1120px;height:570px;margin:90px auto 0;background:#e7ded1;border-radius:36px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:grab}.grab-stage:active{cursor:grabbing}.studio-light{position:absolute;width:650px;height:650px;border-radius:50%;background:radial-gradient(circle,#fff9 0,#ffffff35 42%,transparent 70%);top:-250px}.bag{width:225px;height:340px;background:linear-gradient(110deg,#17120f,#342118 48%,#110c09);border-radius:12px 12px 20px 20px;position:relative;box-shadow:25px 35px 55px #0003;transform:rotate(-7deg);transition:transform .08s linear;z-index:2}.bag:before{content:"TATO";position:absolute;inset:55px 22px;border:1px solid #ffffff30;color:#e7d9c8;font-family:"Playfair Display",serif;font-size:48px;display:flex;align-items:center;justify-content:center}.bag:after{content:"ARABICA 100% · DOI WIANG · 1,250 M";position:absolute;left:0;right:0;bottom:22px;text-align:center;color:#cbb9a7;font-size:8px;letter-spacing:.12em}.bean-cup{width:210px;height:125px;background:#f5eee3;border:2px solid #3a2619;border-radius:50%;position:absolute;right:18%;bottom:18%;box-shadow:0 30px 45px #0003;transform:rotate(9deg);transition:transform .08s linear;z-index:3}.bean-cup:before{content:"";position:absolute;left:18px;right:18px;top:10px;height:70px;border-radius:50%;background:#382016}.bean-cup:after{content:"";position:absolute;left:80px;top:24px;width:35px;height:55px;border-radius:50%;background:radial-gradient(circle at 35% 25%,#a16a43,#3b1c0e);box-shadow:35px 15px #67381f,-38px 12px #84502f}.grab-note{position:absolute;left:25px;bottom:25px;font-size:10px;letter-spacing:.18em;color:#776d64}.grab-label{position:absolute;right:25px;top:25px;font-size:10px;color:#776d64}
+.products{padding:130px 5vw;background:var(--cream)}.products-head{max-width:1120px;margin:0 auto 60px;display:flex;justify-content:space-between;align-items:end}.products-head h3{font-size:clamp(44px,6vw,78px);font-weight:400;line-height:.9;letter-spacing:-.07em;margin:12px 0 0}.cards{max-width:1120px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{min-height:350px;background:var(--paper);border:1px solid var(--line);border-radius:26px;padding:24px;position:relative;transform:perspective(900px) rotateY(var(--rx,0deg)) rotateX(var(--ry,0deg));transition:transform .16s ease,box-shadow .2s;transform-origin:center bottom}.card:hover{box-shadow:0 25px 50px #3a251315}.card-num{font-size:9px;letter-spacing:.2em;color:var(--orange)}.card-bean{position:absolute;right:18px;top:45px;width:105px;height:145px;border-radius:52% 48% 50% 50%;background:radial-gradient(circle at 33% 25%,#a56c43,#512815 50%,#1a0b05 82%);transform:rotate(28deg)}.card:nth-child(2) .card-bean{transform:rotate(-17deg);background:radial-gradient(circle at 33% 25%,#c39161,#6a4328 45%,#211008)}.card:nth-child(3) .card-bean{transform:rotate(9deg);background:radial-gradient(circle at 33% 25%,#765039,#392016 50%,#100704)}.card:nth-child(4) .card-bean{transform:rotate(-28deg);background:radial-gradient(circle at 33% 25%,#a56b43,#4c2413 50%,#160904)}.card h4{position:absolute;bottom:65px;left:24px;font-size:27px;font-weight:400;margin:0}.card p{position:absolute;bottom:25px;left:24px;right:20px;margin:0;color:var(--muted);font-size:10px;line-height:1.5}.cards-note{text-align:center;color:var(--muted);font-size:10px;margin-top:25px}
+.lattee-section{background:#191410;color:#f3ece3;padding:160px 7vw;min-height:1050px;position:relative;overflow:hidden}.latte-head{max-width:1120px;margin:auto}.latte-head h3{font-size:clamp(48px,7vw,90px);font-weight:400;line-height:.9;letter-spacing:-.07em;margin:14px 0}.latte-head p{max-width:450px;color:#b6aaa0;line-height:1.8;font-size:13px}.clock{max-width:800px;aspect-ratio:1;margin:100px auto 0;border:1px solid #ffffff1c;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center}.clock:before{content:"";position:absolute;inset:9%;border:1px dashed #ffffff22;border-radius:50%}.tick{position:absolute;inset:0}.tick b{position:absolute;left:50%;top:3%;transform:translateX(-50%);font:10px "DM Mono";color:#ffffff55}.tick b:nth-child(2){top:50%;left:96%}.tick b:nth-child(3){top:94%;left:50%;transform:translateX(-50%)}.tick b:nth-child(4){top:50%;left:3%}.latte{width:260px;height:260px;border-radius:50%;background:#d8c0a4;border:10px solid #f2e8d9;box-shadow:0 35px 90px #0008;position:relative;transform:rotate(var(--angle,0deg));transition:transform .08s linear}.latte:before{content:"";position:absolute;inset:22px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#f5e7d5 0 9%,#b87b4c 10% 16%,#ead5bc 17% 25%,#9b603b 26% 31%,#e7ccb0 32% 42%,#a76740 43% 48%,#d8b28d 49%);box-shadow:inset 0 0 30px #70402055}.latte:after{content:"TATO";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Playfair Display",serif;font-size:35px;color:#fff8}.latte-caption{text-align:center;color:#81766e;font-size:10px;letter-spacing:.18em;margin-top:28px}
+.receipt-section{padding:150px 7vw;background:var(--paper);min-height:800px}.receipt-wrap{max-width:900px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:8vw;align-items:center}.receipt-copy h3{font-size:clamp(45px,6vw,78px);font-weight:400;line-height:.9;letter-spacing:-.07em;margin:14px 0 25px}.receipt-copy p{color:var(--muted);line-height:1.8;font-size:14px}.printer{background:#ded6cb;border-radius:22px;padding:35px;box-shadow:0 30px 70px #33241718}.printer-body{height:260px;background:#f6f2eb;border-radius:15px 15px 8px 8px;position:relative;box-shadow:inset 0 -15px 25px #00000008}.printer-slot{position:absolute;left:12%;right:12%;top:45px;height:10px;border-radius:5px;background:#29231f}.paper{position:absolute;left:22%;right:22%;top:50px;height:0;background:#fffdf7;overflow:hidden;box-shadow:0 10px 18px #0002;animation:print 4s 1s ease forwards}.paper-inner{padding:28px 22px;font:9px "DM Mono";line-height:1.8;color:#332a24}.paper-inner h5{font:16px "Playfair Display",serif;text-align:center;margin:0 0 12px}.paper-inner .total{border-top:1px dashed #aaa;margin-top:12px;padding-top:8px;font-weight:700}.printer-dot{position:absolute;bottom:20px;left:25px;width:8px;height:8px;border-radius:50%;background:var(--orange)}@keyframes print{to{height:190px}}
+.final{padding:170px 20px 200px;text-align:center;background:var(--brown);color:#f4ece2}.final h3{font-size:clamp(52px,9vw,115px);font-weight:400;line-height:.86;letter-spacing:-.08em;margin:15px auto 30px}.final h3 em{font-family:"Playfair Display",serif}.final p{max-width:480px;margin:auto;color:#c7b7a8;line-height:1.8;font-size:13px}.buy{display:inline-block;margin-top:30px;background:var(--orange);color:#fff;text-decoration:none;border-radius:999px;padding:14px 27px;font-size:12px}
+@media(max-width:850px){.nav{padding:15px 17px}.navlinks,.navbuy{display:none}.hamb{display:block;border:0;background:none;font-size:22px}.hero{min-height:820px;padding:110px 25px}.hero-bean{width:230px;height:340px;right:-40px;top:50%;opacity:.6}.hero-copy{max-width:650px}.section,.products,.lattee-section,.receipt-section{padding:100px 20px}.section-head,.receipt-wrap{grid-template-columns:1fr;gap:35px}.grab-stage{height:480px;margin-top:55px}.bag{width:160px;height:245px}.bean-cup{right:8%;bottom:15%;width:155px;height:95px}.cards{grid-template-columns:1fr 1fr}.card{min-height:290px}.clock{margin-top:65px}.latte{width:190px;height:190px}.latte:after{font-size:26px}.final{padding:130px 20px 160px}}
+@media(max-width:520px){.intro h1{font-size:52px}.cup-drawing{transform:scale(.82)}.hero h2{font-size:58px}.cards{grid-template-columns:1fr}.card{min-height:250px}.grab-stage{height:410px}.bag{width:135px;height:210px}.bean-cup{right:4%;bottom:14%;width:135px}.clock{width:92vw}.latte{width:150px;height:150px;border-width:7px}.latte:before{inset:13px}.receipt-wrap{gap:50px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="page">
 <nav class="nav">
-<a class="brand" href="/">TATO<span class="brand-dot">.</span></a>
-<div class="navlinks"><a href="#bean">The Bean</a><a href="#roast">Roast</a><a href="#origin">Origin</a><a href="#coffee">TATO</a></div>
-<a id="navCta" class="nav-cta" href="#">ดูเมล็ดนี้</a><button class="hamb" aria-label="Menu">☰</button>
+<a class="logo" href="/">TATO<i>.</i></a>
+<div class="navlinks"><a href="#bean">Bean</a><a href="#products">Roast</a><a href="#latte">Cup</a><a href="#receipt">Story</a></div>
+<a id="navBuy" class="navbuy" href="#">ลอง TATO</a><button class="hamb" aria-label="Menu">☰</button>
 </nav>
 
+<section class="intro" id="intro">
+<div class="intro-inner">
+<div class="intro-kicker mono">A SPECIALTY COFFEE STORY / TATO</div>
+<div class="cup-drawing"><div class="steam">〰</div><div class="cup-rim"></div><div class="cup-outline"></div><div class="handle"></div></div>
+<h1>ก่อนจะเป็น<br><em>กาแฟหนึ่งแก้ว</em></h1>
+<p>มันเคยเป็นเพียงเมล็ดหนึ่งเมล็ด<br>จากดอยเวียง 1,250 เมตร</p>
+<a class="enter" id="enter" href="#bean">เปิดเรื่องราวของ TATO ↓</a>
+</div><div class="pour"></div>
+</section>
+
 <section class="hero">
-<div class="base"></div><div id="reveal" class="reveal"></div>
+<div class="float-beans"><i></i><i></i><i></i><i></i></div><div class="hero-bean"></div>
 <div class="hero-copy">
-<div class="kicker reveal-anim" style="animation-delay:.15s">TATO COFFEE / DOI WIANG / 1,250 M</div>
-<h1 class="reveal-anim" style="animation-delay:.3s">กาแฟไม่ได้<br>เริ่มที่ <em>แก้ว</em><br>มันเริ่มที่ <span class="orange">เมล็ด</span></h1>
-<p class="hero-sub reveal-anim" style="animation-delay:.55s">ลองมองกาแฟจากต้นทาง แล้วค่อยถามตัวเองว่า รสชาติแบบไหนที่คุณกำลังหา</p>
-</div><div class="scroll">SCROLL TO DISCOVER</div>
-</section>
-
-<section id="bean" class="story">
-<div class="story-head">
-<div><div class="eyebrow">01 / THE BEAN</div><h2>หนึ่งเมล็ด<br>มี <em>เรื่อง</em> มากกว่าที่คิด</h2></div>
-<p class="story-intro">ก่อนจะกลายเป็นกาแฟในแก้ว เมล็ดหนึ่งเมล็ดผ่านทั้งแหล่งปลูก ความสูง การคั่ว และเวลา ทุกอย่างเปลี่ยนสิ่งที่คุณรับรู้ในแก้วสุดท้าย</p>
-</div>
-<div class="bean-stage"><div class="bean-orbit"></div><div class="bean"><span class="bean-label">ARABICA 100%</span></div><p class="stage-caption">เมล็ดจริงไม่ได้มีคำว่า “ดีที่สุด” ติดมาด้วย มีเพียงรสชาติที่รอให้คุณค้นพบ</p></div>
-<div class="beans" id="roast">
-<div class="bean-card"><span class="num">01 / LIGHT</span><div class="mini-bean"></div><h3>อ่อน</h3><p>ปล่อย character ของเมล็ดออกมาให้ชัด</p></div>
-<div class="bean-card"><span class="num">02 / MEDIUM</span><div class="mini-bean"></div><h3>กลาง</h3><p>บาลานซ์ระหว่างกลิ่น รส และ body</p></div>
-<div class="bean-card"><span class="num">03 / NORMAL</span><div class="mini-bean"></div><h3>ปกติ</h3><p>โทนที่เข้าถึงง่ายสำหรับการดื่มทุกวัน</p></div>
-<div class="bean-card"><span class="num">04 / DARK</span><div class="mini-bean"></div><h3>เข้ม</h3><p>รสเข้มชัด body เด่น และเป็น TATO ที่มีอยู่จริง</p></div>
+<div class="kicker mono">01 / FROM THE BEAN</div>
+<h2>กาแฟไม่ได้<br>เริ่มที่ <em>แก้ว</em><br>มันเริ่มที่ <span>เมล็ด</span></h2>
+<p>Arabica 100% Single Origin จากดอยเวียง ความสูง 1,250 เมตร — เราอยากให้คุณเห็นเรื่องราวก่อนจะตัดสินใจว่ารสชาตินี้ใช่สำหรับคุณหรือเปล่า</p>
 </div>
 </section>
 
-<section id="origin" class="quote">
-<div><div class="quote-mark">“</div></div>
-<div><h2>บางครั้ง สิ่งที่ทำให้กาแฟต่างกัน ไม่ใช่คำโฆษณา แต่คือ <em>จุดที่เมล็ดเติบโต</em></h2><p>ดอยเวียง · 1,250 เมตร · Arabica 100% · Single Origin — เรื่องราวต้นทางที่ TATO เลือกเก็บไว้ในทุกออเดอร์</p></div>
+<section id="bean" class="section">
+<div class="section-head">
+<div><div class="eyebrow">02 / THE OBJECT</div><h3>จับมัน<br><em>หมุนมัน</em></h3></div>
+<div><p class="section-intro">ถุงกาแฟและถ้วยเมล็ดของ TATO อยู่ตรงหน้าคุณ ลองลากเพื่อหมุนมุมมอง เหมือนกำลังหยิบมันขึ้นมาดูด้วยตัวเอง — แหล่งปลูก ระดับความสูง และตัวตนของกาแฟอยู่ตรงนั้น</p></div>
+</div>
+<div class="grab-stage" id="grab">
+<div class="studio-light"></div><div class="grab-label mono">DRAG / ROTATE</div><div class="bag" id="bag"></div><div class="bean-cup" id="beanCup"></div><div class="grab-note mono">ARABICA 100% · DOI WIANG · 1,250 M</div>
+</div>
 </section>
 
-<section id="coffee" class="product-story">
-<div class="product-wrap">
-<div class="pack"><div class="pack-bean"></div></div>
-<div class="product-copy">
-<div class="eyebrow">03 / THE COFFEE WE MAKE</div>
-<h2>นี่คือ<br><em>TATO</em></h2>
-<p>Arabica 100% Single Origin จากดอยเวียง 1,250 เมตร คั่วสดใหม่ตามออเดอร์ เราไม่ได้พยายามทำให้กาแฟเป็นของทุกคน แต่อยากให้คนที่กำลังหารสชาติแบบนี้ได้ลองจริง</p>
-<div class="facts"><span class="fact">ARABICA 100%</span><span class="fact">SINGLE ORIGIN</span><span class="fact">DOI WIANG</span><span class="fact">1,250 M</span><span class="fact">FRESH ROAST</span></div>
-<div class="price">฿550 <small>/ กก.</small></div>
-<a id="productCta" class="buy" href="#">ไปดู TATO Coffee</a>
+<section id="products" class="products">
+<div class="products-head"><div><div class="eyebrow">03 / FOUR WAYS</div><h3>เลือกจาก<br><em>เมล็ด</em></h3></div><div class="mono" style="font-size:10px;color:#756b62">MOVE YOUR HAND →</div></div>
+<div class="cards" id="cards">
+<div class="card"><span class="card-num mono">01 / LIGHT</span><div class="card-bean"></div><h4>อ่อน</h4><p>ให้ character ของเมล็ดโดดเด่นและชัดขึ้น</p></div>
+<div class="card"><span class="card-num mono">02 / MEDIUM</span><div class="card-bean"></div><h4>กลาง</h4><p>บาลานซ์ระหว่างกลิ่น รส และ body</p></div>
+<div class="card"><span class="card-num mono">03 / NORMAL</span><div class="card-bean"></div><h4>ปกติ</h4><p>โทนที่เข้าถึงง่ายสำหรับการดื่มทุกวัน</p></div>
+<div class="card"><span class="card-num mono">04 / DARK</span><div class="card-bean"></div><h4>เข้ม</h4><p>รสเข้มชัด body เด่น — ตัวที่ TATO มีขายจริง</p></div>
 </div>
+<div class="cards-note mono">CARDS RESPOND TO YOUR HAND</div>
+</section>
+
+<section id="latte" class="lattee-section">
+<div class="latte-head"><div class="eyebrow">04 / TIME &amp; TASTE</div><h3>กาแฟหนึ่งแก้ว<br>มี <em>จังหวะ</em> ของมัน</h3><p>เลื่อนลง แล้วดูแก้วกาแฟหมุนไปพร้อมกับเวลา — เพราะรสชาติไม่ได้เกิดขึ้นในวินาทีเดียว</p></div>
+<div class="clock"><div class="tick"><b>12</b><b>3</b><b>6</b><b>9</b></div><div class="latte" id="latteCup"></div></div>
+<div class="latte-caption mono">SCROLL TO TURN THE CUP</div>
+</section>
+
+<section id="receipt" class="receipt-section">
+<div class="receipt-wrap">
+<div class="receipt-copy"><div class="eyebrow">05 / THE RECEIPT</div><h3>เรื่องราวจบ<br>ที่ <em>แก้วคุณ</em></h3><p>จากเมล็ด จากดอยเวียง จากการคั่วสดใหม่ตามออเดอร์ — สุดท้ายสิ่งที่สำคัญที่สุดคือคุณได้ลองมันจริงหรือยัง</p><a id="receiptBuy" class="buy" href="#">ดู TATO Coffee</a></div>
+<div class="printer"><div class="printer-body"><div class="printer-slot"></div><div class="paper"><div class="paper-inner"><h5>TATO COFFEE</h5>ARABICA 100%<br>SINGLE ORIGIN<br>DOI WIANG · 1,250 M<br>FRESH ROAST<br><div class="total">TATO DARK ROAST · ฿550 / KG</div><br>THANK YOU FOR TASTING<br>THE STORY.</div></div><div class="printer-dot"></div></div></div>
 </div>
 </section>
 
 <section class="final">
-<div class="eyebrow">04 / YOUR NEXT CUP</div>
-<h2>อย่าเพิ่งเชื่อ<br>ลอง <em>จากเมล็ด</em></h2>
-<p>จากเรื่องราวของเมล็ด สู่กาแฟจริงในมือคุณ ถ้าคุณกำลังมองหารสชาติใหม่ ลองรู้จัก TATO ต่ออีกนิด</p>
-<a id="finalCta" class="buy" href="#">ดูรายละเอียดและทดลอง TATO</a>
+<div class="eyebrow">06 / YOUR NEXT CUP</div>
+<h3>จากเมล็ด<br>สู่ <em>แก้วของคุณ</em></h3>
+<p>Arabica 100% Single Origin จากดอยเวียง 1,250 เมตร คั่วสดใหม่ตามออเดอร์</p>
+<a id="finalBuy" class="buy" href="#">ดูรายละเอียดและทดลอง TATO</a>
 </section>
-</div>
 
 <script>
-const SPOTLIGHT_R=260;
 const p=new URLSearchParams(location.search);
 const productId=p.get("product_id")||"e71d46e6-8f1d-4c3d-aedc-8461d79f13c0";
 const contentId=p.get("content_id")||"0cc7833e-2a5b-472a-b75d-0c0f131224c9";
 const sessionId=localStorage.getItem("tato_session")||crypto.randomUUID();
 localStorage.setItem("tato_session",sessionId);
 const buy="/buy.html?product_id="+encodeURIComponent(productId)+"&content_id="+encodeURIComponent(contentId)+"&session_id="+encodeURIComponent(sessionId);
-["navCta","productCta","finalCta"].forEach(id=>document.getElementById(id).href=buy);
-fetch("/api/behavior",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_view",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",experience:"BEAN_STORY_V2"}})}).catch(()=>{});
-["navCta","productCta","finalCta"].forEach(id=>document.getElementById(id).addEventListener("click",()=>fetch("/api/behavior",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_click",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",destination:"/buy.html",experience:"BEAN_STORY_V2"}})}).catch(()=>{})));
-const mouse={x:-999,y:-999},smooth={x:-999,y:-999};let rafRef=0;
-function move(e){mouse.x=e.clientX;mouse.y=e.clientY}
-const reveal=document.getElementById("reveal"),canvas=document.createElement("canvas");canvas.width=innerWidth;canvas.height=innerHeight;canvas.style.cssText="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:0";document.body.appendChild(canvas);
-const ctx=canvas.getContext("2d");
-function updateReveal(x,y){if(!ctx)return;ctx.clearRect(0,0,canvas.width,canvas.height);const g=ctx.createRadialGradient(x,y,0,x,y,SPOTLIGHT_R);g.addColorStop(0,"rgba(255,255,255,1)");g.addColorStop(.42,"rgba(255,255,255,1)");g.addColorStop(.65,"rgba(255,255,255,.62)");g.addColorStop(.82,"rgba(255,255,255,.2)");g.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,SPOTLIGHT_R,0,Math.PI*2);ctx.fill();const url=canvas.toDataURL();reveal.style.webkitMaskImage="url("+url+")";reveal.style.maskImage="url("+url+")"}
-function animate(){smooth.x+=(mouse.x-smooth.x)*.1;smooth.y+=(mouse.y-smooth.y)*.1;updateReveal(smooth.x,smooth.y);rafRef=requestAnimationFrame(animate)}
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight;updateReveal(smooth.x,smooth.y)}
-window.addEventListener("mousemove",move,{passive:true});window.addEventListener("resize",resize);rafRef=requestAnimationFrame(animate);
-window.addEventListener("beforeunload",()=>{cancelAnimationFrame(rafRef)});
+["navBuy","receiptBuy","finalBuy"].forEach(id=>document.getElementById(id).href=buy);
+fetch("/api/behavior",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_view",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",experience:"SPECIALTY_COFFEE_INTERACTIVE_V3"}})}).catch(()=>{});
+["navBuy","receiptBuy","finalBuy"].forEach(id=>document.getElementById(id).addEventListener("click",()=>fetch("/api/behavior",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,event_type:"content_click",page:"/interest.html",object_type:"content",object_id:contentId,metadata:{product_id:productId,source:"PUBLIC_INTEREST_PAGE",destination:"/buy.html",experience:"SPECIALTY_COFFEE_INTERACTIVE_V3"}}).catch(()=>{})));
+const intro=document.getElementById("intro"),enter=document.getElementById("enter");
+enter.addEventListener("click",()=>{intro.classList.add("open")});
+const grab=document.getElementById("grab"),bag=document.getElementById("bag"),beanCup=document.getElementById("beanCup");
+let dragging=false,lastX=0,rotation=0;
+grab.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;grab.setPointerCapture(e.pointerId)});
+grab.addEventListener("pointermove",e=>{if(!dragging)return;const dx=e.clientX-lastX;lastX=e.clientX;rotation=Math.max(-55,Math.min(55,rotation+dx*.55));bag.style.transform="rotate("+(rotation-7)+"deg)";beanCup.style.transform="rotate("+(rotation+9)+"deg)"});
+grab.addEventListener("pointerup",()=>{dragging=false});grab.addEventListener("pointercancel",()=>{dragging=false});
+document.querySelectorAll(".card").forEach(card=>{card.addEventListener("pointermove",e=>{const r=card.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;card.style.setProperty("--rx",(x*10).toFixed(2)+"deg");card.style.setProperty("--ry",(-y*8).toFixed(2)+"deg")});card.addEventListener("pointerleave",()=>{card.style.setProperty("--rx","0deg");card.style.setProperty("--ry","0deg")})});
+const latte=document.getElementById("latteCup"),latteSection=document.getElementById("latte");let targetAngle=0,currentAngle=0;
+function scrollLatte(){const r=latteSection.getBoundingClientRect(),center=r.top+r.height/2,delta=(window.innerHeight/2-center);targetAngle=Math.max(-65,Math.min(420,delta*.38));currentAngle+=(targetAngle-currentAngle)*.12;latte.style.setProperty("--angle",currentAngle+"deg");requestAnimationFrame(scrollLatte)}
+requestAnimationFrame(scrollLatte);
 </script>
 </body>
 </html>
