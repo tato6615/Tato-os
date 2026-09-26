@@ -3,31 +3,36 @@
 // Route: /api/action-ai
 //
 // Chain:
-// Measurement V2.2
+// Measurement V2.3
 // -> Intelligence V2.1
-// -> Learning V1
-// -> Decision V1
+// -> Learning V2.3
+// -> Decision V1.1
 // -> Action V1.1
 //
-// IMPORTANT:
-// Action V1.1 creates an executable action proposal.
-// It does NOT execute business actions automatically.
-// Human approval is required before execution.
+// Purpose:
+// Convert a validated Decision proposal into a governed Action proposal.
 //
-// SOURCE-OF-TRUTH RULE:
-// Action Layer MUST use the latest persisted Learning result.
-// It MUST NOT independently aggregate content_measurements.
-// Learning is responsible for the Intelligence/Learning aggregation.
+// Guardrails:
+// - Reads Decision Layer output only.
+// - Does NOT read raw behavior_events.
+// - Does NOT recalculate Measurement.
+// - Does NOT recalculate Intelligence or Learning.
+// - Does NOT declare a winner.
+// - Does NOT change strategy.
+// - Does NOT execute business actions.
+// - Human approval is required before persistence/execution boundary.
+//
+// GET = preview.
+// POST with { approved:true } = persist the Action proposal.
+// Real execution belongs to the Execution Layer.
 
-const LAYER = "ACTION_LAYER_V1";
+const LAYER = "ACTION_LAYER_V1.1";
 const VERSION = "1.1";
 
-const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.2";
-const INTELLIGENCE_SOURCE = "INTELLIGENCE_LAYER_V2.1";
-const LEARNING_SOURCE = "LEARNING_LAYER_V1";
-const DECISION_SOURCE = "DECISION_LAYER_V1";
-
-const ATTENTION_TYPE = "weighted_behavioral_signal";
+const MEASUREMENT_SOURCE = "CONTENT_MEASUREMENT_ENGINE_V2.3";
+const INTELLIGENCE_SOURCE = "INTELLIGENCE_V2.1_FEEDBACK_AWARE";
+const LEARNING_SOURCE = "LEARNING_V2.3_FEEDBACK_AWARE";
+const DECISION_SOURCE = "DECISION_LAYER_V1.1";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -39,273 +44,178 @@ function json(data, status = 200) {
   });
 }
 
-function now() {
-  return new Date().toISOString();
-}
-
 function num(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseJSON(value, fallback = null) {
-  if (value === null || value === undefined) {
-    return fallback;
-  }
+function getContentId(request, body = {}) {
+  const url = new URL(request.url);
+  return url.searchParams.get("content_id") || body.content_id || null;
+}
 
-  if (typeof value === "object") {
-    return value;
-  }
+async function getDecision(request, contentId) {
+  const requestUrl = new URL(request.url);
+  const decisionUrl =
+    `${requestUrl.origin}/api/decision-ai?content_id=${encodeURIComponent(contentId)}`;
+
+  const response = await fetch(decisionUrl, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  let data = null;
 
   try {
-    return JSON.parse(value);
+    data = await response.json();
   } catch {
-    return fallback;
-  }
-}
-
-function extractContentId(data) {
-  if (!data || typeof data !== "object") {
-    return null;
+    data = null;
   }
 
-  const directCandidates = [
-    data.content_id,
-    data.contentId,
-    data?.content?.id,
-    data?.learning?.content_id,
-    data?.intelligence?.content_id,
-    data?.measurement?.content_id
-  ];
-
-  for (const candidate of directCandidates) {
-    if (candidate) {
-      return String(candidate);
-    }
+  if (!response.ok || !data?.success) {
+    return {
+      ok: false,
+      status: response.status,
+      data,
+      error: "DECISION_LAYER_REQUEST_FAILED"
+    };
   }
 
-  return null;
-}
-
-async function getContent(db, contentId) {
-  return await db
-    .prepare(`
-      SELECT
-        id,
-        title,
-        status,
-        objective,
-        attention_type,
-        market_keyword,
-        angle,
-        cta
-      FROM content_engine
-      WHERE id = ?
-      LIMIT 1
-    `)
-    .bind(contentId)
-    .first();
-}
-
-/*
- * SOURCE OF TRUTH:
- *
- * Action Layer no longer aggregates content_measurements directly.
- *
- * It resolves the latest persisted LEARNING run for the requested
- * content and uses the Learning funnel as the evidence source.
- */
-async function getLatestLearning(db, contentId) {
-  const result = await db
-    .prepare(`
-      SELECT
-        id,
-        created_at,
-        input_data,
-        output_data
-      FROM ai_runs
-      WHERE run_type = 'LEARNING'
-      ORDER BY created_at DESC
-      LIMIT 100
-    `)
-    .all();
-
-  const rows = result?.results || [];
-
-  for (const row of rows) {
-    const input = parseJSON(row.input_data, {});
-    const output = parseJSON(row.output_data, {});
-
-    const inputContentId = extractContentId(input);
-    const outputContentId = extractContentId(output);
-
-    if (
-      inputContentId === String(contentId) ||
-      outputContentId === String(contentId)
-    ) {
-      return {
-        run_id: row.id,
-        created_at: row.created_at,
-        input,
-        output
-      };
-    }
-  }
-
-  return null;
-}
-
-/*
- * Resolve the persisted Learning result.
- *
- * Current LEARNING_LAYER_V1 persists the learning object inside
- * input_data.learning and also carries the Intelligence result
- * inside input_data.intelligence.
- *
- * The Action Layer uses the Learning funnel as its direct evidence.
- */
-function resolveLearningSource(learningRun) {
-  if (!learningRun) {
-    return null;
-  }
-
-  const input = learningRun.input || {};
-  const output = learningRun.output || {};
-
-  const learning =
-    input.learning ||
-    output.learning ||
-    null;
-
-  const intelligence =
-    input.intelligence ||
-    output.intelligence ||
-    null;
-
-  if (!learning) {
-    return null;
-  }
-
-  const funnel =
-    learning.funnel ||
-    output?.learning?.funnel ||
-    null;
-
-  if (!funnel) {
-    return null;
-  }
-
-  const rounds =
-    num(learning.rounds) ||
-    num(input?.learning?.rounds) ||
-    num(intelligence?.rounds);
-
-  return {
-    learning,
-    intelligence,
-    funnel: {
-      attention: num(funnel.attention),
-      clicks: num(funnel.clicks),
-      product_views: num(funnel.product_views),
-      customers: num(funnel.customers),
-      orders: num(funnel.orders),
-      revenue: num(funnel.revenue)
-    },
-    rounds,
-    source: {
-      run_id: learningRun.run_id,
-      created_at: learningRun.created_at
-    }
-  };
-}
-
-function buildDecisionSummary(totals, rounds) {
   if (
-    totals.attention > 0 &&
-    totals.clicks > 0 &&
-    totals.product_views === 0
+    data.layer !== DECISION_SOURCE ||
+    String(data.version) !== "1.1"
   ) {
     return {
-      state: "DECISION_READY",
-      decision_type: "DOWNSTREAM_INVESTIGATION",
-      decision: "INVESTIGATE_CLICK_TO_PRODUCT_PATH",
-      priority: "HIGH",
-      confidence: "HIGH",
-      rounds
+      ok: false,
+      status: 409,
+      data,
+      error: "DECISION_LAYER_CONTRACT_MISMATCH",
+      expected: {
+        layer: DECISION_SOURCE,
+        version: "1.1"
+      },
+      received: {
+        layer: data.layer || null,
+        version: data.version || null
+      }
+    };
+  }
+
+  const sourceChain = data.source_chain || {};
+
+  if (
+    sourceChain.measurement !== MEASUREMENT_SOURCE ||
+    sourceChain.intelligence !== INTELLIGENCE_SOURCE ||
+    sourceChain.learning !== LEARNING_SOURCE ||
+    sourceChain.decision !== DECISION_SOURCE
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      data,
+      error: "DECISION_SOURCE_CHAIN_INVALID",
+      expected: {
+        measurement: MEASUREMENT_SOURCE,
+        intelligence: INTELLIGENCE_SOURCE,
+        learning: LEARNING_SOURCE,
+        decision: DECISION_SOURCE
+      },
+      received: sourceChain
+    };
+  }
+
+  const decision = data.decision || {};
+  const guardrails = decision.guardrails || {};
+
+  if (
+    guardrails.reads_raw_behavior_events === true ||
+    guardrails.recalculates_measurement === true ||
+    guardrails.recalculates_intelligence === true ||
+    guardrails.winner_declared === true ||
+    guardrails.strategy_change === true ||
+    guardrails.automatic_execution === true ||
+    guardrails.action_executed === true
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      data,
+      error: "DECISION_GUARDRAIL_VIOLATION"
     };
   }
 
   return {
-    state: "DECISION_READY",
-    decision_type: "OBSERVATION",
-    decision: "CONTINUE_MEASUREMENT",
-    priority: "LOW",
-    confidence: "LOW",
-    rounds
+    ok: true,
+    status: response.status,
+    data,
+    decision,
+    sourceChain
   };
 }
 
-function buildAction(decision, content, totals) {
+function buildAction(decisionResult) {
+  const decision = decisionResult.decision || {};
+  const measurement = decisionResult.measurement || {};
+  const content = decisionResult.content || {};
+
   if (
-    decision.decision ===
-    "INVESTIGATE_CLICK_TO_PRODUCT_PATH"
+    decision.decision_type === "DOWNSTREAM_INVESTIGATION" &&
+    decision.decision === "INVESTIGATE_CLICK_TO_PRODUCT_PATH" &&
+    decision.next_action_candidate?.type === "FUNNEL_PATH_AUDIT"
   ) {
     return {
       state: "ACTION_PROPOSED",
-
       action_type: "FUNNEL_PATH_AUDIT",
-
-      action_name:
-        "AUDIT_CLICK_TO_PRODUCT_VIEW_PATH",
-
+      action_name: "AUDIT_CLICK_TO_PRODUCT_VIEW_PATH",
       objective:
-        "ตรวจสอบว่า Click จาก Content สามารถเดินทางไปถึง Product View ได้จริงหรือไม่",
-
+        "ตรวจสอบว่า Click จาก Content สามารถเดินทางไปถึง Product View และถูกวัด attribution ได้จริงหรือไม่",
       target: {
         content_id: content.id,
         content_title: content.title,
         funnel_stage_from: "CONTENT_CLICK",
         funnel_stage_to: "PRODUCT_VIEW"
       },
-
       trigger: {
         type: "DECISION_TRIGGER",
-        decision: decision.decision
+        decision: decision.decision,
+        decision_type: decision.decision_type
       },
-
       evidence: {
-        attention: totals.attention,
-        clicks: totals.clicks,
-        product_views: totals.product_views,
-        customers: totals.customers,
-        orders: totals.orders,
-        revenue: totals.revenue
+        rounds: num(measurement.rounds),
+        attention: num(measurement.attention),
+        clicks: num(measurement.clicks),
+        product_views: num(measurement.product_views),
+        engagements: num(measurement.engagements),
+        customers: num(measurement.customers),
+        orders: num(measurement.orders),
+        revenue: num(measurement.revenue)
       },
-
       proposed_steps: [
         {
           step: 1,
           action: "VERIFY_CLICK_EVENT",
           description:
-            "ตรวจสอบว่า Content Click ถูกส่ง event และบันทึก session/source ถูกต้อง"
+            "ตรวจสอบว่า Content Click ถูกส่ง event และบันทึก source/session ถูกต้อง"
         },
         {
           step: 2,
           action: "VERIFY_DESTINATION",
           description:
-            "ตรวจสอบปลายทางของ Click ว่าพาไปยังหน้าหรือเส้นทาง Product จริง"
+            "ตรวจสอบปลายทางของ Click ว่าพาไปยัง Product path จริง"
         },
         {
           step: 3,
           action: "VERIFY_PRODUCT_VIEW_EVENT",
           description:
-            "ตรวจสอบว่า Product View event ถูกยิงและถูกผูกกับ session เดียวกัน"
+            "ตรวจสอบว่า Product View event ถูกยิงหลัง Click และผูก attribution ได้"
         },
         {
           step: 4,
           action: "VERIFY_ATTRIBUTION",
           description:
-            "ตรวจสอบ attribution ระหว่าง Click → Product View"
+            "ตรวจสอบความสัมพันธ์ Click → Product View โดยใช้ session/time attribution"
         },
         {
           step: 5,
@@ -314,100 +224,73 @@ function buildAction(decision, content, totals) {
             "เก็บ Measurement รอบใหม่หลังตรวจสอบ"
         }
       ],
-
-      expected_signal:
-        "CLICK_TO_PRODUCT_VIEW_PATH_VERIFIED",
-
+      expected_signal: "CLICK_TO_PRODUCT_VIEW_PATH_VERIFIED",
       status: "PENDING_APPROVAL"
     };
   }
 
   return {
     state: "ACTION_PROPOSED",
-
     action_type: "CONTINUE_MEASUREMENT",
-
-    action_name:
-      "CONTINUE_CONTENT_MEASUREMENT",
-
-    objective:
-      "เก็บข้อมูลเพิ่มเติมก่อนสร้าง Action ที่เฉพาะเจาะจง",
-
+    action_name: "CONTINUE_CONTENT_MEASUREMENT",
+    objective: "เก็บหลักฐานเพิ่มเติมก่อนสร้าง Action ที่เฉพาะเจาะจง",
     target: {
       content_id: content.id,
       content_title: content.title
     },
-
     trigger: {
       type: "DECISION_TRIGGER",
-      decision: decision.decision
+      decision: decision.decision,
+      decision_type: decision.decision_type
     },
-
     evidence: {
-      attention: totals.attention,
-      clicks: totals.clicks,
-      product_views: totals.product_views,
-      customers: totals.customers,
-      orders: totals.orders,
-      revenue: totals.revenue
+      rounds: num(measurement.rounds),
+      attention: num(measurement.attention),
+      clicks: num(measurement.clicks),
+      product_views: num(measurement.product_views),
+      engagements: num(measurement.engagements),
+      customers: num(measurement.customers),
+      orders: num(measurement.orders),
+      revenue: num(measurement.revenue)
     },
-
     proposed_steps: [
       {
         step: 1,
         action: "CONTINUE_MEASUREMENT",
-        description:
-          "เก็บพฤติกรรมเพิ่มเติม"
+        description: "เก็บพฤติกรรมเพิ่มเติมจาก Measurement"
       }
     ],
-
-    expected_signal:
-      "ADDITIONAL_MEASUREMENT_AVAILABLE",
-
+    expected_signal: "ADDITIONAL_MEASUREMENT_AVAILABLE",
     status: "PENDING_APPROVAL"
   };
 }
 
 function buildGuardrails() {
   return {
+    reads_raw_behavior_events: false,
+    recalculates_measurement: false,
+    recalculates_intelligence: false,
+    recalculates_learning: false,
     winner_declared: false,
     strategy_change: false,
     automatic_execution: false,
     action_executed: false,
-
-    approval_required: true,
-
-    human_approval_required: true,
-
-    external_side_effects: false,
-
     business_data_mutation: false,
-
     content_mutation: false,
-
     customer_contact: false,
-
     payment_action: false,
-
+    human_approval_required: true,
     requires_execution_layer: true
   };
 }
 
-async function saveActionProposal(
-  db,
-  content,
-  decision,
-  action,
-  totals,
-  learningSource
-) {
+async function saveAction(db, content, decisionResult, action) {
   const runId = crypto.randomUUID();
   const insightId = crypto.randomUUID();
-  const createdAt = now();
+  const createdAt = new Date().toISOString();
 
   const inputData = {
     content_id: content.id,
-
     source_chain: {
       measurement: MEASUREMENT_SOURCE,
       intelligence: INTELLIGENCE_SOURCE,
@@ -415,18 +298,13 @@ async function saveActionProposal(
       decision: DECISION_SOURCE,
       action: LAYER
     },
-
     source_of_truth: {
-      type: LEARNING_SOURCE,
-      learning_run_id: learningSource?.run_id || null,
-      learning_created_at:
-        learningSource?.created_at || null,
-      attention_type: ATTENTION_TYPE
+      type: DECISION_SOURCE,
+      decision_version: "1.1",
+      decision_content_id: content.id
     },
-
-    decision,
-
-    evidence: totals
+    decision: decisionResult.decision,
+    measurement: decisionResult.measurement
   };
 
   const outputData = {
@@ -434,65 +312,57 @@ async function saveActionProposal(
     guardrails: buildGuardrails()
   };
 
-  await db
-    .prepare(`
-      INSERT INTO ai_runs (
-        id,
-        customer_id,
-        run_type,
-        model,
-        input_data,
-        output_data,
-        status,
-        tokens_used,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    .bind(
-      runId,
-      null,
-      "ACTION_LAYER_V1",
-      "TATO-ACTION-ENGINE-V1.1",
-      JSON.stringify(inputData),
-      JSON.stringify(outputData),
-      "COMPLETED",
-      0,
-      createdAt
+  await db.prepare(`
+    INSERT INTO ai_runs (
+      id,
+      customer_id,
+      run_type,
+      model,
+      input_data,
+      output_data,
+      status,
+      tokens_used,
+      created_at
     )
-    .run();
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    runId,
+    null,
+    "ACTION_LAYER_V1.1",
+    "TATO-ACTION-ENGINE-V1.1",
+    JSON.stringify(inputData),
+    JSON.stringify(outputData),
+    "COMPLETED",
+    0,
+    createdAt
+  ).run();
 
-  await db
-    .prepare(`
-      INSERT INTO ai_insights (
-        id,
-        customer_id,
-        run_id,
-        insight_type,
-        title,
-        content,
-        score,
-        priority,
-        status,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    .bind(
-      insightId,
-      null,
-      runId,
-      "ACTION_PROPOSAL",
-      action.action_name,
-      JSON.stringify(outputData),
-      action.state === "ACTION_PROPOSED"
-        ? 1
-        : 0.5,
-      decision.priority,
-      "PENDING_APPROVAL",
-      createdAt
+  await db.prepare(`
+    INSERT INTO ai_insights (
+      id,
+      customer_id,
+      run_id,
+      insight_type,
+      title,
+      content,
+      score,
+      priority,
+      status,
+      created_at
     )
-    .run();
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    insightId,
+    null,
+    runId,
+    "ACTION_PROPOSAL",
+    action.action_name,
+    JSON.stringify(outputData),
+    1,
+    decisionResult.decision?.priority || "NORMAL",
+    "PENDING_APPROVAL",
+    createdAt
+  ).run();
 
   return {
     run_id: runId,
@@ -501,173 +371,59 @@ async function saveActionProposal(
   };
 }
 
-async function executeProposal(db, proposalId) {
-  /*
-   * V1.1 deliberately DOES NOT execute a real business action.
-   *
-   * This endpoint only records that an approval request
-   * has reached the execution boundary.
-   *
-   * Real execution belongs to the dedicated Execution Layer
-   * after the Action Layer has been validated.
-   */
-
-  return {
-    executed: false,
-
-    execution_state:
-      "BLOCKED_BY_EXECUTION_LAYER",
-
-    proposal_id:
-      proposalId || null,
-
-    reason:
-      "Action Layer V1.1 creates proposals only. Real execution requires a dedicated Execution Layer.",
-
-    guardrails: {
-      automatic_execution: false,
-      action_executed: false,
-      human_approval_required: true,
-      execution_layer_required: true
-    }
-  };
-}
-
-async function analyze(
-  request,
-  env,
-  mode = "preview"
-) {
+async function analyze(request, env, mode = "preview") {
   const db = env.DB;
 
   if (!db) {
-    throw new Error(
-      "D1 binding DB not found"
-    );
+    throw new Error("D1 binding DB not found");
   }
-
-  const url = new URL(request.url);
 
   let body = {};
 
   if (request.method === "POST") {
-    body = await request
-      .clone()
-      .json()
-      .catch(() => ({}));
+    body = await request.clone().json().catch(() => ({}));
   }
 
-  const contentId =
-    url.searchParams.get("content_id") ||
-    body.content_id;
+  const contentId = getContentId(request, body);
 
   if (!contentId) {
-    throw new Error(
-      "content_id is required"
-    );
+    throw new Error("content_id is required");
   }
 
-  const content =
-    await getContent(
-      db,
-      contentId
-    );
+  const decisionSource = await getDecision(request, contentId);
 
-  if (!content) {
-    throw new Error(
-      "Content not found"
+  if (!decisionSource.ok) {
+    const error = new Error(
+      decisionSource.error || "Decision Layer request failed"
     );
+    error.status = decisionSource.status || 500;
+    error.details = decisionSource;
+    throw error;
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * Do NOT aggregate content_measurements here.
-   *
-   * Resolve the latest Learning result instead.
-   */
-  const learningRun =
-    await getLatestLearning(
-      db,
-      contentId
-    );
-
-  if (!learningRun) {
-    throw new Error(
-      "No persisted Learning result found for content"
-    );
-  }
-
-  const learningSource =
-    resolveLearningSource(
-      learningRun
-    );
-
-  if (!learningSource) {
-    throw new Error(
-      "Latest Learning result does not contain a valid funnel source"
-    );
-  }
-
-  const totals =
-    learningSource.funnel;
-
-  const rounds =
-    learningSource.rounds;
-
-  const decision =
-    buildDecisionSummary(
-      totals,
-      rounds
-    );
-
-  const action =
-    buildAction(
-      decision,
-      content,
-      totals
-    );
-
-  const guardrails =
-    buildGuardrails();
+  const decisionResult = decisionSource.data;
+  const action = buildAction(decisionResult);
+  const guardrails = buildGuardrails();
 
   let persistence = null;
-  let execution = null;
 
   if (mode === "execute") {
-    persistence =
-      await saveActionProposal(
-        db,
-        content,
-        decision,
-        action,
-        totals,
-        learningSource.source
-      );
-
-    execution =
-      await executeProposal(
-        db,
-        persistence.insight_id
-      );
+    persistence = await saveAction(
+      db,
+      decisionResult.content,
+      decisionResult,
+      action
+    );
   }
 
   return {
     success: true,
-
     layer: LAYER,
-
     version: VERSION,
-
     mode,
-
     status: "ACTION_PROPOSED",
 
-    content: {
-      id: content.id,
-      title: content.title,
-      status: content.status
-    },
+    content: decisionResult.content,
 
     source_chain: {
       measurement: MEASUREMENT_SOURCE,
@@ -678,181 +434,123 @@ async function analyze(
     },
 
     source_of_truth: {
-      type: LEARNING_SOURCE,
-
-      learning_run_id:
-        learningSource.source.run_id,
-
-      learning_created_at:
-        learningSource.source.created_at,
-
-      attention_type:
-        ATTENTION_TYPE,
-
-      aggregation_owner:
-        "LEARNING_LAYER_V1"
+      type: DECISION_SOURCE,
+      version: "1.1",
+      decision_content_id: decisionResult.content?.id || contentId,
+      aggregation_owner: LEARNING_SOURCE
     },
 
-    measurement: {
-      rounds,
-
-      attention:
-        totals.attention,
-
-      clicks:
-        totals.clicks,
-
-      product_views:
-        totals.product_views,
-
-      engagements:
-        num(
-          learningSource.learning?.funnel
-            ?.engagements
-        ),
-
-      customers:
-        totals.customers,
-
-      orders:
-        totals.orders,
-
-      revenue:
-        totals.revenue
-    },
-
-    learning: {
-      run_id:
-        learningSource.source.run_id,
-
-      created_at:
-        learningSource.source.created_at,
-
-      state:
-        learningSource.learning?.state ||
-        null,
-
-      confidence:
-        learningSource.learning?.confidence ||
-        null
-    },
-
-    decision,
-
+    measurement: decisionResult.measurement || null,
+    learning: decisionResult.learning || null,
+    decision: decisionResult.decision || null,
     action,
-
     guardrails,
-
     persistence,
 
-    execution,
+    diagnostics: {
+      decision_layer_called: true,
+      decision_layer_version: decisionResult.version,
+      decision_contract_valid: true,
+      measurement_source_valid:
+        decisionResult.source_chain?.measurement === MEASUREMENT_SOURCE,
+      intelligence_source_valid:
+        decisionResult.source_chain?.intelligence === INTELLIGENCE_SOURCE,
+      learning_source_valid:
+        decisionResult.source_chain?.learning === LEARNING_SOURCE,
+      raw_behavior_read: false,
+      independent_measurement_aggregation: false,
+      automatic_execution: false
+    },
 
     next_step:
-      "Action proposal ready. Human approval and dedicated Execution Layer are required before real execution."
+      mode === "execute"
+        ? "Action proposal persisted. Human approval and Execution Layer are required for real execution."
+        : "Action proposal ready. GET is preview-only; POST with approved:true persists the proposal."
   };
 }
 
-export async function onRequestGet(
-  context
-) {
+export async function onRequestGet(context) {
   try {
-    const url =
-      new URL(
-        context.request.url
-      );
-
-    const contentId =
-      url.searchParams.get(
-        "content_id"
-      );
-
-    if (!contentId) {
-      return json(
-        {
-          success: false,
-
-          layer: LAYER,
-
-          version: VERSION,
-
-          error:
-            "content_id is required",
-
-          example:
-            "/api/action-ai?content_id=YOUR_CONTENT_ID"
-        },
-        400
-      );
-    }
-
-    const result =
-      await analyze(
-        context.request,
-        context.env,
-        "preview"
-      );
+    const result = await analyze(
+      context.request,
+      context.env,
+      "preview"
+    );
 
     return json(result);
-
   } catch (error) {
-
     return json(
       {
         success: false,
-
         layer: LAYER,
-
         version: VERSION,
-
-        error:
-          error?.message ||
-          String(error)
+        status: "ERROR",
+        error: error?.message || String(error),
+        diagnostics: error?.details
+          ? {
+              decision_contract_error:
+                error.details.error || null,
+              expected:
+                error.details.expected || null,
+              received:
+                error.details.received || null
+            }
+          : null
       },
-      500
+      error?.status || 500
     );
   }
 }
 
-export async function onRequestPost(
-  context
-) {
+export async function onRequestPost(context) {
   try {
+    const body = await context.request.clone().json().catch(() => ({}));
 
-    const body =
-      await context.request
-        .clone()
-        .json()
-        .catch(() => ({}));
-
-    const mode =
-      body?.mode === "execute"
-        ? "execute"
-        : "preview";
-
-    const result =
-      await analyze(
-        context.request,
-        context.env,
-        mode
+    if (body?.approved !== true) {
+      return json(
+        {
+          success: false,
+          layer: LAYER,
+          version: VERSION,
+          status: "APPROVAL_REQUIRED",
+          error: "approved:true is required to persist the Action proposal",
+          guardrails: {
+            automatic_execution: false,
+            action_executed: false,
+            human_approval_required: true
+          }
+        },
+        403
       );
+    }
+
+    const result = await analyze(
+      context.request,
+      context.env,
+      "execute"
+    );
 
     return json(result);
-
   } catch (error) {
-
     return json(
       {
         success: false,
-
         layer: LAYER,
-
         version: VERSION,
-
-        error:
-          error?.message ||
-          String(error)
+        status: "ERROR",
+        error: error?.message || String(error),
+        diagnostics: error?.details
+          ? {
+              decision_contract_error:
+                error.details.error || null,
+              expected:
+                error.details.expected || null,
+              received:
+                error.details.received || null
+            }
+          : null
       },
-      500
+      error?.status || 500
     );
   }
 }
