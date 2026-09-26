@@ -1,3 +1,14 @@
+const ENGINE = "REAL_MARKET_TEST_ENTRY_V1";
+const VERSION = "1.0";
+const MEASUREMENT_ENGINE = "MEASUREMENT_V2.3";
+const ALLOWED_EVENTS = ["content_view","content_click","engagement","product_view","order_created","payment_completed","revenue_recorded"];
+const ATTENTION_EVENTS = ["content_view","content_click"];
+const INTEREST_EVENTS = ["engagement","product_view"];
+const PURCHASE_EVENTS = ["order_created","payment_completed"];
+const REVENUE_EVENTS = ["revenue_recorded"];
+function now(){return new Date().toISOString();}
+function makeId(prefix){return prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);}
+function json(payload,status){return new Response(JSON.stringify(payload),{status:status||200,headers:{"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*"}});}
 const DISTRIBUTION_ID = "distribution-1790392496602-lhk96nmd";
 const MARKET_TEST_ID = "market-test-1790392032678-c80dkx3f";
 const MEASUREMENT_ID = "measurement-1790395426049-7wjtgs3p";
@@ -316,13 +327,7 @@ async function insertBehaviorEvent(
     return values[name];
   });
 
-  await db
-    .prepare(sql)
-    .bind.apply(
-      db.prepare(sql),
-      params
-    )
-    .run();
+  await db.prepare(sql).bind(...params).run();
 
   return {
     id: eventId,
