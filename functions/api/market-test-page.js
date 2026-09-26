@@ -68,7 +68,7 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 <div class="brand">TATO COFFEE</div>
 <h1>กาแฟที่เริ่มจากความสนใจของคนดื่มจริง</h1>
 <p class="sub">ทดลองทำความรู้จัก TATO Coffee และดูว่ากาแฟแบบไหนเหมาะกับคุณ</p>
-<button id="cta" class="cta" type="button">ดูรายละเอียด TATO Coffee</button>
+<button id="cta" class="cta" type="button" onclick="window.TATO_CLICK()">ดูรายละเอียด TATO Coffee</button>
 </div>
 </section>
 <section id="offer" class="offer">
@@ -90,59 +90,29 @@ h1{font-size:clamp(38px,7vw,72px);line-height:1.05;margin:0 0 22px}
 var did="distribution-1790392496602-lhk96nmd";
 var api="/api/market-test-page";
 var sent={};
-var statusEl=document.getElementById("status");
-
+function setStatus(t){var el=document.getElementById("status");if(el)el.textContent=t;}
 function send(type){
-  if(sent[type])return;
-  sent[type]=true;
-  fetch(api,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({distribution_id:did,event_type:type}),
-    keepalive:true
-  })
-  .then(function(r){
-    return r.json().then(function(d){
-      if(!r.ok||!d.success)throw new Error(d.error||"failed");
-      return d;
-    });
-  })
-  .then(function(){
-    statusEl.textContent=type+" recorded";
-  })
-  .catch(function(e){
-    sent[type]=false;
-    console.error(e);
-    statusEl.textContent="Ready";
-  });
+ if(sent[type])return;
+ sent[type]=true;
+ setStatus("กำลังบันทึก "+type+"...");
+ fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({distribution_id:did,event_type:type})})
+ .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error(t||"Invalid response")}if(!r.ok||!d.success)throw new Error(d.error||"Request failed");return d;});})
+ .then(function(){setStatus(type+" recorded");})
+ .catch(function(e){sent[type]=false;setStatus("Event failed");console.error(e);});
 }
-
-send("content_view");
-
-document.getElementById("cta").addEventListener("click",function(e){
-  e.preventDefault();
-  send("content_click");
-  document.getElementById("offer").scrollIntoView({behavior:"smooth",block:"start"});
-});
-
-var offer=document.getElementById("offer");
-if("IntersectionObserver" in window){
-  var o=new IntersectionObserver(function(es){
-    es.forEach(function(e){
-      if(e.isIntersecting){
-        send("product_view");
-        o.disconnect();
-      }
-    });
-  },{threshold:.35});
-  o.observe(offer);
-}
-
-window.TATO_MARKET_TEST={
-  distribution_id:"distribution-1790392496602-lhk96nmd",
-  market_test_id:"market-test-1790392032678-c80dkx3f",
-  measurement_id:"measurement-1790395426049-7wjtgs3p"
+window.TATO_CLICK=function(){
+ send("content_click");
+ var offer=document.getElementById("offer");
+ if(offer)offer.scrollIntoView({behavior:"smooth",block:"start"});
 };
+send("content_view");
+var offer=document.getElementById("offer");
+if("IntersectionObserver" in window && offer){
+ var o=new IntersectionObserver(function(es){
+  es.forEach(function(e){if(e.isIntersecting){send("product_view");o.disconnect();}});
+ },{threshold:.2});
+ o.observe(offer);
+}
 })();
 </script>
 </body>
