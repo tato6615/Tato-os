@@ -18,6 +18,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('whole_bean');
   const [quantityKg, setQuantityKg] = useState<number>(1);
   const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cod' | 'credit_card'>('promptpay');
+  const quantityTouchHandledRef = React.useRef(false);
 
   // Customer form fields
   const [customerName, setCustomerName] = useState('');
@@ -541,9 +542,17 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setQuantityKg((current) => Math.max(1, current - 1)); }}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                          className="w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95"
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            quantityTouchHandledRef.current = true;
+                            handleQuantityChange(-1);
+                            window.setTimeout(() => { quantityTouchHandledRef.current = false; }, 400);
+                          }}
+                          onClick={() => {
+                            if (quantityTouchHandledRef.current) return;
+                            handleQuantityChange(-1);
+                          }}
+                          className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto"
                           aria-label="Decrease quantity"
                         >
                           <span className="material-symbols-outlined text-[18px]">remove</span>
@@ -553,9 +562,17 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         </span>
                         <button
                           type="button"
-                          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setQuantityKg((current) => Math.min(25, current + 1)); }}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                          className="w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95"
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            quantityTouchHandledRef.current = true;
+                            handleQuantityChange(1);
+                            window.setTimeout(() => { quantityTouchHandledRef.current = false; }, 400);
+                          }}
+                          onClick={() => {
+                            if (quantityTouchHandledRef.current) return;
+                            handleQuantityChange(1);
+                          }}
+                          className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto"
                           aria-label="Increase quantity"
                         >
                           <span className="material-symbols-outlined text-[18px]">add</span>
