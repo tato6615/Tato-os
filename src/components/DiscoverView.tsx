@@ -149,7 +149,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span className="material-symbols-outlined text-[#ffb59c] text-[20px]">filter_hdr</span>
                 </div>
                 <div className="font-['Manrope'] text-[46px] md:text-[52px] leading-tight text-[#ffb59c] font-bold tracking-tight">
-                  1,250 m
+                  1,834 m
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
                   High-altitude cool air slows photosynthesis, dense bean structure.
