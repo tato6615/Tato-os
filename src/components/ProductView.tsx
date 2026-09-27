@@ -17,6 +17,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [selectedRoast, setSelectedRoast] = useState<RoastType>(initialRoast);
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('whole_bean');
   const [quantityKg, setQuantityKg] = useState<number>(0.5);
+  const [quantityInput, setQuantityInput] = useState<string>('0.5');
   const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cod' | 'credit_card'>('promptpay');
 
   // Customer form fields
@@ -77,12 +78,37 @@ export const ProductView: React.FC<ProductViewProps> = ({
   // then the displayed subtotal/total is recalculated from that same state.
   const handleQuantityChange = (delta: number) => {
     setQuantityKg((current) => {
-      const next = current + delta * quantityStepKg;
-      return Math.min(
+      const next = Math.min(
         maximumQuantityKg,
-        Math.max(minimumQuantityKg, Number(next.toFixed(2)))
+        Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))
       );
+      setQuantityInput(String(next));
+      return next;
     });
+  };
+
+  const handleQuantityInputChange = (value: string) => {
+    // Keep the text field free-form while typing.
+    // The price is recalculated immediately whenever the typed value is numeric.
+    setQuantityInput(value);
+
+    if (value.trim() === '') return;
+
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      const next = Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, parsed));
+      setQuantityKg(next);
+    }
+  };
+
+  const handleQuantityInputBlur = () => {
+    const parsed = Number(quantityInput);
+    const next = Number.isFinite(parsed) && parsed > 0
+      ? Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, parsed))
+      : minimumQuantityKg;
+
+    setQuantityKg(next);
+    setQuantityInput(String(next));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -141,6 +167,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const resetOrderForm = () => {
     setCompletedOrder(null);
     setQuantityKg(0.5);
+    setQuantityInput('0.5');
     setSelectedRoast('medium');
     setSelectedGrind('whole_bean');
     setCustomerName('');
@@ -593,18 +620,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           max={maximumQuantityKg}
                           step={quantityStepKg}
                           inputMode="numeric"
-                          value={quantityKg}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            if (raw === '') return;
-                            const value = Number(raw);
-                            if (Number.isFinite(value)) {
-                              setQuantityKg(Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, value)));
-                            }
-                          }}
-                          onBlur={() => {
-                            setQuantityKg((current) => Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, current || minimumQuantityKg)));
-                          }}
+                          value={quantityInput}
+                          onChange={(e) => handleQuantityInputChange(e.target.value)}
+                          onBlur={handleQuantityInputBlur}
                           aria-label="Quantity in kilograms"
                           className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
                         />
