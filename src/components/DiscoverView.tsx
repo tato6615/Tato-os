@@ -53,7 +53,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
 
           {/* Supporting Spec Note */}
           <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 max-w-xl font-light">
-            Arabica 100% • Single Origin • Doi Wiang 1,250m
+            Arabica 100% • Single Origin • Doi Wiang Pa 1,834m
           </p>
 
           {/* Primary Action CTA */}
@@ -79,11 +79,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
 
           {/* Coordinates Quick Strip */}
           <div className="mt-16 flex items-center gap-6 text-[#e3beb3]/60 font-mono text-[11px] uppercase tracking-widest hidden md:flex">
-            <span>LAT 19°49'26" N</span>
+            <span>DOI WIANG PA • CHIANG MAI</span>
             <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>LON 99°46'55" E</span>
+            <span>1,834 MASL</span>
             <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,250 MASL ELEVATION</span>
+            <span>1,834 MASL ELEVATION</span>
           </div>
         </div>
       </section>
@@ -105,7 +105,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               </p>
             </div>
             <p className="font-['Manrope'] text-[15px] leading-relaxed text-[#e3beb3]/80 max-w-md">
-              Perched on the micro-climate ridge of Chiang Rai’s Doi Wiang, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.
+              Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.
             </p>
           </div>
 
@@ -134,7 +134,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 Highland Cloud Mist & Shade-Grown Microclimate
               </h3>
               <p className="relative z-10 font-['Manrope'] text-[14px] text-[#e3beb3]/80 max-w-md leading-relaxed">
-                The distinct diurnal temperature shift at 1,250 MASL concentrates organic sugars deep within each coffee bean.
+                The distinct diurnal temperature shift at 1,834 MASL concentrates organic sugars deep within each coffee bean.
               </p>
             </div>
 
@@ -181,7 +181,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span className="material-symbols-outlined text-[#e3beb3] text-[20px]">terrain</span>
                 </div>
                 <div className="font-['Manrope'] text-[24px] md:text-[28px] leading-tight text-[#ffdcc0] font-semibold">
-                  Chiang Rai Highlands
+                  Chiang Mai Highlands
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
                   Rich forest humus soil, continuous shade canopies, clean alpine spring water.
