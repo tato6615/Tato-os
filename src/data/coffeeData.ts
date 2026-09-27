@@ -2,7 +2,7 @@ import { RoastProfile, GrindType } from '../types';
 
 export const ASSETS = {
   // Brand Logo
-  logo: 'https://lh3.googleusercontent.com/aida/AEtjO1Ua4i8LNh-2_WtWeriwHpA504TrqdB5fd57qZitjkKVee69aBWzpy-FR6-4XVXXMeXUdBk9Mbdr_SzAp9gHNOmhygKf9DDz9ePVg1TTnv0p8xySLUnOk_wZYOlHbs22s7KooSRBzGezcHHZx3qhxWbJI-pUhqNgZitpzgpHIcHStrP9Z0IGv_w4X-oTVVLYHGFwTubDhRaIC6soJNuYe7aC1LuAPFYJXGhOzagBRLgpOx7QkW7IizK1ULQ',
+  logo: '/images/IMG_2937.jpeg',
   // Atmospheric Highland Aerial Background
   highlandAerial: 'https://lh3.googleusercontent.com/aida-public/AB6AXuChJAtxFDi9sYCYmkD6ZiT1vbTkLIPwwwqnEW5cjSeaOjWAW6w5hR0tYd1TG2a2osutftMlVtip5VLUcaUUs987h_i9EZ1pV1uMaTTlSuBTIQ9mt-lqcrdB6Ow-I4-loGI2_gFIah8kIs66DvjKhbF75UGzWjVxxUe41-6agWu36GHoGbYfiTbLKhx-WBBw6Qnqx7lh8ras0RE1e6IqmJUFjyOmQhlQHRRjPhElxafoF5_VL187-0ys',
   // Cherries & Roasted Beans on Slate
