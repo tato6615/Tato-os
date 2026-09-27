@@ -76,7 +76,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
             <div className="bg-[#1d1b1a] p-4 rounded-xl border border-[#2b2a28] space-y-2 text-[13px] font-['Manrope']">
               <div className="flex justify-between py-1 border-b border-[#2b2a28]">
                 <span className="text-[#aa897f]">Origin & Terroir:</span>
-                <span className="text-[#e6e1df] font-medium">Doi Wiang 1,250 MASL, Chiang Rai</span>
+                <span className="text-[#e6e1df] font-medium">Doi Wiang Pa 1,834 MASL, Chiang Mai</span>
               </div>
               <div className="flex justify-between py-1 border-b border-[#2b2a28]">
                 <span className="text-[#aa897f]">Varietal:</span>
