@@ -296,8 +296,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <p className="font-['Anuphan'] text-[12px] text-[#e3beb3]/70">
                 รวมภาษีมูลค่าเพิ่มแล้ว · จัดส่งฟรีเมื่อสั่งซื้อ 2 กก. ขึ้นไป
               </p>
-            </div>
-          </div>
+            </div>          </div>
 
           {/* ORDER CONFIGURATION OR SUCCESS STAGE */}
           {!completedOrder ? (
@@ -696,8 +695,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       PROMPTPAY QR PAYMENT (สแกนชำระเงิน)
                     </span>
                     <div className="w-36 h-36 mx-auto bg-white p-2 rounded-lg flex flex-col items-center justify-center">
-                      {/* SVG Simulation of QR Code */}
-                      <svg viewBox="0 0 100 100" className="w-full h-full text-black">
+                      {/* SVG Simulation of QR Code */}                      <svg viewBox="0 0 100 100" className="w-full h-full text-black">
                         <rect x="5" y="5" width="25" height="25" fill="black" />
                         <rect x="10" y="10" width="15" height="15" fill="white" />
                         <rect x="13" y="13" width="9" height="9" fill="black" />
@@ -780,18 +778,18 @@ export const ProductView: React.FC<ProductViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {SENSORY_CARDS.map((card) => (
             <div
-              key={card.label}
+              key={card.labelEn}
               className="bg-[#1d1b1a] rounded-xl p-5 space-y-2 relative overflow-hidden border border-[#2b2a28]"
             >
               <div className={`w-1 h-8 rounded-full ${card.lineColor} absolute top-5 left-0`} />
               <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block pl-2 font-bold">
-                {card.label}
+                {language === 'th' ? card.labelTh : card.labelEn}
               </span>
               <h3 className="font-['Manrope'] text-[16px] text-[#e6e1df] font-semibold pl-2 leading-tight">
-                {card.title}
+                {language === 'th' ? card.titleTh : card.titleEn}
               </h3>
               <p className="font-['Anuphan'] text-[12px] text-[#e3beb3]/70 pl-2 leading-relaxed">
-                {card.desc}
+                {language === 'th' ? card.descTh : card.descEn}
               </p>
             </div>
           ))}
