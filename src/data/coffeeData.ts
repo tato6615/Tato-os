@@ -2,7 +2,7 @@ import { RoastProfile, GrindType } from '../types';
 
 export const ASSETS = {
   // Brand Logo
-  logo: '/images/IMG_2937.svg',
+  logo: '/images/IMG_2937-removebg-preview.svg',
   // Atmospheric Highland Aerial Background
   highlandAerial: 'https://lh3.googleusercontent.com/aida-public/AB6AXuChJAtxFDi9sYCYmkD6ZiT1vbTkLIPwwwqnEW5cjSeaOjWAW6w5hR0tYd1TG2a2osutftMlVtip5VLUcaUUs987h_i9EZ1pV1uMaTTlSuBTIQ9mt-lqcrdB6Ow-I4-loGI2_gFIah8kIs66DvjKhbF75UGzWjVxxUe41-6agWu36GHoGbYfiTbLKhx-WBBw6Qnqx7lh8ras0RE1e6IqmJUFjyOmQhlQHRRjPhElxafoF5_VL187-0ys',
   // Cherries & Roasted Beans on Slate
