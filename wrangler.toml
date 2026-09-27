@@ -1,0 +1,6 @@
+# TATO Coffee — Cloudflare Pages configuration
+# The customer-facing Doi Wiang Vite app is built to ./dist.
+# Cloudflare Pages should use:
+#   Build command: npm run build
+#   Build output directory: dist
+pages_build_output_dir = "./dist"
