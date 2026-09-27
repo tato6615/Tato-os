@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoastType, GrindType, OrderItem } from '../types';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
+import { useLanguage } from '../i18n';
 
 interface ProductViewProps {
   initialRoast?: RoastType;
@@ -30,6 +31,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   // Success state
   const [completedOrder, setCompletedOrder] = useState<OrderItem | null>(null);
+  const { language } = useLanguage();
+  const tr = (en: string, th: string) => language === 'th' ? th : en;
 
   // Sync initialRoast when passed
   useEffect(() => {
@@ -192,10 +195,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
             <div className="col-span-7 bg-[#1d1b1a] rounded-xl p-4 flex flex-col justify-between border border-[#2b2a28]">
               <div className="space-y-1">
                 <span className="font-['Manrope'] text-[11px] font-bold text-[#f3bc8b] uppercase tracking-wider">
-                  TERROIR SPECIFICATION
+                  {tr('TERROIR SPECIFICATION', 'ข้อมูลแหล่งกำเนิดและสภาพพื้นที่')}
                 </span>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 line-clamp-2 leading-relaxed">
-                  Cherries selectively hand-picked at peak ripeness on northern steep volcanic slopes. Cold mountain night fermentation.
+                  {tr('Cherries selectively hand-picked at peak ripeness on northern steep volcanic slopes. Cold mountain night fermentation.', 'เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภาคเหนือ และหมักในอุณหภูมิที่เย็นจากภูเขายามค่ำคืน')}
                 </p>
               </div>
               <div className="pt-2 flex items-center justify-between font-mono text-[11px] text-[#d4c3bd]">
