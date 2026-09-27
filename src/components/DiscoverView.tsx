@@ -362,10 +362,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                     </div>
 
                     <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-bold">
-                      {profile.name}
+                      {language === 'th' ? profile.nameThai : profile.name}
                     </h3>
                     <p className="text-[17px] text-[#f3bc8b] font-light mt-0.5 font-['Anuphan']">
-                      {profile.subtitle}
+                      {translateText(profile.subtitle, language)}
                     </p>
                     <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 mt-4 leading-relaxed">
                       {translateText(profile.description, language)}
@@ -375,7 +375,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {profile.notes.map((note) => (
                         <span
-                          key={note}
+                          key={translateText(note, language)}
                           className="font-mono text-[11px] px-2.5 py-1 rounded bg-[#211f1e] text-[#e3beb3] border border-[#363433]"
                         >
                           {note}
@@ -387,7 +387,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   {/* Roast Density Level Meter */}
                   <div className="mt-8 pt-4 border-t border-[#363433]/50 space-y-2">
                     <div className="flex justify-between font-mono text-[11px] text-[#e3beb3]/70">
-                      <span>ROAST INTENSITY</span>
+                      <span>{language === 'th' ? 'ความเข้มของการคั่ว' : 'ROAST INTENSITY'}</span>
                       <span className="text-[#ff5e1a] font-bold">{profile.intensityDisplay}</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-[#363433] overflow-hidden">
@@ -410,7 +410,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                             : 'bg-[#2b2a28] text-[#e6e1df] hover:bg-[#ff5e1a] hover:text-[#390c00]'
                         }`}
                       >
-                        <span>ORDER THIS ROAST</span>
+                        <span>{language === 'th' ? 'สั่งคั่วนี้' : 'ORDER THIS ROAST'}</span>
                         <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                       </button>
                     </div>
