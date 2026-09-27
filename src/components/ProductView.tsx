@@ -541,7 +541,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setQuantityKg((current) => Math.max(1, current - 1))
+                          onClick={() => setQuantityKg((current) => Math.max(1, current - 1))}
                           className="w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95"
                           aria-label="Decrease quantity"
                         >
@@ -552,7 +552,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         </span>
                         <button
                           type="button"
-                          onClick={() => setQuantityKg((current) => Math.min(25, current + 1))
+                          onClick={() => setQuantityKg((current) => Math.min(25, current + 1))}
                           className="w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95"
                           aria-label="Increase quantity"
                         >
