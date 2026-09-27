@@ -47,10 +47,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const total = subtotal + shipping;
 
   const handleQuantityChange = (delta: number) => {
-    const next = quantityKg + delta;
-    if (next >= 1 && next <= 25) {
-      setQuantityKg(next);
-    }
+    setQuantityKg((current) => Math.min(25, Math.max(1, current + delta)));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
