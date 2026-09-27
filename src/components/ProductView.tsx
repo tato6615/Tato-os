@@ -43,15 +43,33 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   const unitPrice = 550;
   const minimumQuantityKg = 0.5;
+  const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
-  const quantityGrams = Math.round(quantityKg * 1000);
-  const unitPricePerKg = 550;
-  const subtotal = Math.round((quantityGrams / 1000) * unitPricePerKg);
+  const subtotal = Number((quantityKg * unitPrice).toFixed(2));
   const shipping = quantityKg >= 2 ? 0 : 50;
-  const total = subtotal + shipping;
+  const total = Number((subtotal + shipping).toFixed(2));
+
+  const formatQuantity = (kg: number) => {
+    return Number.isInteger(kg) ? String(kg) : kg.toFixed(1);
+  };
+
+  const packagingLabel = (() => {
+    const fullKg = Math.floor(quantityKg);
+    const hasHalfKg = quantityKg % 1 !== 0;
+    const parts: string[] = [];
+
+    if (fullKg > 0) {
+      parts.push(`${fullKg}x 1000g Degassed Foil Bag${fullKg > 1 ? 's' : ''}`);
+    }
+    if (hasHalfKg) {
+      parts.push('1x 500g Degassed Foil Bag');
+    }
+
+    return parts.join(' + ');
+  })();
 
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))));
+    setQuantityKg((current) => Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -539,7 +557,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   {/* Quantity Stepper with Calculated Total */}
                   <div className="pt-2">
                     <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1.5">
-                      Quantity / จำนวนกิโลกรัม (1 KG = 1 Pouch)
+                      Quantity / จำนวนกิโลกรัม (500g ขั้นต่ำ · เพิ่มครั้งละ 500g)
                     </label>
                     <div className="flex items-center justify-between bg-[#1d1b1a] rounded-xl p-2 px-3 border border-[#2b2a28]">
                       <div className="flex items-center gap-1.5">
@@ -559,7 +577,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         <input
                           type="number"
                           min={minimumQuantityKg}
-                          max={100}
+                          max={maximumQuantityKg}
                           step={quantityStepKg}
                           inputMode="numeric"
                           value={quantityKg}
@@ -568,11 +586,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
                             if (raw === '') return;
                             const value = Number(raw);
                             if (Number.isFinite(value)) {
-                              setQuantityKg(Math.min(100, Math.max(minimumQuantityKg, value)));
+                              setQuantityKg(Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, value)));
                             }
                           }}
                           onBlur={() => {
-                            setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, current || minimumQuantityKg)));
+                            setQuantityKg((current) => Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, current || minimumQuantityKg)));
                           }}
                           aria-label="Quantity in kilograms"
                           className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
@@ -598,7 +616,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           Packaging Standard
                         </span>
                         <span className="font-mono text-[11px] text-[#f3bc8b]">
-                          {quantityKg === 0.5 ? '1x 500g Degassed Foil Bag' : quantityKg % 1 === 0 ? `1x ${quantityKg * 1000}g Degassed Foil Bag${quantityKg > 1 ? 's' : ''}` : `1x 1000g + 1x 500g Degassed Foil Bag`}
+                          {packagingLabel}
                         </span>
                       </div>
                     </div>
