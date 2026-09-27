@@ -42,12 +42,14 @@ export const ProductView: React.FC<ProductViewProps> = ({
   }, [initialRoast]);
 
   const unitPrice = 550;
+  const minimumQuantityKg = 0.5;
+  const quantityStepKg = 0.5;
   const subtotal = quantityKg * unitPrice;
   const shipping = quantityKg >= 2 ? 0 : 50;
   const total = subtotal + shipping;
 
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(100, Math.max(0.5, current + delta)));
+    setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, current + delta)));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -554,9 +556,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         </button>
                         <input
                           type="number"
-                          min={0.5}
+                          min={minimumQuantityKg}
                           max={100}
-                          step={0.5}
+                          step={quantityStepKg}
                           inputMode="numeric"
                           value={quantityKg}
                           onChange={(e) => {
@@ -564,11 +566,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
                             if (raw === '') return;
                             const value = Number(raw);
                             if (Number.isFinite(value)) {
-                              setQuantityKg(Math.min(100, Math.max(0.5, value)));
+                              setQuantityKg(Math.min(100, Math.max(minimumQuantityKg, value)));
                             }
                           }}
                           onBlur={() => {
-                            setQuantityKg((current) => Math.min(100, Math.max(0.5, current || 0.5)));
+                            setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, current || minimumQuantityKg)));
                           }}
                           aria-label="Quantity in kilograms"
                           className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
