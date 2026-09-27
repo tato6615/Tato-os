@@ -45,9 +45,13 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const minimumQuantityKg = 0.5;
   const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
-  const subtotal = Number((quantityKg * unitPrice).toFixed(2));
+
+  // Price is always derived from the CURRENT quantity state.
+  // 550 THB per 1 KG = 0.55 THB per gram.
+  const quantityGrams = Math.round(quantityKg * 1000);
+  const subtotal = Math.round(quantityGrams * 0.55);
   const shipping = quantityKg >= 2 ? 0 : 50;
-  const total = Number((subtotal + shipping).toFixed(2));
+  const total = subtotal + shipping;
 
   const formatQuantity = (kg: number) => {
     return Number.isInteger(kg) ? String(kg) : kg.toFixed(1);
