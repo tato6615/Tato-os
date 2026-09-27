@@ -28,7 +28,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   if (!isOpen) return null;
 
   const unitPrice = 550;
-  const subtotal = quantityKg * unitPrice;
+  const quantityGrams = Math.round(quantityKg * 1000);
+  const subtotal = Math.round(quantityGrams * 0.55);
   const shipping = quantityKg >= 2 ? 0 : 50;
   const total = subtotal + shipping;
 
