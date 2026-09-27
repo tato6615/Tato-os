@@ -29,6 +29,12 @@ jobs:
       - name: Build Vite app
         run: npm run build
 
+      - name: Include TATO HQ system in Pages output
+        run: |
+          rm -rf dist/system
+          mkdir -p dist/system
+          cp -R public/system/. dist/system/
+
       - name: Commit generated dist
         run: |
           git config user.name "github-actions[bot]"
