@@ -1,15 +1,731 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0a0908"><title>TATO Coffee — Know Your Coffee</title>
+<html lang="th" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#121110">
+<meta name="description" content="TATO Coffee — Arabica 100% Single Origin จากดอยเวียง 1,250 เมตร คั่วสดใหม่ทุกออเดอร์">
+<title>TATO Coffee — Know Your Coffee</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-:root{--bg:#0a0908;--fg:#f5f0e7;--muted:#9c978e;--orange:#ff6b00;--line:#ffffff18;--cream:#e8dfd0}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{text-decoration:none;color:inherit}.wrap{width:min(1240px,calc(100% - 40px));margin:auto}.nav{position:fixed;z-index:20;top:0;left:0;right:0;padding:18px 0;mix-blend-mode:normal}.nav.on{background:#0a0908dd;backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.navin{display:flex;justify-content:space-between;align-items:center}.logo{font-weight:950;letter-spacing:.28em}.navlinks{display:flex;gap:22px;font-size:10px;color:#aaa}.navlinks a:last-child{color:#111;background:var(--orange);padding:10px 15px;border-radius:99px;font-weight:900}.ey{font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--orange)}h1,h2,h3,p{margin:0}.hero{height:100svh;min-height:720px;position:relative;display:flex;align-items:flex-end;overflow:hidden}.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000b 0%,#0005 48%,#0001),linear-gradient(0deg,#0a0908 0%,transparent 32%),url("https://images.pexels.com/photos/4542756/pexels-photo-4542756.jpeg?auto=compress&cs=tinysrgb&w=2400") center/cover}.heroCopy{position:relative;padding-bottom:9vh;max-width:900px}.hero h1{font-size:clamp(5rem,13vw,11.5rem);line-height:.78;letter-spacing:-.095em;margin:18px 0}.stroke{color:transparent;-webkit-text-stroke:1px #fff}.heroLead{max-width:570px;color:#d5d0c8;font-size:14px;line-height:1.9}.heroAction{display:flex;align-items:center;gap:18px;margin-top:30px}.cta{background:var(--orange);color:#111;padding:15px 21px;border-radius:99px;font-size:10px;font-weight:950}.scroll{font-size:9px;letter-spacing:.16em;color:#aaa}.section{padding:130px 0}.intro{display:grid;grid-template-columns:.75fr 1.25fr;gap:80px;align-items:end;margin-bottom:50px}.intro h2{font-size:clamp(4rem,8vw,8rem);line-height:.78;letter-spacing:-.09em;margin-top:18px}.intro p{max-width:560px;color:var(--muted);line-height:1.9;font-size:13px}.split{display:grid;grid-template-columns:1.25fr .75fr;gap:12px}.pic{border:1px solid var(--line);border-radius:28px;overflow:hidden;position:relative;min-height:620px}.pic.small{min-height:620px}.pic img{width:100%;height:100%;object-fit:cover;display:block;transition:1s}.pic:hover img{transform:scale(1.04)}.tag{position:absolute;left:18px;bottom:18px;background:#000b;border:1px solid #fff2;border-radius:99px;padding:9px 12px;font-size:8px;letter-spacing:.15em}.statement{padding:40px 0 140px;text-align:center}.statement h2{font-size:clamp(4.5rem,12vw,11rem);line-height:.75;letter-spacing:-.1em}.statement p{max-width:500px;margin:25px auto 0;color:var(--muted);line-height:1.8;font-size:12px}.wide{min-height:720px;border-radius:30px;overflow:hidden;border:1px solid var(--line);position:relative}.wide img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.wide:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000b,#0003 70%,#0007)}.wideCopy{position:absolute;z-index:2;left:7%;top:50%;transform:translateY(-50%);max-width:570px}.wideCopy h2{font-size:clamp(4.5rem,10vw,10rem);line-height:.73;letter-spacing:-.1em;margin:18px 0}.wideCopy p{color:#ccc;line-height:1.9;font-size:13px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:24px}.chip{border:1px solid #fff3;border-radius:99px;padding:8px 11px;font-size:8px;letter-spacing:.1em}.roasts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:45px}.roast{min-height:340px;border:1px solid var(--line);border-radius:24px;background:#11100f;padding:27px;text-align:left;transition:.3s;cursor:pointer}.roast:hover,.roast.active{border-color:#ff6b0088;transform:translateY(-5px)}.roast h3{font-size:38px;letter-spacing:-.07em;margin:65px 0 10px}.roast p{font-size:11px;color:#888;line-height:1.8;min-height:42px}.roast span{display:inline-block;margin-top:20px;border:1px solid #fff2;border-radius:99px;padding:10px 13px;font-size:8px;letter-spacing:.12em}.roast.active span,.roast:hover span{background:var(--orange);color:#111;border-color:var(--orange)}.end{margin-top:12px;min-height:430px;border:1px solid var(--line);border-radius:28px;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at center,#ff6b001f,transparent 42%)}.end h2{font-size:clamp(4rem,9vw,9rem);line-height:.75;letter-spacing:-.09em;margin:18px 0}.end p{color:#888;font-size:11px}.end a{display:inline-block;margin-top:20px}.foot{padding:35px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:#666;font-size:8px;letter-spacing:.08em}
-@media(max-width:800px){.wrap{width:calc(100% - 28px)}.navlinks a:not(:last-child){display:none}.hero{min-height:680px}.hero h1{font-size:20vw}.section{padding:90px 0}.intro,.split,.roasts{grid-template-columns:1fr}.intro{gap:18px}.pic,.pic.small{min-height:430px}.wide{min-height:620px}.wideCopy{left:7%;right:7%}.roast{min-height:280px}.roast h3{margin-top:45px}.foot{display:block;line-height:2}}
-</style></head><body>
-<nav class="nav" id="nav"><div class="wrap navin"><a class="logo" href="#top">TATO</a><div class="navlinks"><a href="#origin">ORIGIN</a><a href="#roast">ROAST</a><a href="#product">PRODUCT</a><a href="#choose">CHOOSE</a></div></div></nav>
-<section class="hero" id="top"><div class="wrap heroCopy"><div class="ey">ARABICA 100% · SINGLE ORIGIN · DOI WIANG · 1,250M</div><h1>KNOW<br><span class="stroke">YOUR</span><br>COFFEE.</h1><p class="heroLead">ก่อนเลือกกาแฟ ลองรู้จักมันก่อน — ต้นทาง เมล็ด การคั่ว และ character ที่จะกลายเป็นแก้วของคุณ</p><div class="heroAction"><a class="cta" href="#origin">EXPLORE TATO →</a><span class="scroll">SCROLL TO DISCOVER ↓</span></div></div></section>
-<section class="section" id="origin"><div class="wrap"><div class="intro"><div><div class="ey">01 · ORIGIN</div><h2>START<br>AT THE<br>SOURCE.</h2></div><p>Arabica 100% จากดอยเวียงที่ระดับ 1,250 เมตร เราเริ่มเล่าเรื่องจากต้นทาง เพื่อให้คุณเข้าใจว่ากาแฟที่อยู่ในมือมีที่มาอย่างไร</p></div><div class="split"><div class="pic"><img src="https://images.pexels.com/photos/4542756/pexels-photo-4542756.jpeg?auto=compress&cs=tinysrgb&w=2400"><span class="tag">DOI WIANG · 1,250M</span></div><div class="pic small"><img src="https://images.pexels.com/photos/36977965/pexels-photo-36977965.jpeg?auto=compress&cs=tinysrgb&w=1800"><span class="tag">WHERE IT BEGINS</span></div></div></div></section>
-<section class="statement"><div class="wrap"><div class="ey">02 · THE BEAN</div><h2>BEFORE<br>THE HEAT.</h2><p>เมล็ดสีเขียวคือจุดก่อนการเปลี่ยนแปลง ทุก character ที่คุณสัมผัสภายหลัง เริ่มต้นจากตรงนี้</p></div></section>
-<section class="section" id="roast"><div class="wrap"><div class="wide"><img src="https://images.pexels.com/photos/6007668/pexels-photo-6007668.jpeg?auto=compress&cs=tinysrgb&w=2400"><div class="wideCopy"><div class="ey">03 · GREEN BEAN</div><h2>THE RAW<br>CHARACTER.</h2><p>จากเมล็ดสีเขียวสู่การคั่ว ความร้อนจะค่อย ๆ เปลี่ยน aroma, body และ character ให้กลายเป็นกาแฟในแบบที่คุณเลือก</p><div class="chips"><span class="chip">ARABICA 100%</span><span class="chip">SINGLE ORIGIN</span><span class="chip">FRESH ROAST</span></div></div></div><div class="intro" style="margin-top:110px"><div><div class="ey">04 · ROAST</div><h2>HEAT<br>CREATES<br>CHARACTER.</h2></div><p>เราไม่ต้องการให้คุณเลือก roast จากชื่ออย่างเดียว แต่ให้เลือกจากประสบการณ์ที่คุณอยากได้</p></div><div class="split"><div class="pic"><img src="https://images.pexels.com/photos/22938074/pexels-photo-22938074.jpeg?auto=compress&cs=tinysrgb&w=2000"><span class="tag">THE TRANSFORMATION</span></div><div class="pic small"><img src="https://images.pexels.com/photos/18662751/pexels-photo-18662751.jpeg?auto=compress&cs=tinysrgb&w=2000"><span class="tag">FRESH ROAST · MADE TO ORDER</span></div></div></div></section>
-<section class="section" id="product"><div class="wrap"><div class="intro"><div><div class="ey">05 · PRODUCT</div><h2>NOW<br>MEET<br>TATO.</h2></div><p>เรื่องราวทั้งหมดมีเป้าหมายเดียว — พาคุณไปเห็นสินค้าจริง แล้วเลือก roast ที่ตรงกับวิธีดื่มของคุณ</p></div><div class="split"><div class="pic"><img src="https://images.pexels.com/photos/6362312/pexels-photo-6362312.jpeg?auto=compress&cs=tinysrgb&w=2000"><span class="tag">TATO · FRESH ROAST</span></div><div class="pic small"><img src="https://images.pexels.com/photos/12024938/pexels-photo-12024938.jpeg?auto=compress&cs=tinysrgb&w=1800"><span class="tag">FROM BEAN TO CUP</span></div></div></div></section>
-<section class="section" id="choose"><div class="wrap"><div class="intro"><div><div class="ey">06 · CHOOSE YOUR ROAST</div><h2>YOUR<br>CHARACTER.</h2></div><p>เลือกจากสิ่งที่คุณชอบดื่ม — เข้ม ชัด / สมดุล / aromatic และเบาขึ้น</p></div><div class="roasts"><button class="roast active" data-r="dark"><div class="ey">01 · BOLD</div><h3>TATO DARK</h3><p>เข้ม ชัด body หนา สำหรับคนที่ชอบ character เด่น</p><span>CHOOSE DARK →</span></button><button class="roast" data-r="medium"><div class="ey">02 · BALANCED</div><h3>TATO MEDIUM</h3><p>สมดุลขึ้น ให้ความหวานและ aroma เด่นขึ้น</p><span>CHOOSE MEDIUM →</span></button><button class="roast" data-r="light"><div class="ey">03 · BRIGHT</div><h3>TATO LIGHT</h3><p>เบาและ aromatic ขึ้น เพื่อสัมผัส character ของเมล็ด</p><span>CHOOSE LIGHT →</span></button></div><div class="end"><div><div class="ey">READY WHEN YOU ARE</div><h2 id="selected">TATO DARK.</h2><p>Arabica 100% · Doi Wiang · 1,250m · Fresh Roast</p><a id="go" class="cta" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">VIEW PRODUCT →</a></div></div></div></section>
-<footer><div class="wrap foot"><span>TATO COFFEE</span><span>ARABICA 100% · DOI WIANG · FRESH ROAST</span><span>© 2026 TATO</span></div></footer>
-<script>const nav=document.getElementById('nav');addEventListener('scroll',()=>nav.classList.toggle('on',scrollY>25));const n={dark:'TATO DARK.',medium:'TATO MEDIUM.',light:'TATO LIGHT.'};document.querySelectorAll('.roast').forEach(x=>x.onclick=()=>{document.querySelectorAll('.roast').forEach(y=>y.classList.remove('active'));x.classList.add('active');let r=x.dataset.r;document.getElementById('selected').textContent=n[r];document.getElementById('go').href='buy.html?product_id=tato-'+r+'&content_id=tato-bean-journey'});</script></body></html>
+:root{
+  --bg:#121110;
+  --bg-deep:#0f0e0d;
+  --surface:#181615;
+  --surface-2:#211e1b;
+  --text:#e8e4df;
+  --muted:#8c857e;
+  --soft:#c89567;
+  --ember:#ff5e1a;
+  --ember-dark:#e65100;
+  --line:rgba(200,149,103,.14);
+  --line-white:rgba(255,255,255,.07);
+  --max:1440px;
+  --gutter:80px;
+  --radius:8px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Manrope","Anuphan",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.menu-open{overflow:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit}
+img{display:block;max-width:100%}
+h1,h2,h3,p{margin:0}
+.num,.stat-value,.price{font-family:"Manrope",sans-serif;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"lnum" 1}
+.wrap{width:min(var(--max),calc(100% - (var(--gutter) * 2)));margin-inline:auto}
+.ey{
+  color:var(--ember);
+  font:700 11px/16px "Manrope",sans-serif;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.thai{font-family:"Anuphan","Manrope",sans-serif}
+.muted{color:var(--muted)}
+.num{letter-spacing:.01em}
+
+.nav{
+  position:fixed;z-index:50;inset:0 0 auto;
+  padding:20px 0;
+  border-bottom:1px solid transparent;
+  transition:background .4s var(--ease),border-color .4s var(--ease),padding .4s var(--ease);
+}
+.nav.on{
+  background:rgba(18,17,16,.86);
+  backdrop-filter:blur(18px);
+  border-color:var(--line-white);
+  padding:14px 0;
+}
+.navin{display:flex;align-items:center;justify-content:space-between;gap:30px}
+.logo{display:inline-flex;align-items:center;gap:10px}
+.logo-mark{width:30px;height:30px;flex:0 0 auto}
+.logo-word{
+  font:700 20px/1 "Manrope",sans-serif;
+  letter-spacing:.22em;
+}
+.logo-sub{
+  display:block;
+  margin-top:4px;
+  color:#8c857e;
+  font:500 7px/1 "Manrope",sans-serif;
+  letter-spacing:.17em;
+}
+.navlinks{display:flex;align-items:center;gap:30px}
+.navlinks a{
+  position:relative;
+  color:#b7b0a9;
+  font:700 10px/16px "Manrope",sans-serif;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  transition:color .25s ease;
+}
+.navlinks a:after{
+  content:"";position:absolute;left:0;right:0;bottom:-8px;height:1px;
+  background:var(--ember);transform:scaleX(0);transform-origin:left;
+  transition:transform .25s var(--ease);
+}
+.navlinks a:hover,.navlinks a.active{color:var(--text)}
+.navlinks a:hover:after,.navlinks a.active:after{transform:scaleX(1)}
+.nav-order{
+  display:inline-flex!important;align-items:center;gap:8px;
+  padding:10px 14px;border:1px solid rgba(255,94,26,.55);
+  color:var(--text)!important;background:rgba(255,94,26,.04);
+}
+.nav-order:after{display:none}
+.nav-order:hover{background:var(--ember);color:#121110!important}
+.menu-btn{
+  display:none;width:42px;height:42px;padding:0;
+  background:transparent;border:1px solid var(--line);
+  color:var(--text);border-radius:4px;cursor:pointer;
+}
+.menu-btn span,.menu-btn span:before,.menu-btn span:after{
+  display:block;width:17px;height:1px;background:currentColor;margin:auto;position:relative;
+}
+.menu-btn span:before,.menu-btn span:after{content:"";position:absolute;left:0}
+.menu-btn span:before{top:-6px}.menu-btn span:after{top:6px}
+.mobile-menu{
+  display:none;position:fixed;z-index:45;inset:0;
+  background:rgba(15,14,13,.98);
+  padding:110px 24px 30px;
+}
+.mobile-menu.open{display:block}
+.mobile-links{display:grid;gap:8px}
+.mobile-links a{
+  padding:18px 0;border-bottom:1px solid var(--line-white);
+  font:600 22px/1.3 "Manrope","Anuphan",sans-serif;
+}
+.mobile-links .thai{font-size:16px;color:var(--muted);margin-left:8px}
+.mobile-order{
+  display:flex!important;margin-top:24px!important;
+  width:fit-content;padding:13px 18px!important;
+  background:var(--ember)!important;color:#121110!important;
+  border:0!important;
+}
+
+.hero{
+  min-height:100svh;position:relative;display:flex;align-items:flex-end;
+  overflow:hidden;border-bottom:1px solid var(--line-white);
+}
+.hero-media{position:absolute;inset:0;overflow:hidden}
+.hero-media img{
+  width:100%;height:100%;object-fit:cover;
+  animation:heroDrift 18s ease-in-out infinite alternate;
+  transform:scale(1.035);
+}
+.hero-media:after{
+  content:"";position:absolute;inset:0;
+  background:
+    linear-gradient(90deg,rgba(8,7,6,.78) 0%,rgba(8,7,6,.4) 52%,rgba(8,7,6,.12) 100%),
+    linear-gradient(0deg,rgba(8,7,6,.92) 0%,rgba(8,7,6,.12) 48%,rgba(8,7,6,.25) 100%);
+}
+.hero-copy{position:relative;z-index:2;padding:0 0 90px;max-width:920px}
+.hero-kicker{margin-bottom:22px}
+.hero h1{
+  font:600 clamp(52px,7.2vw,104px)/.88 "Manrope",sans-serif;
+  letter-spacing:-.035em;
+  max-width:1000px;
+}
+.hero h1 .stroke{
+  color:transparent;
+  -webkit-text-stroke:1px rgba(232,228,223,.85);
+}
+.hero-thai{
+  margin-top:18px;
+  font:500 clamp(21px,2.3vw,30px)/1.4 "Anuphan",sans-serif;
+  color:#f0ebe5;
+}
+.hero-meta{
+  display:flex;flex-wrap:wrap;gap:10px 22px;
+  margin-top:18px;color:#d0c9c2;
+  font:500 11px/18px "Manrope",sans-serif;
+  letter-spacing:.08em;
+}
+.hero-actions{display:flex;align-items:center;gap:18px;margin-top:30px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  min-height:46px;padding:0 18px;border-radius:4px;
+  font:700 10px/1 "Manrope",sans-serif;letter-spacing:.12em;
+  text-transform:uppercase;transition:transform .24s var(--ease),background .24s var(--ease),border-color .24s var(--ease),color .24s var(--ease);
+}
+.btn-primary{background:var(--ember);color:#121110;border:1px solid var(--ember)}
+.btn-primary:hover{background:var(--ember-dark);transform:translateY(-1px);box-shadow:0 12px 24px -8px rgba(255,94,26,.35)}
+.btn-secondary{background:rgba(255,255,255,.02);border:1px solid rgba(200,149,103,.24);color:var(--text)}
+.btn-secondary:hover{border-color:var(--ember);color:var(--ember);background:rgba(255,94,26,.04)}
+.scroll-note{color:#a39c95;font:500 10px/16px "Manrope",sans-serif;letter-spacing:.12em}
+.scroll-note .thai{display:block;font-size:11px;letter-spacing:0;margin-top:2px}
+
+.section{padding:120px 0}
+.section-tight{padding-top:40px}
+.section-head{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,520px);
+  gap:60px;align-items:end;margin-bottom:46px;
+}
+.section-title{
+  margin-top:16px;
+  font:500 clamp(38px,5vw,68px)/.98 "Manrope",sans-serif;
+  letter-spacing:-.025em;
+}
+.section-title .thai{
+  display:block;margin-top:12px;
+  font:500 clamp(20px,2vw,27px)/1.45 "Anuphan",sans-serif;
+  color:#cfc7c0;
+  letter-spacing:0;
+}
+.section-copy{
+  color:var(--muted);
+  font:400 15px/1.9 "Anuphan","Manrope",sans-serif;
+}
+.section-copy strong{color:var(--text);font-weight:500}
+
+.origin-grid{
+  display:grid;grid-template-columns:1.45fr .55fr;gap:12px;
+}
+.media{
+  position:relative;overflow:hidden;background:var(--surface);
+  border:1px solid var(--line-white);border-radius:var(--radius);
+}
+.media img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease)}
+.media:hover img{transform:scale(1.02)}
+.origin-main{min-height:620px}
+.origin-side{display:grid;grid-template-rows:1fr auto;gap:12px}
+.origin-side .media:first-child{min-height:420px}
+.origin-side .media:last-child{padding:24px;min-height:188px;background:var(--surface)}
+.media-label{
+  position:absolute;left:16px;bottom:16px;
+  padding:7px 10px;border:1px solid rgba(200,149,103,.2);
+  background:rgba(18,17,16,.78);backdrop-filter:blur(8px);
+  color:#cfc7c0;border-radius:3px;
+  font:500 9px/14px "Manrope",sans-serif;letter-spacing:.12em;
+}
+.stat-list{display:grid;gap:17px;height:100%;align-content:center}
+.stat{
+  display:grid;grid-template-columns:1fr auto;align-items:end;
+  padding-bottom:15px;border-bottom:1px dotted rgba(255,255,255,.1);
+}
+.stat-label{
+  color:var(--muted);font:700 10px/16px "Manrope",sans-serif;
+  letter-spacing:.12em;text-transform:uppercase;
+}
+.stat-thai{display:block;margin-top:3px;color:#77716b;font:400 12px/18px "Anuphan",sans-serif}
+.stat-value{font-size:23px;font-weight:600;line-height:1}
+
+.statement{
+  padding:40px 0 120px;
+  text-align:center;
+}
+.statement h2{
+  font:500 clamp(46px,8vw,112px)/.9 "Manrope",sans-serif;
+  letter-spacing:-.035em;
+}
+.statement .thai{
+  display:block;margin-top:18px;
+  font:500 21px/1.5 "Anuphan",sans-serif;color:#cfc7c0;
+}
+.statement p{
+  max-width:560px;margin:22px auto 0;
+  color:var(--muted);font:400 14px/1.9 "Anuphan",sans-serif;
+}
+
+.bean-grid{
+  display:grid;grid-template-columns:.72fr 1.28fr;gap:12px;
+}
+.bean-copy{
+  min-height:560px;padding:38px;background:var(--surface);
+  border:1px solid var(--line-white);border-radius:var(--radius);
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.bean-copy h3{
+  font:500 clamp(34px,4vw,58px)/1 "Manrope",sans-serif;
+  letter-spacing:-.025em;
+}
+.bean-copy h3 .thai{
+  display:block;margin-top:12px;font:500 20px/1.5 "Anuphan",sans-serif;color:#cfc7c0;letter-spacing:0;
+}
+.bean-copy p{
+  max-width:430px;color:var(--muted);font:400 15px/1.9 "Anuphan",sans-serif;
+}
+.simple-points{display:grid;gap:0;margin-top:28px}
+.simple-point{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:15px 0;border-bottom:1px dotted rgba(255,255,255,.1);
+}
+.simple-point span:first-child{color:var(--muted);font:700 10px/16px "Manrope",sans-serif;letter-spacing:.12em}
+.simple-point span:last-child{color:var(--text);font:500 13px/20px "Anuphan","Manrope",sans-serif}
+.bean-media{min-height:560px}
+
+.roast-intro{margin-top:120px}
+.roast-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.roast{
+  position:relative;display:flex;flex-direction:column;
+  min-height:365px;padding:26px;text-align:left;
+  background:var(--surface);border:1px solid var(--line-white);
+  border-radius:var(--radius);overflow:hidden;
+  transition:border-color .3s var(--ease),transform .3s var(--ease),background .3s var(--ease);
+}
+.roast:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--ember);transform:scaleY(0);transform-origin:bottom;
+  transition:transform .3s var(--ease);
+}
+.roast:hover,.roast.active{
+  border-color:rgba(200,149,103,.3);
+  transform:translateY(-3px);
+  background:#1b1917;
+}
+.roast:hover:before,.roast.active:before{transform:scaleY(1)}
+.roast-top{display:flex;justify-content:space-between;align-items:center}
+.roast-number{color:#77716b;font:500 11px/16px "Manrope",sans-serif}
+.roast h3{
+  margin-top:auto;
+  font:500 clamp(31px,3vw,48px)/1 "Manrope",sans-serif;
+  letter-spacing:-.025em;
+}
+.roast h3 .thai{
+  display:block;margin-top:9px;
+  font:500 18px/1.5 "Anuphan",sans-serif;color:#d0c9c2;letter-spacing:0;
+}
+.roast p{
+  margin-top:16px;max-width:330px;
+  color:var(--muted);font:400 14px/1.85 "Anuphan",sans-serif;
+}
+.roast-link{
+  display:inline-flex;align-items:center;gap:8px;margin-top:24px;
+  color:#cfc7c0;font:700 9px/16px "Manrope",sans-serif;letter-spacing:.12em;
+}
+.roast:hover .roast-link,.roast.active .roast-link{color:var(--ember)}
+
+.product-grid{
+  display:grid;grid-template-columns:1.05fr .95fr;gap:12px;
+}
+.product-media{min-height:650px}
+.product-info{
+  min-height:650px;padding:38px;background:var(--surface);
+  border:1px solid var(--line-white);border-radius:var(--radius);
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.product-info h2{
+  font:500 clamp(40px,5vw,70px)/.95 "Manrope",sans-serif;letter-spacing:-.03em;
+}
+.product-info h2 .thai{
+  display:block;margin-top:12px;font:500 21px/1.5 "Anuphan",sans-serif;color:#cfc7c0;letter-spacing:0;
+}
+.product-note{margin-top:24px;color:var(--muted);font:400 15px/1.9 "Anuphan",sans-serif}
+.product-facts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:30px}
+.fact{
+  padding:18px;background:#161413;border:1px solid rgba(255,255,255,.06);border-radius:6px;
+}
+.fact .ey{font-size:9px}.fact strong{display:block;margin-top:7px;color:var(--text);font:600 16px/1.4 "Anuphan","Manrope",sans-serif}
+.product-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.price-line{display:flex;align-items:baseline;gap:10px;margin-top:28px}
+.price{font-size:34px;font-weight:600;letter-spacing:-.025em}
+.price-label{color:var(--muted);font:700 9px/16px "Manrope",sans-serif;letter-spacing:.12em}
+
+.choose{
+  padding-top:100px;
+}
+.choose-panel{
+  border:1px solid var(--line-white);border-radius:var(--radius);
+  background:radial-gradient(circle at 78% 40%,rgba(255,94,26,.08),transparent 34%),var(--surface);
+  padding:70px 40px;text-align:center;
+}
+.choose-panel h2{
+  font:500 clamp(40px,6vw,80px)/.95 "Manrope",sans-serif;
+  letter-spacing:-.03em;
+}
+.choose-panel .thai{
+  display:block;margin-top:12px;font:500 21px/1.5 "Anuphan",sans-serif;color:#cfc7c0;
+}
+.choose-panel p{margin-top:18px;color:var(--muted);font:400 14px/1.8 "Anuphan",sans-serif}
+.choose-panel .btn{margin-top:28px}
+.choose-price{margin-top:30px;color:#d0c9c2}
+.choose-price .num{font-size:29px;font-weight:600;color:var(--text)}
+.choose-price small{font:500 10px/16px "Manrope",sans-serif;letter-spacing:.1em;color:var(--muted)}
+
+.foot{
+  padding:34px 0 40px;border-top:1px solid var(--line-white);
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  color:#6f6963;font:500 9px/16px "Manrope",sans-serif;letter-spacing:.1em;
+}
+.foot a:hover{color:var(--text)}
+
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.visible{opacity:1;transform:none}
+
+:focus-visible{outline:1px solid var(--ember);outline-offset:4px}
+
+@keyframes heroDrift{from{transform:scale(1.035) translate3d(0,0,0)}to{transform:scale(1.075) translate3d(-.6%,-.4%,0)}}
+
+@media(max-width:1100px){
+  :root{--gutter:40px}
+  .navlinks{gap:20px}
+  .section-head{grid-template-columns:1fr;gap:18px}
+  .origin-grid{grid-template-columns:1fr}
+  .origin-side{grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+  .origin-side .media:first-child{min-height:320px}
+  .bean-grid,.product-grid{grid-template-columns:1fr}
+  .bean-copy,.bean-media,.product-media,.product-info{min-height:auto}
+  .bean-copy{gap:35px}
+}
+@media(max-width:760px){
+  :root{--gutter:20px}
+  .navlinks{display:none}
+  .menu-btn{display:block}
+  .hero{min-height:760px}
+  .hero-copy{padding-bottom:55px}
+  .hero h1{font-size:clamp(48px,14vw,78px)}
+  .hero-actions{align-items:flex-start;flex-direction:column;gap:13px}
+  .section{padding:82px 0}
+  .section-title{font-size:40px}
+  .origin-side{grid-template-columns:1fr}
+  .origin-main{min-height:470px}
+  .origin-side .media:first-child{min-height:300px}
+  .origin-side .media:last-child{min-height:auto}
+  .statement{padding:15px 0 82px}
+  .statement h2{font-size:clamp(45px,14vw,72px)}
+  .bean-copy{padding:27px}
+  .bean-media{min-height:430px}
+  .roast-intro{margin-top:82px}
+  .roast-grid{grid-template-columns:1fr}
+  .roast{min-height:300px}
+  .product-info{padding:27px}
+  .product-media{min-height:480px}
+  .product-facts{grid-template-columns:1fr}
+  .choose{padding-top:70px}
+  .choose-panel{padding:55px 22px}
+  .foot{flex-direction:column}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*:before,*:after{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+
+<body>
+<header class="nav" id="nav">
+  <div class="wrap navin">
+    <a class="logo" href="#top" aria-label="TATO Coffee">
+      <svg class="logo-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <path d="M20 4C10.6 4 3 11.6 3 21s7.6 17 17 17 17-7.6 17-17S29.4 4 20 4Zm0 4.2c6.7 0 12.1 4.5 13.4 10.6-4-1.5-8.8-.3-11.7 3.2-2.9 3.5-3.5 8.4-1.6 12.3C13.5 33 8.2 27.8 8.2 21.4 8.2 14.1 13.5 8.2 20 8.2Z" fill="#FF5E1A"/>
+        <circle cx="20" cy="21" r="3.2" fill="#E8E4DF"/>
+      </svg>
+      <span>
+        <span class="logo-word">TATO</span>
+        <span class="logo-sub">DOI WIANG · 1,250M</span>
+      </span>
+    </a>
+
+    <nav class="navlinks" aria-label="Main navigation">
+      <a href="#origin" data-section="origin">ORIGIN</a>
+      <a href="#bean" data-section="bean">BEAN</a>
+      <a href="#roasts" data-section="roasts">ROAST</a>
+      <a href="#product" data-section="product">PRODUCT</a>
+      <a class="nav-order" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">ORDER TATO <span>→</span></a>
+    </nav>
+
+    <button class="menu-btn" id="menuBtn" type="button" aria-label="เปิดเมนู" aria-expanded="false">
+      <span></span>
+    </button>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+  <nav class="mobile-links" aria-label="Mobile navigation">
+    <a href="#origin">ORIGIN <span class="thai">แหล่งกำเนิด</span></a>
+    <a href="#bean">BEAN <span class="thai">เมล็ดกาแฟ</span></a>
+    <a href="#roasts">ROAST <span class="thai">ระดับการคั่ว</span></a>
+    <a href="#product">PRODUCT <span class="thai">สินค้า</span></a>
+    <a class="mobile-order" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">ORDER TATO →</a>
+  </nav>
+</div>
+
+<main id="top">
+  <section class="hero" aria-label="TATO Coffee introduction">
+    <div class="hero-media">
+      <img src="https://images.pexels.com/photos/4542756/pexels-photo-4542756.jpeg?auto=compress&cs=tinysrgb&w=2400" alt="ภูเขาและบรรยากาศพื้นที่สูงของแหล่งกำเนิดกาแฟ" fetchpriority="high">
+    </div>
+    <div class="wrap hero-copy reveal">
+      <div class="ey hero-kicker">ARABICA 100% · SINGLE ORIGIN · DOI WIANG · <span class="num">1,250M</span></div>
+      <h1>KNOW<br><span class="stroke">YOUR</span><br>COFFEE.</h1>
+      <div class="hero-thai thai">รู้จักกาแฟที่คุณเลือก</div>
+      <div class="hero-meta">
+        <span>ARABICA 100%</span>
+        <span>DOI WIANG</span>
+        <span class="num">1,250 M</span>
+        <span>FRESH ROAST</span>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#origin">EXPLORE TATO <span>→</span></a>
+        <a class="btn btn-secondary" href="#roasts">VIEW ROASTS <span>↓</span></a>
+        <span class="scroll-note">SCROLL TO DISCOVER <span class="thai">เลื่อนเพื่อค้นพบ</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="origin">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <div class="ey">01 · ORIGIN</div>
+          <h2 class="section-title">START AT THE SOURCE.<span class="thai">เริ่มจากแหล่งกำเนิด</span></h2>
+        </div>
+        <p class="section-copy">กาแฟของ TATO คือ <strong>Arabica 100% Single Origin</strong> จากดอยเวียงที่ระดับความสูง <strong class="num">1,250 เมตร</strong> เราเริ่มต้นเรื่องราวจากต้นทาง ก่อนจะไปถึงรสชาติในแก้วของคุณ</p>
+      </div>
+
+      <div class="origin-grid reveal">
+        <div class="media origin-main">
+          <img src="https://images.pexels.com/photos/36977965/pexels-photo-36977965.jpeg?auto=compress&cs=tinysrgb&w=2200" alt="ภูมิประเทศพื้นที่สูงและธรรมชาติของแหล่งกำเนิดกาแฟ" loading="lazy">
+          <span class="media-label">DOI WIANG · <span class="num">1,250M</span></span>
+        </div>
+
+        <div class="origin-side">
+          <div class="media">
+            <img src="https://images.pexels.com/photos/22938074/pexels-photo-22938074.jpeg?auto=compress&cs=tinysrgb&w=1800" alt="เมล็ดกาแฟและบรรยากาศการเตรียมกาแฟ" loading="lazy">
+            <span class="media-label">FROM THE ORIGIN</span>
+          </div>
+          <div class="media">
+            <div class="stat-list">
+              <div class="stat">
+                <div><span class="stat-label">Origin</span><span class="stat-thai">แหล่งกำเนิด</span></div>
+                <span class="stat-value">DOI WIANG</span>
+              </div>
+              <div class="stat">
+                <div><span class="stat-label">Elevation</span><span class="stat-thai">ระดับความสูง</span></div>
+                <span class="stat-value num">1,250 M</span>
+              </div>
+              <div class="stat">
+                <div><span class="stat-label">Variety</span><span class="stat-thai">สายพันธุ์</span></div>
+                <span class="stat-value">ARABICA 100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="statement">
+    <div class="wrap reveal">
+      <div class="ey">02 · THE BEAN</div>
+      <h2>BEFORE THE HEAT.</h2>
+      <span class="thai">ก่อนความร้อนจะเปลี่ยนเมล็ดให้เป็นรสชาติ</span>
+      <p>ก่อนการคั่ว เมล็ดกาแฟยังเป็นจุดเริ่มต้นที่เรียบง่าย ความแตกต่างจะค่อย ๆ ถูกสร้างขึ้นเมื่อความร้อนเปลี่ยนเมล็ดให้พร้อมสำหรับการดื่ม</p>
+    </div>
+  </section>
+
+  <section class="section section-tight" id="bean">
+    <div class="wrap">
+      <div class="bean-grid reveal">
+        <div class="bean-copy">
+          <div>
+            <div class="ey">GREEN BEAN → ROAST → CUP</div>
+            <h3>THE CHARACTER<br>STARTS HERE.<span class="thai">ทุก character เริ่มจากตรงนี้</span></h3>
+          </div>
+          <div>
+            <p>เราอยากให้คุณเห็นเส้นทางของกาแฟอย่างชัดเจน — จากเมล็ด ก่อนเข้าสู่การคั่ว และกลายเป็นกาแฟที่คุณเลือกในท้ายที่สุด</p>
+            <div class="simple-points">
+              <div class="simple-point"><span>ORIGIN</span><span>DOI WIANG</span></div>
+              <div class="simple-point"><span>VARIETY</span><span>ARABICA 100%</span></div>
+              <div class="simple-point"><span>ROAST</span><span>เลือกได้ 3 ระดับ</span></div>
+              <div class="simple-point"><span>FRESHNESS</span><span>คั่วสดใหม่ทุกออเดอร์</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="media bean-media">
+          <img src="https://images.pexels.com/photos/6007668/pexels-photo-6007668.jpeg?auto=compress&cs=tinysrgb&w=2200" alt="เมล็ดกาแฟก่อนการคั่ว" loading="lazy">
+          <span class="media-label">BEFORE THE ROAST</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="roasts">
+    <div class="wrap">
+      <div class="section-head roast-intro reveal">
+        <div>
+          <div class="ey">03 · ROAST</div>
+          <h2 class="section-title">FIND YOUR ROAST.<span class="thai">เลือกระดับการคั่วที่ใช่</span></h2>
+        </div>
+        <p class="section-copy">เลือกจากประสบการณ์ที่คุณอยากได้ ไม่ว่าจะเป็นรสเข้ม ชัด สมดุล หรือเบาและ aromatic ขึ้น ทุกตัวเลือกพาคุณไปสู่คนละ character</p>
+      </div>
+
+      <div class="roast-grid">
+        <a class="roast active reveal" data-roast="dark" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">
+          <div class="roast-top"><span class="ey">DARK</span><span class="roast-number num">01</span></div>
+          <h3>TATO DARK<span class="thai">เข้ม · ชัด · หนักแน่น</span></h3>
+          <p>สำหรับคนที่ชอบกาแฟ character เด่นและความเข้มชัดในทุกแก้ว</p>
+          <span class="roast-link">CHOOSE DARK <span>→</span></span>
+        </a>
+
+        <a class="roast reveal" data-roast="medium" href="buy.html?product_id=tato-medium&content_id=tato-bean-journey">
+          <div class="roast-top"><span class="ey">MEDIUM</span><span class="roast-number num">02</span></div>
+          <h3>TATO MEDIUM<span class="thai">สมดุล · ดื่มง่าย</span></h3>
+          <p>บาลานซ์ระหว่างความเข้มและความหวาน เหมาะกับการดื่มได้หลากหลายแบบ</p>
+          <span class="roast-link">CHOOSE MEDIUM <span>→</span></span>
+        </a>
+
+        <a class="roast reveal" data-roast="light" href="buy.html?product_id=tato-light&content_id=tato-bean-journey">
+          <div class="roast-top"><span class="ey">LIGHT</span><span class="roast-number num">03</span></div>
+          <h3>TATO LIGHT<span class="thai">เบา · สดใส · หอม</span></h3>
+          <p>สำหรับคนที่ชอบความเบาและ aroma ที่เด่นขึ้น พร้อมสัมผัส character ของเมล็ด</p>
+          <span class="roast-link">CHOOSE LIGHT <span>→</span></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="product">
+    <div class="wrap">
+      <div class="product-grid reveal">
+        <div class="media product-media">
+          <img src="https://images.pexels.com/photos/6362312/pexels-photo-6362312.jpeg?auto=compress&cs=tinysrgb&w=2200" alt="กาแฟ TATO และเมล็ดกาแฟ" loading="lazy">
+          <span class="media-label">TATO COFFEE</span>
+        </div>
+
+        <div class="product-info">
+          <div>
+            <div class="ey">04 · PRODUCT</div>
+            <h2>MEET TATO.<span class="thai">นี่คือกาแฟของคุณ</span></h2>
+            <p class="product-note">Arabica 100% จากดอยเวียง <span class="num">1,250</span> เมตร และ <strong>คั่วสดใหม่ทุกออเดอร์</strong> เลือกระดับการคั่วที่เข้ากับวิธีดื่มของคุณได้โดยตรง</p>
+
+            <div class="product-facts">
+              <div class="fact"><div class="ey">ORIGIN</div><strong>DOI WIANG</strong></div>
+              <div class="fact"><div class="ey">ELEVATION</div><strong class="num">1,250 M</strong></div>
+              <div class="fact"><div class="ey">COFFEE</div><strong>ARABICA 100%</strong></div>
+              <div class="fact"><div class="ey">ROAST</div><strong>FRESH · ON ORDER</strong></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="price-line"><span class="price num">550</span><span class="price-label">THB / KG · DARK ROAST</span></div>
+            <div class="product-actions">
+              <a class="btn btn-primary" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">VIEW COFFEE →</a>
+              <a class="btn btn-secondary" href="#roasts">CHOOSE ROAST</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section choose" id="choose">
+    <div class="wrap">
+      <div class="choose-panel reveal">
+        <div class="ey">05 · READY TO TASTE TATO?</div>
+        <h2>YOUR COFFEE.<span class="thai">เลือกแบบที่เป็นคุณ</span></h2>
+        <p>เริ่มจากระดับการคั่วที่คุณชอบ แล้วไปดูรายละเอียดและสั่งซื้อได้ทันที</p>
+        <div class="choose-price"><span class="num">550 THB / KG</span> <small>DARK ROAST</small></div>
+        <a class="btn btn-primary" href="buy.html?product_id=tato-dark&content_id=tato-bean-journey">ORDER TATO →</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <a href="#top">TATO COFFEE</a>
+    <span>ARABICA 100% · DOI WIANG · <span class="num">1,250M</span> · FRESH ROAST</span>
+    <span>© 2026 TATO</span>
+  </div>
+</footer>
+
+<script>
+const nav=document.getElementById("nav");
+const menuBtn=document.getElementById("menuBtn");
+const mobileMenu=document.getElementById("mobileMenu");
+
+window.addEventListener("scroll",()=>{
+  nav.classList.toggle("on",window.scrollY>24);
+},{passive:true});
+
+function closeMenu(){
+  mobileMenu.classList.remove("open");
+  mobileMenu.setAttribute("aria-hidden","true");
+  menuBtn.setAttribute("aria-expanded","false");
+  document.body.classList.remove("menu-open");
+}
+menuBtn.addEventListener("click",()=>{
+  const open=!mobileMenu.classList.contains("open");
+  mobileMenu.classList.toggle("open",open);
+  mobileMenu.setAttribute("aria-hidden",String(!open));
+  menuBtn.setAttribute("aria-expanded",String(open));
+  document.body.classList.toggle("menu-open",open);
+});
+document.querySelectorAll(".mobile-links a").forEach(a=>a.addEventListener("click",closeMenu));
+
+const sections=[...document.querySelectorAll("main section[id]")];
+const navItems=[...document.querySelectorAll(".navlinks a[data-section]")];
+const sectionObserver=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(!entry.isIntersecting)return;
+    navItems.forEach(item=>item.classList.toggle("active",item.dataset.section===entry.target.id));
+  });
+},{rootMargin:"-35% 0px -55% 0px",threshold:0});
+sections.forEach(s=>sectionObserver.observe(s));
+
+const revealObserver=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      entry.target.classList.add("visible");
+      revealObserver.unobserve(entry.target);
+    }
+  });
+},{threshold:.12});
+document.querySelectorAll(".reveal").forEach(el=>revealObserver.observe(el));
+
+document.querySelectorAll(".roast").forEach(card=>{
+  card.addEventListener("click",()=>{
+    document.querySelectorAll(".roast").forEach(x=>x.classList.remove("active"));
+    card.classList.add("active");
+    try{localStorage.setItem("tato_selected_roast",card.dataset.roast)}catch(e){}
+  });
+});
+
+try{
+  const selected=localStorage.getItem("tato_selected_roast");
+  if(selected){
+    const card=document.querySelector('.roast[data-roast="'+selected+'"]');
+    if(card){
+      document.querySelectorAll(".roast").forEach(x=>x.classList.remove("active"));
+      card.classList.add("active");
+    }
+  }
+}catch(e){}
+</script>
+</body>
+</html>
