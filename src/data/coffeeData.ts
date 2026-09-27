@@ -63,9 +63,9 @@ export const GRIND_OPTIONS: { id: GrindType; label: string; desc: string }[] = [
 ];
 
 export const TERROIR_SPECS = [
-  { label: 'Origin / แหล่งปลูก', value: 'Doi Wiang, Chiang Rai (ดอยเวียง เชียงราย)' },
-  { label: 'Elevation / ความสูง', value: '1,250 MASL' },
-  { label: 'Variety / สายพันธุ์', value: 'Arabica 100% (Catimor & Bourbon)' },
+  { label: 'Origin / แหล่งปลูก', value: 'Doi Wiang Pa, Chiang Mai (ดอยเวียงผา เชียงใหม่)' },
+  { label: 'Elevation / ความสูง', value: '1,834 MASL' },
+  { label: 'Variety / สายพันธุ์', value: 'Arabica 100% (Catimor & Typica)' },
   { label: 'Harvest Method', value: '100% Selective Hand Pluck' },
   { label: 'Processing', value: 'Anaerobic Washed & Raised Solar Beds' },
   { label: 'Roast Schedule', value: 'Fresh Roast ทุกออเดอร์ (คั่วตามคำสั่งซื้อ)' },
