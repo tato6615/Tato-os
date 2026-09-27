@@ -260,14 +260,14 @@ export const ProductView: React.FC<ProductViewProps> = ({
           <div className="bg-[#1d1b1a] rounded-xl p-5 space-y-2.5 border border-[#2b2a28]">
             {TERROIR_SPECS.map((spec) => (
               <div
-                key={spec.label}
+                key={translateText(spec.label, language)}
                 className="flex items-baseline justify-between py-1 border-b border-[#2b2a28]/60 last:border-b-0"
               >
                 <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase">
                   {spec.label}
                 </span>
                 <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium text-right">
-                  {spec.value}
+                  {translateText(spec.value, language)}
                 </span>
               </div>
             ))}
@@ -332,7 +332,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                                 isSelected ? 'text-[#ff5e1a]' : 'text-[#e6e1df]'
                               }`}
                             >
-                              {profile.name}
+                              {language === 'th' ? profile.nameThai : profile.name}
                             </span>
                             <span
                               className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
@@ -347,11 +347,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
                               isSelected ? 'text-[#ffdbcf]' : 'text-[#f3bc8b]'
                             }`}
                           >
-                            {profile.nameThai}
+                            {language === 'th' ? profile.nameThai : translateText(profile.subtitle, language)}
                           </span>
                         </div>
                         <p className="font-['Manrope'] text-[11px] leading-snug text-[#e3beb3]/80 mt-2">
-                          {profile.description}
+                          {translateText(profile.description, language)}
                         </p>
                       </div>
                     );
@@ -384,7 +384,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         }`}
                       >
                         <div className="font-['Manrope'] text-[13px] font-semibold flex items-center justify-between">
-                          <span>{grind.label}</span>
+                          <span>{translateText(grind.label, language)}</span>
                           {isSelected && (
                             <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">
                               check
@@ -392,7 +392,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           )}
                         </div>
                         <p className="font-['Anuphan'] text-[11px] text-[#e3beb3]/65 mt-0.5">
-                          {grind.desc}
+                          {translateText(grind.desc, language)}
                         </p>
                       </button>
                     );
