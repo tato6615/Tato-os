@@ -308,7 +308,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                     ROAST PROFILE / เลือกระดับการคั่ว
                   </span>
                   <span className="font-mono text-[11px] text-[#ff5e1a] font-semibold">
-                    {activeRoastObj.name} ({activeRoastObj.subtitle.split('•')[1]?.trim() || 'BALANCED'})
+                    {language === 'th' ? activeRoastObj.nameThai : activeRoastObj.name} ({translateText(activeRoastObj.subtitle, language)})
                   </span>
                 </div>
 
