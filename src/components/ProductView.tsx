@@ -77,14 +77,12 @@ export const ProductView: React.FC<ProductViewProps> = ({
   // Every button press derives the next quantity from the latest React state,
   // then the displayed subtotal/total is recalculated from that same state.
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => {
-      const next = Math.min(
-        maximumQuantityKg,
-        Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))
-      );
-      setQuantityInput(String(next));
-      return next;
-    });
+    const next = Math.min(
+      maximumQuantityKg,
+      Math.max(minimumQuantityKg, Number((quantityKg + delta * quantityStepKg).toFixed(2)))
+    );
+    setQuantityKg(next);
+    setQuantityInput(String(next));
   };
 
   const handleQuantityInputChange = (value: string) => {
@@ -615,11 +613,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           <span className="material-symbols-outlined text-[18px] pointer-events-none">remove</span>
                         </button>
                         <input
-                          type="number"
-                          min={minimumQuantityKg}
-                          max={maximumQuantityKg}
-                          step={quantityStepKg}
-                          inputMode="numeric"
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
                           value={quantityInput}
                           onChange={(e) => handleQuantityInputChange(e.target.value)}
                           onBlur={handleQuantityInputBlur}
