@@ -16,7 +16,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
 }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>(initialRoast);
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('whole_bean');
-  const [quantityKg, setQuantityKg] = useState<number>(1);
+  const [quantityKg, setQuantityKg] = useState<number>(0.5);
   const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cod' | 'credit_card'>('promptpay');
 
   // Customer form fields
@@ -49,7 +49,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const total = subtotal + shipping;
 
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, current + delta)));
+    setQuantityKg((current) => Math.min(100, Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -596,7 +596,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           Packaging Standard
                         </span>
                         <span className="font-mono text-[11px] text-[#f3bc8b]">
-                          {quantityKg}x 1000g Degassed Foil Bag{quantityKg > 0.5 ? 's' : ''}
+                          {quantityKg === 0.5 ? '1x 500g Degassed Foil Bag' : quantityKg % 1 === 0 ? `1x ${quantityKg * 1000}g Degassed Foil Bag${quantityKg > 1 ? 's' : ''}` : `1x 1000g + 1x 500g Degassed Foil Bag`}
                         </span>
                       </div>
                     </div>
