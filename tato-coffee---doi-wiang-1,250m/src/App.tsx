@@ -1,2 +1,3 @@
 import React from 'react';
-export default function App(){return <div>TATO</div>}
+import { Header } from './components/Header';
+export default function App(){return <Header currentView="discover" onNavigate={()=>{}} cartCount={0} onOpenCart={()=>{}} onOpenOrders={()=>{}}/>}
