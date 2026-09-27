@@ -75,7 +75,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 />
                 <div className="flex-1 space-y-1">
                   <span className="font-mono text-[10px] text-[#ff5e1a] uppercase font-bold tracking-wider">
-                    SINGLE ORIGIN • 1,250M
+                    SINGLE ORIGIN • 1,834M
                   </span>
                   <h3 className="font-['Manrope'] text-[16px] font-bold text-[#e6e1df]">
                     TATO COFFEE
