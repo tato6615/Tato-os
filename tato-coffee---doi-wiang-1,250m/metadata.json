@@ -1,0 +1,6 @@
+{
+  "name": "TATO Coffee - Doi Wiang 1,250M",
+  "description": "Artisanal Single-Origin Arabica coffee estate at 1,250 meters in Doi Wiang, Chiang Rai. Roast-to-order craft coffee experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
