@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoastType, GrindType, OrderItem } from '../types';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
-import { useLanguage } from '../i18n';
+import { useLanguage, translateText } from '../i18n';
 
 interface ProductViewProps {
   initialRoast?: RoastType;
@@ -347,7 +347,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                               isSelected ? 'text-[#ffdbcf]' : 'text-[#f3bc8b]'
                             }`}
                           >
-                            {language === 'th' ? profile.nameThai : translateText(profile.subtitle, language)}
+                            {translateText(profile.subtitle, language)}
                           </span>
                         </div>
                         <p className="font-['Manrope'] text-[11px] leading-snug text-[#e3beb3]/80 mt-2">
