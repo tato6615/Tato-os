@@ -47,7 +47,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const total = subtotal + shipping;
 
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(100, Math.max(1, current + delta)));
+    setQuantityKg((current) => Math.min(100, Math.max(0.5, current + delta)));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -554,9 +554,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         </button>
                         <input
                           type="number"
-                          min={1}
+                          min={0.5}
                           max={100}
-                          step={1}
+                          step={0.5}
                           inputMode="numeric"
                           value={quantityKg}
                           onChange={(e) => {
@@ -564,11 +564,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
                             if (raw === '') return;
                             const value = Number(raw);
                             if (Number.isFinite(value)) {
-                              setQuantityKg(Math.min(100, Math.max(1, Math.floor(value))));
+                              setQuantityKg(Math.min(100, Math.max(0.5, value)));
                             }
                           }}
                           onBlur={() => {
-                            setQuantityKg((current) => Math.min(100, Math.max(1, Math.floor(current || 1))));
+                            setQuantityKg((current) => Math.min(100, Math.max(0.5, current || 0.5)));
                           }}
                           aria-label="Quantity in kilograms"
                           className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
@@ -594,7 +594,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                           Packaging Standard
                         </span>
                         <span className="font-mono text-[11px] text-[#f3bc8b]">
-                          {quantityKg}x 1000g Degassed Foil Bag{quantityKg > 1 ? 's' : ''}
+                          {quantityKg}x 1000g Degassed Foil Bag{quantityKg > 0.5 ? 's' : ''}
                         </span>
                       </div>
                     </div>
