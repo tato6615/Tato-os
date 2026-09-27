@@ -19,14 +19,14 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="font-['Manrope'] text-[14px] leading-relaxed text-[#e3beb3]/70 max-w-md">
-              Single-Origin Arabica Estate nestled at Doi Wiang, Chiang Rai / Chiang Mai (1,250 MASL). High-altitude micro-lots slow-crafted with extreme agricultural precision.
+              Single-Origin Arabica Estate nestled at Doi Wiang, Doi Wiang Pa, Chiang Mai (1,834 MASL). High-altitude micro-lots slow-crafted with extreme agricultural precision.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#f3bc8b]">
-                19°14'N 99°11'E
+                DOI WIANG PA • CHIANG MAI
               </span>
               <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#ffb59c]">
-                1,250M ELEVATION
+                1,834M ELEVATION
               </span>
             </div>
           </div>
@@ -64,9 +64,9 @@ export const Footer: React.FC = () => {
             © 2025 TATO COFFEE ESTATE. DOI WIANG, THAILAND. ALL RIGHTS RESERVED.
           </div>
           <div className="flex items-center gap-6">
-            <span>ESTATE LAT 19.2392</span>
+            <span>DOI WIANG PA • CHIANG MAI</span>
             <span>ELEVATION 1,250M</span>
-            <span>CHIANG RAI / NORTHERN HIGHLANDS</span>
+            <span>CHIANG MAI / NORTHERN HIGHLANDS</span>
           </div>
         </div>
       </div>
