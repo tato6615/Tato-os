@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { DiscoverView } from './components/DiscoverView';
 import { ProductView } from './components/ProductView';
@@ -13,7 +13,7 @@ export default function App(){
  const [view,setView]=useState<PageView>('discover');
  const [roast,setRoast]=useState<RoastType>('medium');
  const [orders,setOrders]=useState<OrderItem[]>([]);
- useState(()=>{track('content_view');return null});
+ useEffect(()=>{track('content_view')},[]);
  const navigate=(next:PageView,sectionId?:string)=>{setView(next);if(sectionId)requestAnimationFrame(()=>document.getElementById(sectionId)?.scrollIntoView({behavior:'smooth'}));};
  const openProduct=(r:RoastType=roast)=>{setRoast(r);setView('product');track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
