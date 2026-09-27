@@ -4,12 +4,14 @@ import { DiscoverView } from './components/DiscoverView';
 import { ProductView } from './components/ProductView';
 import { Footer } from './components/Footer';
 import { PageView, RoastType, OrderItem } from './types';
+import System from './System';
 
 async function sendCheckout(order: OrderItem){ try { await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',content_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',session_id:localStorage.getItem('tato_session')||crypto.randomUUID(),name:order.customer.name,email:order.customer.email,phone:order.customer.phone,quantity_kg:order.quantityKg,roast:order.roast,grind:order.grind,address:order.customer.address,note:order.customer.note||'',payment_method:order.customer.paymentMethod})}); } catch {} }
 
 function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',...metadata}})}).catch(()=>{});}
 
 export default function App(){
+ if (window.location.pathname === '/system' || window.location.pathname.startsWith('/system/')) return <System />;
  const [view,setView]=useState<PageView>('discover');
  const [roast,setRoast]=useState<RoastType>('medium');
  const [orders,setOrders]=useState<OrderItem[]>([]);
