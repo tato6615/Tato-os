@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#e3beb3]/80 hover:text-[#e6e1df]'
             }`}
           >
-            {language === 'th' ? 'ดอยเวียง 1,250M' : 'ORIGIN'}
+            {language === 'th' ? 'ดอยเวียงผา 1,834M' : 'ORIGIN'}
           </button>
 
           <button
@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => handleNavClick('discover', 'origin')}
               className="flex items-center justify-between py-2 text-left text-[#e6e1df]"
             >
-              <span>{language === 'th' ? 'ดอยเวียง 1,250M' : 'ORIGIN'}</span>
+              <span>{language === 'th' ? 'ดอยเวียงผา 1,834M' : 'ORIGIN'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
             <button
