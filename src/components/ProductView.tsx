@@ -47,7 +47,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const total = subtotal + shipping;
 
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(25, Math.max(1, current + delta)));
+    setQuantityKg((current) => Math.min(100, Math.max(1, current + delta)));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -555,15 +555,20 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         <input
                           type="number"
                           min={1}
-                          max={25}
+                          max={100}
                           step={1}
                           inputMode="numeric"
                           value={quantityKg}
                           onChange={(e) => {
-                            const value = Number(e.target.value);
+                            const raw = e.target.value;
+                            if (raw === '') return;
+                            const value = Number(raw);
                             if (Number.isFinite(value)) {
-                              setQuantityKg(Math.min(25, Math.max(1, value)));
+                              setQuantityKg(Math.min(100, Math.max(1, Math.floor(value))));
                             }
+                          }}
+                          onBlur={() => {
+                            setQuantityKg((current) => Math.min(100, Math.max(1, Math.floor(current || 1))));
                           }}
                           aria-label="Quantity in kilograms"
                           className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
