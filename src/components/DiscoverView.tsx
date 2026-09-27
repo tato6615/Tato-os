@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../i18n';
 import { RoastType } from '../types';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 
@@ -8,6 +9,8 @@ interface DiscoverViewProps {
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>('medium');
+  const { language } = useLanguage();
+  const tr = (en: string, th: string) => language === 'th' ? th : en;
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
@@ -105,7 +108,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               </p>
             </div>
             <p className="font-['Manrope'] text-[15px] leading-relaxed text-[#e3beb3]/80 max-w-md">
-              Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.
+              {tr(
+                'Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.',
+                'ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่ ที่สายหมอกภูเขาปกคลุมเป็นประจำและดินแร่ภูเขาไฟช่วยชะลอการสุกของผลเชอร์รี่ ทำให้เกิดความหวานที่โดดเด่น'
+              )}
             </p>
           </div>
 
@@ -242,7 +248,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   Obsessive Grading. Zero Defect Philosophy.
                 </h3>
                 <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 font-light leading-relaxed">
-                  Every bean tells the history of Doi Wiang’s soil. Before entering the roaster drum, our cherries undergo rigorous floating separation, optical sorting, and extended slow fermentation in controlled temperature tanks.
+                  {tr(
+                    'Every bean tells the history of Doi Wiang’s soil. Before entering the roaster drum, our cherries undergo rigorous floating separation, optical sorting, and extended slow fermentation in controlled temperature tanks.',
+                    'ทุกเมล็ดสะท้อนเรื่องราวของผืนดินดอยเวียง ก่อนเข้าสู่ถังคั่ว ผลกาแฟผ่านการแยกลอย คัดด้วยระบบแสง และหมักช้าในถังควบคุมอุณหภูมิ'
+                  )}
                 </p>
               </div>
 
