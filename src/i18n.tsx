@@ -415,6 +415,20 @@ export function translateText(value: string, language: Language): string {
   return value;
 }
 
+// Given a previously cached "original" value and the value currently sitting in the
+// DOM, decide what the true original now is. If the current DOM value is simply this
+// engine's own translation of the cached original (in either language), nothing about
+// the underlying content changed, so we keep trusting the cached original. Otherwise,
+// the app itself changed the content (e.g. a price that just updated after a state
+// change) and the cache must be refreshed to that new value.
+function resolveOriginal(cached: string | undefined, current: string): string {
+  if (cached === undefined) return current;
+  if (current === cached) return cached;
+  if (current === translateText(cached, 'th')) return cached;
+  if (current === translateText(cached, 'en')) return cached;
+  return current;
+}
+
 function translateElementAttributes(element: Element, language: Language) {
   const attrs = ['placeholder', 'title', 'aria-label', 'alt'];
   let cache = attrCache.get(element);
@@ -426,7 +440,7 @@ function translateElementAttributes(element: Element, language: Language) {
   for (const attr of attrs) {
     const current = element.getAttribute(attr);
     if (current === null) continue;
-    const original = cache.get(attr) ?? current;
+    const original = resolveOriginal(cache.get(attr), current);
     cache.set(attr, original);
     const translated = translateText(original, language);
     if (translated !== current) element.setAttribute(attr, translated);
@@ -445,7 +459,8 @@ function translateDocument(language: Language) {
 
     for (const textNode of nodes) {
       if (textNode.parentElement?.closest('[data-tato-no-translate]')) continue;
-      const original = textCache.get(textNode) ?? textNode.nodeValue ?? '';
+      const current = textNode.nodeValue ?? '';
+      const original = resolveOriginal(textCache.get(textNode), current);
       textCache.set(textNode, original);
       const translated = translateText(original, language);
       if (translated !== textNode.nodeValue) textNode.nodeValue = translated;
