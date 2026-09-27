@@ -44,7 +44,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const unitPrice = 550;
   const minimumQuantityKg = 0.5;
   const quantityStepKg = 0.5;
-  const subtotal = quantityKg * unitPrice;
+  const quantityGrams = Math.round(quantityKg * 1000);
+  const unitPricePerKg = 550;
+  const subtotal = Math.round((quantityGrams / 1000) * unitPricePerKg);
   const shipping = quantityKg >= 2 ? 0 : 50;
   const total = subtotal + shipping;
 
@@ -107,7 +109,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   const resetOrderForm = () => {
     setCompletedOrder(null);
-    setQuantityKg(1);
+    setQuantityKg(0.5);
     setSelectedRoast('medium');
     setSelectedGrind('whole_bean');
     setCustomerName('');
