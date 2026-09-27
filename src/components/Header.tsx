@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PageView } from '../types';
 import { ASSETS } from '../data/coffeeData';
+import { useLanguage } from '../i18n';
 
 interface HeaderProps {
   currentView: PageView;
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOrders,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { language, setLanguage } = useLanguage();
 
   const handleNavClick = (view: PageView, sectionId?: string) => {
     onNavigate(view, sectionId);
@@ -54,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#e3beb3]/80 hover:text-[#e6e1df]'
             }`}
           >
-            DISCOVER <span className="text-[#d4c3bd]/60 font-['Anuphan'] text-[11px] font-normal normal-case">ค้นพบ</span>
+            {language === 'th' ? 'ค้นพบ' : 'DISCOVER'}
           </button>
 
           <button
@@ -65,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#e3beb3]/80 hover:text-[#e6e1df]'
             }`}
           >
-            ORIGIN <span className="text-[#d4c3bd]/60 font-['Anuphan'] text-[11px] font-normal normal-case">ดอยเวียง 1,250M</span>
+            {language === 'th' ? 'ดอยเวียง 1,250M' : 'ORIGIN'}
           </button>
 
           <button
@@ -76,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#e3beb3]/80 hover:text-[#e6e1df]'
             }`}
           >
-            ROASTS <span className="text-[#d4c3bd]/60 font-['Anuphan'] text-[11px] font-normal normal-case">ระดับการคั่ว</span>
+            {language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}
           </button>
 
           <button
@@ -87,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#e3beb3]/80 hover:text-[#e6e1df]'
             }`}
           >
-            PRODUCT <span className="text-[#d4c3bd]/60 font-['Anuphan'] text-[11px] font-normal normal-case">สั่งซื้อเมล็ดกาแฟ</span>
+            {language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}
           </button>
         </nav>
 
@@ -99,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="ตะกร้าและสั่งซื้อ TATO"
           >
             <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
-            <span className="font-semibold tracking-wider">ORDER TATO</span>
+            <span className="font-semibold tracking-wider">{language === 'th' ? 'สั่งซื้อ TATO' : 'ORDER TATO'}</span>
             <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#141312] text-[#ffb59c] text-[10px] font-bold">
               {cartCount}
             </span>
@@ -112,6 +114,11 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <span className="material-symbols-outlined text-[18px]">person</span>
           </button>
+
+          <div className="flex items-center rounded-full border border-[#5b4138]/50 bg-[#211f1e] p-0.5" aria-label="Language">
+            <button type="button" onClick={() => setLanguage('th')} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[10px] font-bold transition-all ${language === 'th' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#aa897f]'}`}>TH</button>
+            <button type="button" onClick={() => setLanguage('en')} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[10px] font-bold transition-all ${language === 'en' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#aa897f]'}`}>EN</button>
+          </div>
 
           {/* Mobile Menu Button */}
           <button
@@ -136,21 +143,21 @@ export const Header: React.FC<HeaderProps> = ({
                 currentView === 'discover' ? 'text-[#ff5e1a]' : 'text-[#e6e1df]'
               }`}
             >
-              <span>DISCOVER ค้นพบ</span>
+              <span>{language === 'th' ? 'ค้นพบ' : 'DISCOVER'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
             <button
               onClick={() => handleNavClick('discover', 'origin')}
               className="flex items-center justify-between py-2 text-left text-[#e6e1df]"
             >
-              <span>ORIGIN ดอยเวียง 1,250M</span>
+              <span>{language === 'th' ? 'ดอยเวียง 1,250M' : 'ORIGIN'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
             <button
               onClick={() => handleNavClick('discover', 'roasts')}
               className="flex items-center justify-between py-2 text-left text-[#e6e1df]"
             >
-              <span>ROASTS ระดับการคั่ว</span>
+              <span>{language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
             <button
@@ -159,7 +166,7 @@ export const Header: React.FC<HeaderProps> = ({
                 currentView === 'product' ? 'text-[#ff5e1a]' : 'text-[#e6e1df]'
               }`}
             >
-              <span>PRODUCT สั่งซื้อเมล็ดกาแฟ</span>
+              <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
           </div>
