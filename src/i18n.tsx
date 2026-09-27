@@ -307,6 +307,12 @@ const DICT: Record<string, [string, string]> = {
   'TATO Coffee pouch': ['ถุงกาแฟ TATO Coffee', 'TATO Coffee pouch'],
   'close': ['ปิด', 'close'],
   'print': ['พิมพ์', 'print'],
+  'Perched on the micro-climate ridge of Chiang Rai’s Doi Wiang, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.': ['ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่ ที่สายหมอกภูเขาปกคลุมเป็นประจำและดินแร่ภูเขาไฟช่วยชะลอการสุกของผลเชอร์รี่ ทำให้เกิดความหวานที่โดดเด่น', 'Perched on the micro-climate ridge of Chiang Rai’s Doi Wiang, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.'],
+  'Perched on the micro-climate ridge of Chiang Rai’s Doi Wiang': ['ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่', 'Perched on the micro-climate ridge of Chiang Rai’s Doi Wiang'],
+  'perennial mountain mists': ['สายหมอกภูเขาที่ปกคลุมเป็นประจำ', 'perennial mountain mists'],
+  'volcanic mineral soil': ['ดินแร่ภูเขาไฟ', 'volcanic mineral soil'],
+  'slow down cherry maturation': ['ช่วยชะลอการสุกของผลเชอร์รี่', 'slow down cherry maturation'],
+  'producing unmatched sweetness': ['ทำให้เกิดความหวานที่โดดเด่น', 'producing unmatched sweetness'],
 };
 
 const textCache = new WeakMap<Text, string>();
