@@ -393,7 +393,7 @@ function splitBilingual(value: string, language: Language): string | null {
   return null;
 }
 
-function translateText(value: string, language: Language): string {
+export function translateText(value: string, language: Language): string {
   const trimmed = value.trim();
   if (!trimmed) return value;
 
