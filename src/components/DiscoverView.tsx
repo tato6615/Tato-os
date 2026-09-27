@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLanguage } from '../i18n';
+import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 
@@ -368,7 +368,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                       {profile.subtitle}
                     </p>
                     <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 mt-4 leading-relaxed">
-                      {profile.description}
+                      {translateText(profile.description, language)}
                     </p>
 
                     {/* Flavor Attributes Pill Tag */}
