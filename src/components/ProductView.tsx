@@ -541,26 +541,32 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onTouchStart={() => {}}
-                          onClick={() => handleQuantityChange(-1)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuantityChange(-1);
+                          }}
                           className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto cursor-pointer select-none"
                           style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
                           aria-label="Decrease quantity"
                         >
-                          <span className="material-symbols-outlined text-[18px]">remove</span>
+                          <span className="material-symbols-outlined text-[18px] pointer-events-none">remove</span>
                         </button>
                         <span className="font-['Manrope'] text-[18px] font-bold px-4 text-[#e6e1df] min-w-[70px] text-center">
                           {quantityKg} KG
                         </span>
                         <button
                           type="button"
-                          onTouchStart={() => {}}
-                          onClick={() => handleQuantityChange(1)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuantityChange(1);
+                          }}
                           className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto cursor-pointer select-none"
                           style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
                           aria-label="Increase quantity"
                         >
-                          <span className="material-symbols-outlined text-[18px]">add</span>
+                          <span className="material-symbols-outlined text-[18px] pointer-events-none">add</span>
                         </button>
                       </div>
 
