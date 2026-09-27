@@ -72,8 +72,17 @@ export const ProductView: React.FC<ProductViewProps> = ({
     return parts.join(' + ');
   })();
 
+  // Single source of truth for the quantity stepper.
+  // Every button press derives the next quantity from the latest React state,
+  // then the displayed subtotal/total is recalculated from that same state.
   const handleQuantityChange = (delta: number) => {
-    setQuantityKg((current) => Math.min(maximumQuantityKg, Math.max(minimumQuantityKg, Number((current + delta * quantityStepKg).toFixed(2)))));
+    setQuantityKg((current) => {
+      const next = current + delta * quantityStepKg;
+      return Math.min(
+        maximumQuantityKg,
+        Math.max(minimumQuantityKg, Number(next.toFixed(2)))
+      );
+    });
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
