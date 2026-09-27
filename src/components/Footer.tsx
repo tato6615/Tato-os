@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
           </div>
           <div className="flex items-center gap-6">
             <span>DOI WIANG PA • CHIANG MAI</span>
-            <span>ELEVATION 1,250M</span>
+            <span>ELEVATION 1,834M</span>
             <span>CHIANG MAI / NORTHERN HIGHLANDS</span>
           </div>
         </div>
