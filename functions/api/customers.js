@@ -1,20 +1,37 @@
 export async function onRequestGet(context) {
-  const { results } = await context.env.DB
-    .prepare(`
-      SELECT *
-      FROM customers
-      ORDER BY created_at DESC
-    `)
-    .all();
+  try {
+    const db = context.env && context.env.DB;
+    if (!db) {
+      return Response.json({ success: false, error: "DB_BINDING_NOT_FOUND" }, { status: 500 });
+    }
 
-  return Response.json({
-    success: true,
-    customers: results
-  });
+    const { results } = await db
+      .prepare(`
+        SELECT *
+        FROM customers
+        ORDER BY created_at DESC
+      `)
+      .all();
+
+    return Response.json({
+      success: true,
+      customers: results
+    });
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: error && error.message ? error.message : String(error)
+    }, { status: 500 });
+  }
 }
 
 export async function onRequestPost(context) {
   try {
+    const db = context.env && context.env.DB;
+    if (!db) {
+      return Response.json({ success: false, error: "DB_BINDING_NOT_FOUND" }, { status: 500 });
+    }
+
     const body = await context.request.json();
 
     const id = crypto.randomUUID();
@@ -23,7 +40,7 @@ export async function onRequestPost(context) {
     const phone = body.phone || null;
     const source = body.source || null;
 
-    await context.env.DB
+    await db
       .prepare(`
         INSERT INTO customers
         (id, email, name, phone, source)

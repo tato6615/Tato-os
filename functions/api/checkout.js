@@ -53,7 +53,7 @@ async function recordEvent(db,type,payload){
 async function product(db,id){
   return await db.prepare("SELECT * FROM products WHERE id=? LIMIT 1").bind(id).first();
 }
-function price(p){return Number(p?.price??p?.sale_price??0);}
+function price(p){return Number(p?.price??p?.sale_price??p?.cost_price??p?.unit_price??0);}
 export async function onRequestGet(context){
   try{
     const db=context.env?.DB;
@@ -80,7 +80,7 @@ export async function onRequestPost(context){
     if(!db)return json({success:false,layer:LAYER,status:"DB_BINDING_NOT_FOUND"},500);
     const b=await context.request.json().catch(()=>({}));
     const productId=text(b.product_id), name=text(b.name), email=text(b.email), phone=text(b.phone);
-    const kg=Number(b.quantity_kg), contentId=text(b.content_id), sessionId=text(b.session_id);
+    const kg=Number(b.quantity_kg), contentId=text(b.content_id), sessionId=text(b.session_id), paymentMethod=text(b.payment_method);
     if(!productId||!name||(!email&&!phone)||!(kg>0))return json({success:false,layer:LAYER,status:"CHECKOUT_FIELDS_REQUIRED",error:"product_id, name, email_or_phone and quantity_kg are required"},400);
     const p=await product(db,productId);
     if(!p)return json({success:false,layer:LAYER,status:"PRODUCT_NOT_FOUND"},404);
@@ -100,7 +100,7 @@ export async function onRequestPost(context){
       customer=await db.prepare("SELECT * FROM customers WHERE id=? LIMIT 1").bind(id).first();
     }
     const amount=Number((unit*kg).toFixed(2)), orderId="order_"+crypto.randomUUID();
-    const orderData={id:orderId,customer_id:customer.id,product_id:productId,total_amount:amount,amount,total_kg:kg,quantity:kg,qty:kg,currency:"THB",status:"pending",source:"PUBLIC_CHECKOUT",content_id:contentId||null,created_at:now()};
+    const orderData={id:orderId,customer_id:customer.id,product_id:productId,total_amount:amount,amount,total_kg:kg,quantity:kg,qty:kg,currency:"THB",status:"pending",payment_method:paymentMethod||null,source:"PUBLIC_CHECKOUT",content_id:contentId||null,created_at:now()};
     const orderCols=await cols(db,"orders");
     const allowed=new Set(orderCols);
     const names=Object.keys(orderData).filter(k=>allowed.has(k));
