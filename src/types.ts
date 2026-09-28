@@ -46,4 +46,9 @@ export interface OrderItem {
   timestamp: string;
   orderNumber: string;
   status: 'Roast Queued' | 'Roasting' | 'Degassing & Packing' | 'Dispatched';
+  serverId?: string;
+  payment?: PaymentInstructions;
 }
+
+export interface PaymentInstructions { method?: string; bank_name?: string; account_name?: string; account_number?: string; promptpay?: string; note?: string; }
+export interface CheckoutResult { ok: boolean; error?: string; order?: OrderItem; }

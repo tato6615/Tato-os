@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { RoastType, GrindType, OrderItem } from '../types';
+import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
+import { PaymentBox } from './ReceiptsPanel';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
 import { useLanguage, translateText } from '../i18n';
 
 interface ProductViewProps {
   initialRoast?: RoastType;
-  onOrderSuccess: (order: OrderItem) => Promise<{ ok: boolean; error?: string }>;
+  onOrderSuccess: (order: OrderItem) => Promise<CheckoutResult>;
   onViewOrders: () => void;
 }
 
@@ -165,7 +166,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     setSubmitting(true);
     try {
       const result = await onOrderSuccess(newOrder);
-      if (result.ok) setCompletedOrder(newOrder);
+      if (result.ok && result.order) setCompletedOrder(result.order);
       else setSubmitError('สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อร้านโดยตรง (' + (result.error || 'ERROR') + ')');
     } catch {
       setSubmitError('เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่');
@@ -732,7 +733,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 </div>
                 <div>
                   <span className="font-mono text-[11px] text-[#ff5e1a] uppercase tracking-widest block font-bold">
-                    ORDER CONFIRMED #{completedOrder.orderNumber}
+                    ORDER RECEIVED #{completedOrder.orderNumber}
                   </span>
                   <h2 className="font-['Manrope'] text-xl md:text-2xl text-[#e6e1df] font-semibold">
                     ขอบคุณสำหรับคำสั่งซื้อ TATO Coffee
@@ -780,39 +781,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   </div>
                 </div>
 
-                {/* Simulated PromptPay QR if selected */}
-                {completedOrder.customer.paymentMethod === 'promptpay' && (
-                  <div className="mt-3 p-4 rounded-lg bg-[#211f1e] border border-[#ff5e1a]/30 text-center space-y-2">
-                    <span className="font-['Manrope'] text-[11px] font-bold text-[#ff5e1a] uppercase tracking-wider block">
-                      PROMPTPAY QR PAYMENT (สแกนชำระเงิน)
-                    </span>
-                    <div className="w-36 h-36 mx-auto bg-white p-2 rounded-lg flex flex-col items-center justify-center">
-                      {/* SVG Simulation of QR Code */}                      <svg viewBox="0 0 100 100" className="w-full h-full text-black">
-                        <rect x="5" y="5" width="25" height="25" fill="black" />
-                        <rect x="10" y="10" width="15" height="15" fill="white" />
-                        <rect x="13" y="13" width="9" height="9" fill="black" />
-                        <rect x="70" y="5" width="25" height="25" fill="black" />
-                        <rect x="75" y="10" width="15" height="15" fill="white" />
-                        <rect x="78" y="13" width="9" height="9" fill="black" />
-                        <rect x="5" y="70" width="25" height="25" fill="black" />
-                        <rect x="10" y="75" width="15" height="15" fill="white" />
-                        <rect x="13" y="78" width="9" height="9" fill="black" />
-                        <rect x="40" y="20" width="8" height="8" fill="black" />
-                        <rect x="50" y="35" width="8" height="8" fill="black" />
-                        <rect x="40" y="50" width="15" height="15" fill="black" />
-                        <rect x="70" y="65" width="10" height="20" fill="black" />
-                        <rect x="60" y="80" width="15" height="10" fill="black" />
-                        <rect x="35" y="75" width="8" height="15" fill="black" />
-                      </svg>
-                    </div>
-                    <p className="font-mono text-[11px] text-[#e3beb3]/80">
-                      PromptPay ID: 081-234-5678 (TATO COFFEE ESTATE)
-                    </p>
-                    <p className="text-[11px] text-[#f3bc8b] font-['Anuphan']">
-                      ยอดชำระ: {completedOrder.total.toLocaleString('th-TH')} บาท (บันทึกสลิปหรือชำระภายใน 24 ชม.)
-                    </p>
-                  </div>
-                )}
+                <PaymentBox order={completedOrder} />
               </div>
 
               <div className="space-y-2 pt-1">

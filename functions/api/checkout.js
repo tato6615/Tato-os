@@ -82,6 +82,7 @@ export async function onRequestPost(context){
     const productId=text(b.product_id), name=text(b.name), email=text(b.email), phone=text(b.phone);
     const kg=Number(b.quantity_kg), contentId=text(b.content_id), sessionId=text(b.session_id), paymentMethod=text(b.payment_method);
     if(!productId||!name||(!email&&!phone)||!(kg>0))return json({success:false,layer:LAYER,status:"CHECKOUT_FIELDS_REQUIRED",error:"product_id, name, email_or_phone and quantity_kg are required"},400);
+    if(kg>100)return json({success:false,layer:LAYER,status:"QUANTITY_TOO_LARGE",error:"quantity_kg must be 100 or less"},400);
     const p=await product(db,productId);
     if(!p)return json({success:false,layer:LAYER,status:"PRODUCT_NOT_FOUND"},404);
     if(text(p.status).toLowerCase()&&text(p.status).toLowerCase()!=="active")return json({success:false,layer:LAYER,status:"PRODUCT_NOT_ACTIVE"},400);
@@ -99,7 +100,7 @@ export async function onRequestPost(context){
       await insertDynamic(db,"customers",data);
       customer=await db.prepare("SELECT * FROM customers WHERE id=? LIMIT 1").bind(id).first();
     }
-    const amount=Number((unit*kg).toFixed(2)), orderId="order_"+crypto.randomUUID();
+    const subtotal=Math.round(Math.round(kg*1000)*unit/1000), shipping=kg>=2?0:50, amount=subtotal+shipping, orderId="order_"+crypto.randomUUID();
     const orderData={id:orderId,customer_id:customer.id,product_id:productId,total_amount:amount,amount,total_kg:kg,quantity:kg,qty:kg,currency:"THB",status:"pending",payment_method:paymentMethod||null,source:"PUBLIC_CHECKOUT",content_id:contentId||null,created_at:now()};
     const orderCols=await cols(db,"orders");
     const allowed=new Set(orderCols);
@@ -111,7 +112,7 @@ export async function onRequestPost(context){
 
     return json({
       success:true,layer:LAYER,version:"1.0",status:"ORDER_CREATED",
-      order:{id:orderId,customer_id:customer.id,product_id:productId,quantity_kg:kg,amount,currency:"THB",status:"pending"},
+      order:{id:orderId,customer_id:customer.id,product_id:productId,quantity_kg:kg,subtotal,shipping,amount,currency:"THB",status:"pending",payment_method:paymentMethod||null},
       payment_instructions:{
         method:String(context.env.PAYMENT_METHOD||"BANK_TRANSFER"),
         bank_name:String(context.env.PAYMENT_BANK_NAME||""),
