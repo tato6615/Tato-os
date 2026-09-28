@@ -47,6 +47,7 @@ export interface OrderItem {
   orderNumber: string;
   status: 'Roast Queued' | 'Roasting' | 'Degassing & Packing' | 'Dispatched';
   serverId?: string;
+  lineOa?: string;
   payment?: PaymentInstructions;
 }
 

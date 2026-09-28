@@ -54,6 +54,16 @@ async function product(db,id){
   return await db.prepare("SELECT * FROM products WHERE id=? LIMIT 1").bind(id).first();
 }
 function price(p){return Number(p?.price??p?.sale_price??p?.cost_price??p?.unit_price??0);}
+function clip(v,n){return text(v).slice(0,n);}
+async function ensureDetails(db){
+  await db.prepare("CREATE TABLE IF NOT EXISTS order_details (order_id TEXT PRIMARY KEY, name TEXT, phone TEXT, email TEXT, address TEXT, roast TEXT, grind TEXT, note TEXT, payment_method TEXT, created_at TEXT)").run();
+}
+async function notify(env,msg){
+  const jobs=[];
+  if(env.TELEGRAM_BOT_TOKEN&&env.TELEGRAM_CHAT_ID) jobs.push(fetch("https://api.telegram.org/bot"+env.TELEGRAM_BOT_TOKEN+"/sendMessage",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text:msg})}).catch(()=>{}));
+  if(env.LINE_CHANNEL_TOKEN&&env.LINE_OWNER_USER_ID) jobs.push(fetch("https://api.line.me/v2/bot/message/push",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+env.LINE_CHANNEL_TOKEN},body:JSON.stringify({to:env.LINE_OWNER_USER_ID,messages:[{type:"text",text:msg.slice(0,4900)}]})}).catch(()=>{}));
+  await Promise.all(jobs);
+}
 export async function onRequestGet(context){
   try{
     const db=context.env?.DB;
@@ -105,11 +115,19 @@ export async function onRequestPost(context){
     const orderCols=await cols(db,"orders");
     const allowed=new Set(orderCols);
     const names=Object.keys(orderData).filter(k=>allowed.has(k));
-    await db.prepare("INSERT INTO orders ("+names.join(",")+") VALUES ("+names.map(()=>"?").join(",")+")").bind(...names.map(k=>orderData[k])).run();
+    await ensureDetails(db);
+    await db.batch([
+      db.prepare("INSERT INTO orders ("+names.join(",")+") VALUES ("+names.map(()=>"?").join(",")+")").bind(...names.map(k=>orderData[k])),
+      db.prepare("INSERT INTO order_details (order_id,name,phone,email,address,roast,grind,note,payment_method,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(orderId,clip(name,120),clip(phone,40),clip(email,120),clip(b.address,500),clip(b.roast,30),clip(b.grind,30),clip(b.note,500),paymentMethod||null,now())
+    ]);
 
     await recordEvent(db,"customer_created",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId});
     await recordEvent(db,"purchase_intent",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId,amount,quantity_kg:kg});
 
+    const orderNo="TATO-"+orderId.replace("order_","").slice(0,8).toUpperCase();
+    const msg="🛒 ออเดอร์ใหม่ "+orderNo+"\nยอด "+amount+" บาท ("+kg+" กก.)\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+clip(phone,40)+"\nที่อยู่: "+clip(b.address,300)+"\nหมายเหตุ: "+clip(b.note,200)+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+new URL(context.request.url).origin+"/admin/";
+    const nj=notify(context.env,msg);
+    if(context.waitUntil) context.waitUntil(nj); else await nj;
     return json({
       success:true,layer:LAYER,version:"1.0",status:"ORDER_CREATED",
       order:{id:orderId,customer_id:customer.id,product_id:productId,quantity_kg:kg,subtotal,shipping,amount,currency:"THB",status:"pending",payment_method:paymentMethod||null},
@@ -121,6 +139,7 @@ export async function onRequestPost(context){
         promptpay:String(context.env.PAYMENT_PROMPTPAY||""),
         note:"After transfer, send the payment proof to the seller. The order becomes PAID only after verification."
       },
+      contact:{line_oa:String(context.env.PAYMENT_LINE_OA||"")},
       next:"Operator verifies the real payment with /api/business-money operation=confirm_payment."
     },201);
   }catch(e){return json({success:false,layer:LAYER,status:"ERROR",error:e?.message||String(e)},400);}

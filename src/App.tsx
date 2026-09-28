@@ -15,7 +15,7 @@ async function sendCheckout(order: OrderItem): Promise<CheckoutResult> {
     const data = await res.json().catch(()=>({} as any));
     if (!res.ok || data.success === false || !data.order?.id) return { ok:false, error: data.status || data.error || `HTTP_${res.status}` };
     const oid = String(data.order.id);
-    const merged: OrderItem = { ...order, serverId: oid, orderNumber: 'TATO-' + oid.replace('order_','').slice(0,8).toUpperCase(), subtotal: Number(data.order.subtotal ?? order.subtotal), shipping: Number(data.order.shipping ?? order.shipping), total: Number(data.order.amount ?? order.total), payment: data.payment_instructions };
+    const merged: OrderItem = { ...order, serverId: oid, orderNumber: 'TATO-' + oid.replace('order_','').slice(0,8).toUpperCase(), subtotal: Number(data.order.subtotal ?? order.subtotal), shipping: Number(data.order.shipping ?? order.shipping), total: Number(data.order.amount ?? order.total), payment: data.payment_instructions, lineOa: data.contact && data.contact.line_oa ? String(data.contact.line_oa) : undefined };
     return { ok:true, order: merged };
   } catch (e) {
     return { ok:false, error: e instanceof Error ? e.message : 'NETWORK_ERROR' };

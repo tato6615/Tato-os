@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TATO ออเดอร์</title>
+<style>
+body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun",sans-serif}
+header{position:sticky;top:0;background:#141312;border-bottom:1px solid #2b2a28;padding:12px 16px;z-index:5}
+h1{margin:0 0 8px;font-size:18px}
+.tabs button{background:#2b2a28;color:#e6e1df;border:0;border-radius:8px;padding:8px 14px;margin-right:6px;font-size:14px}
+.tabs button.on{background:#ff5e1a;color:#390c00;font-weight:700}
+main{padding:12px 16px;max-width:760px;margin:auto}
+.sum{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px}
+.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:14px;margin-bottom:12px;font-size:14px;line-height:1.6}
+.row{display:flex;justify-content:space-between;gap:12px}.row span:last-child{text-align:right}
+.no{color:#ff5e1a;font-weight:700}.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:#3a2a20}
+.tag.paid{background:#173a24;color:#7be0a0}
+.ok{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;font-size:15px}
+.dim{color:#a39a95}a{color:#f3bc8b}
+</style></head><body>
+<header><h1>TATO ออเดอร์</h1><div class="tabs"><button data-f="pending" class="on">รอชำระ</button><button data-f="paid">จ่ายแล้ว (เข้าคิวคั่ว)</button><button data-f="all">ทั้งหมด</button></div></header>
+<main><div id="sum"></div><div id="list"></div></main>
+<script>
+var all=[],filter="pending";
+function money(n){return Number(n||0).toLocaleString("th-TH")}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function row(k,v){var r=el("div","row");r.appendChild(el("span","dim",k));r.appendChild(el("span",null,v));return r}
+async function api(u,o){var r=await fetch(u,Object.assign({cache:"no-store"},o||{}));var j=await r.json().catch(function(){return{}});if(!r.ok||j.success===false)throw new Error(j.status||j.error||("HTTP "+r.status));return j}
+async function load(){try{var j=await api("/api/admin-orders");all=j.orders||[];render()}catch(e){document.getElementById("list").textContent="โหลดไม่สำเร็จ: "+e.message}}
+async function confirmPaid(o){
+  if(!confirm("ยืนยันว่าเงิน "+money(o.amount)+" บาท จากออเดอร์ "+o.number+" เข้าบัญชีแล้ว?"))return;
+  try{await api("/api/business-money",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({operation:"confirm_payment",order_id:o.id,external_payment_id:"MANUAL-"+o.id,amount:o.amount,payment_method:o.payment_method||"promptpay"})});await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
+}
+function render(){
+  var paid=all.filter(function(o){return o.status==="paid"});
+  var by={};paid.forEach(function(o){var k=(o.roast||"?")+" / "+(o.grind||"?");by[k]=(by[k]||0)+o.kg});
+  var s=document.getElementById("sum");s.textContent="";
+  var pend=all.filter(function(o){return o.status!=="paid"});
+  s.className="sum";
+  s.appendChild(el("div",null,"รอชำระ "+pend.length+" ออเดอร์ · จ่ายแล้ว "+paid.length+" ออเดอร์ ("+money(paid.reduce(function(a,o){return a+o.amount},0))+" บาท)"));
+  Object.keys(by).forEach(function(k){s.appendChild(el("div","dim","คั่ว: "+k+" = "+by[k]+" กก."))});
+  var l=document.getElementById("list");l.textContent="";
+  var items=all.filter(function(o){return filter==="all"||(filter==="paid"?o.status==="paid":o.status!=="paid")});
+  if(!items.length)l.appendChild(el("p","dim","ไม่มีออเดอร์"));
+  items.forEach(function(o){
+    var c=el("div","card");
+    var h=el("div","row");h.appendChild(el("span","no",o.number));h.appendChild(el("span","tag"+(o.status==="paid"?" paid":""),o.status==="paid"?"จ่ายแล้ว":"รอชำระ"));c.appendChild(h);
+    c.appendChild(row("เวลา",new Date(o.created_at).toLocaleString("th-TH")));
+    c.appendChild(row("ผู้รับ",o.name));
+    var pr=el("div","row");pr.appendChild(el("span","dim","เบอร์"));var a=el("a",null,o.phone);a.href="tel:"+o.phone;var sp=el("span");sp.appendChild(a);pr.appendChild(sp);c.appendChild(pr);
+    c.appendChild(row("ที่อยู่",o.address||"(ไม่มีข้อมูล)"));
+    c.appendChild(row("คั่ว / บด",(o.roast||"-")+" / "+(o.grind||"-")));
+    c.appendChild(row("ปริมาณ",o.kg+" กก."));
+    if(o.note)c.appendChild(row("หมายเหตุ",o.note));
+    c.appendChild(row("ยอด",money(o.amount)+" บาท"));
+    if(o.status!=="paid"){var b=el("button","ok","ยืนยันว่าเงินเข้าแล้ว");b.onclick=function(){confirmPaid(o)};c.appendChild(b)}
+    l.appendChild(c);
+  });
+}
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){filter=b.dataset.f;document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});render()}});
+load();setInterval(load,30000);
+</script></body></html>

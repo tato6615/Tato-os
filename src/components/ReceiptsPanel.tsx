@@ -1,26 +1,54 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { OrderItem } from '../types';
+import { promptpayPayload } from '../lib/promptpay';
 
 const thb = (n: number) => n.toLocaleString('th-TH') + ' บาท';
 
 export const PaymentBox: React.FC<{ order: OrderItem }> = ({ order }) => {
   const p = order.payment || {};
-  const has = !!(p.promptpay || p.account_number);
+  const [qr, setQr] = useState('');
+  useEffect(() => {
+    let on = true;
+    if (p.promptpay) {
+      const payload = promptpayPayload(p.promptpay, order.total);
+      if (payload) QRCode.toDataURL(payload, { margin: 1, width: 300 }).then((u) => { if (on) setQr(u); }).catch(() => {});
+    }
+    return () => { on = false; };
+  }, [p.promptpay, order.total]);
+
+  const msg = 'สวัสดีครับ ส่งสลิปออเดอร์ ' + order.orderNumber + ' ยอด ' + order.total + ' บาท';
+  const oa = (order.lineOa || '').trim();
+  const lineUrl = oa ? 'https://line.me/R/oaMessage/' + oa + '/?' + encodeURIComponent(msg) : '';
+  const hasBank = !!p.account_number;
+
   return (
-    <div className="mt-3 p-4 rounded-lg bg-[#211f1e] border border-[#ff5e1a]/30 space-y-1.5 font-mono text-[12px] text-[#e3beb3]/90">
-      <span className="font-bold text-[#ff5e1a] uppercase tracking-wider block text-[11px]">ช่องทางชำระเงิน / PAYMENT</span>
-      {has ? (
-        <>
-          {p.promptpay ? <div>PromptPay: <span className="text-[#e6e1df]">{p.promptpay}</span></div> : null}
+    <div className="mt-3 p-4 rounded-lg bg-[#211f1e] border border-[#ff5e1a]/30 space-y-2 text-[12px] text-[#e3beb3]/90">
+      <span className="font-mono font-bold text-[#ff5e1a] uppercase tracking-wider block text-[11px]">ช่องทางชำระเงิน / PAYMENT</span>
+      {qr ? (
+        <div className="text-center space-y-2">
+          <div className="w-48 h-48 mx-auto bg-white p-2 rounded-lg"><img src={qr} alt="PromptPay QR" className="w-full h-full" /></div>
+          <div className="font-['Anuphan'] text-[#f3bc8b] text-[14px]">สแกนจ่าย {thb(order.total)}</div>
+          <a href={qr} download={'tato-' + order.orderNumber + '.png'} className="inline-block text-[11px] underline text-[#e3beb3]">บันทึกรูป QR</a>
+        </div>
+      ) : null}
+      {hasBank ? (
+        <div className="font-mono space-y-0.5">
           {p.bank_name ? <div>ธนาคาร: <span className="text-[#e6e1df]">{p.bank_name}</span></div> : null}
-          {p.account_number ? <div>เลขบัญชี: <span className="text-[#e6e1df]">{p.account_number}</span></div> : null}
+          <div>เลขบัญชี: <span className="text-[#e6e1df]">{p.account_number}</span></div>
           {p.account_name ? <div>ชื่อบัญชี: <span className="text-[#e6e1df]">{p.account_name}</span></div> : null}
-          <div className="text-[#f3bc8b] font-['Anuphan']">ยอดที่ต้องโอน: {thb(order.total)}</div>
-          <div className="text-[#e3beb3]/70 font-['Anuphan']">โอนแล้วส่งสลิปพร้อมเลขออเดอร์ให้ร้าน ออเดอร์จะยืนยันเมื่อร้านตรวจสอบยอดแล้ว</div>
-        </>
-      ) : (
+        </div>
+      ) : null}
+      {!qr && !hasBank ? (
         <div className="text-[#f3bc8b] font-['Anuphan']">ร้านจะติดต่อกลับทางเบอร์ {order.customer.phone || order.customer.email} เพื่อแจ้งช่องทางชำระเงิน ยอด {thb(order.total)}</div>
+      ) : (
+        <div className="font-['Anuphan'] text-[#e3beb3]/80">
+          โอนแล้วส่งสลิปพร้อมเลขออเดอร์ <span className="text-[#e6e1df] font-mono">{order.orderNumber}</span> ให้ร้าน ออเดอร์จะเข้าคิวคั่วหลังร้านตรวจยอดแล้ว
+        </div>
       )}
+      {lineUrl ? (
+        <a href={lineUrl} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-2.5 rounded-lg bg-[#06c755] text-white font-bold text-[13px]">ส่งสลิปทาง LINE</a>
+      ) : null}
     </div>
   );
 };
@@ -38,7 +66,7 @@ export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClo
           <p className="font-['Anuphan'] text-[14px] text-[#e3beb3]">ยังไม่มีคำสั่งซื้อในเครื่องนี้</p>
         ) : orders.map((o) => (
           <div key={o.id} className="bg-[#1d1b1a] rounded-xl p-4 border border-[#2b2a28] space-y-1.5 font-mono text-[12px] text-[#e3beb3]/80">
-            <div className="flex justify-between text-[#ff5e1a] font-bold"><span>#{o.orderNumber}</span><span>รอตรวจสอบการชำระเงิน</span></div>
+            <div className="flex justify-between text-[#ff5e1a] font-bold"><span>#{o.orderNumber}</span><span>รอชำระเงิน / รอตรวจสลิป</span></div>
             <div className="flex justify-between"><span>วันที่</span><span>{new Date(o.timestamp).toLocaleString('th-TH')}</span></div>
             <div className="flex justify-between"><span>ผู้รับ</span><span className="text-[#e6e1df]">{o.customer.name}</span></div>
             <div className="flex justify-between"><span>เบอร์โทร</span><span className="text-[#e6e1df]">{o.customer.phone}</span></div>
