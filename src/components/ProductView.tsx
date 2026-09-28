@@ -5,7 +5,7 @@ import { useLanguage, translateText } from '../i18n';
 
 interface ProductViewProps {
   initialRoast?: RoastType;
-  onOrderSuccess: (order: OrderItem) => void;
+  onOrderSuccess: (order: OrderItem) => Promise<{ ok: boolean; error?: string }>;
   onViewOrders: () => void;
 }
 
@@ -32,6 +32,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   // Success state
   const [completedOrder, setCompletedOrder] = useState<OrderItem | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { language } = useLanguage();
   const tr = (en: string, th: string) => language === 'th' ? th : en;
 
@@ -109,7 +111,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     setQuantityInput(String(next));
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { [key: string]: string } = {};
 
@@ -158,8 +160,18 @@ export const ProductView: React.FC<ProductViewProps> = ({
       status: 'Roast Queued',
     };
 
-    setCompletedOrder(newOrder);
-    onOrderSuccess(newOrder);
+    if (submitting) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const result = await onOrderSuccess(newOrder);
+      if (result.ok) setCompletedOrder(newOrder);
+      else setSubmitError('สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อร้านโดยตรง (' + (result.error || 'ERROR') + ')');
+    } catch {
+      setSubmitError('เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetOrderForm = () => {
@@ -693,9 +705,15 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
               {/* High Prominence Call to Action */}
               <div className="space-y-2">
+                {submitError && (
+                  <p className="text-center text-[13px] text-[#ff6b6b] bg-[#3a0f0f] rounded-lg py-2 px-3">
+                    ⚠️ {submitError}
+                  </p>
+                )}
                 <button
                   type="submit"
-                  className="w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] flex items-center justify-center gap-2 active:scale-[0.99]"
+                  disabled={submitting}
+                  className="disabled:opacity-60 w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
                   <span>ORDER TATO · สั่งซื้อ TATO</span>
