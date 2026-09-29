@@ -67,7 +67,7 @@
 8. [เสร็จ 29 ก.ย. แทนที่ด้วย 'ยังไม่มีข้อมูลพอสำหรับสรุป'; ปุ่ม agent ติดป้าย 'จำลอง' แล้ว] การ์ดล่างสุดของ HQ (AI Recommendation / "14 reorder candidates" / Growth Experiment) เป็นข้อความสำเร็จรูป ตัวเลขไม่มาจากข้อมูลจริง
    - หาที่มา: grep -n -E "reorder|candidates|café profit|Growth Experiment" public/system/index.html | cut -c1-200
    - ปุ่ม agent ใน HQ (บรรทัดที่มี setTimeout) เป็น toast จำลอง: grep -n "completed · founder review" public/system/index.html | cut -c1-120
-9. ตัวตรวจอุปกรณ์ mobile ใน src/App.tsx ใช้ /Mobi/ ซึ่งตรวจ iPad ไม่เจอ
+9. [เสร็จ 29 ก.ย. เพิ่มเงื่อนไข Macintosh+maxTouchPoints แล้ว] ตัวตรวจอุปกรณ์ mobile ใน src/App.tsx ใช้ /Mobi/ ซึ่งตรวจ iPad ไม่เจอ
    - เช็ก: grep -n "Mobi" src/App.tsx | cut -c1-200
 10. ข้อจำกัดของตัววัด (ไม่ใช่บั๊กเร่งด่วน)
    - getOrders ไม่เช็กว่าออเดอร์เกิดหลังคลิก (นับทุกออเดอร์ของลูกค้าที่ผูกไว้หลัง measurement_start)
