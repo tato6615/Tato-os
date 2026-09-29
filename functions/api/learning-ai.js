@@ -137,6 +137,7 @@ async function getIntelligence(
     await fetch(endpoint, {
       method: "GET",
       headers: {
+        authorization: request.headers.get("authorization") || "",
         accept:
           "application/json"
       }
