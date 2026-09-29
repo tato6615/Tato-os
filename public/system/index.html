@@ -57,8 +57,8 @@ async function loadDashboard(){
     set('dashOrders',n(paidOs.length)+' paid · '+n(pendOs.length)+' awaiting (฿'+n(pendAmt)+')'); set('dashCustomers',n(cs.length));
     set('dashKg',n(kg)+' kg');set('dashKgMeta',pendKg?('+'+n(pendKg)+' kg awaiting payment'):'from paid orders'); set('dashRepeat',buying?((repeat/buying)*100).toFixed(1)+'%':'0%'); set('dashRepeatMeta',n(repeat)+' repeat');
     set('dashBehavior',n(bs.length)); set('dashMarket',n(ms.length)+' market signals');
-    const latestM=learning?.learning?.latest_measurement||learning?.measurement||{};
-    const totals=learning?.learning?.totals||{};
+    const latestM=learning?.learning?.latest_measurement||learning?.learning?.evidence?.latest_measurement||learning?.measurement||{};
+    const totals=learning?.learning?.totals||learning?.learning?.evidence?.metrics||{};
     set('dashAttention',n(latestM.attention??totals.attention)); set('dashClicks',n(latestM.clicks??totals.clicks));
     set('dashProductViews',n(latestM.product_views??totals.product_views)); set('dashFunnelCustomers',n(latestM.customers??totals.customers));
     set('dashFunnelOrders',n(latestM.orders??totals.orders)); set('dashFunnelRevenue',money(latestM.revenue??totals.revenue));
@@ -91,9 +91,9 @@ async function loadLearning(){
 }
 function renderLearning(d){
   const l=d.learning||{};
-  const m=l.latest_measurement||d.measurement||d.metrics?.latest||{};
-  const totals=l.totals||d.metrics?.totals||{};
-  const c=l.conversions||d.conversion||{};
+  const m=l.latest_measurement||l.evidence?.latest_measurement||d.measurement||d.metrics?.latest||{};
+  const totals=l.totals||l.evidence?.metrics||d.metrics?.totals||{};
+  const c=l.conversions||l.evidence?.conversions||d.conversion||{};
   const patterns=l.patterns||{};
   const insights=l.insights||[];
   const decision=l.decision_input||{};
