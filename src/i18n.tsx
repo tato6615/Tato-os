@@ -317,7 +317,7 @@ const DICT: Record<string, [string, string]> = {
   'ROAST-TO-ORDER': ['คั่วตามสั่ง', 'ROAST-TO-ORDER'],
   'HARVEST SPECIMEN': ['ตัวอย่างผลผลิตจากล็อตเก็บเกี่ยว', 'HARVEST SPECIMEN'],
   'TERROIR SPECIFICATION': ['ข้อมูลแหล่งกำเนิด', 'TERROIR SPECIFICATION'],
-  'Cherries selectively hand-picked at peak ripeness on northern steep volcanic slopes. Cold mountain night fermentation.': ['เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภูเขา และหมักด้วยอุณหภูมิกลางคืนที่เย็นจากภูเขา', 'Cherries selectively hand-picked at peak ripeness on northern steep volcanic slopes. Cold mountain night fermentation.'],
+  'Cherries selectively hand-picked at peak ripeness on steep northern highland slopes. Cold mountain night fermentation.': ['เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภูเขา และหมักด้วยอุณหภูมิกลางคืนที่เย็นจากภูเขา', 'Cherries selectively hand-picked at peak ripeness on steep northern highland slopes. Cold mountain night fermentation.'],
   'Packaging': ['บรรจุภัณฑ์', 'Packaging'],
   'Degassing Valve': ['วาล์วคายแก๊ส', 'Degassing Valve'],
   'Pouch Barrier': ['ชั้นป้องกันของถุง', 'Pouch Barrier'],

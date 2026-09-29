@@ -293,7 +293,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   {tr('TERROIR SPECIFICATION', 'ข้อมูลแหล่งกำเนิดและสภาพพื้นที่')}
                 </span>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 line-clamp-2 leading-relaxed">
-                  {tr('Cherries selectively hand-picked at peak ripeness on northern steep volcanic slopes. Cold mountain night fermentation.', 'เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภาคเหนือ และหมักในอุณหภูมิที่เย็นจากภูเขายามค่ำคืน')}
+                  {tr('Cherries selectively hand-picked at peak ripeness on steep northern highland slopes. Cold mountain night fermentation.', 'เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภาคเหนือ และหมักในอุณหภูมิที่เย็นจากภูเขายามค่ำคืน')}
                 </p>
               </div>
               <div className="pt-2 flex items-center justify-between font-mono text-[11px] text-[#d4c3bd]">
