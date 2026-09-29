@@ -22,7 +22,7 @@ async function sendCheckout(order: OrderItem): Promise<CheckoutResult> {
   }
 }
 
-function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',...metadata}})}).catch(()=>{});}
+function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',content_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',...metadata}})}).catch(()=>{});}
 
 function CustomerApp(){
  if (window.location.pathname === '/system' || window.location.pathname === '/system/') { window.location.replace('/system/index.html'); return null; }
