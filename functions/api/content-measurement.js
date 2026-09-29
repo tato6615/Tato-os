@@ -594,7 +594,8 @@ async function getOrders(
              ) AS revenue
            FROM orders
            WHERE customer_id IN (${placeholders})
-             AND created_at >= ?`
+             AND created_at >= ?
+             AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')`
         )
         .bind(
           ...customerIds,
