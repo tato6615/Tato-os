@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
 import { PaymentBox } from './ReceiptsPanel';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
@@ -7,12 +7,14 @@ import { useLanguage, translateText } from '../i18n';
 interface ProductViewProps {
   initialRoast?: RoastType;
   onOrderSuccess: (order: OrderItem) => Promise<CheckoutResult>;
+  onTrack?: (event_type: string, metadata?: Record<string, unknown>) => void;
   onViewOrders: () => void;
 }
 
 export const ProductView: React.FC<ProductViewProps> = ({
   initialRoast = 'medium',
   onOrderSuccess,
+  onTrack,
   onViewOrders,
 }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>(initialRoast);
@@ -35,6 +37,27 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [completedOrder, setCompletedOrder] = useState<OrderItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const checkoutStartedRef = useRef(false);
+  const orderDoneRef = useRef(false);
+  const startCheckout = () => {
+    if (checkoutStartedRef.current) return;
+    checkoutStartedRef.current = true;
+    onTrack?.('checkout_start');
+  };
+  useEffect(() => {
+    const fireAbandon = () => {
+      if (checkoutStartedRef.current && !orderDoneRef.current) {
+        checkoutStartedRef.current = false;
+        onTrack?.('checkout_abandon');
+      }
+    };
+    window.addEventListener('pagehide', fireAbandon);
+    return () => {
+      window.removeEventListener('pagehide', fireAbandon);
+      fireAbandon();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { language } = useLanguage();
   const tr = (en: string, th: string) => language === 'th' ? th : en;
 
@@ -166,7 +189,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     setSubmitting(true);
     try {
       const result = await onOrderSuccess(newOrder);
-      if (result.ok && result.order) setCompletedOrder(result.order);
+      if (result.ok && result.order) { orderDoneRef.current = true; setCompletedOrder(result.order); }
       else setSubmitError('สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อร้านโดยตรง (' + (result.error || 'ERROR') + ')');
     } catch {
       setSubmitError('เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่');
@@ -176,6 +199,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
   };
 
   const resetOrderForm = () => {
+    orderDoneRef.current = false;
+    checkoutStartedRef.current = false;
     setCompletedOrder(null);
     setQuantityKg(0.5);
     setQuantityInput('0.5');
@@ -370,7 +395,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
           {/* ORDER CONFIGURATION OR SUCCESS STAGE */}
           {!completedOrder ? (
-            <form onSubmit={handleFormSubmit} className="space-y-7">
+            <form onFocusCapture={startCheckout} onSubmit={handleFormSubmit} className="space-y-7">
               {/* Roast Profile Selector */}
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
@@ -388,7 +413,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                     return (
                       <div
                         key={profile.id}
-                        onClick={() => setSelectedRoast(profile.id)}
+                        onClick={() => { setSelectedRoast(profile.id); onTrack?.('option_change', { option: 'roast', value: profile.id }); }}
                         className={`cursor-pointer p-4 rounded-xl transition-all duration-200 flex flex-col justify-between border ${
                           isSelected
                             ? 'bg-[#ff5e1a]/10 border-[#ff5e1a]'
@@ -446,7 +471,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       <button
                         type="button"
                         key={grind.id}
-                        onClick={() => setSelectedGrind(grind.id)}
+                        onClick={() => { setSelectedGrind(grind.id); onTrack?.('option_change', { option: 'grind', value: grind.id }); }}
                         className={`text-left p-3 rounded-lg border transition-all ${
                           isSelected
                             ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'

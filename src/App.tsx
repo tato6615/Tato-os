@@ -22,7 +22,7 @@ async function sendCheckout(order: OrderItem): Promise<CheckoutResult> {
   }
 }
 
-function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',content_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',is_test:(()=>{try{return localStorage.getItem('tato_is_test')==='1'}catch{return false}})(),...metadata}})}).catch(()=>{});}
+function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{keepalive:true,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',content_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',is_test:(()=>{try{return localStorage.getItem('tato_is_test')==='1'}catch{return false}})(),...metadata}})}).catch(()=>{});}
 
 function CustomerApp(){
  if (window.location.pathname === '/system' || window.location.pathname === '/system/') { window.location.replace('/system/index.html'); return null; }
@@ -36,7 +36,7 @@ function CustomerApp(){
  const openProduct=(r:RoastType=roast)=>{setRoast(r);setView('product');track('content_click',{roast:r});track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
   <Header currentView={view} onNavigate={navigate} cartCount={1} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>setShowReceipt(true)}/>
-  <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>setShowReceipt(true)}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>
+  <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} onTrack={track} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>setShowReceipt(true)}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>
   <Footer/>
   <ReceiptsPanel open={showReceipt} orders={orders} onClose={()=>setShowReceipt(false)}/>
  </div>;
