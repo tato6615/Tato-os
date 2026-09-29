@@ -384,6 +384,15 @@ async function markFeedbackMeasurementCompleted(
   }
 }
 
+function isTestEvent(row) {
+  try {
+    const m = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+    return m && (m.is_test === true || m.is_test === 1 || m.is_test === '1');
+  } catch (_) {
+    return false;
+  }
+}
+
 async function getBehaviorEvents(db, measurementStart) {
   try {
     const result = await db
@@ -396,7 +405,7 @@ async function getBehaviorEvents(db, measurementStart) {
       .bind(measurementStart)
       .all();
 
-    return result.results || [];
+    return (result.results || []).filter((r) => !isTestEvent(r));
   } catch (_) {
     return [];
   }
