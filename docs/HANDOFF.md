@@ -102,3 +102,12 @@
 - ทดสอบก่อนแจก: เปิดลิงก์ในเบราว์เซอร์ กดเลือกเมล็ด 1 ครั้ง แล้วดูใน D1 Console ว่าข้อมูลล่าสุดมีค่า src ตรงกับช่องทาง
   SELECT * FROM behavior_events ORDER BY created_at DESC LIMIT 5;
 - เกณฑ์ "ข้อมูลจริงพอ" ก่อนทำข้อ 11-13: เซสชันจริงอย่างน้อย 30-50 ครั้ง ไม่นับ is_test
+
+## อัปเดต 29 ก.ย. 2569 (รอบแก้คำว่า volcanic)
+- ตัดคำว่า volcanic / ภูเขาไฟ ออกจากหน้าร้านแล้ว (Footer, DiscoverView, ProductView, i18n)
+  - "Highland Climate", "Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.", "steep northern highland slopes"
+- ค้าง: "เก็บด้วยมือ" และ "หมักตอนกลางคืนอากาศเย็น" รอผู้ปลูกยืนยัน (ข้อความยังอยู่บนหน้าร้าน)
+  - ประโยคไทยใน ProductView.tsx กับ i18n.tsx ยังไม่ตรงกันเป๊ะ ให้แก้ให้เหมือนกันหลังได้คำตอบ
+- ก่อน push ต้อง git pull --rebase origin main เสมอ: มีคอมมิต "Build customer web assets" เข้า main อัตโนมัติหลัง push ทุกครั้ง ไม่ดึงก่อนจะโดนปฏิเสธ (fetch first)
+- i18n.tsx: คีย์อังกฤษต้องตรงกับข้อความอังกฤษในโค้ด ถ้าแก้อังกฤษต้องแก้คีย์ตาม ไม่งั้นหน้าไทยจะแสดงเป็นอังกฤษ
+  แก้ด้วยสคริปต์ตามเนื้อหา ไม่ใช้เลขบรรทัด (เลขเลื่อนเมื่อลบบรรทัด และ fold ตัดกลางตัวอักษรไทยได้ ให้ใช้ Python textwrap ดูข้อความไทย)
