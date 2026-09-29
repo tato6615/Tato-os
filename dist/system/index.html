@@ -47,7 +47,7 @@ async function loadDashboard(){
     const n=v=>Number(v||0).toLocaleString('en-US');
     const money=v=>'฿'+Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2});
     const cs=customers.customers||[], os=orders.orders||[], bs=behavior.events||[], ms=market.signals||[];
-    const isPaid=o=>String(o.status||'').toLowerCase()==='paid';const paidOs=os.filter(isPaid),pendOs=os.filter(o=>!isPaid(o));const amt=o=>Number(o.total_amount??o.amount??0);const kgOf=o=>Number(o.total_kg??o.quantity??o.qty??0);
+    const isPaid=o=>String(o.status||'').toLowerCase()==='paid';const paidOs=os.filter(isPaid),pendOs=os.filter(o=>!isPaid(o)&&!['cancelled','canceled'].includes(String(o.status||'').toLowerCase()));const amt=o=>Number(o.total_amount??o.amount??0);const kgOf=o=>Number(o.total_kg??o.quantity??o.qty??0);
     const revenue=paidOs.reduce((s,o)=>s+amt(o),0);const pendAmt=pendOs.reduce((s,o)=>s+amt(o),0);
     const kg=paidOs.reduce((s,o)=>s+kgOf(o),0);const pendKg=pendOs.reduce((s,o)=>s+kgOf(o),0);
     const counts={}; paidOs.forEach(o=>{const id=o.customer_id||'';if(id)counts[id]=(counts[id]||0)+1});
@@ -63,7 +63,7 @@ async function loadDashboard(){
     set('dashProductViews',n(latestM.product_views??totals.product_views)); set('dashFunnelCustomers',n(latestM.customers??totals.customers));
     set('dashFunnelOrders',n(latestM.orders??totals.orders)); set('dashFunnelRevenue',money(latestM.revenue??totals.revenue));
     set('dashFunnelState',learning?.learning?.state||learning?.status||'Measurement unavailable');
-    set('dashFunnelMeta','Learning V2.3 · '+n(learning?.learning?.evidence?.measurement?.rounds||latestM.rounds||0)+' rounds · no raw aggregation in dashboard');
+    set('dashFunnelMeta','Learning V2.3 · '+n(learning?.learning?.evidence?.measurement_rounds||learning?.learning?.evidence?.measurement?.rounds||latestM.rounds||0)+' rounds · no raw aggregation in dashboard');
     const signalBox=document.getElementById('dashSignals');
     if(signalBox){
       const rows=[];
