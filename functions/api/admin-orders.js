@@ -28,7 +28,12 @@ export async function onRequestGet(context) {
         payment_method: o.d_pm || o.payment_method || ""
       };
     });
-    return json({ success: true, orders: orders });
+    var env = context.env || {};
+    var notify = {
+      telegram: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID),
+      line: !!(env.LINE_CHANNEL_TOKEN && env.LINE_OWNER_USER_ID)
+    };
+    return json({ success: true, orders: orders, notify: notify });
   } catch (e) {
     return json({ success: false, status: "ERROR", error: e && e.message ? e.message : String(e) }, 500);
   }
