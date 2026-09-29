@@ -53,7 +53,8 @@ async function loadDashboard(){
     const counts={}; paidOs.forEach(o=>{const id=o.customer_id||'';if(id)counts[id]=(counts[id]||0)+1});
     const repeat=Object.values(counts).filter(x=>x>1).length;
     const buying=Object.keys(counts).length;
-    set('dashRevenue',money(revenue)); set('dashOrders',n(paidOs.length)+' paid · '+n(pendOs.length)+' awaiting (฿'+n(pendAmt)+')'); set('dashCustomers',n(cs.length));
+    set('dashRevenue',money(revenue)); try{const ob=document.querySelector('.nav button[data-p="orders"] span');if(ob)ob.textContent='Orders ↗'+(pendOs.length?' ('+pendOs.length+' รอ)':'')}catch(e){} /*ordersNavBadge*/
+    set('dashOrders',n(paidOs.length)+' paid · '+n(pendOs.length)+' awaiting (฿'+n(pendAmt)+')'); set('dashCustomers',n(cs.length));
     set('dashKg',n(kg)+' kg');set('dashKgMeta',pendKg?('+'+n(pendKg)+' kg awaiting payment'):'from paid orders'); set('dashRepeat',buying?((repeat/buying)*100).toFixed(1)+'%':'0%'); set('dashRepeatMeta',n(repeat)+' repeat');
     set('dashBehavior',n(bs.length)); set('dashMarket',n(ms.length)+' market signals');
     const latestM=learning?.learning?.latest_measurement||learning?.measurement||{};
