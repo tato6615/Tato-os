@@ -7,42 +7,101 @@ header{position:sticky;top:0;background:#141312;border-bottom:1px solid #2b2a28;
 h1{margin:0 0 8px;font-size:18px}
 .tabs button{background:#2b2a28;color:#e6e1df;border:0;border-radius:8px;padding:8px 14px;margin-right:6px;font-size:14px}
 .tabs button.on{background:#ff5e1a;color:#390c00;font-weight:700}
+.bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-size:12px;padding:4px 10px;border-radius:99px;background:#2b2a28;color:#cfc8c4;border:0}
+.chip.ok{background:#173a24;color:#7be0a0}.chip.warn{background:#3d2f12;color:#f3c76b}.chip.bad{background:#4a1b17;color:#ff9b91}
+button.chip{cursor:pointer}
+.banner{display:none;margin:12px 0;padding:14px;border-radius:12px;background:#ff5e1a;color:#390c00;font-weight:700;font-size:16px;text-align:center;cursor:pointer;animation:pulse 1.2s infinite}
+.banner.show{display:block}.banner small{display:block;font-weight:400;font-size:12px;margin-top:2px}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,94,26,.6)}50%{box-shadow:0 0 0 10px rgba(255,94,26,0)}}
 main{padding:12px 16px;max-width:760px;margin:auto}
 .sum{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px}
 .card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:14px;margin-bottom:12px;font-size:14px;line-height:1.6}
+.card.fresh{border-color:#ff5e1a;box-shadow:0 0 0 1px #ff5e1a}
 .row{display:flex;justify-content:space-between;gap:12px}.row span:last-child{text-align:right}
 .no{color:#ff5e1a;font-weight:700}.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:#3a2a20}
-.tag.paid{background:#173a24;color:#7be0a0}
-.ok{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;font-size:15px}
+.tag.paid{background:#173a24;color:#7be0a0}.tag.new{background:#ff5e1a;color:#390c00;font-weight:700;margin-right:6px}
+.ok-btn{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;font-size:15px}
 .dim{color:#a39a95}a{color:#f3bc8b}
 </style></head><body>
-<header><h1>TATO ออเดอร์</h1><div class="tabs"><button data-f="pending" class="on">รอชำระ</button><button data-f="paid">จ่ายแล้ว (เข้าคิวคั่ว)</button><button data-f="all">ทั้งหมด</button></div></header>
-<main><div id="sum"></div><div id="list"></div></main>
+<header><h1>TATO ออเดอร์</h1>
+<div class="tabs"><button data-f="pending" class="on" id="tPend">รอชำระ</button><button data-f="paid" id="tPaid">จ่ายแล้ว (เข้าคิวคั่ว)</button><button data-f="all">ทั้งหมด</button></div>
+<div class="bar"><span class="chip" id="cConn">กำลังเชื่อมต่อ…</span><button class="chip" id="cSound" type="button">🔊 เสียง: เปิด</button><span class="chip" id="cNotify" style="display:none"></span></div>
+</header>
+<main><div class="banner" id="banner" role="alert"></div><div id="sum"></div><div id="list"></div></main>
 <script>
-var all=[],filter="pending";
+var all=[],filter="pending",failCount=0,newIds=[],lastBeep=0,ac=null,notifyCfg=null;
+var soundOn=true;try{soundOn=localStorage.getItem("tato_sound")!=="off"}catch(e){}
 function money(n){return Number(n||0).toLocaleString("th-TH")}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function row(k,v){var r=el("div","row");r.appendChild(el("span","dim",k));r.appendChild(el("span",null,v));return r}
+function $(id){return document.getElementById(id)}
 async function api(u,o){var r=await fetch(u,Object.assign({cache:"no-store"},o||{}));var j=await r.json().catch(function(){return{}});if(!r.ok||j.success===false)throw new Error(j.status||j.error||("HTTP "+r.status));return j}
-async function load(){try{var j=await api("/api/admin-orders");all=j.orders||[];render()}catch(e){document.getElementById("list").textContent="โหลดไม่สำเร็จ: "+e.message}}
+
+/* ---- seen / new-order detection ---- */
+function getSeen(){try{var s=localStorage.getItem("tato_seen");return s?JSON.parse(s):null}catch(e){return null}}
+function setSeen(a){try{localStorage.setItem("tato_seen",JSON.stringify(a.slice(-500)))}catch(e){}}
+function detect(){
+  var seen=getSeen(),ids=all.map(function(o){return o.id});
+  if(seen===null){setSeen(ids);return}            /* first visit: do not alarm on old orders */
+  var added=ids.filter(function(id){return seen.indexOf(id)<0&&newIds.indexOf(id)<0});
+  if(added.length){newIds=newIds.concat(added);alarm()}
+}
+function ack(){setSeen(all.map(function(o){return o.id}));newIds=[];filter="pending";syncTabs();render()}
+
+/* ---- alarm: sound + vibrate + banner + title ---- */
+function unlock(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}}
+document.addEventListener("pointerdown",unlock);
+function beep(){
+  lastBeep=Date.now();
+  if(navigator.vibrate){try{navigator.vibrate([300,150,300])}catch(e){}}
+  if(!soundOn||!ac)return;
+  try{[0,.35,.7].forEach(function(t){var o=ac.createOscillator(),g=ac.createGain();o.type="sine";o.frequency.value=880;g.gain.value=.25;o.connect(g);g.connect(ac.destination);o.start(ac.currentTime+t);o.stop(ac.currentTime+t+.2)})}catch(e){}
+}
+function alarm(){beep()}
+function renderSound(){$("cSound").textContent=soundOn?"🔊 เสียง: เปิด":"🔇 เสียง: ปิด";$("cSound").className="chip"+(soundOn?" ok":"")}
+$("cSound").onclick=function(){soundOn=!soundOn;try{localStorage.setItem("tato_sound",soundOn?"on":"off")}catch(e){}unlock();renderSound();if(soundOn)beep()};
+renderSound();
+var blink=false;
+setInterval(function(){
+  var pend=all.filter(function(o){return o.status!=="paid"}).length,base=(pend?"("+pend+") ":"")+"TATO ออเดอร์";
+  if(newIds.length){blink=!blink;document.title=blink?("🔔 ออเดอร์ใหม่ "+newIds.length):base;if(Date.now()-lastBeep>20000)beep()}
+  else document.title=base;
+},1000);
+
+/* ---- render ---- */
+function syncTabs(){document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x.dataset.f===filter)})}
+function setConn(ok,msg){var c=$("cConn");if(ok){c.className="chip ok";c.textContent="🟢 เชื่อมต่อ · "+new Date().toLocaleTimeString("th-TH")}else{c.className="chip bad";c.textContent="🔴 เชื่อมต่อไม่ได้"+(failCount>1?" ("+failCount+" ครั้ง)":"")+(msg?" · "+msg:"")}}
+function renderNotify(){
+  var c=$("cNotify");if(!notifyCfg){c.style.display="none";return}
+  var on=[];if(notifyCfg.telegram)on.push("Telegram");if(notifyCfg.line)on.push("LINE");
+  c.style.display="";
+  if(on.length){c.className="chip ok";c.textContent="📲 แจ้งเตือนมือถือ: "+on.join(" + ")}
+  else{c.className="chip warn";c.textContent="⚠️ ยังไม่ได้ตั้งแจ้งเตือนมือถือ (ดูเว็บนี้ไว้)"}
+}
 async function confirmPaid(o){
   if(!confirm("ยืนยันว่าเงิน "+money(o.amount)+" บาท จากออเดอร์ "+o.number+" เข้าบัญชีแล้ว?"))return;
   try{await api("/api/business-money",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({operation:"confirm_payment",order_id:o.id,external_payment_id:"MANUAL-"+o.id,amount:o.amount,payment_method:o.payment_method||"promptpay"})});await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
 }
 function render(){
-  var paid=all.filter(function(o){return o.status==="paid"});
+  var paid=all.filter(function(o){return o.status==="paid"}),pend=all.filter(function(o){return o.status!=="paid"});
+  $("tPend").textContent="รอชำระ"+(pend.length?" ("+pend.length+")":"");
+  $("tPaid").textContent="จ่ายแล้ว (เข้าคิวคั่ว)"+(paid.length?" ("+paid.length+")":"");
+  var b=$("banner");
+  if(newIds.length){b.textContent="🔔 มีออเดอร์ใหม่ "+newIds.length+" รายการ";var s=el("small",null,"แตะเพื่อรับทราบ");b.appendChild(s);b.classList.add("show")}else b.classList.remove("show");
   var by={};paid.forEach(function(o){var k=(o.roast||"?")+" / "+(o.grind||"?");by[k]=(by[k]||0)+o.kg});
-  var s=document.getElementById("sum");s.textContent="";
-  var pend=all.filter(function(o){return o.status!=="paid"});
-  s.className="sum";
-  s.appendChild(el("div",null,"รอชำระ "+pend.length+" ออเดอร์ · จ่ายแล้ว "+paid.length+" ออเดอร์ ("+money(paid.reduce(function(a,o){return a+o.amount},0))+" บาท)"));
-  Object.keys(by).forEach(function(k){s.appendChild(el("div","dim","คั่ว: "+k+" = "+by[k]+" กก."))});
-  var l=document.getElementById("list");l.textContent="";
+  var s2=$("sum");s2.textContent="";s2.className="sum";
+  s2.appendChild(el("div",null,"รอชำระ "+pend.length+" ออเดอร์ · จ่ายแล้ว "+paid.length+" ออเดอร์ ("+money(paid.reduce(function(a,o){return a+o.amount},0))+" บาท)"));
+  Object.keys(by).forEach(function(k){s2.appendChild(el("div","dim","คั่ว: "+k+" = "+by[k]+" กก."))});
+  var l=$("list");l.textContent="";
   var items=all.filter(function(o){return filter==="all"||(filter==="paid"?o.status==="paid":o.status!=="paid")});
   if(!items.length)l.appendChild(el("p","dim","ไม่มีออเดอร์"));
   items.forEach(function(o){
-    var c=el("div","card");
-    var h=el("div","row");h.appendChild(el("span","no",o.number));h.appendChild(el("span","tag"+(o.status==="paid"?" paid":""),o.status==="paid"?"จ่ายแล้ว":"รอชำระ"));c.appendChild(h);
+    var fresh=newIds.indexOf(o.id)>=0,c=el("div","card"+(fresh?" fresh":""));
+    var h=el("div","row"),left=el("span");
+    if(fresh)left.appendChild(el("span","tag new","ใหม่"));
+    left.appendChild(el("span","no",o.number));h.appendChild(left);
+    h.appendChild(el("span","tag"+(o.status==="paid"?" paid":""),o.status==="paid"?"จ่ายแล้ว":"รอชำระ"));c.appendChild(h);
     c.appendChild(row("เวลา",new Date(o.created_at).toLocaleString("th-TH")));
     c.appendChild(row("ผู้รับ",o.name));
     var pr=el("div","row");pr.appendChild(el("span","dim","เบอร์"));var a=el("a",null,o.phone);a.href="tel:"+o.phone;var sp=el("span");sp.appendChild(a);pr.appendChild(sp);c.appendChild(pr);
@@ -51,10 +110,16 @@ function render(){
     c.appendChild(row("ปริมาณ",o.kg+" กก."));
     if(o.note)c.appendChild(row("หมายเหตุ",o.note));
     c.appendChild(row("ยอด",money(o.amount)+" บาท"));
-    if(o.status!=="paid"){var b=el("button","ok","ยืนยันว่าเงินเข้าแล้ว");b.onclick=function(){confirmPaid(o)};c.appendChild(b)}
+    if(o.status!=="paid"){var bt=el("button","ok-btn","ยืนยันว่าเงินเข้าแล้ว");bt.onclick=function(){confirmPaid(o)};c.appendChild(bt)}
     l.appendChild(c);
   });
 }
-document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){filter=b.dataset.f;document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});render()}});
-load();setInterval(load,30000);
+async function load(){
+  try{var j=await api("/api/admin-orders");failCount=0;all=j.orders||[];notifyCfg=j.notify||null;setConn(true);renderNotify();detect();render()}
+  catch(e){failCount++;setConn(false,e.message);if(!all.length)$("list").textContent="โหลดไม่สำเร็จ: "+e.message}
+}
+$("banner").onclick=ack;
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){filter=b.dataset.f;syncTabs();render()}});
+document.addEventListener("visibilitychange",function(){if(!document.hidden)load()});
+load();setInterval(load,10000);
 </script></body></html>
