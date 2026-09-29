@@ -95,7 +95,7 @@ function renderLearning(d){
   const totals=l.totals||l.evidence?.metrics||d.metrics?.totals||{};
   const c=l.conversions||l.evidence?.conversions||d.conversion||{};
   const patterns=l.patterns||{};
-  const insights=l.insights||[];
+  const insights=(l.insights&&l.insights.length)?l.insights:(l.hypotheses||[]).map(h=>({title:String(h.type||'').replace(/_/g,' '),finding:Object.entries(h.evidence||{}).map(([k,v])=>k+' '+v).join(' · ')}));
   const decision=l.decision_input||{};
   const handoff=l.handoff||{};
   const panel=document.getElementById('learningPanel');
@@ -109,7 +109,7 @@ function renderLearning(d){
   const signalType=insights[0]?.type || (patterns.click_without_product_view?'CLICK_WITHOUT_PRODUCT_VIEW':l.state||'LEARNING_SIGNAL');
   const title=insights[0]?.title || 'Learning signal';
   const finding=insights[0]?.finding || 'Learning is reading the latest Intelligence evidence.';
-  const recommendation=l.recommendation?.direction || l.recommendation?.action || 'Continue from the Learning evidence.';
+  const recommendation=l.recommendation?.direction || l.recommendation?.action || (decision.type ? String(decision.type).replace(/_/g,' ').toLowerCase()+(decision.target?' → '+String(decision.target).replace(/_/g,' ').toLowerCase():'') : 'Continue from the Learning evidence.');
   set('learningSignalType',signalType);
   set('learningScore',l.confidence||'—');
   const scoreSmall=document.querySelector('#learningScore + small');
@@ -118,7 +118,7 @@ function renderLearning(d){
   set('learningFinding',finding);
   set('learningRecommendation',recommendation);
   set('learnAttView',rate(c.attention_to_product_view ?? c.attention_to_view));
-  set('learnViewClick',rate(c.product_view_to_click ?? c.view_to_click));
+  {const vc=Number(c.product_view_to_click ?? c.view_to_click ?? 0);set('learnViewClick',vc>100?'>100%':rate(vc));}
   set('learnClickCustomer',rate(c.click_to_customer));
   set('learnCustomerOrder',rate(c.customer_to_order));
   set('learnEngOrder',rate(c.engagement_to_order));
