@@ -94,3 +94,11 @@
 
 ## ลำดับที่แนะนำ
 1) ข้อ 1-2 (เจ้าของ)  2) ข้อ 6-7  3) หาผู้ใช้จริง (ลิงก์ใน Facebook/LINE OA/Google Business Profile)  4) ข้อ 3-5  5) พอมีข้อมูลจริง ค่อยทำข้อ 11-12
+
+## ลิงก์แจกผู้ใช้จริง (ห้ามใส่ ?test=1)
+- Facebook: https://tato-os.pages.dev/?src=facebook
+- LINE OA: https://tato-os.pages.dev/?src=line
+- Google Business Profile: https://tato-os.pages.dev/?src=gbp
+- ทดสอบก่อนแจก: เปิดลิงก์ในเบราว์เซอร์ กดเลือกเมล็ด 1 ครั้ง แล้วดูใน D1 Console ว่าข้อมูลล่าสุดมีค่า src ตรงกับช่องทาง
+  SELECT * FROM behavior_events ORDER BY created_at DESC LIMIT 5;
+- เกณฑ์ "ข้อมูลจริงพอ" ก่อนทำข้อ 11-13: เซสชันจริงอย่างน้อย 30-50 ครั้ง ไม่นับ is_test
