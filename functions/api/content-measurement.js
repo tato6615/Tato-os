@@ -399,8 +399,8 @@ async function getBehaviorEvents(db, measurementStart) {
       .prepare(
         `SELECT *
          FROM behavior_events
-         WHERE created_at >= ?
-         ORDER BY created_at ASC`
+         WHERE datetime(created_at) >= datetime(?)
+         ORDER BY datetime(created_at) ASC`
       )
       .bind(measurementStart)
       .all();
