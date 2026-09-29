@@ -90,6 +90,7 @@ export async function onRequestPost(context){
     if(!db)return json({success:false,layer:LAYER,status:"DB_BINDING_NOT_FOUND"},500);
     const b=await context.request.json().catch(()=>({}));
     const productId=text(b.product_id), name=text(b.name), email=text(b.email), phone=text(b.phone);
+    const isTest=(b.is_test===true||b.is_test===1||b.is_test==="1")?1:0, utmSource=clip(b.utm_source,60), utmMedium=clip(b.utm_medium,60), utmCampaign=clip(b.utm_campaign,60);
     const kg=Number(b.quantity_kg), contentId=text(b.content_id), sessionId=text(b.session_id), paymentMethod=text(b.payment_method);
     if(!productId||!name||(!email&&!phone)||!(kg>0))return json({success:false,layer:LAYER,status:"CHECKOUT_FIELDS_REQUIRED",error:"product_id, name, email_or_phone and quantity_kg are required"},400);
     if(kg>100)return json({success:false,layer:LAYER,status:"QUANTITY_TOO_LARGE",error:"quantity_kg must be 100 or less"},400);
@@ -111,7 +112,7 @@ export async function onRequestPost(context){
       customer=await db.prepare("SELECT * FROM customers WHERE id=? LIMIT 1").bind(id).first();
     }
     const subtotal=Math.round(Math.round(kg*1000)*unit/1000), shipping=kg>=2?0:50, amount=subtotal+shipping, orderId="order_"+crypto.randomUUID();
-    const orderData={id:orderId,customer_id:customer.id,product_id:productId,total_amount:amount,amount,total_kg:kg,quantity:kg,qty:kg,currency:"THB",status:"pending",payment_method:paymentMethod||null,source:"PUBLIC_CHECKOUT",content_id:contentId||null,created_at:now()};
+    const orderData={id:orderId,customer_id:customer.id,product_id:productId,total_amount:amount,amount,total_kg:kg,quantity:kg,qty:kg,currency:"THB",status:"pending",payment_method:paymentMethod||null,source:"PUBLIC_CHECKOUT",content_id:contentId||null,is_test:isTest,utm_source:utmSource||null,utm_medium:utmMedium||null,utm_campaign:utmCampaign||null,created_at:now()};
     const orderCols=await cols(db,"orders");
     const allowed=new Set(orderCols);
     const names=Object.keys(orderData).filter(k=>allowed.has(k));
@@ -121,11 +122,11 @@ export async function onRequestPost(context){
       db.prepare("INSERT INTO order_details (order_id,name,phone,email,address,roast,grind,note,payment_method,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(orderId,clip(name,120),clip(phone,40),clip(email,120),clip(b.address,500),clip(b.roast,30),clip(b.grind,30),clip(b.note,500),paymentMethod||null,now())
     ]);
 
-    await recordEvent(db,"customer_created",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId});
-    await recordEvent(db,"purchase_intent",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId,amount,quantity_kg:kg});
+    await recordEvent(db,"customer_created",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId,is_test:isTest,utm_source:utmSource||null,utm_medium:utmMedium||null,utm_campaign:utmCampaign||null});
+    await recordEvent(db,"purchase_intent",{customer_id:customer.id,product_id:productId,content_id:contentId,session_id:sessionId,order_id:orderId,amount,quantity_kg:kg,is_test:isTest,utm_source:utmSource||null,utm_medium:utmMedium||null,utm_campaign:utmCampaign||null});
 
     const orderNo="TATO-"+orderId.replace("order_","").slice(0,8).toUpperCase();
-    const msg="🛒 ออเดอร์ใหม่ "+orderNo+"\nยอด "+amount+" บาท ("+kg+" กก.)\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+clip(phone,40)+"\nที่อยู่: "+clip(b.address,300)+"\nหมายเหตุ: "+clip(b.note,200)+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+new URL(context.request.url).origin+"/admin/";
+    const msg=(isTest?"[ทดสอบ] ":"")+"🛒 ออเดอร์ใหม่ "+orderNo+"\nยอด "+amount+" บาท ("+kg+" กก.)\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+clip(phone,40)+"\nที่อยู่: "+clip(b.address,300)+"\nหมายเหตุ: "+clip(b.note,200)+"\nช่องทาง: "+(utmSource?utmSource+"/"+utmMedium:"ไม่ระบุ")+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+new URL(context.request.url).origin+"/admin/";
     const nj=notify(context.env,msg);
     if(context.waitUntil) context.waitUntil(nj); else await nj;
     return json({
