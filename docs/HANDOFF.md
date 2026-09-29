@@ -52,7 +52,7 @@
    - เช็ก: grep -rn "tato-os.pages.dev" index.html public scripts | cut -c1-140
 
 ### B. งานโค้ดที่ยังไม่ทำ
-6. checkout_start / checkout_abandon (จะรู้ว่าลูกค้าหลุดที่ขั้นไหน)
+6. [เสร็จ 29 ก.ย.] checkout_start / checkout_abandon (จะรู้ว่าลูกค้าหลุดที่ขั้นไหน)
    - เริ่มจาก: grep -n -E "onOrderSuccess|setStep|checkout|submit|onClick" src/components/ProductView.tsx | cut -c1-160 | head -30
    - ยิงผ่านฟังก์ชัน track() ใน src/App.tsx (หรือส่ง prop ลง ProductView)
    - เช็กหลังทำ (terminal): npm run lint ต้องผ่าน แล้วดูข้อมูลจริง:
@@ -60,7 +60,7 @@
        curl -s -u "admin:$PW" https://tato-os.pages.dev/api/behavior | python3 -c "import sys,json,collections;d=json.load(sys.stdin);print(collections.Counter(e.get('event_type') for e in d.get('events',[])))"; unset PW
      (สมมติว่า /api/behavior GET คืน {events:[...]} ตาม HQ ถ้าไม่ตรงให้ใช้ D1 Console:
        SELECT event_type, COUNT(*) FROM behavior_events GROUP BY event_type;)
-7. กรอง is_test ออกจากการวัด (ตอนนี้แค่บันทึกใน metadata ของ behavior_events ยังไม่ถูกกรอง)
+7. [เสร็จ 29 ก.ย. ยืนยันด้วย D1: clicks 12-4=8] กรอง is_test ออกจากการวัด (ตอนนี้แค่บันทึกใน metadata ของ behavior_events ยังไม่ถูกกรอง)
    - แก้ที่ functions/api/content-measurement.js (getBehaviorEvents / getContentEvents)
    - เช็ก: grep -n "is_test" functions/api/content-measurement.js   (ตอนนี้ไม่มี)
    - ทดสอบ: เปิด https://tato-os.pages.dev/?test=1 ในเบราว์เซอร์หนึ่งครั้ง กดเลือกเมล็ด แล้ว POST วัดหนึ่งรอบ attention/clicks ต้องไม่เพิ่ม
