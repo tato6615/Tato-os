@@ -38,7 +38,7 @@
 1. Search Console: ส่ง sitemap.xml + Request indexing 4 URL (/, /roast/dark/, /roast/medium/, /roast/light/)
    - Terminal เช็กไม่ได้ (ดูใน Search Console)  เช็กฝั่งเรา: curl -s https://tato-os.pages.dev/sitemap.xml | grep -c "<loc>"  (ต้อง 4)
    - ผลค้นหา: ค้น  site:tato-os.pages.dev  ใน Google (รอ 2-14 วัน ไม่มีการันตี)
-2. เปลี่ยน ADMIN_PASSWORD (Cloudflare Pages > Settings > Variables) แล้ว redeploy
+2. [เสร็จ 29 ก.ย. รหัสใหม่ได้ 200] เปลี่ยน ADMIN_PASSWORD (Cloudflare Pages > Settings > Variables) แล้ว redeploy
    - เช็ก: รหัสเก่าต้องได้ 401 รหัสใหม่ได้ 200
        read -rs -p "PASSWORD: " PW; echo
        curl -s -o /dev/null -w "HTTP %{http_code}\n" -u "admin:$PW" "https://tato-os.pages.dev/api/intelligence?content_id=5127d38f-6601-41dd-bb30-9e4346dd9a4c"; unset PW
