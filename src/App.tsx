@@ -31,7 +31,7 @@ function CustomerApp(){
  const [orders,setOrders]=useState<OrderItem[]>(()=>{try{return JSON.parse(localStorage.getItem('tato_orders')||'[]')}catch{return []}});
  const [showReceipt,setShowReceipt]=useState(false);
  useEffect(()=>{try{localStorage.setItem('tato_orders',JSON.stringify(orders.slice(0,20)))}catch{}},[orders]);
- useEffect(()=>{try{const q=new URLSearchParams(window.location.search);if(q.get('test')==='1')localStorage.setItem('tato_is_test','1');track('content_view',{referrer:document.referrer||null,src:q.get('src'),mobile:/Mobi/i.test(navigator.userAgent)})}catch{track('content_view')}},[]);
+ useEffect(()=>{try{const q=new URLSearchParams(window.location.search);if(q.get('test')==='1')localStorage.setItem('tato_is_test','1');track('content_view',{referrer:document.referrer||null,src:q.get('src'),mobile:/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1)})}catch{track('content_view')}},[]);
  const navigate=(next:PageView,sectionId?:string)=>{setView(next);if(sectionId)requestAnimationFrame(()=>document.getElementById(sectionId)?.scrollIntoView({behavior:'smooth'}));};
  const openProduct=(r:RoastType=roast)=>{setRoast(r);setView('product');track('content_click',{roast:r});track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
