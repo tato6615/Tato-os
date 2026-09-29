@@ -18,7 +18,7 @@ const urls = [`${DOMAIN}/`];
 for (const r of roasts) {
   const url = `${DOMAIN}/roast/${r.id}/`;
   urls.push(url);
-  const title = `TATO Coffee ${r.nameThai} (${r.name}) | Doi Wiang 1,834M`;
+  const title = `TATO Coffee ${r.nameThai} (${r.name}) | Doi Wiang 1,500M`;
   const desc = `${r.description} Notes: ${r.notes.join(', ')}.`;
   const ld = {
     '@context': 'https://schema.org', '@type': 'Product',

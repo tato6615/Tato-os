@@ -56,7 +56,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
 
           {/* Supporting Spec Note */}
           <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 max-w-xl font-light">
-            Arabica 100% • Single Origin • Doi Wiang Pa 1,834m
+            Arabica 100% • Single Origin • Doi Wiang Pa 1,500m
           </p>
 
           {/* Primary Action CTA */}
@@ -84,9 +84,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           <div className="mt-16 flex items-center gap-6 text-[#e3beb3]/60 font-mono text-[11px] uppercase tracking-widest hidden md:flex">
             <span>DOI WIANG PA • CHIANG MAI</span>
             <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,834 MASL</span>
+            <span>1,500 MASL</span>
             <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,834 MASL ELEVATION</span>
+            <span>1,500 MASL ELEVATION</span>
           </div>
         </div>
       </section>
@@ -140,7 +140,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 Highland Cloud Mist & Shade-Grown Microclimate
               </h3>
               <p className="relative z-10 font-['Manrope'] text-[14px] text-[#e3beb3]/80 max-w-md leading-relaxed">
-                The distinct diurnal temperature shift at 1,834 MASL concentrates organic sugars deep within each coffee bean.
+                The distinct diurnal temperature shift at 1,500 MASL concentrates organic sugars deep within each coffee bean.
               </p>
             </div>
 
@@ -155,7 +155,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span className="material-symbols-outlined text-[#ffb59c] text-[20px]">filter_hdr</span>
                 </div>
                 <div className="font-['Manrope'] text-[46px] md:text-[52px] leading-tight text-[#ffb59c] font-bold tracking-tight">
-                  1,834 m
+                  1,500 m
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
                   High-altitude cool air slows photosynthesis, dense bean structure.

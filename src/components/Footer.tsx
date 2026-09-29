@@ -19,14 +19,14 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="font-['Manrope'] text-[14px] leading-relaxed text-[#e3beb3]/70 max-w-md">
-              Single-Origin Arabica Estate nestled at Doi Wiang, Doi Wiang Pa, Chiang Mai (1,834 MASL). High-altitude micro-lots slow-crafted with extreme agricultural precision.
+              Single-Origin Arabica Estate nestled at Doi Wiang, Doi Wiang Pa, Chiang Mai (1,500 MASL). High-altitude micro-lots slow-crafted with extreme agricultural precision.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#f3bc8b]">
                 DOI WIANG PA • CHIANG MAI
               </span>
               <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#ffb59c]">
-                1,834M ELEVATION
+                1,500M ELEVATION
               </span>
             </div>
           </div>
@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
           </div>
           <div className="flex items-center gap-6">
             <span>DOI WIANG PA • CHIANG MAI</span>
-            <span>ELEVATION 1,834M</span>
+            <span>ELEVATION 1,500M</span>
             <span>CHIANG MAI / NORTHERN HIGHLANDS</span>
           </div>
         </div>

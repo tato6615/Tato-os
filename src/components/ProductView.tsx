@@ -226,7 +226,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
           <span className="text-[#5b4138]">/</span>
           <span className="text-[#d4c3bd]">DOI WIANG LOT 2025</span>
           <span className="text-[#5b4138]">/</span>
-          <span className="text-[#ff5e1a] font-semibold">TATO 1,834M</span>
+          <span className="text-[#ff5e1a] font-semibold">TATO 1,500M</span>
         </div>
         <div className="flex items-center gap-2 bg-[#2b2a28] px-3.5 py-1.5 rounded-full border border-[#363433]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#ff5e1a] animate-pulse" />
@@ -253,7 +253,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               {/* Overlaid Micro Badges */}
               <div className="absolute top-4 left-4 flex flex-col gap-1.5 pointer-events-none">
                 <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#0f0e0d]/80 backdrop-blur-md text-[#f3bc8b] border border-white/10">
-                  DOI WIANG PA 1,834M
+                  DOI WIANG PA 1,500M
                 </span>
                 <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#0f0e0d]/80 backdrop-blur-md text-[#d4c3bd] border border-white/10">
                   ARABICA 100%
@@ -856,7 +856,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
             Sensory Notes & Extraction Range
           </h2>
           <p className="font-['Anuphan'] text-[14px] md:text-[15px] text-[#e3beb3]/80 max-w-2xl leading-relaxed">
-            โปรไฟล์กลิ่นและรสชาติที่ถูกบันทึกจากการคัปปิ้งโดย Q Grader ประจำไร่ดอยเวียง ค้นพบอัตลักษณ์เฉพาะตัวของดินภูเขาและความสูง 1,834 เมตร
+            โปรไฟล์กลิ่นและรสชาติที่ถูกบันทึกจากการคัปปิ้งโดย Q Grader ประจำไร่ดอยเวียง ค้นพบอัตลักษณ์เฉพาะตัวของดินภูเขาและความสูง 1,500 เมตร
           </p>
         </div>
 
