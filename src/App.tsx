@@ -33,7 +33,7 @@ function CustomerApp(){
  useEffect(()=>{try{localStorage.setItem('tato_orders',JSON.stringify(orders.slice(0,20)))}catch{}},[orders]);
  useEffect(()=>{track('content_view')},[]);
  const navigate=(next:PageView,sectionId?:string)=>{setView(next);if(sectionId)requestAnimationFrame(()=>document.getElementById(sectionId)?.scrollIntoView({behavior:'smooth'}));};
- const openProduct=(r:RoastType=roast)=>{setRoast(r);setView('product');track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
+ const openProduct=(r:RoastType=roast)=>{setRoast(r);setView('product');track('content_click',{roast:r});track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
   <Header currentView={view} onNavigate={navigate} cartCount={1} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>setShowReceipt(true)}/>
   <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>setShowReceipt(true)}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>
