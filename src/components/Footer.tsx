@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
               <li className="hover:text-[#e6e1df] transition-colors">Doi Wiang Terroir</li>
               <li className="hover:text-[#e6e1df] transition-colors">Micro-Lot Specialty Processing</li>
               <li className="hover:text-[#e6e1df] transition-colors">100% Arabica Specialty</li>
-              <li className="hover:text-[#e6e1df] transition-colors">Volcanic Micro-Climate</li>
+              <li className="hover:text-[#e6e1df] transition-colors">Highland Climate</li>
             </ul>
           </div>
 

@@ -109,8 +109,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             </div>
             <p className="font-['Manrope'] text-[15px] leading-relaxed text-[#e3beb3]/80 max-w-md">
               {tr(
-                'Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.',
-                'ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่ ที่สายหมอกภูเขาปกคลุมเป็นประจำและดินแร่ภูเขาไฟช่วยชะลอการสุกของผลเชอร์รี่ ทำให้เกิดความหวานที่โดดเด่น'
+                'Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.',
+                'ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่'
               )}
             </p>
           </div>

@@ -155,7 +155,7 @@ const DICT: Record<string, [string, string]> = {
   'Doi Wiang Pa Terroir': ['สภาพพื้นที่ดอยเวียง', 'Doi Wiang Pa Terroir'],
   'Micro-Lot Specialty Processing': ['กระบวนการพิเศษแบบไมโครล็อต', 'Micro-Lot Specialty Processing'],
   '100% Arabica Specialty': ['อาราบิก้าสเปเชียลตี้ 100%', '100% Arabica Specialty'],
-  'Volcanic Micro-Climate': ['สภาพอากาศเฉพาะถิ่นจากพื้นที่ภูเขา', 'Volcanic Micro-Climate'],
+  'Highland Climate': ['สภาพอากาศเฉพาะถิ่นจากพื้นที่ภูเขา', 'Highland Climate'],
   'Fresh Small-Batch Roast': ['คั่วสดใหม่แบบ Small Batch', 'Fresh Small-Batch Roast'],
   'Nitrogen Purged Packaging': ['บรรจุภัณฑ์ไล่ไนโตรเจน', 'Nitrogen Purged Packaging'],
   'Direct Origin Trade': ['ซื้อขายตรงจากแหล่งกำเนิด', 'Direct Origin Trade'],
@@ -291,10 +291,8 @@ const DICT: Record<string, [string, string]> = {
   'TATO Coffee pouch': ['ถุงกาแฟ TATO Coffee', 'TATO Coffee pouch'],
   'close': ['ปิด', 'close'],
   'print': ['พิมพ์', 'print'],
-  'Perched on the micro-climate ridge of Chiang Mai’s Doi Wiang, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.': ['ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่ ที่สายหมอกภูเขาปกคลุมเป็นประจำและดินแร่ภูเขาไฟช่วยชะลอการสุกของผลเชอร์รี่ ทำให้เกิดความหวานที่โดดเด่น', 'Perched on the micro-climate ridge of Chiang Mai’s Doi Wiang, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.'],
   'Perched on the micro-climate ridge of Chiang Mai’s Doi Wiang': ['ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่', 'Perched on the micro-climate ridge of Chiang Mai’s Doi Wiang'],
   'perennial mountain mists': ['สายหมอกภูเขาที่ปกคลุมเป็นประจำ', 'perennial mountain mists'],
-  'volcanic mineral soil': ['ดินแร่ภูเขาไฟ', 'volcanic mineral soil'],
   'slow down cherry maturation': ['ช่วยชะลอการสุกของผลเชอร์รี่', 'slow down cherry maturation'],
   'producing unmatched sweetness': ['ทำให้เกิดความหวานที่โดดเด่น', 'producing unmatched sweetness'],
 
@@ -344,7 +342,7 @@ const DICT: Record<string, [string, string]> = {
   'Doi Wiang Pa, Chiang Mai (ดอยเวียงผา เชียงใหม่)': ['ดอยเวียงผา เชียงใหม่', 'Doi Wiang Pa, Chiang Mai'],
 
 
-  'Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.': ['ตั้งอยู่บนสันเขาไมโครไคลเมตของดอยเวียงผา จังหวัดเชียงใหม่ ที่สายหมอกภูเขาปกคลุมเป็นประจำและดินแร่ภูเขาไฟช่วยชะลอการสุกของผลเชอร์รี่ ทำให้เกิดความหวานที่โดดเด่น', 'Perched on the micro-climate ridge of Doi Wiang Pa, Chiang Mai, where perennial mountain mists and volcanic mineral soil slow down cherry maturation, producing unmatched sweetness.'],
+  'Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.': ['ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่', 'Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.'],
   '&lt; 0.05% Specialty SCAA Graded': ['น้อยกว่า 0.05% ตามเกณฑ์ Specialty SCAA', '&lt; 0.05% Specialty SCAA Graded'],
   'พบกับ TATO': ['พบกับ TATO', 'MEET TATO.'],
   'ค้นหารสชาติของคุณ': ['ค้นหารสชาติของคุณ', 'FIND YOUR ROAST.'],
