@@ -39,7 +39,7 @@ for (const r of roasts) {
 <h2>Tasting notes</h2><ul>${r.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>
 <p>Intensity: ${esc(r.intensityDisplay)}</p>
 ${specs.length?`<h2>Origin</h2><ul>${specs.map(s=>`<li><b>${esc(s.label)}:</b> ${esc(s.value)}</li>`).join('')}</ul>`:''}
-<p><a href="/" style="color:#ff5e1a">สั่งซื้อที่หน้าร้าน TATO Coffee</a></p>
+<p><a href="/?roast=${r.id}&amp;src=roast_page" style="color:#ff5e1a">สั่งซื้อที่หน้าร้าน TATO Coffee</a></p>
 </body></html>`;
   mkdirSync(`public/roast/${r.id}`, { recursive: true });
   writeFileSync(`public/roast/${r.id}/index.html`, html);
