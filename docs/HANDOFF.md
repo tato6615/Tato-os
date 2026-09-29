@@ -64,7 +64,7 @@
    - แก้ที่ functions/api/content-measurement.js (getBehaviorEvents / getContentEvents)
    - เช็ก: grep -n "is_test" functions/api/content-measurement.js   (ตอนนี้ไม่มี)
    - ทดสอบ: เปิด https://tato-os.pages.dev/?test=1 ในเบราว์เซอร์หนึ่งครั้ง กดเลือกเมล็ด แล้ว POST วัดหนึ่งรอบ attention/clicks ต้องไม่เพิ่ม
-8. การ์ดล่างสุดของ HQ (AI Recommendation / "14 reorder candidates" / Growth Experiment) เป็นข้อความสำเร็จรูป ตัวเลขไม่มาจากข้อมูลจริง
+8. [เสร็จ 29 ก.ย. แทนที่ด้วย 'ยังไม่มีข้อมูลพอสำหรับสรุป'; ปุ่ม agent ติดป้าย 'จำลอง' แล้ว] การ์ดล่างสุดของ HQ (AI Recommendation / "14 reorder candidates" / Growth Experiment) เป็นข้อความสำเร็จรูป ตัวเลขไม่มาจากข้อมูลจริง
    - หาที่มา: grep -n -E "reorder|candidates|café profit|Growth Experiment" public/system/index.html | cut -c1-200
    - ปุ่ม agent ใน HQ (บรรทัดที่มี setTimeout) เป็น toast จำลอง: grep -n "completed · founder review" public/system/index.html | cut -c1-120
 9. ตัวตรวจอุปกรณ์ mobile ใน src/App.tsx ใช้ /Mobi/ ซึ่งตรวจ iPad ไม่เจอ
