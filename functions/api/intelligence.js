@@ -195,7 +195,9 @@ function aggregate(history) {
     revenue: 0
   };
 
-  for (const item of history) {
+  // Each measurement is already cumulative from measurement_start,
+  // so use only the latest round. Summing rounds double-counts.
+  for (const item of history.slice(0, 1)) {
     totals.attention += num(item.attention);
     totals.product_views += num(item.product_views);
     totals.clicks += num(item.clicks);
