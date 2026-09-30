@@ -922,7 +922,7 @@ value={customerPostal}
                 </div>
 
                 <div className="pt-3 mt-1 border-t border-[#2b2a28] flex items-baseline justify-between text-[#e6e1df]">
-                  <span className="font-['Anuphan'] text-[16px] font-bold">ยอดที่ต้องชำระ</span>
+                  <span className="font-['Anuphan'] text-[16px] font-bold">{contactShop ? 'ยอดสินค้า (ยังไม่รวมค่าส่ง)' : 'ยอดที่ต้องชำระ'}</span>
                   <div className="flex items-baseline gap-1.5">
                     <span className="font-['Manrope'] text-3xl font-extrabold text-[#ff5e1a]">{total.toLocaleString('th-TH')}</span>
                     <span className="font-['Anuphan'] text-[14px] text-[#f3bc8b]">บาท</span>
