@@ -23,10 +23,18 @@ main{padding:12px 16px;max-width:760px;margin:auto}
 .tag.paid{background:#173a24;color:#7be0a0}.tag.new{background:#ff5e1a;color:#390c00;font-weight:700;margin-right:6px}
 .ok-btn{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;font-size:15px}
 .dim{color:#a39a95}a{color:#f3bc8b}
+.tag.bad{background:#4a1b17;color:#ff9b91}.tag.warn{background:#3d2f12;color:#f3c76b}.tag.test{background:#2b2a28;color:#a39a95}
+.sec{margin-top:10px;padding-top:10px;border-top:1px solid #2b2a28}
+.btn2{padding:10px 12px;border:0;border-radius:10px;background:#2b2a28;color:#e6e1df;font-size:14px;cursor:pointer}
+.btn2.danger{background:#4a1b17;color:#ff9b91}.inline{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+input,select{background:#141312;color:#e6e1df;border:1px solid #2b2a28;border-radius:8px;padding:9px;font-size:14px;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:right;padding:6px 4px;border-bottom:1px solid #2b2a28}th:first-child,td:first-child{text-align:left}
+.wrap{overflow-x:auto}
 </style></head><body>
 <header><h1>TATO ออเดอร์</h1>
-<div class="tabs"><button data-f="pending" class="on" id="tPend">รอชำระ</button><button data-f="paid" id="tPaid">จ่ายแล้ว (เข้าคิวคั่ว)</button><button data-f="all">ทั้งหมด</button></div>
+<div class="tabs"><button data-f="pending" class="on" id="tPend">รอชำระ</button><button data-f="paid" id="tPaid">จ่ายแล้ว / ส่งของ</button><button data-f="all">ทั้งหมด</button><button data-f="report">รายงาน</button><button data-f="config">ตั้งค่า</button></div>
 <div class="bar"><span class="chip" id="cConn">กำลังเชื่อมต่อ…</span><button class="chip" id="cSound" type="button">🔊 เสียง: เปิด</button><span class="chip" id="cNotify" style="display:none"></span></div>
+<div class="dim" id="cFeat" style="font-size:12px;margin-top:6px"></div>
 </header>
 <main><div class="banner" id="banner" role="alert"></div><div id="sum"></div><div id="list"></div></main>
 <script>
@@ -64,7 +72,7 @@ $("cSound").onclick=function(){soundOn=!soundOn;try{localStorage.setItem("tato_s
 renderSound();
 var blink=false;
 setInterval(function(){
-  var pend=all.filter(function(o){return o.status!=="paid"}).length,base=(pend?"("+pend+") ":"")+"TATO ออเดอร์";
+  var pend=all.filter(function(o){return o.status==="pending"}).length,base=(pend?"("+pend+") ":"")+"TATO ออเดอร์";
   if(newIds.length){blink=!blink;document.title=blink?("🔔 ออเดอร์ใหม่ "+newIds.length):base;if(Date.now()-lastBeep>20000)beep()}
   else document.title=base;
 },1000);
@@ -78,48 +86,144 @@ function renderNotify(){
   c.style.display="";
   if(on.length){c.className="chip ok";c.textContent="📲 แจ้งเตือนมือถือ: "+on.join(" + ")}
   else{c.className="chip warn";c.textContent="⚠️ ยังไม่ได้ตั้งแจ้งเตือนมือถือ (ดูเว็บนี้ไว้)"}
+  var f=$("cFeat");if(!f)return;
+  var bits=[];bits.push(notifyCfg.turnstile?"Turnstile ✓":"Turnstile ✗ (ยังไม่เปิด กันสแปมด้วยจำกัดคำขอต่อ IP เท่านั้น)");bits.push(notifyCfg.email?"อีเมลลูกค้า ✓":"อีเมลลูกค้า ✗");bits.push(notifyCfg.slip?"ตรวจสลิป ✓":"ตรวจสลิป ✗");
+  f.textContent=bits.join(" · ");
 }
+async function post(u,b){return api(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})}
 async function confirmPaid(o){
   if(!confirm("ยืนยันว่าเงิน "+money(o.amount)+" บาท จากออเดอร์ "+o.number+" เข้าบัญชีแล้ว?"))return;
-  try{await api("/api/business-money",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({operation:"confirm_payment",order_id:o.id,external_payment_id:"MANUAL-"+o.id,amount:o.amount,payment_method:o.payment_method||"promptpay"})});await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
+  try{await post("/api/business-money",{operation:"confirm_payment",order_id:o.id,external_payment_id:"MANUAL-"+o.id,amount:o.amount,payment_method:o.payment_method||"promptpay"});await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
+}
+async function act(o,action,extra,msg){
+  if(msg&&!confirm(msg))return;
+  try{await post("/api/admin-orders",Object.assign({action:action,order_id:o.id},extra||{}));await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
+}
+async function checkSlip(o,file){
+  if(!file)return;var fd=new FormData();fd.append("order_id",o.id);fd.append("file",file);
+  try{var r=await fetch("/api/verify-slip",{method:"POST",body:fd});var j=await r.json().catch(function(){return{}});
+    var t={SLIP_OK:"✅ สลิปถูกต้อง ยอดตรง และยังไม่เคยใช้ — กดยืนยันเงินเข้าได้",AMOUNT_MISMATCH:"⚠️ ยอดในสลิปไม่ตรงกับออเดอร์ ("+(j.slip_amount!=null?j.slip_amount:"?")+" ต่อ "+j.expected_amount+")",SLIP_ALREADY_USED:"⛔ สลิปนี้เคยใช้กับออเดอร์อื่นแล้ว",SLIP_NOT_VERIFIED:"⛔ ตรวจสลิปไม่ผ่าน (อาจปลอม/อ่านไม่ได้)",SLIP_VERIFY_NOT_CONFIGURED:"ยังไม่ได้ตั้งค่าบริการตรวจสลิป"}[j.status]||("ผิดพลาด: "+(j.status||j.error||r.status));
+    alert(t);await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
+}
+var METHOD={thaipost:"ไปรษณีย์ไทย",kerry:"Kerry",flash:"Flash",jt:"J&T",other:"อื่น ๆ"};
+function card(o){
+  var fresh=newIds.indexOf(o.id)>=0,c=el("div","card"+(fresh?" fresh":""));
+  var h=el("div","row"),left=el("span");
+  if(fresh)left.appendChild(el("span","tag new","ใหม่"));
+  left.appendChild(el("span","no",o.number));if(o.is_test){var tt=el("span","tag test","ทดสอบ");tt.style.marginLeft="6px";left.appendChild(tt)}
+  h.appendChild(left);
+  var cls=o.status==="paid"?" paid":o.status==="cancelled"?" bad":"";
+  h.appendChild(el("span","tag"+cls,o.fulfillment==="shipped"?"จัดส่งแล้ว":o.status==="paid"?"จ่ายแล้ว":o.status==="cancelled"?"ยกเลิก":"รอชำระ"));c.appendChild(h);
+  c.appendChild(row("เวลา",new Date(o.created_at).toLocaleString("th-TH")));
+  if(o.status==="pending"&&o.expires_in_hours!=null){var w=el("div","row");w.appendChild(el("span","dim","ค้างชำระ"));w.appendChild(el("span","tag"+(o.expires_in_hours<24?" warn":""),Math.round(o.age_hours)+" ชม. · ยกเลิกอัตโนมัติใน "+o.expires_in_hours+" ชม."));c.appendChild(w)}
+  if(o.status==="cancelled"&&o.cancel_reason)c.appendChild(row("เหตุผลยกเลิก",o.cancel_reason==="expired_unpaid"?"ไม่ชำระใน 48 ชม.":o.cancel_reason==="cancelled_by_admin"?"ยกเลิกโดยร้าน":o.cancel_reason));
+  c.appendChild(row("ผู้รับ",o.name));
+  var pr=el("div","row");pr.appendChild(el("span","dim","เบอร์"));var a=el("a",null,o.phone);a.href="tel:"+o.phone;var sp=el("span");sp.appendChild(a);pr.appendChild(sp);c.appendChild(pr);
+  if(o.email)c.appendChild(row("อีเมล",o.email));
+  c.appendChild(row("ที่อยู่",(o.address||"(ไม่มีข้อมูล)")+(o.postal?" "+o.postal:"")));
+  c.appendChild(row("คั่ว / บด",(o.roast||"-")+" / "+(o.grind||"-")));
+  c.appendChild(row("ปริมาณ",o.kg+" กก."));
+  if(o.note)c.appendChild(row("หมายเหตุ",o.note));
+  if(o.discount)c.appendChild(row("ส่วนลด",money(o.discount)+" บาท ("+o.discount_code+")"));
+  c.appendChild(row("ค่าส่ง",o.shipping?money(o.shipping)+" บาท":"ฟรี"));
+  c.appendChild(row("ยอด",money(o.amount)+" บาท"));
+  if(o.utm_source)c.appendChild(row("ช่องทาง",o.utm_source));
+  if(o.slip_result)c.appendChild(row("ผลตรวจสลิป",o.slip_result));
+  if(o.status==="pending"){
+    var bt=el("button","ok-btn","ยืนยันว่าเงินเข้าแล้ว");bt.onclick=function(){confirmPaid(o)};c.appendChild(bt);
+    var ib=el("div","inline");
+    if(notifyCfg&&notifyCfg.slip){var lab=el("label","btn2","📎 ตรวจสลิป");var fi=el("input");fi.type="file";fi.accept="image/*";fi.style.display="none";fi.onchange=function(){checkSlip(o,fi.files[0])};lab.appendChild(fi);ib.appendChild(lab)}
+    var cb=el("button","btn2 danger","ยกเลิกออเดอร์");cb.onclick=function(){act(o,"cancel",null,"ยกเลิกออเดอร์ "+o.number+"?")};ib.appendChild(cb);c.appendChild(ib);
+  }
+  if(o.status==="cancelled"){var rb=el("button","btn2","เปิดออเดอร์กลับ (เริ่มนับ 48 ชม. ใหม่)");rb.style.marginTop="8px";rb.onclick=function(){act(o,"reopen",null,"เปิดออเดอร์ "+o.number+" กลับ?")};c.appendChild(rb)}
+  if(o.status==="paid"){
+    var sec=el("div","sec");
+    if(o.fulfillment==="shipped"){sec.appendChild(row("ขนส่ง",METHOD[o.courier]||o.courier));sec.appendChild(row("เลขพัสดุ",o.tracking_no));sec.appendChild(row("ส่งเมื่อ",new Date(o.shipped_at).toLocaleString("th-TH")))}
+    else{
+      sec.appendChild(el("div","dim","ใส่เลขพัสดุเมื่อส่งของ (ลูกค้าจะเห็นที่ลิงก์สถานะ)"));
+      var f=el("div","inline"),sel=el("select");Object.keys(METHOD).forEach(function(k){var op=el("option",null,METHOD[k]);op.value=k;sel.appendChild(op)});
+      var ti=el("input");ti.placeholder="เลขพัสดุ";ti.autocapitalize="characters";
+      var sb=el("button","btn2","บันทึกเลขพัสดุ");sb.onclick=function(){if(!ti.value.trim()){alert("กรอกเลขพัสดุ");return}act(o,"set_tracking",{tracking_no:ti.value,courier:sel.value})};
+      f.appendChild(sel);f.appendChild(ti);f.appendChild(sb);sec.appendChild(f);
+    }
+    c.appendChild(sec);
+  }
+  return c;
+}
+function chrome(){
+  var paid=all.filter(function(o){return o.status==="paid"}),pend=all.filter(function(o){return o.status==="pending"});
+  var toShip=paid.filter(function(o){return o.fulfillment!=="shipped"});
+  $("tPend").textContent="รอชำระ"+(pend.length?" ("+pend.length+")":"");
+  $("tPaid").textContent="จ่ายแล้ว / ส่งของ"+(toShip.length?" (รอส่ง "+toShip.length+")":"");
+  var b=$("banner");
+  if(newIds.length){b.textContent="🔔 มีออเดอร์ใหม่ "+newIds.length+" รายการ";var sm=el("small",null,"แตะเพื่อรับทราบ");b.appendChild(sm);b.classList.add("show")}else b.classList.remove("show");
 }
 function render(){
-  var paid=all.filter(function(o){return o.status==="paid"}),pend=all.filter(function(o){return o.status!=="paid"});
-  $("tPend").textContent="รอชำระ"+(pend.length?" ("+pend.length+")":"");
-  $("tPaid").textContent="จ่ายแล้ว (เข้าคิวคั่ว)"+(paid.length?" ("+paid.length+")":"");
-  var b=$("banner");
-  if(newIds.length){b.textContent="🔔 มีออเดอร์ใหม่ "+newIds.length+" รายการ";var s=el("small",null,"แตะเพื่อรับทราบ");b.appendChild(s);b.classList.add("show")}else b.classList.remove("show");
-  var by={};paid.forEach(function(o){var k=(o.roast||"?")+" / "+(o.grind||"?");by[k]=(by[k]||0)+o.kg});
-  var s2=$("sum");s2.textContent="";s2.className="sum";
-  s2.appendChild(el("div",null,"รอชำระ "+pend.length+" ออเดอร์ · จ่ายแล้ว "+paid.length+" ออเดอร์ ("+money(paid.reduce(function(a,o){return a+o.amount},0))+" บาท)"));
-  Object.keys(by).forEach(function(k){s2.appendChild(el("div","dim","คั่ว: "+k+" = "+by[k]+" กก."))});
-  var l=$("list");l.textContent="";
-  var items=all.filter(function(o){return filter==="all"||(filter==="paid"?o.status==="paid":o.status!=="paid")});
+  var real=all.filter(function(o){return !o.is_test});
+  chrome();
+  var l=$("list"),s2=$("sum");l.textContent="";s2.textContent="";s2.className="";
+  if(filter==="report"){renderReport(l);return}
+  if(filter==="config"){renderConfig(l);return}
+  var qq=real.filter(function(o){return o.status==="paid"&&o.fulfillment!=="shipped"}),by={};qq.forEach(function(o){var k=(o.roast||"?")+" / "+(o.grind||"?");by[k]=(by[k]||0)+o.kg});
+  s2.className="sum";
+  var rp=real.filter(function(o){return o.status==="paid"});
+  s2.appendChild(el("div",null,"(ไม่รวมออเดอร์ทดสอบ) รอชำระ "+real.filter(function(o){return o.status==="pending"}).length+" · จ่ายแล้ว "+rp.length+" ออเดอร์ ("+money(rp.reduce(function(a,o){return a+o.amount},0))+" บาท) · รอส่ง "+qq.length));
+  Object.keys(by).forEach(function(k){s2.appendChild(el("div","dim","คิวคั่ว/ส่ง: "+k+" = "+by[k]+" กก.")) });
+  var items=all.filter(function(o){return filter==="all"||(filter==="paid"?o.status==="paid":o.status==="pending")});
   if(!items.length)l.appendChild(el("p","dim","ไม่มีออเดอร์"));
-  items.forEach(function(o){
-    var fresh=newIds.indexOf(o.id)>=0,c=el("div","card"+(fresh?" fresh":""));
-    var h=el("div","row"),left=el("span");
-    if(fresh)left.appendChild(el("span","tag new","ใหม่"));
-    left.appendChild(el("span","no",o.number));h.appendChild(left);
-    h.appendChild(el("span","tag"+(o.status==="paid"?" paid":""),o.status==="paid"?"จ่ายแล้ว":"รอชำระ"));c.appendChild(h);
-    c.appendChild(row("เวลา",new Date(o.created_at).toLocaleString("th-TH")));
-    c.appendChild(row("ผู้รับ",o.name));
-    var pr=el("div","row");pr.appendChild(el("span","dim","เบอร์"));var a=el("a",null,o.phone);a.href="tel:"+o.phone;var sp=el("span");sp.appendChild(a);pr.appendChild(sp);c.appendChild(pr);
-    c.appendChild(row("ที่อยู่",o.address||"(ไม่มีข้อมูล)"));
-    c.appendChild(row("คั่ว / บด",(o.roast||"-")+" / "+(o.grind||"-")));
-    c.appendChild(row("ปริมาณ",o.kg+" กก."));
-    if(o.note)c.appendChild(row("หมายเหตุ",o.note));
-    c.appendChild(row("ยอด",money(o.amount)+" บาท"));
-    if(o.status!=="paid"){var bt=el("button","ok-btn","ยืนยันว่าเงินเข้าแล้ว");bt.onclick=function(){confirmPaid(o)};c.appendChild(bt)}
-    l.appendChild(c);
+  items.forEach(function(o){l.appendChild(card(o))});
+}
+
+/* ---- report tab ---- */
+var rep={from:"",to:"",data:null,err:""};
+function iso(d){return d.toISOString().slice(0,10)}
+function renderReport(l){
+  if(!rep.from){var t=new Date();rep.to=iso(t);t.setDate(t.getDate()-30);rep.from=iso(t)}
+  var c=el("div","card");c.appendChild(el("h3",null,"ยอดขายแยกช่องทาง (UTM) — เฉพาะออเดอร์จริง ไม่รวมทดสอบและที่ยกเลิก"));
+  var f=el("div","inline"),a=el("input"),b=el("input");a.type="date";b.type="date";a.value=rep.from;b.value=rep.to;
+  var go=el("button","btn2","ดูรายงาน");go.onclick=function(){rep.from=a.value;rep.to=b.value;loadReport()};
+  f.appendChild(a);f.appendChild(b);f.appendChild(go);c.appendChild(f);
+  if(rep.err)c.appendChild(el("p","dim",rep.err));
+  if(rep.data){
+    var w=el("div","wrap"),tb=el("table"),hd=el("tr");["ช่องทาง","สั่ง","จ่ายแล้ว","% จ่าย","รายได้","กก.","ค้างจ่าย"].forEach(function(x){hd.appendChild(el("th",null,x))});tb.appendChild(hd);
+    rep.data.rows.forEach(function(r){var tr=el("tr");[r.source+(r.medium?" / "+r.medium:"")+(r.campaign?" / "+r.campaign:""),r.orders,r.paid_orders,r.paid_rate_pct+"%",money(r.revenue),r.kg,money(r.pending_amount)].forEach(function(x){tr.appendChild(el("td",null,x))});tb.appendChild(tr)});
+    var t=rep.data.total,tr2=el("tr");["รวม",t.orders,t.paid_orders,t.orders?Math.round(t.paid_orders/t.orders*1000)/10+"%":"0%",money(t.revenue),t.kg,money(t.pending_amount)].forEach(function(x){var td=el("td",null,x);td.style.fontWeight="700";tr2.appendChild(td)});tb.appendChild(tr2);
+    w.appendChild(tb);c.appendChild(w);
+    if(!rep.data.rows.length)c.appendChild(el("p","dim","ยังไม่มีออเดอร์จริงในช่วงนี้"));
+  }
+  l.appendChild(c);if(!rep.data&&!rep.err)loadReport();
+}
+async function loadReport(){try{rep.err="";rep.data=await api("/api/sales-report?from="+rep.from+"&to="+rep.to)}catch(e){rep.err="โหลดรายงานไม่สำเร็จ: "+e.message}if(filter==="report")render()}
+
+/* ---- config tab: roast capacity + discount codes ---- */
+var cfgData=null,cfgErr="";
+async function loadConfig(){try{cfgErr="";cfgData=await api("/api/admin-config")}catch(e){cfgErr="โหลดตั้งค่าไม่สำเร็จ: "+e.message}if(filter==="config")render()}
+function renderConfig(l){
+  if(!cfgData&&!cfgErr){loadConfig();l.appendChild(el("p","dim","กำลังโหลด…"));return}
+  if(cfgErr){l.appendChild(el("p","dim",cfgErr));return}
+  var cap=el("div","card");cap.appendChild(el("h3",null,"จำกัดกำลังคั่ว"));
+  var cp=cfgData.capacity;cap.appendChild(el("p","dim",cp.limited?("รับรวมได้ "+cp.max+" กก. (ออเดอร์ที่ยังไม่ส่ง ไม่รวมทดสอบ) ใช้แล้ว "+cp.used+" เหลือ "+cp.left+" กก."):"ยังไม่จำกัด (เว้นว่าง = ไม่จำกัด)"));
+  var f=el("div","inline"),ci=el("input");ci.type="number";ci.min="0";ci.step="0.5";ci.placeholder="กก. สูงสุด";ci.value=cp.limited?cp.max:"";
+  var sv=el("button","btn2","บันทึก");sv.onclick=async function(){try{await post("/api/admin-config",{action:"set_setting",key:"max_open_kg",value:ci.value});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};
+  f.appendChild(ci);f.appendChild(sv);cap.appendChild(f);l.appendChild(cap);
+  var dc=el("div","card");dc.appendChild(el("h3",null,"รหัสส่วนลด"));
+  cfgData.codes.forEach(function(k){
+    var r=el("div","row");r.appendChild(el("span",null,k.code+" · "+(k.type==="percent"?k.value+"%":money(k.value)+" บาท")+(k.min_kg?" · ขั้นต่ำ "+k.min_kg+" กก.":"")+" · ใช้ "+k.used_count+(k.max_uses!=null?"/"+k.max_uses:"")+(k.expires_at?" · หมด "+String(k.expires_at).slice(0,10):"")));
+    var tg=el("button","btn2",k.active?"ปิด":"เปิด");tg.onclick=async function(){try{await post("/api/admin-config",{action:"toggle_code",code:k.code,active:!k.active});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};r.appendChild(tg);dc.appendChild(r);
   });
+  if(!cfgData.codes.length)dc.appendChild(el("p","dim","ยังไม่มีรหัส"));
+  var nf=el("div","inline sec"),code=el("input"),type=el("select"),val=el("input"),mk=el("input"),mu=el("input"),ex=el("input");
+  code.placeholder="รหัส เช่น WELCOME10";type.appendChild(Object.assign(el("option",null,"ลด %"),{value:"percent"}));type.appendChild(Object.assign(el("option",null,"ลดบาท"),{value:"fixed"}));
+  val.type="number";val.placeholder="มูลค่า";mk.type="number";mk.placeholder="ขั้นต่ำ กก.";mu.type="number";mu.placeholder="ใช้ได้สูงสุดกี่ครั้ง";ex.type="date";
+  var add=el("button","btn2","สร้าง/แก้รหัส");add.onclick=async function(){try{await post("/api/admin-config",{action:"save_code",code:code.value,type:type.value,value:val.value,min_kg:mk.value||0,max_uses:mu.value,expires_at:ex.value?ex.value+"T23:59:59+07:00":""});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};
+  [code,type,val,mk,mu,ex,add].forEach(function(x){nf.appendChild(x)});dc.appendChild(nf);l.appendChild(dc);
 }
 async function load(){
-  try{var j=await api("/api/admin-orders");failCount=0;all=j.orders||[];notifyCfg=j.notify||null;setConn(true);renderNotify();detect();render()}
+  try{var j=await api("/api/admin-orders");failCount=0;all=j.orders||[];notifyCfg=j.notify||null;setConn(true);renderNotify();detect();if(filter!=="report"&&filter!=="config")render();else chrome()}
   catch(e){failCount++;setConn(false,e.message);if(!all.length)$("list").textContent="โหลดไม่สำเร็จ: "+e.message}
 }
 $("banner").onclick=ack;
-document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){filter=b.dataset.f;syncTabs();render()}});
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){filter=b.dataset.f;if(filter==="report")rep.data=null;if(filter==="config")cfgData=null;syncTabs();render()}});
 document.addEventListener("visibilitychange",function(){if(!document.hidden)load()});
 load();setInterval(load,10000);
 </script></body></html>

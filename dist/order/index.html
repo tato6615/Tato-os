@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>สถานะออเดอร์ | TATO Coffee</title>
+<style>
+body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun","Anuphan",sans-serif;line-height:1.7}
+main{max-width:640px;margin:auto;padding:24px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 6px;color:#f3bc8b}
+.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:16px;margin:14px 0}
+.row{display:flex;justify-content:space-between;gap:12px;font-size:14px}.row span:first-child{color:#a39a95}
+.no{color:#ff5e1a;font-weight:700}.tag{display:inline-block;padding:3px 10px;border-radius:99px;background:#3a2a20;font-size:13px}
+.tag.paid,.tag.shipped{background:#173a24;color:#7be0a0}.tag.cancelled{background:#4a1b17;color:#ff9b91}
+a{color:#f3bc8b}.btn{display:block;text-align:center;padding:12px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;text-decoration:none;margin-top:10px}
+.dim{color:#a39a95;font-size:13px}
+</style>
+</head><body><main>
+<h1>สถานะออเดอร์</h1><p class="dim">ลิงก์นี้เปิดซ้ำได้ตลอด ห้ามส่งต่อให้ผู้อื่น</p>
+<div id="out"><p class="dim">กำลังโหลด…</p></div>
+<p class="dim"><a href="/">← กลับหน้าร้าน</a></p>
+</main>
+<script>
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function row(k,v){var r=el("div","row");r.appendChild(el("span",null,k));r.appendChild(el("span",null,v));return r}
+function money(n){return Number(n||0).toLocaleString("th-TH")+" บาท"}
+var q=new URLSearchParams(location.search),out=document.getElementById("out");
+fetch("/api/order-status?id="+encodeURIComponent(q.get("id")||"")+"&t="+encodeURIComponent(q.get("t")||""),{cache:"no-store"})
+.then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j}})})
+.then(function(x){
+  out.textContent="";
+  if(!x.ok||!x.j.success){out.appendChild(el("div","card","ไม่พบออเดอร์นี้ ลิงก์อาจไม่ถูกต้อง กรุณาติดต่อร้านพร้อมเลขออเดอร์"));return}
+  var o=x.j.order,c=el("div","card"),h=el("div","row");
+  h.appendChild(el("span","no",o.number));h.appendChild(el("span","tag "+o.status,o.status_th));c.appendChild(h);
+  c.appendChild(row("วันที่สั่ง",new Date(o.created_at).toLocaleString("th-TH")));
+  c.appendChild(row("ผู้รับ",o.name));c.appendChild(row("ที่อยู่",o.address_masked));
+  c.appendChild(row("คั่ว / บด",(o.roast||"-")+" / "+(o.grind||"-")));c.appendChild(row("ปริมาณ",o.kg+" กก."));
+  c.appendChild(row("ค่ากาแฟ",money(o.subtotal)));
+  if(o.discount)c.appendChild(row("ส่วนลด","-"+money(o.discount)));
+  c.appendChild(row("ค่าจัดส่ง",o.shipping?money(o.shipping):"ฟรี"));c.appendChild(row("ยอดสุทธิ",money(o.amount)));
+  out.appendChild(c);
+  if(o.status==="cancelled")out.appendChild(el("div","card",o.cancel_reason==="expired_unpaid"?"ออเดอร์นี้ถูกยกเลิกอัตโนมัติเพราะไม่ได้ชำระเงินภายใน 48 ชั่วโมง หากโอนแล้วโปรดติดต่อร้านพร้อมสลิป":"ออเดอร์นี้ถูกยกเลิกแล้ว"));
+  var t=x.j.tracking;
+  if(t){var tc=el("div","card");tc.appendChild(el("h2",null,"การจัดส่ง"));tc.appendChild(row("ขนส่ง",t.courier));tc.appendChild(row("เลขพัสดุ",t.tracking_no));
+    if(t.url){var a=el("a","btn","ติดตามพัสดุ");a.href=t.url;a.target="_blank";a.rel="noopener noreferrer";tc.appendChild(a)}out.appendChild(tc)}
+  else if(o.status==="paid")out.appendChild(el("div","card","ชำระเงินแล้ว ร้านกำลังคั่วและแพ็ค เลขพัสดุจะแสดงที่หน้านี้เมื่อจัดส่ง"));
+  var p=x.j.payment;
+  if(p){var pc=el("div","card");pc.appendChild(el("h2",null,"วิธีชำระเงิน"));
+    if(p.promptpay)pc.appendChild(row("พร้อมเพย์",p.promptpay));
+    if(p.account_number){pc.appendChild(row("ธนาคาร",p.bank_name));pc.appendChild(row("เลขบัญชี",p.account_number));pc.appendChild(row("ชื่อบัญชี",p.account_name))}
+    pc.appendChild(el("p","dim","โอนแล้วส่งสลิปพร้อมเลขออเดอร์ "+o.number+" ให้ร้าน ออเดอร์ที่ไม่ชำระใน 48 ชั่วโมงจะถูกยกเลิกอัตโนมัติ"));
+    if(p.line_oa){var l=el("a","btn","ส่งสลิปทาง LINE");l.href="https://line.me/R/oaMessage/"+p.line_oa+"/?"+encodeURIComponent("ส่งสลิปออเดอร์ "+o.number+" ยอด "+o.amount+" บาท");l.target="_blank";l.rel="noopener noreferrer";pc.appendChild(l)}
+    out.appendChild(pc)}
+}).catch(function(){out.textContent="";out.appendChild(el("div","card","โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่"))});
+</script></body></html>
