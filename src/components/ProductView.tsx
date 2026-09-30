@@ -3,12 +3,21 @@ import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
 import { PaymentBox } from './ReceiptsPanel';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
 import { useLanguage, translateText } from '../i18n';
+import { quote as buildQuote } from '../../shared/shipping.js';
+import { validateCustomer } from '../../shared/validate.js';
+
+const PRODUCT_ID = 'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0';
+type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
+const CODE_ERRORS: Record<string, string> = { CODE_INVALID: 'ไม่พบรหัสส่วนลดนี้', CODE_EXPIRED: 'รหัสส่วนลดหมดอายุแล้ว', CODE_USED_UP: 'รหัสส่วนลดถูกใช้ครบแล้ว', CODE_MIN_KG: 'ปริมาณไม่ถึงขั้นต่ำของรหัสนี้' };
+const SUBMIT_ERRORS: Record<string, string> = { RATE_LIMITED: 'ส่งคำสั่งซื้อถี่เกินไป กรุณารอสักครู่แล้วลองใหม่', TURNSTILE_FAILED: 'ยืนยันตัวตนไม่ผ่าน กรุณาลองใหม่', PRICE_MISMATCH: 'ราคามีการเปลี่ยนแปลง กรุณาตรวจยอดสุทธิอีกครั้งแล้วกดสั่งซื้อ', CAPACITY_FULL: 'ขออภัย รอบคั่วนี้เต็มแล้ว กรุณาลดปริมาณหรือติดต่อร้าน' };
 
 interface ProductViewProps {
   initialRoast?: RoastType;
   onOrderSuccess: (order: OrderItem) => Promise<CheckoutResult>;
   onTrack?: (event_type: string, metadata?: Record<string, unknown>) => void;
   onViewOrders: () => void;
+  prefill?: OrderItem | null;
+  onPrefillConsumed?: () => void;
 }
 
 export const ProductView: React.FC<ProductViewProps> = ({
@@ -16,6 +25,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
   onOrderSuccess,
   onTrack,
   onViewOrders,
+  prefill = null,
+  onPrefillConsumed,
 }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>(initialRoast);
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('whole_bean');
@@ -29,6 +40,15 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
+  const [customerPostal, setCustomerPostal] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [serverQuote, setServerQuote] = useState<ServerQuote | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const requestIdRef = useRef<string | null>(null);
+  const submitLockRef = useRef(false);
+  const turnstileBoxRef = useRef<HTMLDivElement | null>(null);
+  const turnstileIdRef = useRef<any>(null);
 
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -73,12 +93,60 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
 
-  // Price is always derived from the CURRENT quantity state.
-  // 550 THB per 1 KG = 0.55 THB per gram.
-  const quantityGrams = Math.round(quantityKg * 1000);
-  const subtotal = Math.round(quantityGrams * 0.55);
-  const shipping = quantityKg >= 2 ? 0 : 50;
-  const total = subtotal + shipping;
+  // Price = shared formula (shared/shipping.js, same file the server uses). While the server quote
+  // for the current inputs is loading we show the local calculation; once it arrives its numbers win.
+  const localQuote = buildQuote({ kg: quantityKg, unitPrice, postal: customerPostal.trim() });
+  const quoteKey = quantityKg + '|' + customerPostal.trim() + '|' + codeInput.trim().toUpperCase();
+  const sq = serverQuote && serverQuote.key === quoteKey ? serverQuote : null;
+  const subtotal = sq ? sq.subtotal : localQuote.subtotal;
+  const discount = sq ? sq.discount : 0;
+  const shipping = sq ? sq.shipping : localQuote.shipping;
+  const total = sq ? sq.total : localQuote.total;
+  const codeError = sq && sq.code && !sq.code.valid ? (CODE_ERRORS[sq.code.error || ''] || 'ใช้รหัสส่วนลดนี้ไม่ได้') : null;
+  const siteKey = serverQuote ? serverQuote.turnstile_site_key : '';
+  const capacityLeft = serverQuote && serverQuote.capacity.limited ? serverQuote.capacity.left : null;
+  const capacityFull = capacityLeft !== null && quantityKg > capacityLeft;
+
+  useEffect(() => {
+    const key = quoteKey;
+    const h = window.setTimeout(() => {
+      const qs = new URLSearchParams({ action: 'quote', product_id: PRODUCT_ID, kg: String(quantityKg), postal: customerPostal.trim(), code: codeInput.trim() });
+      fetch('/api/checkout?' + qs.toString()).then((r) => r.json()).then((d) => {
+        if (d && d.success) setServerQuote({ ...d, key });
+      }).catch(() => {});
+    }, 350);
+    return () => window.clearTimeout(h);
+  }, [quoteKey]);
+
+  useEffect(() => {
+    if (!siteKey || !turnstileBoxRef.current) return;
+    const w = window as any;
+    const mount = () => {
+      if (!w.turnstile || !turnstileBoxRef.current || turnstileIdRef.current !== null) return;
+      turnstileIdRef.current = w.turnstile.render(turnstileBoxRef.current, { sitekey: siteKey, theme: 'dark', callback: (t: string) => setTurnstileToken(t), 'expired-callback': () => setTurnstileToken(''), 'error-callback': () => setTurnstileToken('') });
+    };
+    if (w.turnstile) { mount(); return; }
+    let sc = document.getElementById('cf-turnstile-script') as HTMLScriptElement | null;
+    if (!sc) { sc = document.createElement('script'); sc.id = 'cf-turnstile-script'; sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; sc.async = true; document.head.appendChild(sc); }
+    sc.addEventListener('load', mount);
+    return () => sc && sc.removeEventListener('load', mount);
+  }, [siteKey]);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setSelectedRoast(prefill.roast);
+    setSelectedGrind(prefill.grind);
+    setQuantityKg(prefill.quantityKg);
+    setQuantityInput(String(prefill.quantityKg));
+    setCustomerName(prefill.customer.name);
+    setCustomerEmail(prefill.customer.email || '');
+    setCustomerPhone(prefill.customer.phone);
+    setCustomerAddress(prefill.customer.address);
+    setCustomerPostal(prefill.customer.postalCode || '');
+    setCustomerNote(prefill.customer.note || '');
+    onPrefillConsumed && onPrefillConsumed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
 
   const formatQuantity = (kg: number) => {
     return Number.isInteger(kg) ? String(kg) : kg.toFixed(1);
@@ -137,20 +205,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { [key: string]: string } = {};
-
-    if (!customerName.trim()) {
-      newErrors.name = 'กรุณาระบุชื่อ-นามสกุล';
-    }
-    if (!customerEmail.trim() || !customerEmail.includes('@')) {
-      newErrors.email = 'กรุณาระบุอีเมลที่ถูกต้อง';
-    }
-    if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 9) {
-      newErrors.phone = 'กรุณาระบุเบอร์โทรศัพท์สำหรับจัดส่ง';
-    }
-    if (!customerAddress.trim()) {
-      newErrors.address = 'กรุณาระบุที่อยู่สำหรับจัดส่ง (บ้านเลขที่, ถนน, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์)';
-    }
+    const newErrors: { [key: string]: string } = validateCustomer({ name: customerName, phone: customerPhone, email: customerEmail.trim(), address: customerAddress, postal_code: customerPostal, consent });
+    if (siteKey && !turnstileToken) newErrors.turnstile = 'กรุณายืนยันว่าไม่ใช่บอท';
+    if (codeInput.trim() && codeError) newErrors.code = codeError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -177,23 +234,38 @@ export const ProductView: React.FC<ProductViewProps> = ({
         email: customerEmail.trim(),
         phone: customerPhone.trim(),
         address: customerAddress.trim(),
+        postalCode: customerPostal.trim(),
         note: customerNote.trim() || undefined,
         paymentMethod,
       },
       timestamp: new Date().toISOString(),
       status: 'Roast Queued',
+      discount,
+      discountCode: codeInput.trim().toUpperCase() || undefined,
+      expectedTotal: total,
+      requestId: (requestIdRef.current = requestIdRef.current || crypto.randomUUID()),
+      consent,
+      turnstileToken: turnstileToken || undefined,
     };
 
-    if (submitting) return;
+    if (submitting || submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
     try {
       const result = await onOrderSuccess(newOrder);
-      if (result.ok && result.order) { orderDoneRef.current = true; setCompletedOrder(result.order); }
-      else setSubmitError('สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อร้านโดยตรง (' + (result.error || 'ERROR') + ')');
+      if (result.ok && result.order) { orderDoneRef.current = true; requestIdRef.current = null; setCompletedOrder(result.order); }
+      else {
+        if (result.fields) setErrors(result.fields);
+        const code = result.error || 'ERROR';
+        if (code === 'PRICE_MISMATCH') setServerQuote(null);
+        if (siteKey && turnstileIdRef.current !== null) { try { (window as any).turnstile.reset(turnstileIdRef.current); } catch {} setTurnstileToken(''); }
+        setSubmitError(code === 'CHECKOUT_VALIDATION' ? 'ข้อมูลบางช่องไม่ถูกต้อง กรุณาตรวจสอบช่องที่มีข้อความสีแดง' : (SUBMIT_ERRORS[code] || CODE_ERRORS[code] || 'สั่งซื้อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อร้านโดยตรง (' + code + ')'));
+      }
     } catch {
       setSubmitError('เชื่อมต่อระบบไม่สำเร็จ กรุณาลองใหม่');
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -211,6 +283,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
     setCustomerPhone('');
     setCustomerAddress('');
     setCustomerNote('');
+    setCustomerPostal('');
+    setConsent(false);
+    setCodeInput('');
+    requestIdRef.current = null;
     setErrors({});
   };
 
@@ -521,7 +597,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                        Email Address / อีเมล <span className="text-[#ff5e1a]">*</span>
+                        Email Address / อีเมล <span className="text-[#e3beb3]/50">(ถ้ามี)</span>
                       </label>
                       <input
                         type="email"
@@ -539,6 +615,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       </label>
                       <input
                         type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        maxLength={16}
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="081 234 5678"
@@ -563,6 +642,24 @@ export const ProductView: React.FC<ProductViewProps> = ({
                     {errors.address && <p className="text-[#ffb4ab] text-xs mt-1">{errors.address}</p>}
                   </div>
 
+                  {/* Postal code (drives real shipping cost) */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                      Postal Code / รหัสไปรษณีย์ <span className="text-[#ff5e1a]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      maxLength={5}
+                      value={customerPostal}
+                      onChange={(e) => setCustomerPostal(e.target.value.replace(/\D/g, ''))}
+                      placeholder="50110"
+                      className="w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px]"
+                    />
+                    {errors.postal_code && <p className="text-[#ffb4ab] text-xs mt-1">{errors.postal_code}</p>}
+                  </div>
+
                   {/* Optional Note */}
                   <div>
                     <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/70 block mb-1">
@@ -575,6 +672,22 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       placeholder="เช่น ขอบดสำหรับ Aeropress ฟิลเตอร์โลหะ, ส่งช่วงบ่าย"
                       className="w-full h-10 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/40 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[13px]"
                     />
+                  </div>
+
+                  {/* Discount code */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/70 block mb-1">
+                      Discount Code / รหัสส่วนลด (ถ้ามี)
+                    </label>
+                    <input
+                      type="text"
+                      value={codeInput}
+                      onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                      maxLength={30}
+                      className="w-full h-10 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/40 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[13px] font-mono"
+                    />
+                    {codeInput.trim() && sq && sq.code && sq.code.valid && discount > 0 && <p className="text-[#7be0a0] text-xs mt-1">ใช้ส่วนลดได้ ลด {discount.toLocaleString('th-TH')} บาท</p>}
+                    {codeInput.trim() && codeError && <p className="text-[#ffb4ab] text-xs mt-1">{codeError}</p>}
                   </div>
 
                   {/* Payment Method Selector */}
@@ -698,10 +811,17 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   </span>
                 </div>
 
+                {discount > 0 && (
+                  <div className="flex items-center justify-between text-[#7be0a0] font-['Manrope'] text-[13px]">
+                    <span>Discount / ส่วนลด</span>
+                    <span className="font-mono">-{discount.toLocaleString('th-TH')} THB</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-[#e3beb3]/80 font-['Manrope'] text-[13px]">
                   <span className="flex items-center gap-1.5">
                     <span>Shipping / ค่าจัดส่ง</span>
-                    {quantityKg >= 2 ? (
+                    {shipping === 0 ? (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#67401a]/70 text-[#ffdcc0] font-semibold">
                         PROMO FREE
                       </span>
@@ -712,7 +832,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                     )}
                   </span>
                   <span className="font-mono text-[#e6e1df]">
-                    {quantityKg >= 2 ? 'FREE (ฟรี)' : `${shipping} THB`}
+                    {shipping === 0 ? 'FREE (ฟรี)' : `${shipping} THB`}
                   </span>
                 </div>
 
@@ -731,6 +851,23 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
               {/* High Prominence Call to Action */}
               <div className="space-y-2">
+                {capacityFull && (
+                  <p className="text-center text-[13px] text-[#f3c76b] bg-[#3d2f12] rounded-lg py-2 px-3">
+                    รอบคั่วนี้เหลือรับได้อีก {capacityLeft} กก. กรุณาลดปริมาณ หรือติดต่อร้าน
+                  </p>
+                )}
+                <label className="flex items-start gap-2 text-[12px] text-[#e3beb3]/80 font-['Anuphan'] leading-relaxed">
+                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 accent-[#ff5e1a]" />
+                  <span>
+                    ข้าพเจ้ายินยอมให้เก็บและใช้ชื่อ เบอร์โทร ที่อยู่ เพื่อจัดส่งสินค้าและติดต่อเรื่องคำสั่งซื้อ และยอมรับ{' '}
+                    <a href="/privacy/" target="_blank" rel="noopener noreferrer" className="underline text-[#f3bc8b]">นโยบายความเป็นส่วนตัว</a> และ{' '}
+                    <a href="/refund/" target="_blank" rel="noopener noreferrer" className="underline text-[#f3bc8b]">นโยบายการคืนสินค้า/เงิน</a>
+                  </span>
+                </label>
+                {errors.consent && <p className="text-[#ffb4ab] text-xs">{errors.consent}</p>}
+                {siteKey && <div ref={turnstileBoxRef} className="flex justify-center" />}
+                {errors.turnstile && <p className="text-center text-[#ffb4ab] text-xs">{errors.turnstile}</p>}
+                {errors.code && <p className="text-center text-[#ffb4ab] text-xs">{errors.code}</p>}
                 {submitError && (
                   <p className="text-center text-[13px] text-[#ff6b6b] bg-[#3a0f0f] rounded-lg py-2 px-3">
                     ⚠️ {submitError}
@@ -738,7 +875,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 )}
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || capacityFull}
                   className="disabled:opacity-60 w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
@@ -816,6 +953,12 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
                 <PaymentBox order={completedOrder} />
               </div>
+
+              {completedOrder.statusUrl && (
+                <a href={completedOrder.statusUrl} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-3 rounded-lg bg-[#1d1b1a] border border-[#ff5e1a]/50 text-[#f3bc8b] font-['Anuphan'] text-[13px]">
+                  บันทึกลิงก์นี้ไว้ดูสถานะ/เลขพัสดุ (เปิดซ้ำได้ตลอด)
+                </a>
+              )}
 
               <div className="space-y-2 pt-1">
                 <button

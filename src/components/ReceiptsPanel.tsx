@@ -53,7 +53,7 @@ export const PaymentBox: React.FC<{ order: OrderItem }> = ({ order }) => {
   );
 };
 
-export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClose: () => void }> = ({ open, orders, onClose }) => {
+export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClose: () => void; onReorder?: (o: OrderItem) => void }> = ({ open, orders, onClose, onReorder }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 flex items-start justify-center overflow-y-auto p-4" onClick={onClose}>
@@ -66,7 +66,7 @@ export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClo
           <p className="font-['Anuphan'] text-[14px] text-[#e3beb3]">ยังไม่มีคำสั่งซื้อในเครื่องนี้</p>
         ) : orders.map((o) => (
           <div key={o.id} className="bg-[#1d1b1a] rounded-xl p-4 border border-[#2b2a28] space-y-1.5 font-mono text-[12px] text-[#e3beb3]/80">
-            <div className="flex justify-between text-[#ff5e1a] font-bold"><span>#{o.orderNumber}</span><span>รอชำระเงิน / รอตรวจสลิป</span></div>
+            <div className="flex justify-between text-[#ff5e1a] font-bold"><span>#{o.orderNumber}</span><span>สถานะ: ดูที่ลิงก์ด้านล่าง</span></div>
             <div className="flex justify-between"><span>วันที่</span><span>{new Date(o.timestamp).toLocaleString('th-TH')}</span></div>
             <div className="flex justify-between"><span>ผู้รับ</span><span className="text-[#e6e1df]">{o.customer.name}</span></div>
             <div className="flex justify-between"><span>เบอร์โทร</span><span className="text-[#e6e1df]">{o.customer.phone}</span></div>
@@ -74,9 +74,14 @@ export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClo
             <div className="flex justify-between"><span>ระดับคั่ว / การบด</span><span className="text-[#e6e1df]">{o.roast.toUpperCase()} / {o.grind}</span></div>
             <div className="flex justify-between"><span>ปริมาณ</span><span className="text-[#e6e1df]">{o.quantityKg} กก.</span></div>
             <div className="flex justify-between"><span>ค่ากาแฟ</span><span className="text-[#e6e1df]">{thb(o.subtotal)}</span></div>
+            {o.discount ? <div className="flex justify-between"><span>ส่วนลด{o.discountCode ? ' (' + o.discountCode + ')' : ''}</span><span className="text-[#e6e1df]">-{thb(o.discount)}</span></div> : null}
             <div className="flex justify-between"><span>ค่าจัดส่ง</span><span className="text-[#e6e1df]">{o.shipping === 0 ? 'ฟรี' : thb(o.shipping)}</span></div>
             <div className="flex justify-between text-[13px] font-bold text-[#ff5e1a]"><span>ยอดสุทธิ</span><span>{thb(o.total)}</span></div>
             <PaymentBox order={o} />
+            <div className="flex gap-2 pt-2">
+              {o.statusUrl ? <a href={o.statusUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2.5 rounded-lg bg-[#ff5e1a] text-[#390c00] font-bold text-[12px] font-['Anuphan']">ดูสถานะ / เลขพัสดุ</a> : null}
+              {onReorder ? <button type="button" onClick={() => onReorder(o)} className="flex-1 py-2.5 rounded-lg bg-[#2b2a28] text-[#e6e1df] font-bold text-[12px] font-['Anuphan']">สั่งซ้ำ</button> : null}
+            </div>
           </div>
         ))}
       </div>

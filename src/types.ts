@@ -29,6 +29,7 @@ export interface CustomerDetails {
   email: string;
   phone: string;
   address: string;
+  postalCode: string;
   note?: string;
   paymentMethod: 'promptpay' | 'cod' | 'credit_card';
 }
@@ -47,9 +48,16 @@ export interface OrderItem {
   orderNumber: string;
   status: 'Roast Queued' | 'Roasting' | 'Degassing & Packing' | 'Dispatched';
   serverId?: string;
+  discount?: number;
+  discountCode?: string;
+  expectedTotal?: number;
+  requestId?: string;
+  consent?: boolean;
+  turnstileToken?: string;
+  statusUrl?: string;
   lineOa?: string;
   payment?: PaymentInstructions;
 }
 
 export interface PaymentInstructions { method?: string; bank_name?: string; account_name?: string; account_number?: string; promptpay?: string; note?: string; }
-export interface CheckoutResult { ok: boolean; error?: string; order?: OrderItem; }
+export interface CheckoutResult { ok: boolean; error?: string; fields?: Record<string, string>; order?: OrderItem; }

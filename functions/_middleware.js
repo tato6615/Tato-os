@@ -1,4 +1,4 @@
-const PUBLIC = new Set(["POST /api/checkout", "GET /api/checkout", "POST /api/behavior", "POST /api/event"]);
+const PUBLIC = new Set(["POST /api/checkout", "GET /api/checkout", "POST /api/behavior", "POST /api/event", "GET /api/order-status"]);
 function safeEq(a, b) {
   if (a.length !== b.length) return false;
   let r = 0;
