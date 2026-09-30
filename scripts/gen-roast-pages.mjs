@@ -30,7 +30,7 @@ for (const r of roasts) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${url}">
-<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="product"><meta property="og:url" content="${url}"><meta property="og:image" content="${DOMAIN}/images/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${DOMAIN}/images/og.png">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="product"><meta property="og:url" content="${url}"><meta property="og:image" content="${DOMAIN}/images/og.png?v=2"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${DOMAIN}/images/og.png?v=2">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 </head><body style="font-family:sans-serif;background:#141312;color:#e6e1df;max-width:720px;margin:0 auto;padding:24px;line-height:1.6">
 <h1>${esc(r.nameThai)} (${esc(r.name)})</h1>
