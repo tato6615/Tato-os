@@ -3,12 +3,15 @@ import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
 import { PaymentBox } from './ReceiptsPanel';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
 import { useLanguage, translateText } from '../i18n';
-import { quote as buildQuote } from '../../shared/shipping.js';
+import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
 
 const PRODUCT_ID = 'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0';
 type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
 const CODE_ERRORS: Record<string, string> = { CODE_INVALID: 'ไม่พบรหัสส่วนลดนี้', CODE_EXPIRED: 'รหัสส่วนลดหมดอายุแล้ว', CODE_USED_UP: 'รหัสส่วนลดถูกใช้ครบแล้ว', CODE_MIN_KG: 'ปริมาณไม่ถึงขั้นต่ำของรหัสนี้' };
+const FIELD_ORDER = ['name', 'phone', 'email', 'address', 'postal_code', 'consent', 'code'];
+const inputBase = "w-full px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border transition-all";
+const bdr = (bad: boolean) => (bad ? 'border-[#ff6b6b]' : 'border-[#2b2a28]');
 const SUBMIT_ERRORS: Record<string, string> = { RATE_LIMITED: 'ส่งคำสั่งซื้อถี่เกินไป กรุณารอสักครู่แล้วลองใหม่', TURNSTILE_FAILED: 'ยืนยันตัวตนไม่ผ่าน กรุณาลองใหม่', PRICE_MISMATCH: 'ราคามีการเปลี่ยนแปลง กรุณาตรวจยอดสุทธิอีกครั้งแล้วกดสั่งซื้อ', CAPACITY_FULL: 'ขออภัย รอบคั่วนี้เต็มแล้ว กรุณาลดปริมาณหรือติดต่อร้าน' };
 
 interface ProductViewProps {
@@ -43,6 +46,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [customerPostal, setCustomerPostal] = useState('');
   const [consent, setConsent] = useState(false);
   const [codeInput, setCodeInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState('');
   const [serverQuote, setServerQuote] = useState<ServerQuote | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const requestIdRef = useRef<string | null>(null);
@@ -96,13 +100,20 @@ export const ProductView: React.FC<ProductViewProps> = ({
   // Price = shared formula (shared/shipping.js, same file the server uses). While the server quote
   // for the current inputs is loading we show the local calculation; once it arrives its numbers win.
   const localQuote = buildQuote({ kg: quantityKg, unitPrice, postal: customerPostal.trim() });
-  const quoteKey = quantityKg + '|' + customerPostal.trim() + '|' + codeInput.trim().toUpperCase();
+  const quoteKey = quantityKg + '|' + customerPostal.trim() + '|' + appliedCode;
   const sq = serverQuote && serverQuote.key === quoteKey ? serverQuote : null;
   const subtotal = sq ? sq.subtotal : localQuote.subtotal;
   const discount = sq ? sq.discount : 0;
   const shipping = sq ? sq.shipping : localQuote.shipping;
   const total = sq ? sq.total : localQuote.total;
-  const codeError = sq && sq.code && !sq.code.valid ? (CODE_ERRORS[sq.code.error || ''] || 'ใช้รหัสส่วนลดนี้ไม่ได้') : null;
+  const codeError = sq && sq.code && !sq.code.valid
+    ? (sq.code.error === 'CODE_MIN_KG' && sq.code.min_kg
+        ? `รหัสนี้ใช้ได้เมื่อสั่งครบ ${sq.code.min_kg} กก. (ตอนนี้ ${quantityKg} กก.)`
+        : (CODE_ERRORS[sq.code.error || ''] || 'ใช้รหัสส่วนลดนี้ไม่ได้'))
+    : null;
+  const codeChecking = !!appliedCode && !sq;
+  const codeApplied = !!appliedCode && !!sq && !!sq.code && sq.code.valid;
+  const kgToFree = Math.max(0, Math.round((SHIPPING.freeFromKg - quantityKg) * 100) / 100);
   const siteKey = serverQuote ? serverQuote.turnstile_site_key : '';
   const capacityLeft = serverQuote && serverQuote.capacity.limited ? serverQuote.capacity.left : null;
   const capacityFull = capacityLeft !== null && quantityKg > capacityLeft;
@@ -110,7 +121,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   useEffect(() => {
     const key = quoteKey;
     const h = window.setTimeout(() => {
-      const qs = new URLSearchParams({ action: 'quote', product_id: PRODUCT_ID, kg: String(quantityKg), postal: customerPostal.trim(), code: codeInput.trim() });
+      const qs = new URLSearchParams({ action: 'quote', product_id: PRODUCT_ID, kg: String(quantityKg), postal: customerPostal.trim(), code: appliedCode });
       fetch('/api/checkout?' + qs.toString()).then((r) => r.json()).then((d) => {
         if (d && d.success) setServerQuote({ ...d, key });
       }).catch(() => {});
@@ -167,6 +178,37 @@ export const ProductView: React.FC<ProductViewProps> = ({
     return parts.join(' + ');
   })();
 
+  const clearErr = (key: string) => setErrors((prev) => {
+    if (!prev[key]) return prev;
+    const n = { ...prev };
+    delete n[key];
+    return n;
+  });
+
+  const applyCode = () => {
+    const c = codeInput.trim().toUpperCase();
+    if (!c) return;
+    setAppliedCode(c);
+    clearErr('code');
+  };
+  const removeCode = () => {
+    setCodeInput('');
+    setAppliedCode('');
+    clearErr('code');
+  };
+
+  const scrollToFirstError = (errs: { [key: string]: string }) => {
+    const first = FIELD_ORDER.find((k) => errs[k]);
+    if (!first) return;
+    window.setTimeout(() => {
+      const el = document.getElementById('f-' + first);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof (el as HTMLElement).focus === 'function') (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 30);
+  };
+
   // Single source of truth for the quantity stepper.
   // Every button press derives the next quantity from the latest React state,
   // then the displayed subtotal/total is recalculated from that same state.
@@ -207,10 +249,12 @@ export const ProductView: React.FC<ProductViewProps> = ({
     e.preventDefault();
     const newErrors: { [key: string]: string } = validateCustomer({ name: customerName, phone: customerPhone, email: customerEmail.trim(), address: customerAddress, postal_code: customerPostal, consent });
     if (siteKey && !turnstileToken) newErrors.turnstile = 'กรุณายืนยันว่าไม่ใช่บอท';
-    if (codeInput.trim() && codeError) newErrors.code = codeError;
+    if (codeInput.trim().toUpperCase() !== appliedCode) newErrors.code = 'กรุณากดปุ่ม "ใช้รหัส" ก่อน หรือกด ✕ เพื่อเอารหัสออก';
+    else if (appliedCode && codeError) newErrors.code = codeError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      scrollToFirstError(newErrors);
       return;
     }
 
@@ -241,7 +285,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
       timestamp: new Date().toISOString(),
       status: 'Roast Queued',
       discount,
-      discountCode: codeInput.trim().toUpperCase() || undefined,
+      discountCode: appliedCode || undefined,
       expectedTotal: total,
       requestId: (requestIdRef.current = requestIdRef.current || crypto.randomUUID()),
       consent,
@@ -256,7 +300,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
       const result = await onOrderSuccess(newOrder);
       if (result.ok && result.order) { orderDoneRef.current = true; requestIdRef.current = null; setCompletedOrder(result.order); }
       else {
-        if (result.fields) setErrors(result.fields);
+        if (result.fields) { setErrors(result.fields); scrollToFirstError(result.fields); }
         const code = result.error || 'ERROR';
         if (code === 'PRICE_MISMATCH') setServerQuote(null);
         if (siteKey && turnstileIdRef.current !== null) { try { (window as any).turnstile.reset(turnstileIdRef.current); } catch {} setTurnstileToken(''); }
@@ -286,6 +330,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     setCustomerPostal('');
     setConsent(false);
     setCodeInput('');
+    setAppliedCode('');
     requestIdRef.current = null;
     setErrors({});
   };
@@ -476,7 +521,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
                   <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider">
-                    ROAST PROFILE / เลือกระดับการคั่ว
+                    1 · ระดับการคั่ว / ROAST PROFILE
                   </span>
                   <span className="font-mono text-[11px] text-[#ff5e1a] font-semibold">
                     {language === 'th' ? activeRoastObj.nameThai : activeRoastObj.name} ({translateText(activeRoastObj.subtitle, language)})
@@ -534,7 +579,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
                   <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider">
-                    GRIND SIZE / ขนาดการบด
+                    2 · ขนาดการบด / GRIND SIZE
                   </span>
                   <span className="font-mono text-[11px] text-[#f3bc8b]">
                     {activeGrindObj.label.split('(')[0].trim()}
@@ -571,182 +616,14 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 </div>
               </div>
 
-              {/* Customer Details & Dispatch Inputs */}
-              <div className="space-y-4 pt-2">
+              {/* Quantity */}
+              <div className="space-y-3">
                 <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
-                  CUSTOMER & DELIVERY SPECIFICATION / ข้อมูลผู้สั่งซื้อ
+                  3 · จำนวน / QUANTITY
                 </span>
-
-                <div className="space-y-3">
-                  {/* Name Field */}
                   <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                      Full Name / ชื่อ-นามสกุล <span className="text-[#ff5e1a]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="เช่น ภูมิรพี วงศ์สุวรรณ"
-                      className="w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px]"
-                    />
-                    {errors.name && <p className="text-[#ffb4ab] text-xs mt-1">{errors.name}</p>}
-                  </div>
-
-                  {/* Contact Grid: Email & Phone */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                        Email Address / อีเมล <span className="text-[#e3beb3]/50">(ถ้ามี)</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                        placeholder="curator@tatocoffee.com"
-                        className="w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px]"
-                      />
-                      {errors.email && <p className="text-[#ffb4ab] text-xs mt-1">{errors.email}</p>}
-                    </div>
-
-                    <div>
-                      <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                        Phone Number / เบอร์โทรศัพท์ <span className="text-[#ff5e1a]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel"
-                        maxLength={16}
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        placeholder="081 234 5678"
-                        className="w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px]"
-                      />
-                      {errors.phone && <p className="text-[#ffb4ab] text-xs mt-1">{errors.phone}</p>}
-                    </div>
-                  </div>
-
-                  {/* Address Field */}
-                  <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                      Shipping Address / ที่อยู่จัดส่ง <span className="text-[#ff5e1a]">*</span>
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={customerAddress}
-                      onChange={(e) => setCustomerAddress(e.target.value)}
-                      placeholder="บ้านเลขที่, อาคาร, ซอย, ถนน, ตำบล/แขวง, อำเภอ/เขต, จังหวัด, รหัสไปรษณีย์"
-                      className="w-full p-3 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px] resize-none"
-                    />
-                    {errors.address && <p className="text-[#ffb4ab] text-xs mt-1">{errors.address}</p>}
-                  </div>
-
-                  {/* Postal code (drives real shipping cost) */}
-                  <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
-                      Postal Code / รหัสไปรษณีย์ <span className="text-[#ff5e1a]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="postal-code"
-                      maxLength={5}
-                      value={customerPostal}
-                      onChange={(e) => setCustomerPostal(e.target.value.replace(/\D/g, ''))}
-                      placeholder="50110"
-                      className="w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[14px]"
-                    />
-                    {errors.postal_code && <p className="text-[#ffb4ab] text-xs mt-1">{errors.postal_code}</p>}
-                  </div>
-
-                  {/* Optional Note */}
-                  <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/70 block mb-1">
-                      Note to Roaster / ความประสงค์เพิ่มเติม (ถ้ามี)
-                    </label>
-                    <input
-                      type="text"
-                      value={customerNote}
-                      onChange={(e) => setCustomerNote(e.target.value)}
-                      placeholder="เช่น ขอบดสำหรับ Aeropress ฟิลเตอร์โลหะ, ส่งช่วงบ่าย"
-                      className="w-full h-10 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/40 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[13px]"
-                    />
-                  </div>
-
-                  {/* Discount code */}
-                  <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/70 block mb-1">
-                      Discount Code / รหัสส่วนลด (ถ้ามี)
-                    </label>
-                    <input
-                      type="text"
-                      value={codeInput}
-                      onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
-                      maxLength={30}
-                      className="w-full h-10 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/40 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[13px] font-mono"
-                    />
-                    {codeInput.trim() && sq && sq.code && sq.code.valid && discount > 0 && <p className="text-[#7be0a0] text-xs mt-1">ใช้ส่วนลดได้ ลด {discount.toLocaleString('th-TH')} บาท</p>}
-                    {codeInput.trim() && codeError && <p className="text-[#ffb4ab] text-xs mt-1">{codeError}</p>}
-                  </div>
-
-                  {/* Payment Method Selector */}
-                  <div className="pt-2">
                     <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1.5">
-                      Payment Method / วิธีการชำระเงิน
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('promptpay')}
-                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
-                          paymentMethod === 'promptpay'
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[#ff5e1a]">qr_code_2</span>
-                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
-                          PromptPay QR
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('cod')}
-                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
-                          paymentMethod === 'cod'
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[#f3bc8b]">local_shipping</span>
-                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
-                          เก็บเงินปลายทาง (COD)
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('credit_card')}
-                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
-                          paymentMethod === 'credit_card'
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[#d4c3bd]">credit_card</span>
-                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
-                          บัตรเครดิต / เดบิต
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quantity Stepper with Calculated Total */}
-                  <div className="pt-2">
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1.5">
-                      Quantity / จำนวนกิโลกรัม (500g ขั้นต่ำ · เพิ่มครั้งละ 500g)
+                      จำนวน (กิโลกรัม) · ขั้นต่ำ 0.5 กก. เพิ่มครั้งละ 0.5 กก.
                     </label>
                     <div className="flex items-center justify-between bg-[#1d1b1a] rounded-xl p-2 px-3 border border-[#2b2a28]">
                       <div className="flex items-center gap-1.5">
@@ -799,52 +676,256 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       </div>
                     </div>
                   </div>
+
+                <p className="font-['Anuphan'] text-[12px] text-[#f3bc8b]">
+                  {shipping === 0
+                    ? `✓ สั่งครบ ${SHIPPING.freeFromKg} กก. ส่งฟรี`
+                    : `สั่งเพิ่มอีก ${kgToFree} กก. รับส่งฟรี (ตอนนี้ค่าส่ง ${shipping.toLocaleString('th-TH')} บาท)`}
+                </p>
+              </div>
+
+              {/* Customer Details & Dispatch Inputs */}
+              <div className="space-y-4 pt-2">
+                <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
+                  4 · ข้อมูลผู้รับและที่อยู่จัดส่ง / DELIVERY DETAILS
+                </span>
+
+                <div className="space-y-3">
+                  {/* Name Field */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                      ชื่อ-นามสกุล / Full Name <span className="text-[#ff5e1a]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="f-name"
+value={customerName}
+                      onChange={(e) => { setCustomerName(e.target.value); clearErr('name'); }}
+                      placeholder="เช่น ภูมิรพี วงศ์สุวรรณ"
+                      className={`w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.name)} transition-all text-[14px]`}
+                    />
+                    {errors.name && <p className="text-[#ffb4ab] text-xs mt-1">{errors.name}</p>}
+                  </div>
+
+                  {/* Contact Grid: Email & Phone */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                        อีเมล / Email <span className="text-[#e3beb3]/50">(ถ้ามี)</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="f-email"
+value={customerEmail}
+                        onChange={(e) => { setCustomerEmail(e.target.value); clearErr('email'); }}
+                        placeholder="curator@tatocoffee.com"
+                        className={`w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.email)} transition-all text-[14px]`}
+                      />
+                      {errors.email && <p className="text-[#ffb4ab] text-xs mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                      <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                        เบอร์มือถือ / Phone <span className="text-[#ff5e1a]">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        maxLength={16}
+                        id="f-phone"
+value={customerPhone}
+                        onChange={(e) => { setCustomerPhone(e.target.value); clearErr('phone'); }}
+                        placeholder="เช่น 081 234 5678"
+                        className={`w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.phone)} transition-all text-[14px]`}
+                      />
+                      {errors.phone && <p className="text-[#ffb4ab] text-xs mt-1">{errors.phone}</p>}
+                    </div>
+                  </div>
+
+                  {/* Address Field */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                      ที่อยู่จัดส่ง / Address <span className="text-[#ff5e1a]">*</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      id="f-address"
+value={customerAddress}
+                      onChange={(e) => { setCustomerAddress(e.target.value); clearErr('address'); }}
+                      placeholder="บ้านเลขที่, อาคาร, ซอย, ถนน, ตำบล/แขวง, อำเภอ/เขต, จังหวัด, รหัสไปรษณีย์"
+                      className={`w-full p-3 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.address)} transition-all text-[14px] resize-none`}
+                    />
+                    {errors.address && <p className="text-[#ffb4ab] text-xs mt-1">{errors.address}</p>}
+                  </div>
+
+                  {/* Postal code (drives real shipping cost) */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1">
+                      รหัสไปรษณีย์ / Postal Code <span className="text-[#ff5e1a]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      maxLength={5}
+                      id="f-postal_code"
+value={customerPostal}
+                      onChange={(e) => { setCustomerPostal(e.target.value.replace(/\D/g, '')); clearErr('postal_code'); }}
+                      placeholder="เช่น 50110 (ใช้คำนวณค่าส่ง)"
+                      className={`w-full h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.postal_code)} transition-all text-[14px]`}
+                    />
+                    {errors.postal_code && <p className="text-[#ffb4ab] text-xs mt-1">{errors.postal_code}</p>}
+                  </div>
+
+                  {/* Optional Note */}
+                  <div>
+                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/70 block mb-1">
+                      หมายเหตุถึงผู้คั่ว / Note (ถ้ามี)
+                    </label>
+                    <input
+                      type="text"
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      placeholder="เช่น ขอบดสำหรับ Aeropress ฟิลเตอร์โลหะ, ส่งช่วงบ่าย"
+                      className="w-full h-10 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/40 focus:outline-none focus:border-[#ff5e1a] border border-[#2b2a28] transition-all text-[13px]"
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Payment */}
+              <div className="space-y-3">
+                <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
+                  5 · วิธีชำระเงิน / PAYMENT
+                </span>
+                  <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('promptpay')}
+                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
+                          paymentMethod === 'promptpay'
+                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
+                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-[#ff5e1a]">qr_code_2</span>
+                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
+                          PromptPay QR
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cod')}
+                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
+                          paymentMethod === 'cod'
+                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
+                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-[#f3bc8b]">local_shipping</span>
+                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
+                          เก็บเงินปลายทาง (COD)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('credit_card')}
+                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
+                          paymentMethod === 'credit_card'
+                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
+                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-[#d4c3bd]">credit_card</span>
+                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
+                          บัตรเครดิต / เดบิต
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+              </div>
+
+              {/* Discount code */}
+              <div className="space-y-3">
+                <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
+                  6 · รหัสส่วนลด / DISCOUNT CODE <span className="text-[#e3beb3]/50 normal-case font-normal">(ถ้ามี)</span>
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    id="f-code"
+                    type="text"
+                    value={codeInput}
+                    onChange={(e) => { setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '')); clearErr('code'); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCode(); } }}
+                    maxLength={30}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="พิมพ์รหัสส่วนลด เช่น WELCOME10"
+                    className={`flex-1 h-11 px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/50 focus:outline-none focus:border-[#ff5e1a] border ${bdr(!!errors.code || (!!appliedCode && !!codeError))} transition-all text-[14px] font-mono`}
+                  />
+                  {appliedCode && (
+                    <button type="button" onClick={removeCode} aria-label="เอารหัสส่วนลดออก" className="h-11 w-11 rounded-xl bg-[#2b2a28] hover:bg-[#363433] text-[#e6e1df] text-[16px]">✕</button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={applyCode}
+                    disabled={!codeInput.trim() || codeInput.trim().toUpperCase() === appliedCode}
+                    className="h-11 px-5 rounded-xl bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] text-[13px] font-bold disabled:opacity-40"
+                  >
+                    ใช้รหัส
+                  </button>
+                </div>
+                {codeChecking && <p className="text-[#e3beb3]/70 text-xs">กำลังตรวจสอบรหัส…</p>}
+                {codeApplied && !codeError && discount > 0 && (
+                  <p className="text-[#7be0a0] text-xs">✓ ใช้รหัส {appliedCode} แล้ว · ประหยัด {discount.toLocaleString('th-TH')} บาท</p>
+                )}
+                {appliedCode && codeError && <p className="text-[#ffb4ab] text-xs">{codeError}</p>}
+                {!appliedCode && codeInput.trim() && <p className="text-[#f3c76b] text-xs">กดปุ่ม “ใช้รหัส” เพื่อให้ส่วนลดมีผล</p>}
+                {errors.code && <p className="text-[#ffb4ab] text-xs">{errors.code}</p>}
+              </div>
+
               {/* Total Summary & Shipping Bar */}
-              <div className="bg-[#0f0e0d] rounded-xl p-4 space-y-2 border border-[#2b2a28]">
-                <div className="flex items-center justify-between text-[#e3beb3]/80 font-['Manrope'] text-[13px]">
-                  <span>Subtotal / ยอดรวม</span>
-                  <span className="font-mono text-[#e6e1df] font-medium">
-                    {subtotal.toLocaleString('th-TH')} THB
-                  </span>
+              <div className="bg-[#0f0e0d] rounded-xl p-5 space-y-2.5 border border-[#ff5e1a]/30">
+                <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
+                  สรุปราคา / ORDER SUMMARY
+                </span>
+                <div className="flex items-center justify-between text-[#e3beb3]/80 font-['Anuphan'] text-[14px]">
+                  <span>ค่ากาแฟ ({formatQuantity(quantityKg)} กก. × {unitPrice.toLocaleString('th-TH')} บาท)</span>
+                  <span className="font-mono text-[#e6e1df] font-medium">{subtotal.toLocaleString('th-TH')} บาท</span>
                 </div>
 
                 {discount > 0 && (
-                  <div className="flex items-center justify-between text-[#7be0a0] font-['Manrope'] text-[13px]">
-                    <span>Discount / ส่วนลด</span>
-                    <span className="font-mono">-{discount.toLocaleString('th-TH')} THB</span>
+                  <div className="flex items-center justify-between text-[#7be0a0] font-['Anuphan'] text-[14px]">
+                    <span>ส่วนลด{appliedCode ? ` (${appliedCode})` : ''}</span>
+                    <span className="font-mono">−{discount.toLocaleString('th-TH')} บาท</span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-[#e3beb3]/80 font-['Manrope'] text-[13px]">
-                  <span className="flex items-center gap-1.5">
-                    <span>Shipping / ค่าจัดส่ง</span>
-                    {shipping === 0 ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#67401a]/70 text-[#ffdcc0] font-semibold">
-                        PROMO FREE
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#2b2a28] text-[#aa897f]">
-                        STANDARD
-                      </span>
-                    )}
+                <div className="flex items-start justify-between text-[#e3beb3]/80 font-['Anuphan'] text-[14px]">
+                  <span className="flex flex-col">
+                    <span>ค่าจัดส่ง</span>
+                    <span className="text-[11px] text-[#f3bc8b]">
+                      {shipping === 0
+                        ? `ส่งฟรี เพราะสั่งครบ ${SHIPPING.freeFromKg} กก.`
+                        : `สั่งเพิ่มอีก ${kgToFree} กก. ส่งฟรี`}
+                    </span>
                   </span>
-                  <span className="font-mono text-[#e6e1df]">
-                    {shipping === 0 ? 'FREE (ฟรี)' : `${shipping} THB`}
+                  <span className={`font-mono ${shipping === 0 ? 'text-[#7be0a0]' : 'text-[#e6e1df]'}`}>
+                    {shipping === 0 ? 'ฟรี' : `${shipping.toLocaleString('th-TH')} บาท`}
                   </span>
                 </div>
 
-                <div className="pt-2 mt-2 border-t border-[#211f1e] flex items-baseline justify-between text-[#e6e1df]">
-                  <span className="font-['Manrope'] text-[16px] font-bold uppercase tracking-tight">
-                    Total / ยอดรวมสุทธิ:
-                  </span>
+                <div className="pt-3 mt-1 border-t border-[#2b2a28] flex items-baseline justify-between text-[#e6e1df]">
+                  <span className="font-['Anuphan'] text-[16px] font-bold">ยอดที่ต้องชำระ</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="font-['Manrope'] text-3xl font-extrabold text-[#ff5e1a]">
-                      {total.toLocaleString('th-TH')}
-                    </span>
-                    <span className="font-mono text-[13px] text-[#f3bc8b]">THB</span>
+                    <span className="font-['Manrope'] text-3xl font-extrabold text-[#ff5e1a]">{total.toLocaleString('th-TH')}</span>
+                    <span className="font-['Anuphan'] text-[14px] text-[#f3bc8b]">บาท</span>
                   </div>
                 </div>
               </div>
@@ -857,7 +938,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   </p>
                 )}
                 <label className="flex items-start gap-2 text-[12px] text-[#e3beb3]/80 font-['Anuphan'] leading-relaxed">
-                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 accent-[#ff5e1a]" />
+                  <input id="f-consent" type="checkbox" checked={consent} onChange={(e) => { setConsent(e.target.checked); clearErr('consent'); }} className="mt-1 h-4 w-4 accent-[#ff5e1a]" />
                   <span>
                     ข้าพเจ้ายินยอมให้เก็บและใช้ชื่อ เบอร์โทร ที่อยู่ เพื่อจัดส่งสินค้าและติดต่อเรื่องคำสั่งซื้อ และยอมรับ{' '}
                     <a href="/privacy/" target="_blank" rel="noopener noreferrer" className="underline text-[#f3bc8b]">นโยบายความเป็นส่วนตัว</a> และ{' '}
@@ -867,7 +948,6 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 {errors.consent && <p className="text-[#ffb4ab] text-xs">{errors.consent}</p>}
                 {siteKey && <div ref={turnstileBoxRef} className="flex justify-center" />}
                 {errors.turnstile && <p className="text-center text-[#ffb4ab] text-xs">{errors.turnstile}</p>}
-                {errors.code && <p className="text-center text-[#ffb4ab] text-xs">{errors.code}</p>}
                 {submitError && (
                   <p className="text-center text-[13px] text-[#ff6b6b] bg-[#3a0f0f] rounded-lg py-2 px-3">
                     ⚠️ {submitError}
@@ -932,21 +1012,27 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   <div className="flex justify-between">
                     <span>QUANTITY / ปริมาณ:</span>
                     <span className="text-[#e6e1df] font-medium">
-                      {completedOrder.quantityKg} KG ({completedOrder.quantityKg} ถุง)
+                      {completedOrder.quantityKg} กก.
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>SUBTOTAL / ค่ากาแฟ:</span>
-                    <span className="text-[#e6e1df] font-medium">{completedOrder.subtotal.toLocaleString("th-TH")} THB</span>
+                    <span className="text-[#e6e1df] font-medium">{completedOrder.subtotal.toLocaleString("th-TH")} บาท</span>
                   </div>
+                  {completedOrder.discount ? (
+                    <div className="flex justify-between text-[#7be0a0]">
+                      <span>DISCOUNT / ส่วนลด{completedOrder.discountCode ? ` (${completedOrder.discountCode})` : ''}:</span>
+                      <span className="font-medium">−{completedOrder.discount.toLocaleString("th-TH")} บาท</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between">
                     <span>SHIPPING / ค่าจัดส่ง:</span>
-                    <span className="text-[#e6e1df] font-medium">{completedOrder.shipping === 0 ? "FREE (ฟรี)" : `${completedOrder.shipping.toLocaleString("th-TH")} THB`}</span>
+                    <span className="text-[#e6e1df] font-medium">{completedOrder.shipping === 0 ? "ฟรี" : `${completedOrder.shipping.toLocaleString("th-TH")} บาท`}</span>
                   </div>
                   <div className="flex justify-between pt-1 text-[13px]">
-                    <span>TOTAL SETTLEMENT:</span>
+                    <span>ยอดชำระสุทธิ:</span>
                     <span className="text-[#ff5e1a] font-bold">
-                      {completedOrder.total.toLocaleString('th-TH')} THB
+                      {completedOrder.total.toLocaleString('th-TH')} บาท
                     </span>
                   </div>
                 </div>

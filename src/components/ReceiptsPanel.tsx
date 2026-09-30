@@ -24,7 +24,7 @@ export const PaymentBox: React.FC<{ order: OrderItem }> = ({ order }) => {
 
   return (
     <div className="mt-3 p-4 rounded-lg bg-[#211f1e] border border-[#ff5e1a]/30 space-y-2 text-[12px] text-[#e3beb3]/90">
-      <span className="font-mono font-bold text-[#ff5e1a] uppercase tracking-wider block text-[11px]">ช่องทางชำระเงิน / PAYMENT</span>
+      <span className="font-mono font-bold text-[#ff5e1a] uppercase tracking-wider block text-[11px]">ขั้นตอนชำระเงิน / PAYMENT</span>
       {qr ? (
         <div className="text-center space-y-2">
           <div className="w-48 h-48 mx-auto bg-white p-2 rounded-lg"><img src={qr} alt="PromptPay QR" className="w-full h-full" /></div>
@@ -42,12 +42,14 @@ export const PaymentBox: React.FC<{ order: OrderItem }> = ({ order }) => {
       {!qr && !hasBank ? (
         <div className="text-[#f3bc8b] font-['Anuphan']">ร้านจะติดต่อกลับทางเบอร์ {order.customer.phone || order.customer.email} เพื่อแจ้งช่องทางชำระเงิน ยอด {thb(order.total)}</div>
       ) : (
-        <div className="font-['Anuphan'] text-[#e3beb3]/80">
-          โอนแล้วส่งสลิปพร้อมเลขออเดอร์ <span className="text-[#e6e1df] font-mono">{order.orderNumber}</span> ให้ร้าน ออเดอร์จะเข้าคิวคั่วหลังร้านตรวจยอดแล้ว
-        </div>
+        <ol className="font-['Anuphan'] text-[#e3beb3]/90 space-y-1.5 text-[13px] pt-1">
+          <li><span className="text-[#ff5e1a] font-bold">① </span>สแกน QR หรือโอนตามยอด <span className="text-[#f3bc8b] font-semibold">{thb(order.total)}</span></li>
+          <li><span className="text-[#ff5e1a] font-bold">② </span>ส่งสลิปพร้อมเลขออเดอร์ <span className="text-[#e6e1df] font-mono">{order.orderNumber}</span> ให้ร้าน{lineUrl ? ' (กดปุ่มสีเขียวด้านล่าง)' : ''}</li>
+          <li><span className="text-[#ff5e1a] font-bold">③ </span>รอร้านตรวจยอด แล้วออเดอร์จะเข้าคิวคั่ว</li>
+        </ol>
       )}
       {lineUrl ? (
-        <a href={lineUrl} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-2.5 rounded-lg bg-[#06c755] text-white font-bold text-[13px]">ส่งสลิปทาง LINE</a>
+        <a href={lineUrl} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-3.5 rounded-lg bg-[#06c755] text-white font-bold text-[14px] shadow-[0_8px_20px_-6px_rgba(6,199,85,0.5)]">ส่งสลิปทาง LINE</a>
       ) : null}
     </div>
   );
