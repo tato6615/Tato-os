@@ -23,7 +23,7 @@ async function sendCheckout(order: OrderItem): Promise<CheckoutResult> {
 }
 
 function getUtm():{utm_source?:string;utm_medium?:string;utm_campaign?:string}{try{return JSON.parse(localStorage.getItem("tato_utm")||"{}")}catch{return {}}}
-function saveUtm(){try{const q=new URLSearchParams(window.location.search);const s=q.get("utm_source");if(s&&!localStorage.getItem("tato_utm")){localStorage.setItem("tato_utm",JSON.stringify({utm_source:s.slice(0,60),utm_medium:(q.get("utm_medium")||"").slice(0,60),utm_campaign:(q.get("utm_campaign")||"").slice(0,60)}))}}catch{}}
+function saveUtm(){try{const q=new URLSearchParams(window.location.search);const s=q.get("utm_source");if(s){localStorage.setItem("tato_utm",JSON.stringify({utm_source:s.slice(0,60),utm_medium:(q.get("utm_medium")||"").slice(0,60),utm_campaign:(q.get("utm_campaign")||"").slice(0,60)}))}}catch{}}
 function isTest():boolean{try{return localStorage.getItem("tato_is_test")==="1"}catch{return false}}
 function track(event_type:string,metadata:Record<string,unknown>={}){const session_id=localStorage.getItem('tato_session')||crypto.randomUUID();localStorage.setItem('tato_session',session_id);void fetch('/api/behavior',{keepalive:true,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id,event_type,page:'/',object_type:'content',object_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',product_id:'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0',metadata:{source:'TATO_DOI_WIANG_PRIMARY_WEB',content_id:'5127d38f-6601-41dd-bb30-9e4346dd9a4c',is_test:isTest(),...getUtm(),...metadata}})}).catch(()=>{});}
 
