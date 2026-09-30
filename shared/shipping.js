@@ -3,27 +3,52 @@
 // src/components/ProductView.tsx (browser). Edit rates here only.
 //
 // Shipping is charged by real packed weight (no permanent free shipping).
-// Starting rates = Thailand Post EMS domestic table (2568). Replace with your real
-// courier rates when available. Orders above maxKg cannot go as a normal parcel:
+// Rates = the table supplied by the shop (weight ceiling -> THB). Replace when rates change. Orders above maxKg cannot go as a normal parcel:
 // quote() flags contactShop:true and the server refuses the order.
 
 export const SHIPPING = {
   // Orders heavier than this: "contact the shop for shipping cost".
-  maxKg: 10,
+  maxKg: 20,
   // Default zone (nationwide). Tiers are checked in order: first tier whose maxKg >= kg wins.
+  // Source: rate table supplied by the shop (weight ceiling -> THB). Anything up to 1 kg is
+  // charged at the 1 kg rate because packed coffee weighs more than its net weight.
   defaultZone: {
     name: "default",
     tiers: [
       { maxKg: 1, fee: 67 },
+      { maxKg: 1.5, fee: 82 },
       { maxKg: 2, fee: 97 },
-      { maxKg: 3, fee: 137 },
-      { maxKg: 5, fee: 217 },
-      { maxKg: 10, fee: 487 },
+      { maxKg: 2.5, fee: 100 },
+      { maxKg: 3, fee: 105 },
+      { maxKg: 3.5, fee: 110 },
+      { maxKg: 4, fee: 120 },
+      { maxKg: 4.5, fee: 130 },
+      { maxKg: 5, fee: 140 },
+      { maxKg: 5.5, fee: 150 },
+      { maxKg: 6, fee: 160 },
+      { maxKg: 6.5, fee: 170 },
+      { maxKg: 7, fee: 180 },
+      { maxKg: 7.5, fee: 190 },
+      { maxKg: 8, fee: 200 },
+      { maxKg: 8.5, fee: 215 },
+      { maxKg: 9, fee: 230 },
+      { maxKg: 9.5, fee: 245 },
+      { maxKg: 10, fee: 260 },
+      { maxKg: 11, fee: 300 },
+      { maxKg: 12, fee: 320 },
+      { maxKg: 13, fee: 340 },
+      { maxKg: 14, fee: 360 },
+      { maxKg: 15, fee: 380 },
+      { maxKg: 16, fee: 395 },
+      { maxKg: 17, fee: 410 },
+      { maxKg: 18, fee: 425 },
+      { maxKg: 19, fee: 435 },
+      { maxKg: 20, fee: 445 },
     ],
   },
   // Optional per-postal-code overrides, e.g. remote areas.
   // Match by postal prefix (string). Example (disabled):
-  //   { prefixes: ["57", "58"], name: "north-remote", tiers: [{ maxKg: 10, fee: 537 }] }
+  //   { prefixes: ["57", "58"], name: "north-remote", tiers: [{ maxKg: 20, fee: 495 }] }
   zones: [],
 };
 
