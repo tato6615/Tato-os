@@ -172,6 +172,7 @@ export async function onRequestPost(context){
     const cr=await findCode(db,b.discount_code,kg);
     if(!cr.ok) return json({success:false,layer:LAYER,status:cr.error,error:"Discount code cannot be used",min_kg:cr.min_kg||null},400);
     const q=buildQuote({kg,unitPrice:unit,postal,code:cr.code});
+    if(q.contactShop) return json({success:false,layer:LAYER,status:"SHIPPING_CONTACT_SHOP",error:"Order too heavy for standard shipping, please contact the shop"},400);
     if(b.expected_total!=null&&Number(b.expected_total)!==q.total)
       return json({success:false,layer:LAYER,status:"PRICE_MISMATCH",error:"Price changed, please review the total",quote:q},409);
 

@@ -7,12 +7,12 @@ import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
 
 const PRODUCT_ID = 'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0';
-type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
+type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; contactShop?: boolean; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
 const CODE_ERRORS: Record<string, string> = { CODE_INVALID: 'ไม่พบรหัสส่วนลดนี้', CODE_EXPIRED: 'รหัสส่วนลดหมดอายุแล้ว', CODE_USED_UP: 'รหัสส่วนลดถูกใช้ครบแล้ว', CODE_MIN_KG: 'ปริมาณไม่ถึงขั้นต่ำของรหัสนี้' };
 const FIELD_ORDER = ['name', 'phone', 'email', 'address', 'postal_code', 'consent', 'code'];
 const inputBase = "w-full px-4 rounded-xl bg-[#1d1b1a] text-[#e6e1df] placeholder:text-[#aa897f]/60 focus:outline-none focus:border-[#ff5e1a] border transition-all";
 const bdr = (bad: boolean) => (bad ? 'border-[#ff6b6b]' : 'border-[#2b2a28]');
-const SUBMIT_ERRORS: Record<string, string> = { RATE_LIMITED: 'ส่งคำสั่งซื้อถี่เกินไป กรุณารอสักครู่แล้วลองใหม่', TURNSTILE_FAILED: 'ยืนยันตัวตนไม่ผ่าน กรุณาลองใหม่', PRICE_MISMATCH: 'ราคามีการเปลี่ยนแปลง กรุณาตรวจยอดสุทธิอีกครั้งแล้วกดสั่งซื้อ', CAPACITY_FULL: 'ขออภัย รอบคั่วนี้เต็มแล้ว กรุณาลดปริมาณหรือติดต่อร้าน' };
+const SUBMIT_ERRORS: Record<string, string> = { RATE_LIMITED: 'ส่งคำสั่งซื้อถี่เกินไป กรุณารอสักครู่แล้วลองใหม่', TURNSTILE_FAILED: 'ยืนยันตัวตนไม่ผ่าน กรุณาลองใหม่', PRICE_MISMATCH: 'ราคามีการเปลี่ยนแปลง กรุณาตรวจยอดสุทธิอีกครั้งแล้วกดสั่งซื้อ', CAPACITY_FULL: 'ขออภัย รอบคั่วนี้เต็มแล้ว กรุณาลดปริมาณหรือติดต่อร้าน', SHIPPING_CONTACT_SHOP: 'ออเดอร์นี้น้ำหนักมาก กรุณาติดต่อร้านเพื่อคิดค่าส่ง' };
 
 interface ProductViewProps {
   initialRoast?: RoastType;
@@ -113,7 +113,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     : null;
   const codeChecking = !!appliedCode && !sq;
   const codeApplied = !!appliedCode && !!sq && !!sq.code && sq.code.valid;
-  const kgToFree = Math.max(0, Math.round((SHIPPING.freeFromKg - quantityKg) * 100) / 100);
+  const contactShop = sq ? !!sq.contactShop : !!localQuote.contactShop;
   const siteKey = serverQuote ? serverQuote.turnstile_site_key : '';
   const capacityLeft = serverQuote && serverQuote.capacity.limited ? serverQuote.capacity.left : null;
   const capacityFull = capacityLeft !== null && quantityKg > capacityLeft;
@@ -507,10 +507,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
             <div className="text-left md:text-right space-y-1">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#67401a]/40 text-[#ffdcc0] font-mono text-[11px] border border-[#67401a]">
                 <span className="material-symbols-outlined text-[14px]">local_shipping</span>
-                <span>FREE SHIPPING ON 2+ KG</span>
+                <span>SHIPPING BY WEIGHT</span>
               </div>
               <p className="font-['Anuphan'] text-[12px] text-[#e3beb3]/70">
-                รวมภาษีมูลค่าเพิ่มแล้ว · จัดส่งฟรีเมื่อสั่งซื้อ 2 กก. ขึ้นไป
+                รวมภาษีมูลค่าเพิ่มแล้ว · ค่าจัดส่งคิดตามน้ำหนักพัสดุ
               </p>
             </div>          </div>
 
@@ -678,9 +678,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   </div>
 
                 <p className="font-['Anuphan'] text-[12px] text-[#f3bc8b]">
-                  {shipping === 0
-                    ? `✓ สั่งครบ ${SHIPPING.freeFromKg} กก. ส่งฟรี`
-                    : `สั่งเพิ่มอีก ${kgToFree} กก. รับส่งฟรี (ตอนนี้ค่าส่ง ${shipping.toLocaleString('th-TH')} บาท)`}
+                  {contactShop
+                    ? `สั่งเกิน ${SHIPPING.maxKg} กก. กรุณาติดต่อร้านเพื่อคิดค่าส่ง`
+                    : `ค่าส่ง ${shipping.toLocaleString('th-TH')} บาท (คิดตามน้ำหนักพัสดุ)`}
                 </p>
               </div>
 
@@ -911,13 +911,13 @@ value={customerPostal}
                   <span className="flex flex-col">
                     <span>ค่าจัดส่ง</span>
                     <span className="text-[11px] text-[#f3bc8b]">
-                      {shipping === 0
-                        ? `ส่งฟรี เพราะสั่งครบ ${SHIPPING.freeFromKg} กก.`
-                        : `สั่งเพิ่มอีก ${kgToFree} กก. ส่งฟรี`}
+                      {contactShop
+                        ? `เกิน ${SHIPPING.maxKg} กก. ติดต่อร้านเพื่อคิดค่าส่ง`
+                        : 'คิดตามน้ำหนักพัสดุ'}
                     </span>
                   </span>
-                  <span className={`font-mono ${shipping === 0 ? 'text-[#7be0a0]' : 'text-[#e6e1df]'}`}>
-                    {shipping === 0 ? 'ฟรี' : `${shipping.toLocaleString('th-TH')} บาท`}
+                  <span className="font-mono text-[#e6e1df]">
+                    {contactShop ? 'ติดต่อร้าน' : `${shipping.toLocaleString('th-TH')} บาท`}
                   </span>
                 </div>
 
@@ -932,6 +932,11 @@ value={customerPostal}
 
               {/* High Prominence Call to Action */}
               <div className="space-y-2">
+                {contactShop && (
+                  <p className="text-center text-[13px] text-[#f3c76b] bg-[#3d2f12] rounded-lg py-2 px-3">
+                    ออเดอร์เกิน {SHIPPING.maxKg} กก. ส่งเป็นพัสดุธรรมดาไม่ได้ กรุณาติดต่อร้านเพื่อคิดค่าส่ง
+                  </p>
+                )}
                 {capacityFull && (
                   <p className="text-center text-[13px] text-[#f3c76b] bg-[#3d2f12] rounded-lg py-2 px-3">
                     รอบคั่วนี้เหลือรับได้อีก {capacityLeft} กก. กรุณาลดปริมาณ หรือติดต่อร้าน
@@ -955,7 +960,7 @@ value={customerPostal}
                 )}
                 <button
                   type="submit"
-                  disabled={submitting || capacityFull}
+                  disabled={submitting || capacityFull || contactShop}
                   className="disabled:opacity-60 w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
