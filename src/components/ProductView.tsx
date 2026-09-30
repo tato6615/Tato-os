@@ -798,6 +798,14 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       {completedOrder.quantityKg} KG ({completedOrder.quantityKg} ถุง)
                     </span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>SUBTOTAL / ค่ากาแฟ:</span>
+                    <span className="text-[#e6e1df] font-medium">{completedOrder.subtotal.toLocaleString("th-TH")} THB</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SHIPPING / ค่าจัดส่ง:</span>
+                    <span className="text-[#e6e1df] font-medium">{completedOrder.shipping === 0 ? "FREE (ฟรี)" : `${completedOrder.shipping.toLocaleString("th-TH")} THB`}</span>
+                  </div>
                   <div className="flex justify-between pt-1 text-[13px]">
                     <span>TOTAL SETTLEMENT:</span>
                     <span className="text-[#ff5e1a] font-bold">

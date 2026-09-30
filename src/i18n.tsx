@@ -77,6 +77,8 @@ const DICT: Record<string, [string, string]> = {
   'ยอดรวมเมล็ดกาแฟ:': ['ยอดรวมเมล็ดกาแฟ:', 'Coffee subtotal:'],
   'ค่าจัดส่งทั่วไทย:': ['ค่าจัดส่งทั่วไทย:', 'Nationwide shipping:'],
   'ยอดชำระสุทธิ:': ['ยอดชำระสุทธิ:', 'Total due:'],
+  'SUBTOTAL / ค่ากาแฟ:': ['ค่ากาแฟ:', 'Coffee:'],
+  'SHIPPING / ค่าจัดส่ง:': ['ค่าจัดส่ง:', 'Shipping:'],
   'ดำเนินการสั่งซื้อ / CHECKOUT': ['ดำเนินการสั่งซื้อ', 'CHECKOUT'],
   'CHECKOUT': ['ชำระเงิน', 'CHECKOUT'],
   'FREE (ฟรี)': ['ฟรี', 'FREE'],
