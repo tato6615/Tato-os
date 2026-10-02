@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { makeD1, seedLegacy } from "./d1-shim.mjs";
 import { _test } from "../shared/schema.js";
+import * as leadAdmin from "../functions/api/lead-admin.js";
 import * as lead from "../functions/api/lead.js";
 
 const ORIGIN = "https://t.example";
@@ -54,25 +55,25 @@ async function oneLead(env) { await post(env, good()); return env.DB.raw.prepare
 
 test("PATCH marks a lead as test (hidden from default list) and can unmark it", async () => {
   const { env } = fresh(); const id = await oneLead(env);
-  assert.equal((await lead.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: true }), env })).status, 200);
+  assert.equal((await leadAdmin.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: true }), env })).status, 200);
   assert.equal((await (await lead.onRequestGet({ request: new Request(ORIGIN + "/api/lead"), env })).json()).leads.length, 0);
   assert.equal((await (await lead.onRequestGet({ request: new Request(ORIGIN + "/api/lead?include_test=1"), env })).json()).leads.length, 1);
-  assert.equal((await lead.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: false }), env })).status, 200);
+  assert.equal((await leadAdmin.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: false }), env })).status, 200);
   assert.equal((await (await lead.onRequestGet({ request: new Request(ORIGIN + "/api/lead"), env })).json()).leads.length, 1);
 });
 test("DELETE removes exactly one lead; others stay", async () => {
   const { DB, env } = fresh(); await post(env, good({ name: "คนที่หนึ่ง" })); await post(env, good({ name: "คนที่สอง" }));
   const id = DB.raw.prepare("SELECT id FROM leads WHERE name='คนที่หนึ่ง'").get().id;
-  const r = await lead.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id), env });
+  const r = await leadAdmin.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id), env });
   assert.equal(r.status, 200);
   assert.deepEqual(DB.raw.prepare("SELECT name FROM leads").all().map((x) => x.name), ["คนที่สอง"]);
-  assert.equal((await lead.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id), env })).status, 404);
+  assert.equal((await leadAdmin.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id), env })).status, 404);
 });
 test("DELETE/PATCH need the HQ header and a well-formed id (no wildcard deletes)", async () => {
   const { DB, env } = fresh(); const id = await oneLead(env);
-  assert.equal((await lead.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id, null, {}), env })).status, 403);
-  assert.equal((await lead.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: true }, {}), env })).status, 403);
-  for (const bad of ["", "%", "lead_%", "x' OR '1'='1", "lead_zzzz"]) assert.equal((await lead.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + encodeURIComponent(bad)), env })).status, 400);
+  assert.equal((await leadAdmin.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + id, null, {}), env })).status, 403);
+  assert.equal((await leadAdmin.onRequestPatch({ request: adm("PATCH", "/api/lead", { id, is_test: true }, {}), env })).status, 403);
+  for (const bad of ["", "%", "lead_%", "x' OR '1'='1", "lead_zzzz"]) assert.equal((await leadAdmin.onRequestDelete({ request: adm("DELETE", "/api/lead?id=" + encodeURIComponent(bad)), env })).status, 400);
   assert.equal(DB.raw.prepare("SELECT COUNT(*) n FROM leads").get().n, 1);
 });
 test("new lead still triggers owner notification (LINE) with the lead's details", async () => {
