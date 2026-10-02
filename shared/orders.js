@@ -29,7 +29,7 @@ export function safeEq(a, b) {
 
 export async function ipHash(request, env) {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
-  const data = new TextEncoder().encode(ip + "|" + String((env && env.ADMIN_PASSWORD) || "tato"));
+  const data = new TextEncoder().encode(ip + "|" + String((env && (env.IP_HASH_SALT || env.ADMIN_PASSWORD)) || "tato"));
   const buf = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
