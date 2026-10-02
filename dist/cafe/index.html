@@ -35,6 +35,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 <label for="note">อยากให้เราช่วยเรื่องอะไร</label><textarea id="note"></textarea>
 <div class="hp" aria-hidden="true"><label>website<input id="website" tabindex="-1" autocomplete="off"></label></div>
 <label class="chk"><input type="checkbox" id="consent"><span>ยอมรับ <a href="/privacy/" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a> และให้ร้านติดต่อกลับทางเบอร์ที่ระบุ</span></label><div class="err" data-e="consent"></div>
+<div id="ts" style="margin:12px 0"></div>
 <button id="go" type="submit">ส่งให้เจ้าของร้าน</button>
 <div class="err" id="gerr"></div>
 </form>
@@ -53,14 +54,23 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
   try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
   function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null}})}).catch(function(){})}catch(e){}}
   track("cafe_view");
+  var tsKey="",tsToken="",tsId=null;
+  fetch("/api/public-config",{cache:"no-store"}).then(function(r){return r.json()}).then(function(c){
+    tsKey=(c&&c.turnstile_site_key)||""; if(!tsKey) return;
+    function mount(){ if(!window.turnstile||tsId!==null) return; tsId=window.turnstile.render($("ts"),{sitekey:tsKey,callback:function(t){tsToken=t},"expired-callback":function(){tsToken=""},"error-callback":function(){tsToken=""}}); }
+    if(window.turnstile){mount();return}
+    var sc=document.createElement("script"); sc.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; sc.async=true; sc.onload=mount; document.head.appendChild(sc);
+  }).catch(function(){});
   var started=false;
   $("f").addEventListener("focusin",function(){if(!started){started=true;track("cafe_form_start")}});
   $("f").addEventListener("submit",function(ev){
     ev.preventDefault(); if(busy) return;
     document.querySelectorAll("[data-e]").forEach(function(e){e.textContent=""}); $("gerr").textContent="";
+    if(tsKey&&!tsToken){$("gerr").textContent="กรุณายืนยันว่าไม่ใช่บอท (รอกล่องยืนยันขึ้นสักครู่)";return}
     busy=true; $("go").disabled=true;
     var body={name:$("name").value,phone:$("phone").value,shop_name:$("shop").value,stage:$("stage").value,menu:$("menu").value,machine:$("machine").value,kg_week:$("kg").value,note:$("note").value,website:$("website").value,consent:$("consent").checked};
     for(var k in meta) body[k]=meta[k];
+    if(tsToken) body.turnstile_token=tsToken;
     fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
       .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
       .then(function(x){
@@ -70,7 +80,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
         if(!shown) $("gerr").textContent=x.d.error||"ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615";
       })
       .catch(function(){$("gerr").textContent="ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615"})
-      .then(function(){busy=false;$("go").disabled=false});
+      .then(function(){busy=false;$("go").disabled=false;if(tsKey&&tsId!==null&&window.turnstile){try{window.turnstile.reset(tsId)}catch(e){} tsToken=""}});
   });
 })();
 </script></body></html>
