@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>เมล็ดกาแฟสำหรับร้านเปิดใหม่ | TATO Coffee</title>
+<meta name="description" content="กำลังจะเปิดร้านหรืออยากเปลี่ยนเจ้าเมล็ด บอกเมนูและเครื่องของร้าน เราช่วยเลือกระดับคั่วจากดอยเวียงผา เชียงใหม่">
+<style>
+body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun","Anuphan",sans-serif;line-height:1.7}
+main{max-width:640px;margin:auto;padding:24px 16px 60px}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:16px;margin:26px 0 8px;color:#f3bc8b}
+.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:16px;margin:14px 0}
+label{display:block;font-size:14px;color:#a39a95;margin:14px 0 4px}
+input,select,textarea{width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid #3a3836;background:#141312;color:#e6e1df;font:inherit}
+textarea{min-height:80px}.err{color:#ff9b91;font-size:13px;min-height:16px}
+.hp{position:absolute;left:-9999px;height:0;overflow:hidden}
+button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font:inherit;font-weight:700;cursor:pointer}
+button[disabled]{opacity:.6}
+a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:#173a24}.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#a39a95;margin-top:14px}.chk input{width:auto;margin-top:5px}
+</style></head><body><main>
+<h1>เมล็ดกาแฟสำหรับร้านเปิดใหม่</h1>
+<p>กำลังวางแผนเปิดร้าน หรือเปิดแล้วและอยากเปลี่ยนเจ้าเมล็ด? บอกเมนูและเครื่องที่ใช้ เจ้าของร้านจะติดต่อกลับเพื่อช่วยเลือกระดับคั่วที่เหมาะ</p>
+<div class="card">
+<p style="margin:0">เมล็ดอาราบิก้าจากดอยเวียงผา เชียงใหม่ คั่วสดตามสั่ง มี 3 ระดับ: คั่วเข้ม · คั่วกลาง · คั่วอ่อน</p>
+</div>
+
+<form id="f" class="card" novalidate>
+<h2 style="margin-top:0">ขอคุยกับเรา</h2>
+<label for="name">ชื่อ *</label><input id="name" autocomplete="name"><div class="err" data-e="name"></div>
+<label for="phone">เบอร์มือถือ *</label><input id="phone" inputmode="tel" autocomplete="tel" placeholder="081 234 5678"><div class="err" data-e="phone"></div>
+<label for="shop">ชื่อร้าน (ถ้ามี)</label><input id="shop">
+<label for="stage">สถานะ *</label>
+<select id="stage"><option value="">เลือก…</option><option value="planning">กำลังวางแผนเปิดร้าน</option><option value="opening_soon">จะเปิดร้านเร็ว ๆ นี้</option><option value="open_switching">เปิดร้านแล้ว อยากเปลี่ยน/เพิ่มเจ้าเมล็ด</option></select><div class="err" data-e="stage"></div>
+<label for="menu">เมนูหลักของร้าน</label><input id="menu" placeholder="เช่น ลาเต้ เอสเปรสโซ่ ดริป">
+<label for="machine">เครื่องชง/อุปกรณ์ที่ใช้</label><input id="machine" placeholder="เช่น เครื่อง 2 หัวกรุ๊ป / V60">
+<label for="kg">ปริมาณที่คาดว่าใช้ต่อสัปดาห์</label><input id="kg" placeholder="เช่น 2-3 กก.">
+<label for="note">อยากให้เราช่วยเรื่องอะไร</label><textarea id="note"></textarea>
+<div class="hp" aria-hidden="true"><label>website<input id="website" tabindex="-1" autocomplete="off"></label></div>
+<label class="chk"><input type="checkbox" id="consent"><span>ยอมรับ <a href="/privacy/" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a> และให้ร้านติดต่อกลับทางเบอร์ที่ระบุ</span></label><div class="err" data-e="consent"></div>
+<button id="go" type="submit">ส่งให้เจ้าของร้าน</button>
+<div class="err" id="gerr"></div>
+</form>
+
+<div id="ok" class="card ok"><h2 style="margin-top:0">ได้รับแล้ว ขอบคุณครับ</h2>
+<p>เจ้าของร้านจะติดต่อกลับทางเบอร์ที่ระบุ ถ้าอยากคุยเลยติดต่อได้ที่ <a href="tel:0642936615">064-293-6615</a> หรือ <a href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">LINE OA</a></p></div>
+
+<p class="dim"><a href="/">← ไปหน้าร้าน</a> · <a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
+</main>
+<script>
+(function(){
+  var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
+  var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:q.get("test")==="1"};
+  var busy=false;
+  $("f").addEventListener("submit",function(ev){
+    ev.preventDefault(); if(busy) return;
+    document.querySelectorAll("[data-e]").forEach(function(e){e.textContent=""}); $("gerr").textContent="";
+    busy=true; $("go").disabled=true;
+    var body={name:$("name").value,phone:$("phone").value,shop_name:$("shop").value,stage:$("stage").value,menu:$("menu").value,machine:$("machine").value,kg_week:$("kg").value,note:$("note").value,website:$("website").value,consent:$("consent").checked};
+    for(var k in meta) body[k]=meta[k];
+    fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
+      .then(function(x){
+        if(x.ok&&x.d.success){$("f").style.display="none";$("ok").style.display="block";return}
+        var f=x.d.fields||{}; var shown=false;
+        for(var k in f){var el=document.querySelector('[data-e="'+k+'"]'); if(el){el.textContent=f[k];shown=true}}
+        if(!shown) $("gerr").textContent=x.d.error||"ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615";
+      })
+      .catch(function(){$("gerr").textContent="ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615"})
+      .then(function(){busy=false;$("go").disabled=false});
+  });
+})();
+</script></body></html>
