@@ -23,9 +23,9 @@ const post = (env, body, ip) => checkout.onRequestPost({ request: req("/api/chec
 const j = (r) => r.json();
 
 test("shipping formula is single-sourced", () => {
-  assert.equal(calcShipping(0.5), 50); assert.equal(calcShipping(1.5), 50); assert.equal(calcShipping(2), 0); assert.equal(calcShipping(10), 0);
-  assert.deepEqual(quote({ kg: 0.5, unitPrice: 550 }), { subtotal: 275, discount: 0, shipping: 50, total: 325 });
-  assert.deepEqual(quote({ kg: 1, unitPrice: 550 }), { subtotal: 550, discount: 0, shipping: 50, total: 600 });
+  assert.equal(calcShipping(0.5), 67); assert.equal(calcShipping(1), 67); assert.equal(calcShipping(1.5), 82); assert.equal(calcShipping(2), 97); assert.equal(calcShipping(10), 260); assert.equal(calcShipping(20), 445); assert.equal(calcShipping(0), 0);
+  assert.deepEqual(quote({ kg: 0.5, unitPrice: 550 }), { subtotal: 275, discount: 0, shipping: 67, total: 342 });
+  assert.deepEqual(quote({ kg: 1, unitPrice: 550 }), { subtotal: 550, discount: 0, shipping: 67, total: 617 });
 });
 
 test("phone rules", () => {
@@ -49,13 +49,13 @@ test("rejects the junk seen in the earlier test orders", async () => {
 test("valid order: legacy table is upgraded, price + token + details stored", async () => {
   const { env, DB } = fresh();
   const r = await post(env, good({ quantity_kg: 0.5 })); const b = await j(r);
-  assert.equal(r.status, 201); assert.equal(b.order.amount, 325); assert.equal(b.order.shipping, 50);
+  assert.equal(r.status, 201); assert.equal(b.order.amount, 342); assert.equal(b.order.shipping, 67);
   assert.match(b.status_url, /\/order\/\?id=order_.+&t=[0-9a-f]{32}$/);
   const o = await DB.prepare("SELECT * FROM orders").first();
-  assert.equal(o.amount, 325); assert.equal(o.shipping_fee, 50); assert.equal(o.subtotal, 275);
+  assert.equal(o.amount, 342); assert.equal(o.shipping_fee, 67); assert.equal(o.subtotal, 275);
   const d = await DB.prepare("SELECT * FROM order_details").first();
   assert.equal(d.postal_code, "50110"); assert.equal(d.phone, "0812345678"); assert.ok(d.consent_at);
-  const r2 = await post(env, good({ quantity_kg: 2 })); assert.equal((await j(r2)).order.shipping, 0);
+  const r2 = await post(env, good({ quantity_kg: 2 })); assert.equal((await j(r2)).order.shipping, 97);
 });
 
 test("double submit with the same request_id gives one order (sequential and concurrent)", async () => {
@@ -83,11 +83,11 @@ test("discount code, price mismatch guard, code limits", async () => {
   const save = (o) => cfg.onRequestPost({ request: req("/api/admin-config", "POST", { action: "save_code", ...o }), env });
   assert.equal((await save({ code: "hello10", type: "percent", value: 10, min_kg: 1, max_uses: 1 })).status, 200);
   const q = await j(await checkout.onRequestGet({ request: req("/api/checkout?product_id=p1&action=quote&kg=1&code=hello10&postal=50110", "GET"), env }));
-  assert.equal(q.subtotal, 550); assert.equal(q.discount, 55); assert.equal(q.total, 550 - 55 + 50); assert.equal(q.code.valid, true);
+  assert.equal(q.subtotal, 550); assert.equal(q.discount, 55); assert.equal(q.total, 550 - 55 + 67); assert.equal(q.code.valid, true);
   const mis = await post(env, good({ quantity_kg: 1, discount_code: "HELLO10", expected_total: 600 }));
   assert.equal(mis.status, 409); assert.equal((await j(mis)).status, "PRICE_MISMATCH");
-  const ok = await post(env, good({ quantity_kg: 1, discount_code: "hello10", expected_total: 545 }));
-  assert.equal(ok.status, 201); assert.equal((await j(ok)).order.amount, 545);
+  const ok = await post(env, good({ quantity_kg: 1, discount_code: "hello10", expected_total: 562 }));
+  assert.equal(ok.status, 201); assert.equal((await j(ok)).order.amount, 562);
   const used = await post(env, good({ quantity_kg: 1, discount_code: "HELLO10" }));
   assert.equal(used.status, 400); assert.equal((await j(used)).status, "CODE_USED_UP");
   assert.equal((await post(env, good({ discount_code: "NOPE" }))).status, 400);
@@ -136,5 +136,5 @@ test("sales report: real orders only, grouped by utm, cancelled excluded", async
   await DB.prepare("UPDATE orders SET status='cancelled' WHERE utm_source='line'").run();
   const r = await j(await report.onRequestGet({ request: req("/api/sales-report", "GET"), env }));
   assert.equal(r.rows.length, 1); const f = r.rows[0];
-  assert.equal(f.source, "facebook"); assert.equal(f.orders, 2); assert.equal(f.paid_orders, 1); assert.equal(f.revenue, 600); assert.equal(f.paid_rate_pct, 50);
+  assert.equal(f.source, "facebook"); assert.equal(f.orders, 2); assert.equal(f.paid_orders, 1); assert.equal(f.revenue, 617); assert.equal(f.paid_rate_pct, 50);
 });
