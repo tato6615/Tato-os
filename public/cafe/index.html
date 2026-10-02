@@ -47,7 +47,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 (function(){
   var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
   var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:false};
-  try{if(q.get("test")==="1")localStorage.setItem("tato_is_test","1");meta.is_test=localStorage.getItem("tato_is_test")==="1"}catch(e){meta.is_test=q.get("test")==="1"}
+  try{if(q.get("test")==="1")localStorage.setItem("tato_is_test","1");if(q.get("test")==="0")localStorage.removeItem("tato_is_test");meta.is_test=localStorage.getItem("tato_is_test")==="1"}catch(e){meta.is_test=q.get("test")==="1"}
   var busy=false, sid;
   try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
   function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null}})}).catch(function(){})}catch(e){}}
