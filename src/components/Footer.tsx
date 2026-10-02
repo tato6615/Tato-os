@@ -67,6 +67,7 @@ export const Footer: React.FC = () => {
             <span>DOI WIANG PA • CHIANG MAI</span>
             <span>ELEVATION 1,500M</span>
             <span>CHIANG MAI / NORTHERN HIGHLANDS</span>
+            <a href="/cafe/?src=site" className="text-[#ffb59c] hover:text-[#e6e1df] transition-colors">สำหรับร้านกาแฟ · FOR CAFÉS</a>
           </div>
         </div>
       </div>

@@ -91,6 +91,12 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}
           </button>
+          <a
+            href="/cafe/?src=site"
+            className="transition-colors duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#e3beb3]/80 hover:text-[#e6e1df]"
+          >
+            {language === 'th' ? 'สำหรับร้านกาแฟ' : 'FOR CAFÉS'}
+          </a>
         </nav>
 
         {/* Action Controls */}
@@ -169,6 +175,13 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
+            <a
+              href="/cafe/?src=site"
+              className="flex items-center justify-between py-2 text-left text-[#e6e1df]"
+            >
+              <span>{language === 'th' ? 'สำหรับร้านกาแฟ' : 'FOR CAFÉS'}</span>
+              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            </a>
           </div>
         </div>
       )}
