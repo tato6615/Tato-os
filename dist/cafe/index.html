@@ -46,8 +46,14 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 <script>
 (function(){
   var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
-  var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:q.get("test")==="1"};
-  var busy=false;
+  var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:false};
+  try{if(q.get("test")==="1")localStorage.setItem("tato_is_test","1");meta.is_test=localStorage.getItem("tato_is_test")==="1"}catch(e){meta.is_test=q.get("test")==="1"}
+  var busy=false, sid;
+  try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
+  function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null}})}).catch(function(){})}catch(e){}}
+  track("cafe_view");
+  var started=false;
+  $("f").addEventListener("focusin",function(){if(!started){started=true;track("cafe_form_start")}});
   $("f").addEventListener("submit",function(ev){
     ev.preventDefault(); if(busy) return;
     document.querySelectorAll("[data-e]").forEach(function(e){e.textContent=""}); $("gerr").textContent="";
@@ -57,7 +63,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
     fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
       .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
       .then(function(x){
-        if(x.ok&&x.d.success){$("f").style.display="none";$("ok").style.display="block";return}
+        if(x.ok&&x.d.success){track("cafe_submit");$("f").style.display="none";$("ok").style.display="block";return}
         var f=x.d.fields||{}; var shown=false;
         for(var k in f){var el=document.querySelector('[data-e="'+k+'"]'); if(el){el.textContent=f[k];shown=true}}
         if(!shown) $("gerr").textContent=x.d.error||"ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615";
