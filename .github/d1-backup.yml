@@ -1,0 +1,97 @@
+name: D1 backup and lead retention
+
+# Monthly: export the D1 database (encrypted) as a private workflow artifact.
+# Quarterly (Jan/Apr/Jul/Oct), AFTER a successful backup: delete cafe leads older than 2 years.
+# Manual run: Actions > "D1 backup and lead retention" > Run workflow.
+#
+# Required repo secrets (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN   token with permission  Account > D1 > Edit
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account id
+#   BACKUP_PASSPHRASE      long random passphrase (keep a copy in your password manager!)
+# This repo is PUBLIC: never upload a plaintext export. This workflow encrypts before upload.
+
+on:
+  schedule:
+    - cron: "0 2 1 * *"      # 02:00 UTC on the 1st of every month
+  workflow_dispatch:
+    inputs:
+      run_retention:
+        description: "Also delete leads older than 2 years (after the backup)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DB_NAME: so_tato
+  RETENTION_YEARS: 2
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check secrets
+        env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          P: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          for v in T A P; do
+            if [ -z "${!v}" ]; then echo "::error::Missing repo secret (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / BACKUP_PASSPHRASE). See header of this workflow."; exit 1; fi
+          done
+
+      - name: Export D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 d1 export "$DB_NAME" --remote --output=backup.sql
+          test -s backup.sql
+          echo "Exported $(wc -c < backup.sql) bytes, $(grep -c '^INSERT' backup.sql || true) INSERT lines"
+
+      - name: Encrypt (plaintext is deleted)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          STAMP=$(date -u +%Y-%m-%d)
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BACKUP_PASSPHRASE -in backup.sql -out "so_tato-$STAMP.sql.enc"
+          shred -u backup.sql || rm -f backup.sql
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: d1-backup-encrypted
+          path: so_tato-*.sql.enc
+          retention-days: 90
+
+      - name: Decide whether to run retention
+        id: gate
+        run: |
+          M=$(date -u +%m)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.run_retention }}" = "true" ]; then echo "run=1" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ] && { [ "$M" = "01" ] || [ "$M" = "04" ] || [ "$M" = "07" ] || [ "$M" = "10" ]; }; then echo "run=1" >> "$GITHUB_OUTPUT"
+          else echo "run=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Retention - count leads older than ${{ env.RETENTION_YEARS }} years
+        if: steps.gate.outputs.run == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 d1 execute "$DB_NAME" --remote --command \
+            "SELECT COUNT(*) AS to_delete FROM leads WHERE created_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-$RETENTION_YEARS years');"
+
+      - name: Retention - delete (backup above succeeded)
+        if: steps.gate.outputs.run == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 d1 execute "$DB_NAME" --remote --command \
+            "DELETE FROM leads WHERE created_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-$RETENTION_YEARS years');"

@@ -1,0 +1,26 @@
+name: Test
+
+# Runs on every push and pull request. (The "Build customer web" workflow's own
+# bot commits don't retrigger this, which is fine.)
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22   # tests use node:sqlite, needs Node 22.5+
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
