@@ -21,6 +21,7 @@ const DICT: Record<string, [string, string]> = {
   'KNOW YOUR COFFEE.': ['รู้จักกาแฟของคุณ', 'KNOW YOUR COFFEE.'],
   'รู้จักกาแฟของคุณ': ['รู้จักกาแฟของคุณ', 'KNOW YOUR COFFEE.'],
   'EXPLORE TATO': ['สำรวจ TATO', 'EXPLORE TATO'],
+  'FOR CAFÉS': ['สำหรับร้านกาแฟ', 'FOR CAFÉS'],
   'VIEW ROASTS': ['ดูระดับการคั่ว', 'VIEW ROASTS'],
   'DISCOVER': ['ค้นพบ', 'DISCOVER'],
   'ค้นพบ': ['ค้นพบ', 'DISCOVER'],

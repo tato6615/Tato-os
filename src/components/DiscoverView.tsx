@@ -60,7 +60,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           </p>
 
           {/* Primary Action CTA */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
+          <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
             <button
               onClick={() => scrollToSection('origin')}
               className="group flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-all duration-300 shadow-[0_12px_32px_rgba(255,94,26,0.35)] transform hover:-translate-y-0.5 active:scale-95"
@@ -78,6 +78,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <span>VIEW ROASTS</span>
               <span className="material-symbols-outlined text-[16px]">tune</span>
             </button>
+
+            <a
+              href="/cafe/?src=site"
+              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] transition-all duration-300 hover:bg-[#ff5e1a]/10 border border-[#ff5e1a]/60"
+            >
+              <span>FOR CAFÉS</span>
+              <span className="material-symbols-outlined text-[16px]">storefront</span>
+            </a>
           </div>
 
           {/* Coordinates Quick Strip */}
