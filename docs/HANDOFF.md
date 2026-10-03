@@ -42,7 +42,7 @@
    - เช็ก: รหัสเก่าต้องได้ 401 รหัสใหม่ได้ 200
        read -rs -p "PASSWORD: " PW; echo
        curl -s -o /dev/null -w "HTTP %{http_code}\n" -u "admin:$PW" "https://tato-os.pages.dev/api/intelligence?content_id=5127d38f-6601-41dd-bb30-9e4346dd9a4c"; unset PW
-3. ภาพ og:image (JPG/PNG ~1200x630 วางใน public/images/) แล้วเพิ่ม meta og:image และ twitter:image ใน index.html และใน scripts/gen-roast-pages.mjs (URL เต็ม)
+3. [เสร็จ ยืนยัน 3 ต.ค. จากตัวอย่างลิงก์ใน LINE] ภาพ og:image (JPG/PNG ~1200x630 วางใน public/images/) แล้วเพิ่ม meta og:image และ twitter:image ใน index.html และใน scripts/gen-roast-pages.mjs (URL เต็ม)
    - เช็ก:
        curl -s https://tato-os.pages.dev/ | grep -c 'og:image'      # ต้อง >= 1
        curl -sI https://tato-os.pages.dev/images/<ไฟล์>.jpg | grep -i -E "HTTP|content-type"   # 200 และ image/*
