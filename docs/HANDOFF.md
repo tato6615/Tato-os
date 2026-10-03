@@ -199,3 +199,30 @@
 - มีขั้นตอนอัตโนมัติคัดลอกไฟล์จาก `public/` ไป `dist/` เมื่อ push (เห็นจากคอมมิตที่แทรกเข้ามา) ก่อนแก้ไฟล์ทุกครั้งให้ `git pull --rebase origin main`
 - ทดสอบฟอร์มให้เปิด `/cafe/?test=1` โดยตรงเสมอ ปุ่มบนหน้าแรกลิงก์ไป `/cafe/?src=site` ไม่มีธงทดสอบ lead ที่ส่งผ่านปุ่มจะนับเป็น lead จริง ลบเองใน D1 (`DELETE FROM leads WHERE name = ...`) และ **ห้ามใช้ `scripts/reset-test-data.sql` ล้าง lead** ไฟล์นั้นลบออเดอร์ทั้งหมด
 - ถ้าเปิด `/cafe/` เองด้วยเบราว์เซอร์ที่ล้างธงทดสอบแล้ว จะนับเป็นการเข้าชมจริง ใช้ `?test=1` เมื่อแค่เปิดดู และ `?test=0` เพื่อล้างธง
+
+## อัปเดต 2-3 ต.ค. 2569 (รอบความปลอดภัย/ระบบ 9 ข้อ)
+คอมมิตหลัก: b80ab55 (เทสต์/workflow/access), c13ae7f (กู้ lead.js), ddb38d4 (lead-admin), 9f381de (HQ + Turnstile ใน /cafe/) เทสต์ผ่าน 29/29 และ npm run lint ผ่านก่อน push ล่าสุด
+ขั้นตอนตั้งค่าในหน้าบริการอยู่ที่ docs/SETUP-OPTIONAL.md สรุปสำหรับผู้ตรวจ PDPA อยู่ที่ docs/TRACKER-PDPA-REVIEW.md
+
+| ข้อ | สถานะ | ไฟล์ / หมายเหตุ |
+|---|---|---|
+| 1 สำรอง D1 | โค้ดพร้อม ต้องตั้ง GitHub secret 3 ตัวก่อน | .github/workflows/d1-backup.yml, scripts/backup-d1.sh (เข้ารหัสก่อนอัปโหลด เพราะ repo เป็น public) |
+| 2 Cloudflare Access | โค้ดพร้อม ยังไม่เปิด ต้องมีโดเมนของตัวเอง | shared/access.js, functions/_middleware.js (ACCESS_TEAM_DOMAIN + ACCESS_AUD, ปิดรหัสร่วมด้วย ADMIN_BASIC_DISABLED=1) |
+| 3 CI | เสร็จ (ยังไม่ได้ยืนยันสีของ run ในแท็บ Actions) | .github/workflows/test.yml, jsdom เป็น devDependency |
+| 4 แจ้งเตือน LINE ของ lead | ของเดิมทำงานอยู่ มีเทสต์ยืนยัน | functions/api/lead.js |
+| 5 ปุ่มลบ/ติดป้ายทดสอบใน HQ | เสร็จ | functions/api/lead-admin.js (PATCH/DELETE ต้องมี header x-requested-with: tato-hq), public/system/index.html |
+| 6 ลบ lead เก่าอัตโนมัติ | โค้ดพร้อม ต้องตั้ง secret เดียวกับข้อ 1 | ใน d1-backup.yml (รายไตรมาส หลังสำรองสำเร็จ) ใช้ GitHub Actions แทน Worker แยก |
+| 7 Turnstile | โค้ดพร้อม ต้องตั้ง TURNSTILE_SITE_KEY + TURNSTILE_SECRET | public/cafe/index.html, functions/api/public-config.js |
+| 8 อีเมลลูกค้า/ตรวจสลิป | รอสมัครบริการ | SlipOK ยังไม่เคยทดสอบกับบริการจริง |
+| 9 tracker / PDPA | รอผู้ตรวจ | public/tracker.js ไม่ถูกใช้, /privacy/ ยังไม่พูดถึงการเก็บพฤติกรรมหน้าร้าน |
+
+### บทเรียนจากเหตุการณ์ 2 ต.ค. (สำคัญ)
+- functions/api/lead.js เคยถูกวางทับด้วยมือจนฟังก์ชัน POST หายและถูก push เข้า main (ฟอร์ม /cafe/ ได้ 405) กู้แล้วใน c13ae7f ตรวจด้วย: curl -s -o /dev/null -w "%{http_code}\n" -X POST https://tato-os.pages.dev/api/lead -H "content-type: application/json" -d "{}" ต้องได้ 400
+- ห้ามต่อคำสั่ง commit/push โดยไม่ผูกกับผลเทสต์ (ใช้ npm test && npm run lint && git commit ...)
+- ห้ามวางโค้ดลงเทอร์มินัลโดยไม่ใช้ heredoc (cat > ไฟล์ <<'X') และห้ามวางเนื้อไฟล์ลงเทอร์มินัลตรง ๆ
+- ฟีเจอร์แอดมินใหม่ให้แยกเป็นไฟล์ใหม่ ไม่แก้ lead.js ที่รับฟอร์มสาธารณะ
+
+### ข้อสังเกตที่ยังไม่แก้
+- /api/behavior รับ metadata ไม่จำกัดขนาด/ฟิลด์ และ behavior_events ยังไม่มีระยะเวลาลบ
+- ไฟล์สำรอง D1 (ข้อมูลลูกค้า) เก็บ 90 วันใน GitHub ควรแจ้งผู้ตรวจนโยบาย
+- เว็บยังใช้ tato-os.pages.dev ซึ่งตั้ง Cloudflare Access ครอบ production ไม่ได้ (ตามที่เข้าใจ ยังไม่ได้ตรวจ) ต้องผูกโดเมนก่อน
