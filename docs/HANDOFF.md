@@ -226,3 +226,13 @@
 - /api/behavior รับ metadata ไม่จำกัดขนาด/ฟิลด์ และ behavior_events ยังไม่มีระยะเวลาลบ
 - ไฟล์สำรอง D1 (ข้อมูลลูกค้า) เก็บ 90 วันใน GitHub ควรแจ้งผู้ตรวจนโยบาย
 - เว็บยังใช้ tato-os.pages.dev ซึ่งตั้ง Cloudflare Access ครอบ production ไม่ได้ (ตามที่เข้าใจ ยังไม่ได้ตรวจ) ต้องผูกโดเมนก่อน
+
+
+## อัปเดต 3 ต.ค. 2569 (Marketing Brain: ชั้น Decision แบบมีกฎ)
+รายละเอียดและสูตรอยู่ที่ `docs/MARKETING-BRAIN.md` หน้า `/system/marketing/` (ลิงก์จาก HQ เมนู Marketing Brain)
+- ใหม่: `shared/marketing.js` (กฎ), `functions/api/marketing-brain.js`, `functions/api/ad-spend.js`, ตาราง `ad_spend` (สร้างอัตโนมัติใน `shared/schema.js`, migration `2026-10-03_ad_spend.sql`), `public/system/marketing/index.html`, `tests/marketing.test.mjs`, `tests/marketing-ui.test.mjs`
+- **แก้บั๊กการระบุช่องทาง:** `saveUtm()` ใน `src/App.tsx` ไม่เก็บ `?src=` จึงทำให้ออเดอร์จากลิงก์ `?src=facebook|line|gbp` ไม่มีช่องทาง (ขึ้น "(direct)") ตอนนี้ใช้ `src` / fbclid / gclid / ttclid เป็นสำรอง ใช้กับผู้เข้าเว็บหลัง deploy เท่านั้น ถ้าแก้ `src/` ต้องให้ CI build `dist/` (ขั้นตอนอัตโนมัติ)
+- **ต้องตั้งค่าก่อนเชื่อกำไร:** ต้นทุนต่อ กก. (เริ่มต้น 390 บาท ยืนยันว่านับต่อเมล็ดคั่วหรือเมล็ดสาร) และต้นทุนอื่นต่อออเดอร์ (เริ่มต้น 0) ที่หน้า Marketing Brain
+- กฎกันเงินรั่ว: ช่องที่มีค่าโฆษณาถึงงบทดสอบ (เริ่มต้น 1,500 บาท) แต่ไม่มีออเดอร์ที่จ่ายแล้ว แนะนำให้หยุด ไม่ว่าจะมีเซสชันกี่ครั้ง
+- ยังไม่ทำ: AI (เปิด Workers AI เมื่อมีเซสชันจริง 30-50+ ต่อช่องทาง), วัดแยกแคมเปญ/ครีเอทีฟ, Meta Pixel / Google tag (รอผู้ตรวจ PDPA)
+- ชั้น Decision ตอนนี้เป็นกฎล้วน ไม่ใช่ AI และยังเป็นแค่คำแนะนำให้คนตัดสินใจ

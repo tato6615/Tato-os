@@ -41,6 +41,8 @@ export async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, name TEXT, phone TEXT, shop_name TEXT, stage TEXT, menu TEXT, machine TEXT, kg_week TEXT, note TEXT, src TEXT, utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, is_test INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'new', consent_at TEXT, consent_version TEXT, ip_hash TEXT, created_at TEXT NOT NULL)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS leads_created_idx ON leads(created_at)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS ad_spend (id TEXT PRIMARY KEY, spend_date TEXT NOT NULL, channel TEXT NOT NULL, campaign TEXT, amount REAL NOT NULL, note TEXT, created_at TEXT NOT NULL)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS ad_spend_date_idx ON ad_spend(spend_date)").run();
   const ordersExists = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'").first();
   if (ordersExists) await addMissing(db, "orders", ORDER_COLS);
   await addMissing(db, "order_details", DETAIL_COLS);

@@ -1,0 +1,86 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="theme-color" content="#090909"><title>TATO Marketing Brain</title><style>
+:root{--bg:#080808;--l:#292929;--t:#f5f1e9;--m:#89847c;--o:#ff6a00;--g:#72d991;--y:#e7c36b;--r:#ff756c}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}a{color:var(--o)}
+.top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.ey{color:var(--o);font-size:11px;letter-spacing:.2em;text-transform:uppercase}h1{font-size:28px;margin:4px 0 2px;letter-spacing:-.03em}.sub{color:var(--m);font-size:14px}
+.card{background:#111;border:1px solid var(--l);border-radius:16px;padding:16px;margin-top:12px}h2{font-size:16px;margin:0 0 10px}
+.grid{display:grid;gap:10px}.k{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.label{font-size:11px;color:var(--m);letter-spacing:.12em;text-transform:uppercase}.val{font-size:24px;font-weight:700}.small{font-size:13px;color:var(--m)}
+.btn,button,select,input{font:inherit;color:#eee;background:#151515;border:1px solid #333;border-radius:9px;padding:9px 12px}button{cursor:pointer}button.p{background:var(--o);border-color:var(--o);color:#111;font-weight:700}
+.warn{border-color:#4d4324;background:#1b180d}.warn li{margin:6px 0;font-size:14px;color:#e8d9a8}ul{margin:0;padding-left:18px}
+.tb{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #202020;vertical-align:top}th{color:var(--m);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}td.n{text-align:right;white-space:nowrap}th.n{text-align:right}
+.chip{display:inline-block;font-size:11px;letter-spacing:.08em;border-radius:20px;padding:3px 9px;border:1px solid #333;color:#aaa;white-space:nowrap}
+.SCALE,.WORKING{color:#8fe4a4;background:#102016;border-color:#25432d}.KEEP{color:#b8d9ff;background:#101a24;border-color:#24384d}.STOP,.REDUCE{color:#ff9c95;background:#240f0d;border-color:#552420}.FIX{color:#ff9b62;background:#21160f;border-color:#54321f}.INSUFFICIENT_DATA,.NO_SALES_YET,.NOT_ACTIONABLE{color:#aaa}
+.bar{height:10px;background:#1b1b1b;border-radius:6px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--o)}
+form.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}label{font-size:12px;color:var(--m);display:block;margin-bottom:3px}form.f input,form.f select{width:100%}
+.err{color:var(--r);font-size:13px;min-height:18px;margin-top:6px}.good{color:var(--g)}
+</style></head><body><main>
+<div class="top"><div><div class="ey">Decision layer</div><h1>Marketing Brain</h1><div class="sub">ระบบสรุปหลักฐานและแนะนำ คนเป็นผู้ตัดสินใจ ไม่ลงมือเอง · นับเฉพาะข้อมูลจริง (ไม่รวมรายการทดสอบ/ยกเลิก)</div></div>
+<div><a href="/system/">← HQ</a> · <a href="/admin/">ออเดอร์</a></div></div>
+<div class="card"><form class="f" id="range"><div><label for="days">ช่วงเวลา</label><select id="days"><option value="7">7 วัน</option><option value="30" selected>30 วัน</option><option value="90">90 วัน</option></select></div><div><button class="p" type="submit">โหลดข้อมูล</button></div></form><div class="err" id="loaderr"></div></div>
+<div class="card warn" id="warnbox" style="display:none"><h2>ข้อควรระวังของข้อมูล</h2><ul id="warns"></ul></div>
+<div class="grid k" id="kpis"></div>
+<div class="card"><h2>เป้าเดือนนี้</h2><div id="pace" class="small">กำลังโหลด…</div></div>
+<div class="card"><h2>สิ่งที่ควรทำ</h2><div id="actions" class="small">กำลังโหลด…</div></div>
+<div class="card"><h2>ผลรายช่องทาง</h2><div class="tb"><table><thead><tr><th>ช่องทาง</th><th>สถานะ</th><th class="n">เซสชัน</th><th class="n">ออเดอร์จ่ายแล้ว</th><th class="n">รายได้</th><th class="n">ค่าโฆษณา</th><th class="n">ต้นทุน/ออเดอร์</th><th class="n">กำไร÷ค่าโฆษณา</th><th class="n">Lead ร้านกาแฟ</th><th>คำแนะนำ</th></tr></thead><tbody id="rows"><tr><td colspan="10" class="small">กำลังโหลด…</td></tr></tbody></table></div></div>
+<div class="card"><h2>บันทึกค่าโฆษณา</h2><div class="small" style="margin-bottom:8px">ช่องทางต้องตรงกับ utm_source ที่ใส่ในลิงก์โฆษณานั้น (เช่น facebook, google, tiktok) ไม่งั้นระบบจับคู่ยอดขายไม่ได้</div>
+<form class="f" id="spendf"><div><label for="sd">วันที่</label><input id="sd" type="date" required></div><div><label for="sc">ช่องทาง</label><input id="sc" placeholder="facebook" required maxlength="40"></div><div><label for="sp">แคมเปญ (ถ้ามี)</label><input id="sp" maxlength="80"></div><div><label for="sa">จำนวนเงิน (บาท)</label><input id="sa" type="number" min="1" step="any" required></div><div><button class="p" type="submit">บันทึก</button></div></form><div class="err" id="sperr"></div>
+<div class="tb" style="margin-top:8px"><table><thead><tr><th>วันที่</th><th>ช่องทาง</th><th>แคมเปญ</th><th class="n">บาท</th><th></th></tr></thead><tbody id="spendrows"></tbody></table></div></div>
+<div class="card"><h2>ตั้งค่าที่ใช้คำนวณ</h2><div class="small" style="margin-bottom:8px">ปล่อยว่างแล้วกดบันทึกเพื่อกลับไปใช้ค่าเริ่มต้น</div><div class="grid k" id="settings"></div><div class="err" id="seterr"></div></div>
+</main><script>
+(function(){
+var H={'x-requested-with':'tato-hq','content-type':'application/json'};
+var STATUS_TH={SCALE:'เพิ่มงบ',KEEP:'คงไว้',REDUCE:'ลดงบ',FIX:'แก้ก่อน',STOP:'หยุด',WORKING:'ได้ผล (ฟรี)',NO_SALES_YET:'ยังไม่มียอด',INSUFFICIENT_DATA:'ข้อมูลยังไม่พอ',NOT_ACTIONABLE:'ไม่ทราบช่องทาง'};
+var SET_TH=[['cost_per_kg','ต้นทุนต่อ กก. (บาท)'],['other_cost_per_order','ต้นทุนอื่นต่อออเดอร์ (บาท)'],['min_sessions','เซสชันขั้นต่ำก่อนตัดสิน'],['min_orders_confident','ออเดอร์ขั้นต่ำให้เชื่อผล'],['scale_roas','กำไร÷ค่าโฆษณา ที่แนะนำเพิ่มงบ'],['test_budget','งบทดสอบสูงสุดต่อช่อง (บาท)'],['target_kg_month','เป้า กก./เดือน'],['roast_kg_per_day','กำลังคั่ว กก./วัน'],['roast_days_per_week','วันคั่วต่อสัปดาห์']];
+function $(i){return document.getElementById(i)}
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function num(v,d){if(v==null||!isFinite(v))return '-';return Number(v).toLocaleString('en-US',{maximumFractionDigits:d==null?0:d})}
+function range(){var days=Number($('days').value)||30,to=new Date(),from=new Date(Date.now()-(days-1)*86400000);var f=function(d){return d.toISOString().slice(0,10)};return '?from='+f(from)+'&to='+f(to)}
+async function load(){
+  $('loaderr').textContent='';
+  try{
+    var r=await fetch('/api/marketing-brain'+range(),{cache:'no-store'}),d=await r.json();
+    if(!d.success) throw new Error(d.status||d.error||('HTTP '+r.status));
+    render(d);
+  }catch(e){$('loaderr').textContent='โหลดไม่สำเร็จ: '+(e&&e.message||e)}
+  loadSpend();
+}
+function render(d){
+  var w=d.warnings||[];$('warnbox').style.display=w.length?'':'none';$('warns').innerHTML=w.map(function(x){return '<li>'+esc(x)+'</li>'}).join('');
+  var t=d.totals||{};
+  $('kpis').innerHTML=[['เซสชันจริง',num(t.sessions)],['ออเดอร์ที่จ่ายแล้ว',num(t.paid_orders)],['รายได้ (บาท)',num(t.revenue)],['กำไรขั้นต้น',num(t.gross_profit)],['ค่าโฆษณา',num(t.spend)],['กำไรหลังค่าโฆษณา',num(t.net_profit)],['Lead ร้านกาแฟ',num(t.leads)]].map(function(k){return '<div class="card" style="margin:0"><div class="label">'+esc(k[0])+'</div><div class="val">'+esc(k[1])+'</div></div>'}).join('');
+  var p=d.pace||{},pct=Math.min(Number(p.pct_of_target)||0,100);
+  $('pace').innerHTML='<div><b>'+num(p.kg_month_to_date,1)+'</b> / '+num(p.target_kg)+' กก. ('+num(p.pct_of_target,1)+'%) · คาดการณ์สิ้นเดือน <b>'+num(p.projected_kg)+'</b> กก. · ต้องขายอีก '+num(p.remaining_kg)+' กก.'+(p.needed_kg_per_week!=null?' (ราว '+num(p.needed_kg_per_week)+' กก./สัปดาห์)':'')+'</div><div class="bar"><i style="width:'+pct+'%"></i></div><div style="margin-top:6px">กำลังคั่วตามที่ตั้งไว้ ราว '+num(p.capacity_kg_month)+' กก./เดือน · '+(p.capacity_ok?'<span class="good">รองรับเป้าได้</span>':'<span style="color:var(--r)">ไม่พอสำหรับเป้า</span>')+'</div>';
+  var a=d.actions||[];$('actions').innerHTML=a.length?'<ul>'+a.map(function(x){return '<li><span class="chip '+esc(x.status)+'">'+esc(STATUS_TH[x.status]||x.status)+'</span> <b>'+esc(x.channel)+'</b> · '+esc(x.text)+'</li>'}).join('')+'</ul>':'ยังไม่มีคำแนะนำ เพราะข้อมูลยังไม่พอ ใช้ลิงก์ที่ติด ?src= หรือ utm_source แจกต่อไป แล้วกลับมาดู';
+  var rows=d.channels||[];
+  $('rows').innerHTML=rows.length?rows.map(function(r){return '<tr><td><b>'+esc(r.channel)+'</b></td><td><span class="chip '+esc(r.status)+'">'+esc(STATUS_TH[r.status]||r.status)+'</span>'+(r.is_paid&&r.confidence==='low'?'<div class="small">ตัวอย่างน้อย</div>':'')+'</td><td class="n">'+num(r.sessions)+'</td><td class="n">'+num(r.paid_orders)+'</td><td class="n">'+num(r.revenue)+'</td><td class="n">'+(r.spend?num(r.spend):'-')+'</td><td class="n">'+(r.cac!=null?num(r.cac):'-')+'</td><td class="n">'+(r.profit_roas!=null?num(r.profit_roas,2):'-')+'</td><td class="n">'+num(r.leads)+'</td><td class="small">'+esc(r.action)+'</td></tr>'}).join(''):'<tr><td colspan="10" class="small">ยังไม่มีข้อมูลในช่วงนี้</td></tr>';
+  var v=(d.settings||{}).values||{},c=(d.settings||{}).custom||{};
+  $('settings').innerHTML=SET_TH.map(function(s){return '<div><label for="set_'+s[0]+'">'+esc(s[1])+(c[s[0]]?'':' · ค่าเริ่มต้น')+'</label><div style="display:flex;gap:6px"><input id="set_'+s[0]+'" type="number" step="any" value="'+esc(c[s[0]]?v[s[0]]:'')+'" placeholder="'+esc(v[s[0]])+'" style="width:100%"><button data-k="'+s[0]+'" type="button">บันทึก</button></div></div>'}).join('');
+}
+async function loadSpend(){
+  try{var r=await fetch('/api/ad-spend',{cache:'no-store'}),d=await r.json();if(!d.success)throw new Error(d.status);
+    $('spendrows').innerHTML=(d.rows||[]).slice(0,30).map(function(x){return '<tr><td>'+esc(x.spend_date)+'</td><td>'+esc(x.channel)+'</td><td>'+esc(x.campaign||'')+'</td><td class="n">'+num(x.amount,2)+'</td><td><button type="button" data-del="'+esc(x.id)+'">ลบ</button></td></tr>'}).join('')||'<tr><td colspan="5" class="small">ยังไม่มีรายการ</td></tr>';
+  }catch(e){$('spendrows').innerHTML='<tr><td colspan="5" class="err">โหลดรายการไม่สำเร็จ</td></tr>'}
+}
+$('range').addEventListener('submit',function(e){e.preventDefault();load()});
+$('sd').value=new Date().toISOString().slice(0,10);
+$('spendf').addEventListener('submit',async function(e){
+  e.preventDefault();$('sperr').textContent='';
+  try{var r=await fetch('/api/ad-spend',{method:'POST',headers:H,body:JSON.stringify({spend_date:$('sd').value,channel:$('sc').value,campaign:$('sp').value,amount:$('sa').value})}),d=await r.json();
+    if(!r.ok||!d.success){var f=d.fields||{};throw new Error(Object.keys(f).map(function(k){return f[k]}).join(' / ')||d.status||('HTTP '+r.status))}
+    $('sa').value='';load();
+  }catch(err){$('sperr').textContent='บันทึกไม่สำเร็จ: '+(err&&err.message||err)}
+});
+document.addEventListener('click',async function(e){
+  var b=e.target.closest&&e.target.closest('button');if(!b)return;
+  if(b.getAttribute('data-del')){
+    if(!confirm('ลบรายการค่าโฆษณานี้?'))return;
+    try{var r=await fetch('/api/ad-spend?id='+encodeURIComponent(b.getAttribute('data-del')),{method:'DELETE',headers:H}),d=await r.json();if(!r.ok||!d.success)throw new Error(d.status);load()}catch(err){alert('ลบไม่สำเร็จ: '+(err&&err.message||err))}
+  }else if(b.getAttribute('data-k')){
+    var k=b.getAttribute('data-k');$('seterr').textContent='';
+    try{var r2=await fetch('/api/marketing-brain',{method:'POST',headers:H,body:JSON.stringify({action:'set_setting',key:k,value:$('set_'+k).value})}),d2=await r2.json();if(!r2.ok||!d2.success)throw new Error(d2.status||('HTTP '+r2.status));load()}catch(err){$('seterr').textContent='บันทึกค่าไม่สำเร็จ: '+(err&&err.message||err)}
+  }
+});
+load();
+})();
+</script></body></html>
