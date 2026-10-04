@@ -49,11 +49,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             KNOW YOUR COFFEE.
           </h1>
 
-          {/* Thai Subheadline */}
-          <p className="mt-3 text-[26px] md:text-[34px] leading-relaxed text-[#ffdcc0] font-light tracking-wide font-['Anuphan']">
-            รู้จักกาแฟของคุณ
-          </p>
-
           {/* Supporting Spec Note */}
           <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 max-w-xl font-light">
             Arabica 100% • Single Origin • Doi Wiang Pa 1,500m
@@ -482,7 +477,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span>Fresh Roast Guaranteed</span>
                 </div>
                 <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
-                  Small-Batch Micro Roasting. Peak Aromatics.
+                  Roasted Fresh To Order. Peak Aromatics.
                 </h3>
                 <p className="mt-3 font-['Anuphan'] text-[15px] md:text-[16px] text-[#e3beb3]/80 leading-relaxed">
                   คั่วสดใหม่ทุกออเดอร์ เพื่อให้คุณได้ดื่มกาแฟในจุดที่รสชาติและกลิ่นหอมสมบูรณ์ที่สุด บรรจุในถุงฟอยล์กันความชื้นแบบมีวาล์วทางเดียว (One-way Degassing Valve) เพื่อกักเก็บแก๊สอะโรมาติกส์ได้นานถึง 90 วัน
@@ -535,9 +530,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           <h2 className="font-['Manrope'] text-4xl sm:text-5xl md:text-6xl leading-tight text-[#e6e1df] uppercase font-bold tracking-tight">
             FIND YOUR ROAST.
           </h2>
-          <p className="text-[22px] md:text-[28px] text-[#ffdcc0] font-light mt-1 font-['Anuphan']">
-            ค้นหารสชาติของคุณ
-          </p>
 
           {/* Prominent Price Indicator */}
           <div className="my-8 inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#2b2a28] shadow-lg border border-[#363433]">
@@ -565,15 +557,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-[#e3beb3]/70 font-mono text-[12px] uppercase">
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">local_shipping</span>
-              Express Delivery Nationwide
+              Nationwide Delivery
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">verified_user</span>
-              Direct Estate Guarantee
+              Doi Wiang Pa Origin
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">lock</span>
-              Secure PromptPay & Cards
+              PromptPay Payment
             </span>
           </div>
         </div>

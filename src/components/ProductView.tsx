@@ -447,7 +447,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 Origin Proof
               </span>
               <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">
-                100% Traceable
+                Doi Wiang Pa
               </span>
             </div>
           </div>
@@ -1078,7 +1078,7 @@ value={customerPostal}
               verified
             </span>
             <p className="font-['Anuphan'] text-[13px] text-[#e3beb3]/80 leading-relaxed">
-              <strong>100% Single Estate Guarantee:</strong> เมล็ดกาแฟทุกซองเก็บเกี่ยวจากฟาร์มดอยเวียง ไม่ผสมเมล็ดจากแหล่งอื่น คั่วทีละแบตช์เล็กด้วยโปรไฟล์ความร้อนที่คำนวณตามความชื้นสัมพัทธ์ของอากาศ
+              <strong>Arabica 100%:</strong> เมล็ดกาแฟอาราบิก้าจากดอยเวียงผา เชียงใหม่ คั่วสดตามออเดอร์
             </p>
           </div>
         </div>

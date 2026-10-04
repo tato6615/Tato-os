@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="font-['Manrope'] text-[14px] leading-relaxed text-[#e3beb3]/70 max-w-md">
-              Single-Origin Arabica Estate nestled at Doi Wiang, Doi Wiang Pa, Chiang Mai (1,500 MASL). High-altitude micro-lots slow-crafted with extreme agricultural precision.
+              100% Arabica from Doi Wiang Pa, Chiang Mai (1,500 MASL), roasted fresh to order.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#f3bc8b]">
@@ -38,8 +38,7 @@ export const Footer: React.FC = () => {
             </span>
             <ul className="space-y-2 font-['Manrope'] text-[13px] text-[#e3beb3]/70">
               <li className="hover:text-[#e6e1df] transition-colors">Doi Wiang Terroir</li>
-              <li className="hover:text-[#e6e1df] transition-colors">Micro-Lot Specialty Processing</li>
-              <li className="hover:text-[#e6e1df] transition-colors">100% Arabica Specialty</li>
+              <li className="hover:text-[#e6e1df] transition-colors">100% Arabica</li>
               <li className="hover:text-[#e6e1df] transition-colors">Highland Climate</li>
             </ul>
           </div>
@@ -50,10 +49,7 @@ export const Footer: React.FC = () => {
               HARVEST ASSURANCE
             </span>
             <ul className="space-y-2 font-['Manrope'] text-[13px] text-[#e3beb3]/70">
-              <li className="hover:text-[#e6e1df] transition-colors">Fresh Small-Batch Roast</li>
-              <li className="hover:text-[#e6e1df] transition-colors">Nitrogen Purged Packaging</li>
-              <li className="hover:text-[#e6e1df] transition-colors">Direct Origin Trade</li>
-              <li className="hover:text-[#e6e1df] transition-colors">Traceable Lot Curves</li>
+              <li className="hover:text-[#e6e1df] transition-colors">Roasted Fresh To Order</li>
             </ul>
           </div>
         </div>
@@ -61,7 +57,7 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-[#211f1e] flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-[11px] text-[#e3beb3]/60">
           <div>
-            © 2025 TATO COFFEE ESTATE. DOI WIANG, THAILAND. ALL RIGHTS RESERVED.
+            © 2026 TATO COFFEE. DOI WIANG, THAILAND. ALL RIGHTS RESERVED.
           </div>
           <div className="flex items-center gap-6">
             <span>DOI WIANG PA • CHIANG MAI</span>
