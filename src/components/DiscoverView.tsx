@@ -20,7 +20,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
   };
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full pb-20 md:pb-0">
       {/* ==================== HERO SECTION ==================== */}
       <section className="relative w-full min-h-[92vh] flex items-center justify-center -mt-20 overflow-hidden bg-[#0f0e0d]">
         {/* Atmospheric Highland Aerial Background */}
@@ -62,21 +62,19 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           {/* Primary Action CTA */}
           <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
             <button
-              onClick={() => scrollToSection('origin')}
+              onClick={() => onGoToProduct(selectedRoast)}
               className="group flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-all duration-300 shadow-[0_12px_32px_rgba(255,94,26,0.35)] transform hover:-translate-y-0.5 active:scale-95"
             >
-              <span>EXPLORE TATO</span>
-              <span className="material-symbols-outlined text-[16px] transition-transform duration-300 group-hover:translate-y-0.5">
-                arrow_downward
-              </span>
+              <span>{tr('ORDER NOW', 'สั่งซื้อเลย')}</span>
+              <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
             </button>
 
             <button
-              onClick={() => scrollToSection('roasts')}
+              onClick={() => scrollToSection('origin')}
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#e6e1df] transition-all duration-300 hover:text-[#ff5e1a] hover:bg-[#2b2a28]/60 border border-[#5b4138]/40"
             >
-              <span>VIEW ROASTS</span>
-              <span className="material-symbols-outlined text-[16px]">tune</span>
+              <span>EXPLORE TATO</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
             </button>
 
             <a
@@ -86,6 +84,22 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <span>FOR CAFÉS</span>
               <span className="material-symbols-outlined text-[16px]">storefront</span>
             </a>
+          </div>
+
+          {/* Facts strip: real, verified facts only */}
+          <div className="mt-10 grid grid-cols-3 gap-2 w-full max-w-md pt-4 border-t border-[#5b4138]/40 text-center">
+            <div>
+              <p className="font-['Manrope'] text-base font-bold text-[#e6e1df]">1,500 m</p>
+              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">{tr('Altitude', 'ความสูง')}</p>
+            </div>
+            <div className="border-x border-[#5b4138]/40">
+              <p className="font-['Manrope'] text-base font-bold text-[#ff5e1a]">100%</p>
+              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">Arabica</p>
+            </div>
+            <div>
+              <p className="font-['Manrope'] text-base font-bold text-[#e6e1df]">{tr('To order', 'ตามออเดอร์')}</p>
+              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">{tr('Roasted fresh', 'คั่วสด')}</p>
+            </div>
           </div>
 
           {/* Coordinates Quick Strip */}
@@ -564,6 +578,22 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           </div>
         </div>
       </section>
+
+      {/* Mobile sticky order bar */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#141312]/95 backdrop-blur-md border-t border-[#5b4138]/40 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-['Manrope'] text-xs text-[#e3beb3]/80 leading-tight">
+            TATO COFFEE<br />
+            <span className="text-[10px] text-[#e3beb3]/60">{tr('Roasted fresh to order', 'คั่วสดตามออเดอร์')}</span>
+          </span>
+          <button
+            onClick={() => onGoToProduct(selectedRoast)}
+            className="bg-[#ff5e1a] text-[#390c00] px-6 py-2.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase active:scale-95 transition"
+          >
+            {tr('ORDER', 'สั่งซื้อ')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
