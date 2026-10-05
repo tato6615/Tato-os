@@ -66,9 +66,9 @@ export const TERROIR_SPECS = [
   { label: 'Origin / แหล่งปลูก', value: 'Doi Wiang Pa, Chiang Mai (ดอยเวียงผา เชียงใหม่)' },
   { label: 'Grown by / ผู้ปลูก', value: 'ชาวเขาเผ่าลาหู่ ดอยเวียงผา อำเภอไชยปราการ เชียงใหม่' },
   { label: 'Elevation / ความสูง', value: '1,500 MASL' },
-  { label: 'Variety / สายพันธุ์', value: 'Arabica 100% (Catimor & Typica)' },
+  { label: 'Variety / สายพันธุ์', value: 'Arabica 100%' },
   { label: 'Harvest Method', value: '100% Selective Hand Pluck' },
-  { label: 'Processing', value: 'Anaerobic Washed & Raised Solar Beds' },
+  { label: 'Processing', value: 'Raised Beds Drying' },
   { label: 'Roast Schedule', value: 'Fresh Roast ทุกออเดอร์ (คั่วตามคำสั่งซื้อ)' },
 ];
 
