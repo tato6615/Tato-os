@@ -19,6 +19,11 @@ export async function onRequestPatch(context) {
     if (!adminWriteOk(context.request)) return json({ success: false, layer: LAYER, status: "FORBIDDEN" }, 403);
     await ensureSchema(db);
     const b = await context.request.json().catch(() => ({}));
+    if (validLeadId(b.id) && (b.sample_status === "sent" || b.sample_status === "to_send") && b.is_test === undefined) {
+      const rs = await db.prepare("UPDATE leads SET sample_status=? WHERE id=? AND sample_requested=1").bind(b.sample_status, b.id).run();
+      if (!(rs && rs.meta && Number(rs.meta.changes))) return json({ success: false, layer: LAYER, status: "NOT_FOUND" }, 404);
+      return json({ success: true, layer: LAYER, status: "LEAD_UPDATED", id: b.id, sample_status: b.sample_status });
+    }
     if (!validLeadId(b.id) || typeof b.is_test !== "boolean") return json({ success: false, layer: LAYER, status: "BAD_REQUEST" }, 400);
     const r = await db.prepare("UPDATE leads SET is_test=? WHERE id=?").bind(b.is_test ? 1 : 0, b.id).run();
     const n = r && r.meta ? Number(r.meta.changes) : 0;

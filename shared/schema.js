@@ -15,6 +15,11 @@ const DETAIL_COLS = {
   reminder_sent_at: "TEXT", slip_ref: "TEXT", slip_checked_at: "TEXT", slip_result: "TEXT",
 };
 
+const LEAD_COLS = {
+  kind: "TEXT DEFAULT 'contact'", sample_requested: "INTEGER NOT NULL DEFAULT 0", sample_grams: "INTEGER",
+  sample_address: "TEXT", sample_postal: "TEXT", sample_status: "TEXT", calc_json: "TEXT",
+};
+
 let ready = false;
 
 async function colNames(db, table) {
@@ -46,6 +51,7 @@ export async function ensureSchema(db) {
   const ordersExists = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'").first();
   if (ordersExists) await addMissing(db, "orders", ORDER_COLS);
   await addMissing(db, "order_details", DETAIL_COLS);
+  await addMissing(db, "leads", LEAD_COLS);
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS order_details_request_idx ON order_details(request_id) WHERE request_id IS NOT NULL").run();
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS order_details_slip_idx ON order_details(slip_ref) WHERE slip_ref IS NOT NULL").run();
   ready = true;
