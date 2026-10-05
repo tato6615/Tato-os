@@ -54,6 +54,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             Arabica 100% • Single Origin • Doi Wiang Pa 1,500m
           </p>
 
+          {/* Audience line: tells café owners this site is for them too */}
+          <p className="mt-3 font-['Manrope'] text-sm md:text-base text-[#e3beb3]/80 max-w-xl">
+            {tr('Fresh-roasted beans for cafés and home brewers.', 'เมล็ดคั่วสดสำหรับร้านกาแฟและดื่มที่บ้าน')}{' '}
+            <a
+              href="/cafe/?src=site-hero-line"
+              className="text-[#ff5e1a] font-semibold underline underline-offset-4 hover:text-[#ffb59c] transition-colors"
+            >
+              {tr('Café owner? Ask for a sample →', 'เป็นร้านกาแฟ? ขอตัวอย่างเมล็ด →')}
+            </a>
+          </p>
+
           {/* Primary Action CTA */}
           <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
             <button

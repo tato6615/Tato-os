@@ -24,7 +24,8 @@ button,.btn{display:block;box-sizing:border-box;text-align:center;text-decoratio
 .btn.alt{background:#2b2a28;color:#e6e1df}button[disabled]{opacity:.6}
 a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#a39a95;margin-top:14px}.chk input{width:auto;margin-top:5px}
 .navrow{display:flex;gap:10px;margin:14px 0}.nb{flex:1;box-sizing:border-box;text-align:center;text-decoration:none;padding:13px 10px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700}.nb.alt{background:#2b2a28;color:#e6e1df}
-</style></head><body><main>
+</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="/cafe/shared.css"></head><body><header class="site-h"><div class="in"><a class="brand" href="/"><img src="/images/IMG_2937-removebg-preview.svg" alt="TATO Coffee" width="30" height="30"><span>TATO COFFEE</span></a><nav aria-label="เมนูหลัก"><a href="/">หน้าแรก</a><a href="/cafe/">สำหรับร้านกาแฟ</a><a href="/cafe/calculator/" aria-current="page">เครื่องคำนวณ</a><a href="/cafe/checklist/">เช็กลิสต์</a></nav><a class="pill" href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">แชต LINE</a></div><div class="site-m"><a href="/">หน้าแรก</a><a href="/cafe/">สำหรับร้านกาแฟ</a><a href="/cafe/calculator/" aria-current="page">เครื่องคำนวณ</a><a href="/cafe/checklist/">เช็กลิสต์</a></div></header>
+<main>
 
 <h1>เครื่องคำนวณต้นทุนกาแฟต่อแก้ว</h1>
 <p>กรอกตัวเลขของร้านคุณเอง แล้วดูต้นทุนเมล็ดต่อแก้วกับกำไรต่อเดือน คำนวณในเครื่องคุณ ไม่ส่งข้อมูลไปไหนจนกว่าคุณจะกดขอเอง</p>
@@ -57,9 +58,13 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;alig
 <div id="next" style="display:none">
 <a class="btn" id="goList" href="/cafe/checklist/">รับเช็กลิสต์เปิดร้านกาแฟ</a>
 <a class="btn alt" id="goSample" href="/cafe/">คุยกับเรา / ขอตัวอย่างเมล็ด</a>
+<a class="btn" id="goLine" href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer" style="background:#06c755;color:#fff">ถามเรื่องเมล็ดทาง LINE พร้อมผลคำนวณนี้</a>
+<p class="dim" id="lineNote" style="display:none;margin:8px 0 0"></p>
 </div>
 <div class="navrow"><a class="nb alt" href="/cafe/" onclick="if(document.referrer.indexOf(location.host)>-1){history.back();return false}">← ย้อนกลับ</a><a class="nb alt" href="/">🏠 หน้าแรก</a></div><p class="dim"><a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
 </main>
+<footer class="site-f"><div class="in"><div><div class="brand"><img src="/images/IMG_2937-removebg-preview.svg" alt="" width="26" height="26"><span>TATO COFFEE</span></div><p>กาแฟอาราบิก้า 100% จากดอยเวียงผา เชียงใหม่ ความสูง 1,500 เมตร คั่วสดตามออเดอร์</p></div><div><h3>สำหรับร้านกาแฟ</h3><ul><li><a href="/cafe/">ขอตัวอย่างเมล็ด</a></li><li><a href="/cafe/calculator/">เครื่องคำนวณต้นทุนต่อแก้ว</a></li><li><a href="/cafe/checklist/">เช็กลิสต์เปิดร้านกาแฟ</a></li></ul></div><div><h3>ติดต่อ</h3><ul><li><a href="tel:0642936615">064-293-6615</a></li><li><a href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">LINE OA</a></li><li><a href="/privacy/">นโยบายความเป็นส่วนตัว</a></li><li><a href="/refund/">นโยบายการคืนสินค้า/เงิน</a></li></ul></div></div><div class="bar">© 2026 TATO COFFEE ดอยเวียงผา เชียงใหม่</div></footer>
+
 <script>
 (function(){
 var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
@@ -107,6 +112,30 @@ function run(){
 ids.forEach(function(i){$(i).addEventListener("input",run)});
 $("goList").addEventListener("click",function(){track("calc_to_checklist")});
 $("goSample").addEventListener("click",function(){track("calc_to_form")});
+var lineOa="";
+fetch("/api/public-config",{cache:"no-store"}).then(function(r){return r.json()}).then(function(c){lineOa=(c&&c.line_oa)||""}).catch(function(){});
+function lineMsg(){
+  if(!last) return "";
+  var L=["สวัสดีครับ ผมลองคำนวณต้นทุนกาแฟจากเครื่องคำนวณของ TATO ได้ผลดังนี้",
+    "ขายแก้วละ "+baht(last.price)+" ใช้เมล็ด "+last.grams+" กรัม/แก้ว ซื้อเมล็ดอยู่ "+baht(last.bean_kg)+"/กก.",
+    "ต้นทุนรวมต่อแก้ว "+baht(last.cost_cup)+" กำไรต่อแก้ว "+baht(last.profit_cup)];
+  if(last.profit_month!==undefined) L.push("กำไรขั้นต้นต่อเดือนประมาณ "+baht(last.profit_month)+" (ที่ "+last.cups_day+" แก้ว/วัน เปิด "+last.days+" วัน)");
+  L.push("อยากถามเรื่องเมล็ด/ขอตัวอย่างครับ");
+  return L.join("\n");
+}
+function copyText(t){
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function(){return true},function(){return false}); }catch(e){}
+  try{ var ta=document.createElement("textarea"); ta.value=t; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); var ok=document.execCommand("copy"); document.body.removeChild(ta); return Promise.resolve(!!ok); }catch(e2){ return Promise.resolve(false); }
+}
+$("goLine").addEventListener("click",function(ev){
+  var m=lineMsg(), note=$("lineNote");
+  track("calc_to_line",{profit_month:(last&&last.profit_month)||null,cost_cup:(last&&last.cost_cup)||null,prefilled:!!lineOa});
+  if(!m) return;
+  if(lineOa){ this.href="https://line.me/R/oaMessage/"+lineOa+"/?"+encodeURIComponent(m); note.style.display="none"; return; }
+  // ไม่มี OA id สาธารณะ: ลิงก์สั้น lin.ee ฝังข้อความไม่ได้ จึงคัดลอกข้อความไว้ให้วางในแชต
+  copyText(m).then(function(ok){ note.textContent=ok?"คัดลอกผลคำนวณไว้แล้ว เมื่อ LINE เปิด กดวางในแชตแล้วส่งได้เลย":"ถ้า LINE เปิดแล้ว ให้พิมพ์ผลคำนวณของคุณส่งมาได้เลย"; note.style.display="block"; });
+});
+
 var pre=carry(); if(pre.price!==undefined)$("price").value=pre.price; if(pre.grams!==undefined)$("grams").value=pre.grams; if(pre.bean_kg!==undefined)$("beanKg").value=pre.bean_kg; if(pre.other_cost!==undefined)$("other").value=pre.other_cost; if(pre.cups_day!==undefined)$("cups").value=pre.cups_day; if(pre.days!==undefined)$("days").value=pre.days;
 run();
 })();
