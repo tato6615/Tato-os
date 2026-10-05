@@ -5,7 +5,7 @@
 .sim-badge{display:inline-block;font-size:13px;font-weight:600;padding:2px 8px;margin-left:6px;border-radius:999px;background:#fef3c7;color:#92400e;vertical-align:middle;text-transform:none;letter-spacing:0}
 </style></head><body><div class="app"><aside class="side"><div class="brand"><div class="logo">◈</div><div><b>TATO</b><small>COFFEE INTELLIGENCE OS</small></div></div><div class="nt">COMMAND</div><nav class="nav"><button class="on" data-p="overview"><i class="ico">⌂</i><span>Overview</span></button><button data-p="monitor"><i class="ico">◎</i><span>Launch Monitor</span></button><button data-p="market"><i class="ico">◌</i><span>Market</span></button><button data-p="behavior"><i class="ico">◉</i><span>Behavior</span></button><button data-p="customers"><i class="ico">♙</i><span>Customers</span></button><button data-p="leads"><i class="ico">☕</i><span>Café Leads</span></button><button data-p="products"><i class="ico">▣</i><span>Products</span></button><button data-p="sales"><i class="ico">฿</i><span>Sales</span></button><button data-p="orders"><i class="ico">☰</i><span>Orders ↗</span></button></nav><div class="nt">GROWTH</div><nav class="nav"><button data-p="ai"><i class="ico">✦</i><span>AI Team</span></button><button data-p="content"><i class="ico">↗</i><span>Content</span></button><button data-p="brain"><i class="ico">◈</i><span>Marketing Brain ↗</span></button><button data-p="automation"><i class="ico">⚙</i><span>Automation</span></button><button data-p="settings"><i class="ico">⌘</i><span>Settings</span></button></nav><div class="status">TATO OS V1 · <i>● LIVE</i></div></aside><main class="main"><div class="mobile"><b style="letter-spacing:.2em">TATO</b><span style="color:var(--o)">◈</span></div>
 <section class="module active" id="p-overview"><header class="top"><div><div class="ey">Founder Cockpit</div><div class="title">Good evening, TATO.</div><div class="sub">Business + market + behavior + AI in one command center.</div></div><div class="actions"><input class="search" id="global" placeholder="Search TATO HQ…"><button class="btn" onclick="toast('Demo system synced')">↻ Sync</button><button class="btn primary" onclick="modal('quick')">＋ Quick</button></div></header><div class="grid kpis"><div class="card"><div class="label">Revenue · paid only</div><div class="value" id="dashRevenue">฿0</div><div class="muted" id="dashOrders">0 orders</div></div><div class="card"><div class="label">Customers · live</div><div class="value" id="dashCustomers">0</div><div class="muted">D1 records</div></div><div class="card"><div class="label">Beans sold · paid</div><div class="value" id="dashKg">0 kg</div><div class="muted" id="dashKgMeta">from paid orders</div></div><div class="card"><div class="label">Repeat customers</div><div class="value" id="dashRepeat">0%</div><div class="muted" id="dashRepeatMeta">0 repeat</div></div><div class="card"><div class="label">Behavior events</div><div class="value" id="dashBehavior">0</div><div class="muted" id="dashMarket">0 market signals</div></div></div><div class="grid two gap"><div class="card"><div class="head"><h3>Live market & behavior</h3><span class="pill">D1 · LIVE</span></div><div id="dashSignals"><div class="sig"><i class="dot"></i><div><strong>Loading live signals…</strong><p>Reading behavior_events and market_signals.</p></div><span class="time">NOW</span></div></div></div><div class="card"><div class="head"><h3>Live funnel evidence</h3><span class="pill">MEASUREMENT V2.3</span></div><div class="metric"><span>Attention</span><b id="dashAttention">0</b></div><div class="metric"><span>Clicks</span><b id="dashClicks">0</b></div><div class="metric"><span>Product views</span><b id="dashProductViews">0</b></div><div class="metric"><span>Customers</span><b id="dashFunnelCustomers">0</b></div><div class="metric"><span>Orders</span><b id="dashFunnelOrders">0</b></div><div class="metric"><span>Revenue</span><b id="dashFunnelRevenue">฿0</b></div><div class="item" style="margin-top:12px"><strong id="dashFunnelState">Loading Measurement V2.3…</strong><small id="dashFunnelMeta">—</small></div></div></div><div class="card"><div class="label">คำแนะนำจากข้อมูล</div><div style="font-size:18px;margin:8px 0">ยังไม่มีข้อมูลพอสำหรับสรุป</div><div class="muted" style="font-size:13px">ข้อมูลตอนนี้มาจากการทดสอบภายในเท่านั้น รอผู้ใช้จริงก่อนแสดงคำแนะนำ</div></div><div class="foot">Overview KPI, market/behavior signals and sales figures are read from live TATO-OS APIs. Funnel evidence is read from Measurement V2.3. No demo KPI is used in the live overview.</div></section>
-<section class="module" id="p-monitor"><header class="top"><div><div class="ey">Launch Monitor</div><div class="title">ดูทุกอย่างในหน้าเดียว</div><div class="sub" id="mnSub">กำลังโหลด…</div></div><div class="actions"><button class="btn" id="mnRefresh">↻ Refresh</button><a class="btn primary" href="/admin/" style="text-decoration:none">จัดการออเดอร์ ↗</a></div></header><div id="mnAlerts"></div><div class="grid kpis"><div class="card"><div class="label">Orders · วันนี้</div><div class="value" id="mnOrders">0</div><div class="muted" id="mnOrdersMeta">&nbsp;</div></div><div class="card"><div class="label">Revenue · paid วันนี้</div><div class="value" id="mnRev">฿0</div><div class="muted" id="mnRevMeta">&nbsp;</div></div><div class="card"><div class="label">Awaiting payment</div><div class="value" id="mnPend">0</div><div class="muted" id="mnPendMeta">&nbsp;</div></div><div class="card"><div class="label">Leads · วันนี้</div><div class="value" id="mnLeads">0</div><div class="muted" id="mnLeadsMeta">&nbsp;</div></div></div><div class="card gap"><div class="head"><h3>System health</h3><span class="pill" id="mnHealthPill">…</span></div><div id="mnHealth"></div></div><div class="card gap"><div class="head"><h3>ออเดอร์ล่าสุด</h3><span class="pill">AUTO 30s</span></div><div class="tablebox"><table class="table"><thead><tr><th>Order</th><th>Customer</th><th>kg</th><th>Total</th><th>Status</th><th>เวลา</th></tr></thead><tbody id="mnTable"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></div></section>
+<section class="module" id="p-monitor"><header class="top"><div><div class="ey" data-i="ey">Launch Monitor</div><div class="title" data-i="title"></div><div class="sub" id="mnSub">…</div></div><div class="actions"><button class="btn" id="mnRefresh" data-i="refresh"></button><a class="btn primary" href="/admin/" style="text-decoration:none" data-i="manage"></a></div></header><div id="mnAlerts"></div><div class="grid kpis"><div class="card"><div class="label" data-i="kOrders"></div><div class="value" id="mnOrders">0</div><div class="muted" id="mnOrdersMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kRev"></div><div class="value" id="mnRev">฿0</div><div class="muted" id="mnRevMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kPend"></div><div class="value" id="mnPend">0</div><div class="muted" id="mnPendMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kLeads"></div><div class="value" id="mnLeads">0</div><div class="muted" id="mnLeadsMeta">&nbsp;</div></div></div><div class="card gap"><div class="head"><h3 data-i="health"></h3><span class="pill" id="mnHealthPill">…</span></div><div id="mnHealth"></div></div><div class="card gap"><div class="head"><h3 data-i="recent"></h3><span class="pill" data-i="auto"></span></div><div class="tablebox"><table class="table"><thead><tr><th data-i="thOrder"></th><th data-i="thCust"></th><th>kg</th><th data-i="thTotal"></th><th data-i="thStatus"></th><th data-i="thTime"></th></tr></thead><tbody id="mnTable"><tr><td colspan="6">…</td></tr></tbody></table></div></div></section>
 <section class="module" id="p-market"><header class="top"><div><div class="ey">Market Intelligence</div><div class="title">What is the market doing?</div><div class="sub">Signals → evidence → hypothesis → action.</div></div><div class="actions"><button class="btn primary" onclick="modal('signal')">＋ Signal</button></div></header><div class="card"><div class="head"><h3>Signal board</h3><span class="pill" id="mkPill">ข้อมูลจริง</span></div><div class="list" id="mkList"><div class="item"><small>กำลังโหลด…</small></div></div></div><div class="card gap"><div class="item"><strong>หน้านี้แสดงเฉพาะสัญญาณที่บันทึกเข้ามาจริง</strong><small>ยังไม่มีระบบสแกนตลาดอัตโนมัติ ไม่มีคะแนน AI ถ้าจะเพิ่มสัญญาณ กด “＋ Signal” เอง การตัดสินใจเรื่องโฆษณาให้ดูที่ Marketing Brain</small></div></div></section>
 <section class="module" id="p-behavior"><header class="top"><div><div class="ey">Behavior Engine</div><div class="title">Observe → Understand → Act</div><div class="sub">First-party events become explainable intent signals.</div></div><div class="actions"><button class="btn" onclick="toast('Event dictionary ready')">Dictionary</button><button class="btn primary" onclick="modal('event')">＋ Event</button></div></header><div class="card" style="margin:0 0 12px;padding:10px 14px;border-color:#f59e0b"><small>⚠ ตัวอย่างหน้าตา (DEMO) ตัวเลขในหน้านี้ไม่ใช่ข้อมูลจริง อย่านำไปตัดสินใจ</small></div><div class="grid kpis"><div class="card"><div class="label">Events · 24h</div><div class="value">8,421</div><div class="up" style="font-size:13px">↑ 11.2%</div></div><div class="card"><div class="label">High-intent sessions</div><div class="value">286</div><div class="up" style="font-size:13px">↑ 18.6%</div></div><div class="card"><div class="label">Tool users</div><div class="value">94</div><div class="up" style="font-size:13px">2.3× conversion</div></div><div class="card"><div class="label">Returning users</div><div class="value">41%</div><div style="font-size:13px">+3.1 pts</div></div><div class="card"><div class="label">Reorder risk</div><div class="value">14</div><div class="warn" style="font-size:13px">Review soon</div></div></div><div class="grid two gap"><div class="card"><div class="head"><h3>Customer journey</h3><span class="pill">LIVE MODEL</span></div><div class="metric"><span>VISIT</span><b>4,921</b></div><div class="metric"><span>SEARCH</span><b>1,840</b></div><div class="metric"><span>TOOL_USE</span><b>94</b></div><div class="metric"><span>PRODUCT_VIEW</span><b>672</b></div><div class="metric"><span>ADD_TO_CART</span><b>188</b></div><div class="metric"><span>PURCHASE</span><b>71</b></div><div class="metric"><span>REORDER</span><b>46</b></div></div><div class="card"><div class="head"><h3>Intent composition</h3><span class="pill">CURRENT</span></div><div class="meter"><div class="ml"><span>Planning</span><b>42%</b></div><div class="track"><i style="width:42%"></i></div></div><div class="meter"><div class="ml"><span>Research</span><b>31%</b></div><div class="track"><i style="width:31%"></i></div></div><div class="meter"><div class="ml"><span>Ready to buy</span><b>27%</b></div><div class="track"><i style="width:27%"></i></div></div><div class="item"><strong>Detected pattern</strong><small>Calculator → product view → return visit is one of the strongest observed paths.</small></div></div></div><div class="card gap"><div class="head"><h3>Recent event stream</h3><span class="pill">DEMO</span></div><div class="tablebox"><table class="table"><tr><th>Time</th><th>Event</th><th>Object</th><th>Stage</th><th>Signal</th></tr><tr><td>20:48</td><td>CALCULATOR_USE</td><td>Café Profit</td><td><span class="tag to">INTENT</span></td><td>High</td></tr><tr><td>20:43</td><td>PRODUCT_VIEW</td><td>Espresso Doi Wiang</td><td><span class="tag">RESEARCH</span></td><td>Medium</td></tr><tr><td>20:39</td><td>RETURN</td><td>/wholesale</td><td><span class="tag tg">RETURN</span></td><td>High</td></tr><tr><td>20:31</td><td>ADD_TO_CART</td><td>Sample Pack</td><td><span class="tag to">BUY</span></td><td>Very high</td></tr></table></div></div></section>
 <section class="module" id="p-customers"><header class="top"><div><div class="ey">Customer OS</div><div class="title">Know the customer, not just the order.</div><div class="sub">Lifecycle + intent + purchase history + next action.</div></div><div class="actions"><input class="search" id="custsearch" placeholder="Search customers…"><button class="btn primary" onclick="modal('customer')">＋ Customer</button></div></header><div class="card" style="margin:0 0 12px;padding:10px 14px;border-color:#f59e0b"><small>⚠ ตัวอย่างหน้าตา (DEMO) ตัวเลขในหน้านี้ไม่ใช่ข้อมูลจริง อย่านำไปตัดสินใจ</small></div><div class="grid kpis"><div class="card"><div class="label">All customers</div><div class="value" id="cc">126</div><div style="font-size:13px">CRM records</div></div><div class="card"><div class="label">New this month</div><div class="value">12</div><div class="up" style="font-size:13px">+21%</div></div><div class="card"><div class="label">Active buyers</div><div class="value">84</div><div class="up" style="font-size:13px">66.7%</div></div><div class="card"><div class="label">Reorder due</div><div class="value">14</div><div class="warn" style="font-size:13px">7 days</div></div><div class="card"><div class="label">At risk</div><div class="value">6</div><div class="down" style="font-size:13px">Needs review</div></div></div><div class="card gap"><div class="head"><h3>Customer list</h3><span class="pill">LIFECYCLE + INTENT</span></div><div class="tablebox"><table class="table" id="ct"><tr><th>Customer</th><th>Segment</th><th>Intent</th><th>Last order</th><th>Monthly kg</th><th>Next action</th></tr><tr><td>Common Grounds · Chiang Mai</td><td><span class="tag tb">CAFÉ</span></td><td><span class="tag to">92</span></td><td>4 days</td><td>28</td><td>Reorder</td></tr><tr><td>North District Coffee · Bangkok</td><td><span class="tag">ROASTER</span></td><td><span class="tag to">86</span></td><td>9 days</td><td>42</td><td>Check-in</td></tr><tr><td>River Morning · Lampang</td><td><span class="tag tb">CAFÉ</span></td><td><span class="tag tg">71</span></td><td>18 days</td><td>15</td><td>Reorder soon</td></tr><tr><td>Black Cabin · Phuket</td><td><span class="tag tb">CAFÉ</span></td><td>48</td><td>41 days</td><td>10</td><td>Retention</td></tr></table></div></div></section>
@@ -56,7 +56,7 @@ async function loadDashboard(){
     const counts={}; paidOs.forEach(o=>{const id=o.customer_id||'';if(id)counts[id]=(counts[id]||0)+1});
     const repeat=Object.values(counts).filter(x=>x>1).length;
     const buying=Object.keys(counts).length;
-    set('dashRevenue',money(revenue)); try{const ob=document.querySelector('.nav button[data-p="orders"] span');if(ob)ob.textContent='Orders ↗'+(pendOs.length?' ('+pendOs.length+' รอ)':'')}catch(e){} /*ordersNavBadge*/
+    set('dashRevenue',money(revenue)); try{const ob=document.querySelector('.nav button[data-p="orders"] span');if(ob)ob.textContent=(window.TATO_NAV_ORDERS||'Orders ↗')+(pendOs.length?' ('+pendOs.length+(window.TATO_LANG==='en'?' pending':' รอ')+')':'')}catch(e){} /*ordersNavBadge*/
     set('dashOrders',n(paidOs.length)+' paid · '+n(pendOs.length)+' awaiting (฿'+n(pendAmt)+')'); set('dashCustomers',n(cs.length));
     set('dashKg',n(kg)+' kg');set('dashKgMeta',pendKg?('+'+n(pendKg)+' kg awaiting payment'):'from paid orders'); set('dashRepeat',buying?((repeat/buying)*100).toFixed(1)+'%':'0%'); set('dashRepeatMeta',n(repeat)+' repeat');
     set('dashBehavior',n(bs.length)); set('dashMarket',n(ms.length)+' market signals');
@@ -314,71 +314,129 @@ document.addEventListener('click',async function(ev){
 });
 loadDashboard();loadLearning();loadLeads();loadReorder();
 document.getElementById('global')?.addEventListener('keydown',e=>{if(e.key==='Enter'){let q=e.target.value.toLowerCase();let p=['overview','market','behavior','customers','products','sales','ai','content','automation','settings'].find(x=>x.includes(q));p?go(p):toast('No module match')}});loadSalesOrders();
-</script><script>
+</script><style>
+#tatoBar{position:fixed;top:10px;left:10px;right:10px;z-index:20;display:flex;justify-content:space-between;pointer-events:none}
+#tatoBar button{pointer-events:auto;border:1px solid var(--l);background:#111e;color:var(--t);border-radius:10px;padding:8px 14px;font-size:14px;backdrop-filter:blur(6px)}
+#tatoBackdrop{position:fixed;inset:0;background:#000a;z-index:25;opacity:0;pointer-events:none;transition:opacity .2s}
+#tatoBackdrop.show{opacity:1;pointer-events:auto}
+.side{display:block!important;width:280px!important;z-index:30!important;transform:translateX(-105%);transition:transform .25s;overflow-y:auto}
+.side.open{transform:none;box-shadow:12px 0 40px #000c}
+.side .brand{justify-content:flex-start!important}
+.side .brand>div:last-child,.side .nt,.side .status{display:block!important}
+.side .nav button{justify-content:flex-start!important}
+.side .nav button span{display:inline!important}
+.main{margin-left:0!important;width:100%!important;padding:64px 30px 45px!important}
+.mobile{display:none!important}
+@media(max-width:560px){.main{padding:64px 15px 40px!important}}
+</style>
+<div id="tatoBackdrop"></div>
+<div id="tatoBar"><button id="tatoMenu" aria-label="menu">☰ <span id="tatoMenuTxt"></span></button><button id="tatoLang"></button></div>
+<script>
 (function(){
+const D={th:{
+ey:'Launch Monitor',title:'ดูทุกอย่างในหน้าเดียว',refresh:'↻ รีเฟรช',manage:'จัดการออเดอร์ ↗',
+kOrders:'ออเดอร์วันนี้',kRev:'ยอดที่จ่ายแล้ววันนี้',kPend:'รอชำระเงิน',kLeads:'Leads วันนี้',
+health:'สถานะระบบ',recent:'ออเดอร์ล่าสุด',auto:'อัปเดตเองทุก 30 วิ',thOrder:'ออเดอร์',thCust:'ลูกค้า',thTotal:'ยอดรวม',thStatus:'สถานะ',thTime:'เวลา',
+menu:'เมนู',lang:'EN',noTest:'ไม่นับ test/ยกเลิก',paid:'จ่ายแล้ว',sample:'ขอตัวอย่าง',
+okw:'ปกติ',issues:' ปัญหา',loading:'กำลังโหลด…',none:'ยังไม่มีออเดอร์จริง',
+updated:'อัปเดตล่าสุด',every:'รีเฟรชอัตโนมัติทุก 30 วินาที',fail:'โหลดไม่สำเร็จ: ',
+home:'หน้าแรก',order:'หน้าสั่งซื้อ',cafe:'หน้าร้านกาแฟ',dbo:'ฐานข้อมูล · ออเดอร์',dbl:'ฐานข้อมูล · leads',dbc:'ฐานข้อมูล · ลูกค้า',cfg:'Config สาธารณะ',ts:'Turnstile (กันบอท)',
+bad:'ตอบกลับผิดรูปแบบ',noconn:'เชื่อมต่อไม่ได้',cfgbad:'อ่านไม่ได้',tson:'เปิดอยู่',tsoff:'ยังไม่ได้ตั้งค่า',abn:'ผิดปกติ',
+aSys:'ระบบมีปัญหา: ',aStale:n=>'มี '+n+' ออเดอร์รอชำระเกิน 30 นาที — เช็คสลิป/ทักลูกค้า',aNew:n=>'🔔 มีออเดอร์ใหม่ '+n+' รายการ',
+nav:{monitor:'Launch Monitor',overview:'ภาพรวม',market:'ตลาด',behavior:'พฤติกรรม',customers:'ลูกค้า',leads:'ลูกค้าร้านกาแฟ',products:'สินค้า',sales:'ยอดขาย',orders:'ออเดอร์ ↗',ai:'ทีม AI',content:'คอนเทนต์',brain:'Marketing Brain ↗',automation:'ระบบอัตโนมัติ',settings:'ตั้งค่า'}},
+en:{
+ey:'Launch Monitor',title:'Everything in one view',refresh:'↻ Refresh',manage:'Manage orders ↗',
+kOrders:'Orders · today',kRev:'Revenue · paid today',kPend:'Awaiting payment',kLeads:'Leads · today',
+health:'System health',recent:'Latest orders',auto:'AUTO 30s',thOrder:'Order',thCust:'Customer',thTotal:'Total',thStatus:'Status',thTime:'Time',
+menu:'Menu',lang:'ไทย',noTest:'excl. test/cancelled',paid:'paid',sample:'sample requests',
+okw:'All good',issues:' issue(s)',loading:'Loading…',none:'No real orders yet',
+updated:'Last updated',every:'auto-refresh every 30s',fail:'Failed to load: ',
+home:'Home page',order:'Order page',cafe:'Café page',dbo:'Database · orders',dbl:'Database · leads',dbc:'Database · customers',cfg:'Public config',ts:'Turnstile (bot guard)',
+bad:'Bad response',noconn:'Cannot connect',cfgbad:'Unreadable',tson:'Enabled',tsoff:'Not configured',abn:'Abnormal',
+aSys:'System problem: ',aStale:n=>n+' order(s) unpaid for over 30 min — check slips / contact customer',aNew:n=>'🔔 '+n+' new order(s)',
+nav:{monitor:'Launch Monitor',overview:'Overview',market:'Market',behavior:'Behavior',customers:'Customers',leads:'Café Leads',products:'Products',sales:'Sales',orders:'Orders ↗',ai:'AI Team',content:'Content',brain:'Marketing Brain ↗',automation:'Automation',settings:'Settings'}}};
+let L='th';try{L=localStorage.getItem('tato_lang')==='en'?'en':'th'}catch(e){}
+const t=k=>D[L][k];
+const $=id=>document.getElementById(id);
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=v=>'฿'+Number(v||0).toLocaleString('en-US',{maximumFractionDigits:0});
-const $=id=>document.getElementById(id);
 const bkk=d=>new Date(d.getTime()+7*36e5).toISOString().slice(0,10);
-const toDate=t=>{t=String(t||'');if(!t)return null;if(!/[zZ]|[+-]\d\d:?\d\d$/.test(t))t=t.replace(' ','T')+'Z';const d=new Date(t);return isNaN(d)?null:d};
+const toDate=x=>{x=String(x||'');if(!x)return null;if(!/[zZ]|[+-]\d\d:?\d\d$/.test(x))x=x.replace(' ','T')+'Z';const d=new Date(x);return isNaN(d)?null:d};
 const A=o=>Number(o.total_amount||o.amount||0),K=o=>Number(o.total_kg||o.quantity||o.qty||0);
 const st=o=>String(o.status||'pending').toLowerCase();
-let seen=null,timer=null,busy=false;
-async function ping(name,url,json){const t0=performance.now();try{const r=await fetch(url,{cache:'no-store'});const ms=Math.round(performance.now()-t0);let ok=r.ok,note='';if(ok&&json){const d=await r.json().catch(()=>null);if(!d||d.success===false){ok=false;note='ตอบกลับผิดรูปแบบ'}}if(!r.ok)note='HTTP '+r.status;return{name,ok,ms,note}}catch(e){return{name,ok:false,ms:Math.round(performance.now()-t0),note:'เชื่อมต่อไม่ได้'}}}
+let seen=null,timer=null,busy=false,last=null;
+
+function applyLang(){
+  window.TATO_LANG=L;window.TATO_NAV_ORDERS=D[L].nav.orders;
+  document.documentElement.lang=L;
+  document.querySelectorAll('#p-monitor [data-i]').forEach(e=>{const k=e.dataset.i;if(k!=='ey')e.textContent=t(k)});
+  Object.keys(D[L].nav).forEach(k=>{const e=document.querySelector('.nav button[data-p="'+k+'"] span');if(e&&!(k==='orders'&&/\(/.test(e.textContent)))e.textContent=D[L].nav[k]});
+  $('tatoMenuTxt').textContent=t('menu');$('tatoLang').textContent=t('lang');
+  if(last)render(last);
+}
+async function ping(key,url,json){const t0=performance.now();try{const r=await fetch(url,{cache:'no-store'});const ms=Math.round(performance.now()-t0);let ok=r.ok,note='';if(ok&&json){const d=await r.json().catch(()=>null);if(!d||d.success===false){ok=false;note='bad'}}if(!r.ok)note='HTTP '+r.status;return{key,ok,ms,note}}catch(e){return{key,ok:false,ms:Math.round(performance.now()-t0),note:'noconn'}}}
+const nt=n=>['bad','noconn','cfgbad','tsoff'].includes(n)?t(n):n;
+
+function render(R){
+  const {checks,orders,leads}=R;
+  const today=bkk(new Date());
+  const live=orders.filter(o=>!['cancelled','canceled'].includes(st(o)));
+  const oT=live.filter(o=>{const d=toDate(o.created_at);return d&&bkk(d)===today}),paidT=oT.filter(o=>st(o)==='paid');
+  const pend=live.filter(o=>st(o)!=='paid');
+  $('mnOrders').textContent=oT.length;
+  $('mnOrdersMeta').textContent=oT.reduce((x,o)=>x+K(o),0)+' kg · '+t('noTest');
+  $('mnRev').textContent=fm(paidT.reduce((x,o)=>x+A(o),0));
+  $('mnRevMeta').textContent=paidT.length+' '+t('paid');
+  $('mnPend').textContent=pend.length;
+  $('mnPendMeta').textContent=fm(pend.reduce((x,o)=>x+A(o),0))+' · '+pend.reduce((x,o)=>x+K(o),0)+' kg';
+  const lT=leads.filter(l=>{const d=toDate(l.created_at);return d&&bkk(d)===today});
+  $('mnLeads').textContent=lT.length;
+  $('mnLeadsMeta').textContent=lT.filter(l=>Number(l.sample_requested)).length+' '+t('sample');
+  const al=[];
+  const stale=pend.filter(o=>{const d=toDate(o.created_at);return d&&Date.now()-d.getTime()>30*60000});
+  if(stale.length)al.push(['y',t('aStale')(stale.length)]);
+  if(R.newCount)al.push(['g',t('aNew')(R.newCount)]);
+  const bad=checks.filter(c=>!c.ok&&!c.warn);
+  if(bad.length)al.unshift(['r',t('aSys')+bad.map(c=>t(c.key)).join(', ')]);
+  const bc={r:'#7a2b27',y:'#4d4324',g:'#25432d'},tc={r:'var(--r)',y:'var(--y)',g:'var(--g)'};
+  $('mnAlerts').innerHTML=al.map(a=>'<div class="card gap" style="border-color:'+bc[a[0]]+';color:'+tc[a[0]]+'">'+esc(a[1])+'</div>').join('');
+  $('mnHealth').innerHTML=checks.map(c=>{const col=c.ok?'var(--g)':(c.warn?'var(--y)':'var(--r)');const note=c.ok?(c.ms?c.ms+' ms':(c.okNote?t(c.okNote):'OK')):(c.note?nt(c.note):t('abn'));return '<div class="learning-row"><span><span style="color:'+col+'">●</span> '+esc(t(c.key))+'</span><span style="color:'+col+'">'+esc(note)+'</span></div>'}).join('');
+  $('mnHealthPill').textContent=bad.length?bad.length+t('issues'):t('okw');
+  $('mnTable').innerHTML=live.length?live.slice(0,10).map(o=>{const s=st(o).toUpperCase(),d=toDate(o.created_at);return '<tr><td>#'+esc(String(o.id||'').slice(-8))+'</td><td>'+esc(o.customer_name||o.customer_id||'—')+'</td><td>'+K(o)+'</td><td>'+fm(A(o))+'</td><td><span class="tag '+(s==='PAID'?'tg':'')+'">'+esc(s)+'</span></td><td>'+(d?d.toLocaleTimeString(L==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Bangkok'}):'—')+'</td></tr>'}).join(''):'<tr><td colspan="6">'+t('none')+'</td></tr>';
+  $('mnSub').textContent=t('updated')+' '+R.time+' · '+t('every');
+}
 async function loadMonitor(){
   if(busy)return;busy=true;
   try{
-    const [h1,h2,h3,h4,h5,h6,cfgR]=await Promise.all([
-      ping('หน้าแรก','/'),ping('หน้าสั่งซื้อ','/order/'),ping('หน้าร้านกาแฟ','/cafe/'),
-      ping('ฐานข้อมูล · orders','/api/orders',true),ping('ฐานข้อมูล · leads','/api/lead',true),
-      ping('ฐานข้อมูล · customers','/api/customers',true),
-      fetch('/api/public-config',{cache:'no-store'}).then(r=>r.json()).catch(()=>null)
-    ]);
-    const checks=[h1,h2,h3,h4,h5,h6];
-    const cfgOk=!!cfgR;
-    const turnstile=!!(cfgR&&cfgR.turnstile_site_key);
-    checks.push({name:'Config สาธารณะ',ok:cfgOk,ms:0,note:cfgOk?'':'อ่านไม่ได้'});
-    checks.push({name:'Turnstile (กันบอท)',ok:turnstile,warn:true,ms:0,note:turnstile?'เปิดอยู่':'ยังไม่ได้ตั้งค่า'});
-    // data
+    const [h1,h2,h3,h4,h5,h6,cfg]=await Promise.all([
+      ping('home','/'),ping('order','/order/'),ping('cafe','/cafe/'),
+      ping('dbo','/api/orders',true),ping('dbl','/api/lead',true),ping('dbc','/api/customers',true),
+      fetch('/api/public-config',{cache:'no-store'}).then(r=>r.json()).catch(()=>null)]);
+    const checks=[h1,h2,h3,h4,h5,h6,{key:'cfg',ok:!!cfg,ms:0,note:'cfgbad'},
+      {key:'ts',ok:!!(cfg&&cfg.turnstile_site_key),warn:true,ms:0,okNote:'tson',note:'tsoff'}];
     let orders=[],leads=[];
     try{const d=await (await fetch('/api/orders',{cache:'no-store'})).json();orders=(d.orders||[]).filter(o=>!Number(o.is_test))}catch(e){}
     try{const d=await (await fetch('/api/lead',{cache:'no-store'})).json();leads=d.leads||[]}catch(e){}
-    const today=bkk(new Date());
-    const isToday=o=>{const d=toDate(o.created_at);return d&&bkk(d)===today};
-    const live=orders.filter(o=>!['cancelled','canceled'].includes(st(o)));
-    const oT=live.filter(isToday),paidT=oT.filter(o=>st(o)==='paid');
-    const pend=live.filter(o=>st(o)!=='paid');
-    $('mnOrders').textContent=oT.length;
-    $('mnOrdersMeta').textContent=oT.reduce((x,o)=>x+K(o),0)+' kg · ไม่นับ test/ยกเลิก';
-    $('mnRev').textContent=fm(paidT.reduce((x,o)=>x+A(o),0));
-    $('mnRevMeta').textContent=paidT.length+' paid';
-    $('mnPend').textContent=pend.length;
-    $('mnPendMeta').textContent=fm(pend.reduce((x,o)=>x+A(o),0))+' · '+pend.reduce((x,o)=>x+K(o),0)+' kg';
-    const lT=leads.filter(l=>{const d=toDate(l.created_at);return d&&bkk(d)===today});
-    $('mnLeads').textContent=lT.length;
-    $('mnLeadsMeta').textContent=lT.filter(l=>Number(l.sample_requested)).length+' ขอตัวอย่าง';
-    // alerts
-    const al=[];
-    const stale=pend.filter(o=>{const d=toDate(o.created_at);return d&&Date.now()-d.getTime()>30*60000});
-    if(stale.length)al.push(['y','มี '+stale.length+' ออเดอร์รอชำระเกิน 30 นาที — เช็คสลิป/ทักลูกค้า']);
-    const ids=new Set(live.map(o=>o.id));
-    if(seen){const nw=[...ids].filter(i=>!seen.has(i));if(nw.length){al.push(['g','🔔 มีออเดอร์ใหม่ '+nw.length+' รายการ']);try{document.title='🔔 ('+nw.length+') TATO HQ';navigator.vibrate&&navigator.vibrate(200)}catch(e){}}}
+    const ids=new Set(orders.filter(o=>!['cancelled','canceled'].includes(st(o))).map(o=>o.id));
+    let newCount=0;if(seen){newCount=[...ids].filter(i=>!seen.has(i)).length;if(newCount){try{document.title='🔔 ('+newCount+') TATO HQ';navigator.vibrate&&navigator.vibrate(200)}catch(e){}}}
     seen=ids;
-    const bad=checks.filter(c=>!c.ok&&!c.warn);
-    if(bad.length)al.unshift(['r','ระบบมีปัญหา: '+bad.map(c=>c.name).join(', ')]);
-    $('mnAlerts').innerHTML=al.map(a=>'<div class="card gap" style="border-color:'+({r:'#7a2b27',y:'#4d4324',g:'#25432d'}[a[0]])+';color:'+({r:'var(--r)',y:'var(--y)',g:'var(--g)'}[a[0]])+'">'+esc(a[1])+'</div>').join('');
-    // health
-    $('mnHealth').innerHTML=checks.map(c=>{const col=c.ok?'var(--g)':(c.warn?'var(--y)':'var(--r)');return '<div class="learning-row"><span><span style="color:'+col+'">●</span> '+esc(c.name)+'</span><span style="color:'+col+'">'+esc(c.ok?(c.ms?c.ms+' ms':(c.note||'OK')):(c.note||'ผิดปกติ'))+'</span></div>'}).join('');
-    $('mnHealthPill').textContent=bad.length?bad.length+' ปัญหา':'ปกติ';
-    // table
-    $('mnTable').innerHTML=live.length?live.slice(0,10).map(o=>{const s=st(o).toUpperCase(),d=toDate(o.created_at);return '<tr><td>#'+esc(String(o.id||'').slice(-8))+'</td><td>'+esc(o.customer_name||o.customer_id||'—')+'</td><td>'+K(o)+'</td><td>'+fm(A(o))+'</td><td><span class="tag '+(s==='PAID'?'tg':'')+'">'+esc(s)+'</span></td><td>'+(d?d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Bangkok'}):'—')+'</td></tr>'}).join(''):'<tr><td colspan="6">ยังไม่มีออเดอร์จริง</td></tr>';
-    $('mnSub').textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'})+' · รีเฟรชอัตโนมัติทุก 30 วินาที';
-  }catch(e){const x=$('mnSub');if(x)x.textContent='โหลดไม่สำเร็จ: '+esc(e.message||e)}
+    last={checks,orders,leads,newCount,time:new Date().toLocaleTimeString(L==='th'?'th-TH':'en-GB',{timeZone:'Asia/Bangkok'})};
+    render(last);
+  }catch(e){$('mnSub').textContent=t('fail')+(e.message||e)}
   busy=false;
 }
 function arm(){clearInterval(timer);timer=setInterval(()=>{if($('p-monitor').classList.contains('active')&&!document.hidden)loadMonitor()},30000)}
+// drawer
+const side=document.querySelector('.side'),bd=$('tatoBackdrop');
+const openM=o=>{side.classList.toggle('open',o);bd.classList.toggle('show',o)};
+$('tatoMenu').onclick=()=>openM(!side.classList.contains('open'));
+bd.onclick=()=>openM(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')openM(false)});
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>openM(false)));
+$('tatoLang').onclick=()=>{L=L==='th'?'en':'th';try{localStorage.setItem('tato_lang',L)}catch(e){}applyLang()};
 document.querySelector('.nav button[data-p="monitor"]').addEventListener('click',()=>{document.title='TATO HQ — Coffee Intelligence OS';loadMonitor();arm()});
 $('mnRefresh').addEventListener('click',loadMonitor);
+applyLang();
 if(location.hash==='#monitor'){go('monitor');loadMonitor();arm()}
 })();
 </script></body></html>
