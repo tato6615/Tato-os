@@ -35,7 +35,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('whole_bean');
   const [quantityKg, setQuantityKg] = useState<number>(0.5);
   const [quantityInput, setQuantityInput] = useState<string>('0.5');
-  const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cod' | 'credit_card'>('promptpay');
+  const [paymentMethod, setPaymentMethod] = useState<'promptpay'>('promptpay');
 
   // Customer form fields
   const [customerName, setCustomerName] = useState('');
@@ -800,7 +800,7 @@ value={customerPostal}
                   5 · วิธีชำระเงิน / PAYMENT
                 </span>
                   <div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('promptpay')}
@@ -813,36 +813,6 @@ value={customerPostal}
                         <span className="material-symbols-outlined text-[18px] text-[#ff5e1a]">qr_code_2</span>
                         <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
                           PromptPay QR
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('cod')}
-                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
-                          paymentMethod === 'cod'
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[#f3bc8b]">local_shipping</span>
-                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
-                          เก็บเงินปลายทาง (COD)
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('credit_card')}
-                        className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all ${
-                          paymentMethod === 'credit_card'
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] text-[#e3beb3]/80'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[#d4c3bd]">credit_card</span>
-                        <div className="font-['Manrope'] text-[12px] leading-tight font-medium">
-                          บัตรเครดิต / เดบิต
                         </div>
                       </button>
                     </div>
