@@ -540,6 +540,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 <span className="material-symbols-outlined text-[16px]">calculate</span>
               </a>
               <a
+                href="/cafe/checklist/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-all duration-300"
+              >
+                <span>{tr('Cafe opening checklist', 'เช็กลิสต์เปิดร้านกาแฟ')}</span>
+                <span className="material-symbols-outlined text-[16px]">checklist</span>
+              </a>
+              <a
                 href="/cafe/?src=site-home"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-colors"
               >

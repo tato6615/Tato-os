@@ -113,14 +113,6 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          <button
-            onClick={onOpenOrders}
-            className="w-8 h-8 rounded-full bg-[#ffb59c] hover:bg-[#ffdbcf] text-[#5c1900] flex items-center justify-center shrink-0 transition-colors focus:outline-none"
-            title="ประวัติคำสั่งซื้อ / ข้อมูลผู้ซื้อ"
-          >
-            <span className="material-symbols-outlined text-[18px]">person</span>
-          </button>
-
           <div className="flex items-center rounded-full border border-[#5b4138]/50 bg-[#211f1e] p-0.5" aria-label="Language">
             <button type="button" onClick={() => setLanguage('th')} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[10px] font-bold transition-all ${language === 'th' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#aa897f]'}`}>TH</button>
             <button type="button" onClick={() => setLanguage('en')} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[10px] font-bold transition-all ${language === 'en' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#aa897f]'}`}>EN</button>

@@ -1024,15 +1024,6 @@ value={customerPostal}
               <div className="space-y-2 pt-1">
                 <button
                   type="button"
-                  onClick={onViewOrders}
-                  className="w-full py-3 rounded-lg bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] font-['Manrope'] text-[12px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                  <span>ดูใบเสร็จและสถานะการคั่ว / VIEW ORDER DETAILS</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={resetOrderForm}
                   className="w-full py-3 rounded-lg bg-[#2b2a28] hover:bg-[#363433] text-[#e6e1df] font-['Manrope'] text-[12px] font-bold uppercase tracking-wider transition-colors"
                 >
