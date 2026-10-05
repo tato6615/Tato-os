@@ -517,7 +517,29 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
           </div>
         </div>
       </section>
-
+      {/* ==================== CAFE OWNERS SECTION ==================== */}
+      <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30" id="for-cafes">
+        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
+          <div className="max-w-2xl">
+            <h2 className="font-['Manrope'] text-2xl md:text-3xl font-bold text-[#e6e1df] leading-tight">
+              {tr('Own a café? Try our beans first', 'มีร้านกาแฟ? ลองเมล็ดของเราก่อน')}
+            </h2>
+            <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
+              {tr(
+                'Tell us about your café and request a small sample. We will contact you to confirm.',
+                'บอกเราเกี่ยวกับร้านของคุณและขอตัวอย่างเมล็ดขนาดเล็ก เราจะติดต่อกลับเพื่อยืนยัน'
+              )}
+            </p>
+            <a
+              href="/cafe/?src=site-home"
+              className="mt-8 inline-flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-colors"
+            >
+              <span>{tr('Request a sample', 'ขอตัวอย่างเมล็ด')}</span>
+              <span className="material-symbols-outlined text-[16px]">storefront</span>
+            </a>
+          </div>
+        </div>
+      </section>
       {/* ==================== 05 / FINAL CTA SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#141312] overflow-hidden">
         {/* Atmospheric Ambient Glow */}
