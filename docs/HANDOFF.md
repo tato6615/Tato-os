@@ -248,7 +248,7 @@
 - ทดสอบ: node --test tests/cafe-ladder.test.mjs
 
 ## อัปเดต 5 ต.ค. 2569 (SEO พื้นฐาน + Header/Footer + ปุ่ม LINE, กิ่ง seo/basics-th)
-ยังไม่ merge เข้า main ตรวจ diff แล้ว `git pull --rebase origin main` ก่อน push (CI จะ build `dist/` ให้เอง)
+**merge เข้า main แล้ว (PR #8 และ #9) และ deploy สำเร็จ 5 ต.ค. 2569** ตรวจบนเว็บสดแล้ว: sitemap 7 URL, หน้า `/cafe/checklist/` มี header/footer/เค้าโครงหมวด, หน้าแรก title+description เป็นไทย (บรรทัด hero ในหน้าแรกสร้างด้วย JS ตรวจจากการเรนเดอร์จริงในเครื่อง) ก่อน push ครั้งต่อไปให้ `git pull --rebase origin main` (CI จะ build `dist/` ให้เอง)
 
 ### ที่ทำแล้ว
 - **SEO หน้าแรก** (`index.html`): title/description/og เป็นไทย, `og:locale`, schema Organization + WebSite (มีเบอร์ 064-293-6615 และ "เชียงใหม่ TH" ไม่มีที่อยู่ถนน; ถ้าไม่อยากให้เบอร์อยู่ใน schema ให้ลบ `telephone`)
@@ -270,5 +270,5 @@
 - เจ้าของทำ: Google Business Profile, แปะลิงก์ `/cafe/calculator/?src=facebook|tiktok|line` ตามช่องทาง, ซื้อโดเมนแล้วผูก Custom domains (ต้องแก้ DOMAIN ใน `scripts/gen-roast-pages.mjs`, canonical ทุกหน้า, sitemap, robots ตามข้อ A5 ด้านบน), หลัง deploy ส่ง sitemap ใหม่ใน Search Console แล้ว Request indexing 3 หน้า `/cafe/*`
 - เจ้าของทำ: ตั้ง `PAYMENT_LINE_OA` ใน Cloudflare ถ้าอยากให้ข้อความขึ้นในแชต LINE เอง
 - ยังไม่ทำ: หลักฐานความน่าเชื่อถือ (รูปจริงของไร่/การคั่ว/วันที่คั่ว/ร้านที่ใช้จริง) ต้องเป็นของจริงเท่านั้น รอเจ้าของส่งรูปและข้อมูล
-- ตรวจหลัง deploy: ดูหน้า `/cafe/*` บนเว็บสดทั้งเดสก์ท็อปและมือถือ (เรนเดอร์ทดสอบในเครื่องแล้วผ่าน แต่ยังไม่ได้ดูบนเว็บจริง)
+- ควรเปิดหน้า `/cafe/*` และหน้าแรกบนมือถือจริงอีกครั้ง (ตรวจเนื้อหาบนเว็บสดผ่านแล้ว แต่ยังไม่ได้ดูภาพบนเครื่องจริง)
 
