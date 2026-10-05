@@ -73,11 +73,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             </button>
 
             <a
-              href="/cafe/?src=site"
+              href="/cafe/calculator/?src=site-hero"
+              aria-label={tr('Calculate cost per cup', 'คำนวณต้นทุนกาแฟต่อแก้ว')}
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] transition-all duration-300 hover:bg-[#ff5e1a]/10 border border-[#ff5e1a]/60"
             >
-              <span>FOR CAFÉS</span>
-              <span className="material-symbols-outlined text-[16px]">storefront</span>
+              <span className="material-symbols-outlined text-[22px]">calculate</span>
+              <span>{tr('Cost per cup', 'คำนวณต้นทุนกาแฟ')}</span>
             </a>
           </div>
 
