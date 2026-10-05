@@ -6,6 +6,11 @@
 <meta property="og:type" content="website"><meta property="og:locale" content="th_TH">
 <meta property="og:url" content="https://tato-os.pages.dev/cafe/checklist/">
 <meta property="og:image" content="https://tato-os.pages.dev/images/og.png?v=2"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://tato-os.pages.dev/images/og.png?v=2">
+<meta property="og:site_name" content="TATO Coffee">
+<link rel="canonical" href="https://tato-os.pages.dev/cafe/checklist/">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"เช็กลิสต์เปิดร้านกาแฟ","description":"เช็กลิสต์เปิดร้านกาแฟ 5 หมวด ต้นทุน ทำเลและกฎหมาย เมนูและอุปกรณ์ เมล็ดกาแฟ และก่อนเปิดร้าน","url":"https://tato-os.pages.dev/cafe/checklist/","inLanguage":"th","isPartOf":{"@id":"https://tato-os.pages.dev/#website"},"publisher":{"@id":"https://tato-os.pages.dev/#org"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"TATO Coffee","item":"https://tato-os.pages.dev/"},{"@type":"ListItem","position":2,"name":"สำหรับร้านกาแฟ","item":"https://tato-os.pages.dev/cafe/"},{"@type":"ListItem","position":3,"name":"เช็กลิสต์เปิดร้านกาแฟ","item":"https://tato-os.pages.dev/cafe/checklist/"}]}]}</script>
 <style>
 body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun","Anuphan",sans-serif;line-height:1.7}
 main{max-width:640px;margin:auto;padding:24px 16px 60px}
@@ -23,6 +28,18 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;alig
 
 <h1>เช็กลิสต์เปิดร้านกาแฟ</h1>
 <p>5 หมวดที่ควรเช็กก่อนลงเงินจริง ใส่ชื่อกับเบอร์เพื่อปลดล็อก เรา (เจ้าของร้าน TATO) อาจติดต่อกลับเรื่องเมล็ดกาแฟ ถ้าไม่สะดวกคุณปฏิเสธได้เลย</p>
+<section class="card" id="outline" aria-label="หัวข้อในเช็กลิสต์">
+<h2 style="margin-top:0">มีอะไรในเช็กลิสต์ 5 หมวด</h2>
+<p class="dim" style="margin:0 0 8px">รายการติ๊กครบทุกข้อ (หมวดละ 4 ข้อ) จะเปิดให้หลังกรอกฟอร์มด้านล่าง หัวข้อที่ครอบคลุมมีดังนี้</p>
+<ul style="margin:0;padding-left:20px">
+<li><b>ก่อนลงทุน</b> ต้นทุนต่อแก้ว ค่าใช้จ่ายคงที่รายเดือน จุดคุ้มทุน และเงินสำรอง</li>
+<li><b>ทำเลและกฎหมาย</b> สำรวจทำเล สัญญาเช่า ใบอนุญาต ทะเบียนพาณิชย์ ภาษี (ให้ยืนยันกับหน่วยงานในพื้นที่) และระบบไฟ น้ำ น้ำทิ้ง</li>
+<li><b>เมนูและอุปกรณ์</b> เมนูหลัก เครื่องชงและเครื่องบด ระบบกรองน้ำ ตาชั่งและเครื่องวัดเวลาสกัด</li>
+<li><b>เมล็ดกาแฟ</b> ทดลองเมล็ดหลายเจ้า เลือกระดับคั่วให้เข้ากับเมนู ถามวันที่คั่ว และตกลงขั้นต่ำการสั่ง</li>
+<li><b>ก่อนเปิดร้าน</b> ซ้อมขาย ตั้งราคาจากต้นทุนจริง ปักหมุด Google Maps และจดยอดขายกับของเสีย</li>
+</ul>
+<p class="dim" style="margin:10px 0 0">ใช้ร่วมกับ <a href="/cafe/calculator/">เครื่องคำนวณต้นทุนกาแฟต่อแก้ว</a> ได้ฟรี ไม่ต้องกรอกเบอร์</p>
+</section>
 <form id="f" class="card" novalidate>
 <h2 style="margin-top:0">ปลดล็อกเช็กลิสต์</h2>
 <label for="name">ชื่อ *</label><input id="name" autocomplete="name"><div class="err" data-e="name"></div>
@@ -72,7 +89,7 @@ $("f").addEventListener("submit",function(ev){
   fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
     .then(function(x){
-      if(x.ok&&x.d.success){track("checklist_unlock");$("f").style.display="none";$("list").style.display="block";window.scrollTo(0,0);return}
+      if(x.ok&&x.d.success){track("checklist_unlock");$("f").style.display="none";$("outline").style.display="none";$("list").style.display="block";window.scrollTo(0,0);return}
       var f=x.d.fields||{}, shown=false;
       for(var k in f){var el=document.querySelector('[data-e="'+k+'"]'); if(el){el.textContent=f[k];shown=true}}
       if(!shown) $("gerr").textContent=x.d.error||"ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615";
