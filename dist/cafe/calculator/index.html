@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>เครื่องคำนวณต้นทุนกาแฟต่อแก้วและกำไรร้าน | TATO Coffee</title>
+<meta name="description" content="กรอกราคาขาย ปริมาณเมล็ดต่อแก้ว และต้นทุนเมล็ด เพื่อดูต้นทุนต่อแก้วและกำไรต่อเดือนของร้านกาแฟ ใช้ตัวเลขของร้านคุณเอง">
+<meta property="og:title" content="เครื่องคำนวณต้นทุนกาแฟต่อแก้วและกำไรร้าน | TATO Coffee"><meta property="og:description" content="กรอกราคาขาย ปริมาณเมล็ดต่อแก้ว และต้นทุนเมล็ด เพื่อดูต้นทุนต่อแก้วและกำไรต่อเดือนของร้านกาแฟ ใช้ตัวเลขของร้านคุณเอง">
+<meta property="og:type" content="website"><meta property="og:locale" content="th_TH">
+<meta property="og:url" content="https://tato-os.pages.dev/cafe/calculator/">
+<meta property="og:image" content="https://tato-os.pages.dev/images/og.png?v=2"><meta name="twitter:card" content="summary_large_image">
+<style>
+body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun","Anuphan",sans-serif;line-height:1.7}
+main{max-width:640px;margin:auto;padding:24px 16px 60px}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:16px;margin:26px 0 8px;color:#f3bc8b}
+.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:16px;margin:14px 0}
+label{display:block;font-size:14px;color:#a39a95;margin:14px 0 4px}
+input,select,textarea{width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid #3a3836;background:#141312;color:#e6e1df;font:inherit}
+input::placeholder{color:#6f6863;opacity:1}
+.err{color:#ff9b91;font-size:13px;min-height:16px}.hp{position:absolute;left:-9999px;height:0;overflow:hidden}
+button,.btn{display:block;box-sizing:border-box;text-align:center;text-decoration:none;width:100%;margin-top:14px;padding:13px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font:inherit;font-weight:700;cursor:pointer}
+.btn.alt{background:#2b2a28;color:#e6e1df}button[disabled]{opacity:.6}
+a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#a39a95;margin-top:14px}.chk input{width:auto;margin-top:5px}
+</style></head><body><main>
+
+<h1>เครื่องคำนวณต้นทุนกาแฟต่อแก้ว</h1>
+<p>กรอกตัวเลขของร้านคุณเอง แล้วดูต้นทุนเมล็ดต่อแก้วกับกำไรต่อเดือน คำนวณในเครื่องคุณ ไม่ส่งข้อมูลไปไหนจนกว่าคุณจะกดขอเอง</p>
+<div class="card" id="in">
+<label for="price">ราคาขายต่อแก้ว (บาท)</label><input id="price" type="number" inputmode="decimal" min="0" step="any">
+<label for="grams">เมล็ดกาแฟที่ใช้ต่อแก้ว (กรัม)</label><input id="grams" type="number" inputmode="decimal" min="0" step="any">
+<label for="beanKg">ต้นทุนเมล็ดที่ซื้ออยู่ตอนนี้ (บาท/กก.)</label><input id="beanKg" type="number" inputmode="decimal" min="0" step="any">
+<label for="other">ต้นทุนอื่นต่อแก้ว เช่น นม น้ำเชื่อม แก้ว ฝา (บาท, ไม่ใส่ก็ได้)</label><input id="other" type="number" inputmode="decimal" min="0" step="any">
+<label for="cups">ขายได้ประมาณกี่แก้วต่อวัน</label><input id="cups" type="number" inputmode="decimal" min="0" step="any">
+<label for="days">เปิดกี่วันต่อเดือน</label><input id="days" type="number" inputmode="decimal" min="1" max="31" step="1" value="26">
+<div class="err" id="cerr"></div>
+</div>
+<div class="card" id="out" style="display:none">
+<h2 style="margin-top:0">ผลลัพธ์</h2>
+<table style="width:100%;border-collapse:collapse;font-size:15px">
+<tr><td>ต้นทุนเมล็ดต่อแก้ว</td><td style="text-align:right" id="rBean">-</td></tr>
+<tr><td>ต้นทุนรวมต่อแก้ว</td><td style="text-align:right" id="rCost">-</td></tr>
+<tr><td>กำไรต่อแก้ว</td><td style="text-align:right" id="rProfit">-</td></tr>
+<tr><td>ส่วนต่างกำไร</td><td style="text-align:right" id="rMargin">-</td></tr>
+<tr><td>กำไรต่อเดือน</td><td style="text-align:right;font-weight:700;color:#f3bc8b" id="rMonth">-</td></tr>
+<tr><td>เมล็ดที่ใช้ต่อเดือน</td><td style="text-align:right" id="rKg">-</td></tr>
+</table>
+<p class="dim" style="margin:10px 0 0">เป็นกำไรขั้นต้นหลังหักต้นทุนที่คุณกรอกเท่านั้น ยังไม่หักค่าเช่า ค่าแรง ค่าน้ำไฟ และค่าอื่น ๆ</p>
+</div>
+<div class="card" id="cmp" style="display:none">
+<h2 style="margin-top:0">ถ้าเทียบกับเมล็ด TATO</h2>
+<p style="margin:0" id="cmpTxt"></p>
+<p class="dim" style="margin:8px 0 0">ราคา 550 บาท/กก. ยังไม่รวมค่าส่ง (คิดตามน้ำหนักพัสดุตอนสั่งซื้อ) และรสชาติต้องลองเองว่าเหมาะกับเมนูร้านคุณไหม</p>
+</div>
+<div id="next" style="display:none">
+<a class="btn" id="goList" href="/cafe/checklist/">รับเช็กลิสต์เปิดร้านกาแฟ</a>
+<a class="btn alt" id="goSample" href="/cafe/">คุยกับเรา / ขอตัวอย่างเมล็ด</a>
+</div>
+<p class="dim"><a href="/cafe/">← หน้าร้านกาแฟ</a> · <a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
+</main>
+<script>
+(function(){
+var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
+var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:false};
+try{if(q.get("test")==="1")localStorage.setItem("tato_is_test","1");if(q.get("test")==="0")localStorage.removeItem("tato_is_test");meta.is_test=localStorage.getItem("tato_is_test")==="1"}catch(e){meta.is_test=q.get("test")==="1"}
+var sid;try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
+function track(t,extra){try{var m={source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null};for(var k in (extra||{}))m[k]=extra[k];fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:location.pathname,metadata:m})}).catch(function(){})}catch(e){}}
+function carry(){var o={};["price","grams","bean_kg","other_cost","cups_day","days","cost_cup","profit_cup","profit_month"].forEach(function(k){if(q.get(k)!==null&&q.get(k)!==""&&isFinite(Number(q.get(k))))o[k]=Number(q.get(k))});return o}
+function passQS(extra){var p=new URLSearchParams();["src","utm_source","utm_medium","utm_campaign","test"].forEach(function(k){if(q.get(k))p.set(k,q.get(k))});var c=carry();for(var k in c)p.set(k,c[k]);for(var k2 in (extra||{}))p.set(k2,extra[k2]);var s=p.toString();return s?"?"+s:""}
+
+track("calc_view");
+var ids=["price","grams","beanKg","other","cups","days"], touched=false, sent=false, last=null;
+function n(id){var v=parseFloat($(id).value);return isFinite(v)?v:null}
+function baht(x){return x.toLocaleString("th-TH",{minimumFractionDigits:0,maximumFractionDigits:2})+" บาท"}
+function run(){
+  var price=n("price"),g=n("grams"),bk=n("beanKg"),oth=n("other")||0,cups=n("cups"),days=n("days");
+  var ok=price!==null&&g!==null&&bk!==null&&price>=0&&g>=0&&bk>=0&&oth>=0;
+  $("cerr").textContent="";
+  if(!ok){$("out").style.display="none";$("cmp").style.display="none";$("next").style.display="none";return}
+  var bean=g/1000*bk, cost=bean+oth, profit=price-cost;
+  $("out").style.display="block";
+  $("rBean").textContent=baht(bean);$("rCost").textContent=baht(cost);$("rProfit").textContent=baht(profit);
+  $("rMargin").textContent=price>0?(Math.round(profit/price*1000)/10)+" %":"-";
+  var cd=cups!==null&&days!==null&&cups>=0&&days>0&&days<=31;
+  var month=null,kg=null;
+  if(cd){month=profit*cups*days;kg=g/1000*cups*days;$("rMonth").textContent=baht(Math.round(month));$("rKg").textContent=(Math.round(kg*10)/10)+" กก."}
+  else{$("rMonth").textContent="กรอกจำนวนแก้วต่อวันเพื่อดู";$("rKg").textContent="-"}
+  var tatoBean=g/1000*550;
+  if(cd&&kg!==null){
+    var diff=(bk-550)*kg, per=bean-tatoBean;
+    $("cmp").style.display="block";
+    $("cmpTxt").textContent="ที่ "+g+" กรัม/แก้ว เมล็ด TATO (550 บาท/กก.) เท่ากับ "+baht(Math.round(tatoBean*100)/100)+" ต่อแก้ว "+
+      (diff>0?"ต่ำกว่าที่คุณซื้ออยู่ประมาณ "+baht(Math.round(diff))+" ต่อเดือน ที่ปริมาณ "+(Math.round(kg*10)/10)+" กก.":
+       diff<0?"สูงกว่าที่คุณซื้ออยู่ประมาณ "+baht(Math.round(-diff))+" ต่อเดือน ที่ปริมาณ "+(Math.round(kg*10)/10)+" กก. จึงควรดูว่ารสชาติคุ้มกับส่วนต่างไหม":
+       "ใกล้เคียงกับที่คุณซื้ออยู่");
+  } else $("cmp").style.display="none";
+  $("next").style.display="block";
+  last={price:price,grams:g,bean_kg:bk,other_cost:oth,cost_cup:Math.round(cost*100)/100,profit_cup:Math.round(profit*100)/100};
+  if(cd){last.cups_day=cups;last.days=days;last.profit_month=Math.round(month)}
+  var p={};for(var k in last)p[k]=last[k];
+  $("goList").href="/cafe/checklist/"+passQS(p);
+  $("goSample").href="/cafe/"+passQS(p).replace(/^\?/,"?sample=1&");
+  if(!sent){sent=true;track("calc_result",{profit_month:last.profit_month||null,cost_cup:last.cost_cup})}
+}
+ids.forEach(function(i){$(i).addEventListener("input",run)});
+$("goList").addEventListener("click",function(){track("calc_to_checklist")});
+$("goSample").addEventListener("click",function(){track("calc_to_form")});
+var pre=carry(); if(pre.price!==undefined)$("price").value=pre.price; if(pre.grams!==undefined)$("grams").value=pre.grams; if(pre.bean_kg!==undefined)$("beanKg").value=pre.bean_kg; if(pre.other_cost!==undefined)$("other").value=pre.other_cost; if(pre.cups_day!==undefined)$("cups").value=pre.cups_day; if(pre.days!==undefined)$("days").value=pre.days;
+run();
+})();
+</script></body></html>

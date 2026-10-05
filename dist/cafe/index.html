@@ -29,6 +29,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 <h1>เมล็ดกาแฟสำหรับร้านเปิดใหม่</h1>
 <p>กำลังวางแผนเปิดร้าน หรือเปิดแล้วและอยากเปลี่ยนเจ้าเมล็ด? บอกเมนูและเครื่องที่ใช้ เจ้าของร้านจะติดต่อกลับเพื่อช่วยเลือกระดับคั่วที่เหมาะ</p>
 <div class="card">
+<p style="margin:0 0 10px"><a href="/cafe/calculator/">คำนวณต้นทุนกาแฟต่อแก้วและกำไรร้าน</a> · <a href="/cafe/checklist/">เช็กลิสต์เปิดร้านกาแฟ</a></p>
 <p style="margin:0">เมล็ดอาราบิก้าจากดอยเวียงผา เชียงใหม่ คั่วสดตามสั่ง มี 3 ระดับ: คั่วเข้ม · คั่วกลาง · คั่วอ่อน</p>
 </div>
 
@@ -43,6 +44,12 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 <label for="machine">เครื่องชง/อุปกรณ์ที่ใช้</label><input id="machine" placeholder="เช่น เครื่อง 2 หัวกรุ๊ป / V60">
 <label for="kg">ปริมาณที่คาดว่าใช้ต่อสัปดาห์</label><input id="kg" placeholder="เช่น 2-3 กก.">
 <label for="note">อยากให้เราช่วยเรื่องอะไร</label><textarea id="note"></textarea>
+<label class="chk"><input type="checkbox" id="sample"><span>ขอตัวอย่างเมล็ดขนาดเล็กฟรี (เฉพาะร้านที่กรอกชื่อร้านและปริมาณที่ใช้ มีโควตาจำกัดต่อสัปดาห์ และ 1 เบอร์ต่อ 1 ครั้ง)</span></label>
+<div id="sampleBox" style="display:none">
+<label for="saddr">ที่อยู่จัดส่งตัวอย่าง *</label><textarea id="saddr" autocomplete="street-address"></textarea><div class="err" data-e="sample_address"></div>
+<label for="spostal">รหัสไปรษณีย์ *</label><input id="spostal" inputmode="numeric" maxlength="5" autocomplete="postal-code"><div class="err" data-e="sample_postal"></div>
+<div class="err" data-e="shop_name"></div><div class="err" data-e="kg"></div>
+</div>
 <div class="hp" aria-hidden="true"><label>website<input id="website" tabindex="-1" autocomplete="off"></label></div>
 <label class="chk"><input type="checkbox" id="consent"><span>ยอมรับ <a href="/privacy/" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a> และให้ร้านติดต่อกลับทางเบอร์ที่ระบุ</span></label><div class="err" data-e="consent"></div>
 <div id="ts" style="margin:12px 0"></div>
@@ -51,7 +58,10 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 </form>
 
 <div id="ok" class="card ok"><h2 style="margin-top:0">ได้รับแล้ว ขอบคุณครับ</h2>
-<p>เจ้าของร้านจะติดต่อกลับทางเบอร์ที่ระบุ ถ้าอยากคุยเลยติดต่อได้ที่ <a href="tel:0642936615">064-293-6615</a> หรือ <a href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">LINE OA</a></p></div>
+<p>เจ้าของร้านจะติดต่อกลับทางเบอร์ที่ระบุ ถ้าอยากคุยเลยติดต่อได้ที่ <a href="tel:0642936615">064-293-6615</a> หรือ <a href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">LINE OA</a></p>
+<p id="okSample" class="dim" style="display:none"></p>
+<a class="btn" id="firstOrder" href="/" style="display:block;box-sizing:border-box;text-align:center;text-decoration:none;margin-top:14px;padding:13px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700">สั่งครั้งแรกได้เลย 550 บาท/กก.</a>
+<p class="dim" style="margin-bottom:0">ราคายังไม่รวมค่าส่ง ไม่มีขั้นต่ำพิเศษสำหรับร้านค้า คุยกับเจ้าของร้านก่อนสั่งได้เสมอ</p></div>
 
 <p class="dim"><a href="/">← ไปหน้าร้าน</a> · <a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
 </main>
@@ -60,10 +70,16 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
   var q=new URLSearchParams(location.search), $=function(i){return document.getElementById(i)};
   var meta={src:q.get("src")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",utm_campaign:q.get("utm_campaign")||"",is_test:false};
   try{if(q.get("test")==="1")localStorage.setItem("tato_is_test","1");if(q.get("test")==="0")localStorage.removeItem("tato_is_test");meta.is_test=localStorage.getItem("tato_is_test")==="1"}catch(e){meta.is_test=q.get("test")==="1"}
+  var calcKeys=["price","grams","bean_kg","other_cost","cups_day","days","cost_cup","profit_cup","profit_month"], calc={};
+  calcKeys.forEach(function(k){var v=q.get(k);if(v!==null&&v!==""&&isFinite(Number(v)))calc[k]=Number(v)});
   var busy=false, sid;
   try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
   function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null}})}).catch(function(){})}catch(e){}}
   track("cafe_view");
+  function syncSample(){$("sampleBox").style.display=$("sample").checked?"block":"none"}
+  $("sample").addEventListener("change",function(){syncSample();if($("sample").checked)track("cafe_sample_toggle")});
+  if(q.get("sample")==="1"){$("sample").checked=true;syncSample()}
+  if(calc.cups_day&&calc.grams&&calc.days&&!$("kg").value){var wk=calc.grams/1000*calc.cups_day*7;if(wk>0)$("kg").value=(Math.round(wk*10)/10)+" กก."}
   var tsKey="",tsToken="",tsId=null;
   fetch("/api/public-config",{cache:"no-store"}).then(function(r){return r.json()}).then(function(c){
     tsKey=(c&&c.turnstile_site_key)||""; if(!tsKey) return;
@@ -71,6 +87,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
     if(window.turnstile){mount();return}
     var sc=document.createElement("script"); sc.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; sc.async=true; sc.onload=mount; document.head.appendChild(sc);
   }).catch(function(){});
+  function passQS(){var p=new URLSearchParams();["src","utm_source","utm_medium","utm_campaign","test"].forEach(function(k){if(q.get(k))p.set(k,q.get(k))});p.set("utm_source",q.get("utm_source")||"cafe_page");var t=p.toString();return t?"?"+t:""}
   var started=false;
   $("f").addEventListener("focusin",function(){if(!started){started=true;track("cafe_form_start")}});
   $("f").addEventListener("submit",function(ev){
@@ -78,13 +95,18 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
     document.querySelectorAll("[data-e]").forEach(function(e){e.textContent=""}); $("gerr").textContent="";
     if(tsKey&&!tsToken){$("gerr").textContent="กรุณายืนยันว่าไม่ใช่บอท (รอกล่องยืนยันขึ้นสักครู่)";return}
     busy=true; $("go").disabled=true;
-    var body={name:$("name").value,phone:$("phone").value,shop_name:$("shop").value,stage:$("stage").value,menu:$("menu").value,machine:$("machine").value,kg_week:$("kg").value,note:$("note").value,website:$("website").value,consent:$("consent").checked};
+    var body={name:$("name").value,phone:$("phone").value,shop_name:$("shop").value,stage:$("stage").value,menu:$("menu").value,machine:$("machine").value,kg_week:$("kg").value,note:$("note").value,website:$("website").value,consent:$("consent").checked,sample:$("sample").checked,sample_address:$("saddr").value,sample_postal:$("spostal").value,calc:calc};
     for(var k in meta) body[k]=meta[k];
     if(tsToken) body.turnstile_token=tsToken;
     fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
       .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d}})})
       .then(function(x){
-        if(x.ok&&x.d.success){track("cafe_submit");$("f").style.display="none";$("ok").style.display="block";return}
+        if(x.ok&&x.d.success){track("cafe_submit");
+          var m={queued:"บันทึกคำขอตัวอย่างแล้ว ("+(x.d.sample_grams||"")+" กรัม) เจ้าของร้านจะส่งตามที่อยู่ที่ระบุ",full:"โควตาตัวอย่างสัปดาห์นี้เต็มแล้ว แต่เราบันทึกข้อมูลไว้ และจะติดต่อกลับเรื่องตัวอย่างรอบถัดไป",already:"เบอร์นี้เคยขอตัวอย่างไปแล้ว เจ้าของร้านจะติดต่อกลับเพื่อคุยต่อ"}[x.d.sample];
+          if(m){$("okSample").textContent=m;$("okSample").style.display="block"}
+          $("firstOrder").href="/"+passQS();
+          $("firstOrder").addEventListener("click",function(){track("cafe_first_order_click")});
+          $("f").style.display="none";$("ok").style.display="block";return}
         var f=x.d.fields||{}; var shown=false;
         for(var k in f){var el=document.querySelector('[data-e="'+k+'"]'); if(el){el.textContent=f[k];shown=true}}
         if(!shown) $("gerr").textContent=x.d.error||"ส่งไม่สำเร็จ กรุณาลองใหม่ หรือโทร 064-293-6615";
