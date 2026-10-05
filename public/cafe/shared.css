@@ -1,0 +1,28 @@
+/* Header/Footer/สไตล์ร่วมของหน้า /cafe/* ให้เหมือนหน้าแรก (ดำ-ส้ม, Manrope + Anuphan, ปุ่มทรงแคปซูล) */
+body{font-family:"Manrope","Anuphan",system-ui,-apple-system,"Sarabun",sans-serif}
+h1,h2{font-family:"Manrope","Anuphan",system-ui,sans-serif}
+button,.btn,.nb{border-radius:999px}
+input,select,textarea{border-radius:12px}
+.site-h{position:sticky;top:0;z-index:50;background:rgba(20,19,18,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid rgba(43,42,40,.7);box-shadow:0 1px 8px rgba(0,0,0,.45)}
+.site-h .in{max-width:1040px;margin:auto;padding:0 16px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.site-h .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#e6e1df;font-weight:800;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.site-h .brand img{height:30px;width:auto;display:block}
+.site-h nav{display:flex;align-items:center;gap:22px}
+.site-h nav a{color:rgba(227,190,179,.8);text-decoration:none;font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:6px 0}
+.site-h nav a:hover,.site-h nav a[aria-current="page"]{color:#ff5e1a}
+.site-h .pill{display:inline-flex;align-items:center;white-space:nowrap;background:#ff5e1a;color:#390c00;text-decoration:none;font-weight:700;font-size:12px;padding:8px 16px;border-radius:999px;box-shadow:0 12px 24px -4px rgba(255,94,26,.25)}
+.site-h .pill:hover{background:#822800;color:#ffdbcf}
+@media(max-width:760px){.site-h nav{display:none}.site-h .in{height:56px}}
+.site-m{display:none;max-width:1040px;margin:auto;padding:0 16px 10px;gap:8px;flex-wrap:wrap}
+.site-m a{color:#e3beb3;text-decoration:none;font-weight:700;font-size:12px;padding:6px 12px;border-radius:999px;background:#211f1e;border:1px solid #2b2a28}
+.site-m a[aria-current="page"]{color:#390c00;background:#ff5e1a;border-color:#ff5e1a}
+@media(max-width:760px){.site-m{display:flex}}
+.site-f{background:#0f0e0d;border-top:1px solid #211f1e;color:rgba(227,190,179,.75);margin-top:20px}
+.site-f .in{max-width:1040px;margin:auto;padding:32px 16px 28px;display:flex;flex-wrap:wrap;gap:24px 48px;justify-content:space-between}
+.site-f .brand{display:flex;align-items:center;gap:10px;color:#e6e1df;font-weight:600;font-size:18px;letter-spacing:-.01em;text-transform:uppercase}
+.site-f .brand img{height:26px;width:auto;display:block}
+.site-f p{margin:8px 0 0;font-size:13px;line-height:1.7;max-width:360px;color:rgba(227,190,179,.7)}
+.site-f h3{margin:0 0 8px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#e6e1df}
+.site-f ul{list-style:none;margin:0;padding:0;font-size:13px;line-height:2}
+.site-f a{color:rgba(227,190,179,.8);text-decoration:none}.site-f a:hover{color:#e6e1df}
+.site-f .bar{max-width:1040px;margin:auto;padding:14px 16px 22px;border-top:1px solid #211f1e;font-size:11px;color:rgba(227,190,179,.6)}
