@@ -300,8 +300,6 @@ const DICT: Record<string, [string, string]> = {
   'TATO Single Origin Matte Black Bag nestled on dark slate stone': ['ถุงกาแฟ Matte Black แบบซิงเกิลออริจินของ TATO วางบนหินสเลตสีเข้ม', 'TATO Single Origin Matte Black Bag nestled on dark slate stone'],
   'Fresh harvested coffee cherries alongside freshly roasted dark espresso beans on slate': ['ผลเชอร์รี่กาแฟสดที่เก็บเกี่ยวเคียงคู่เมล็ดเอสเพรสโซคั่วเข้มบนแผ่นสเลต', 'Fresh harvested coffee cherries alongside freshly roasted dark espresso beans on slate'],
   'TATO Coffee luxury matte black pouch with copper foil badge resting on natural black slate with roasted coffee beans': ['ถุงกาแฟ Matte Black ระดับพรีเมียมของ TATO พร้อมตราฟอยล์ทองแดง วางบนหินสเลตธรรมชาติสีดำกับเมล็ดกาแฟคั่ว', 'TATO Coffee luxury matte black pouch with copper foil badge resting on natural black slate with roasted coffee beans'],
-  'ESTATE LAT 19.2392': ['พิกัดแหล่งปลูก 19.2392', 'ESTATE LAT 19.2392'],
-  'CHIANG RAI / NORTHERN HIGHLANDS': ['เชียงใหม่ / พื้นที่สูงภาคเหนือ', 'CHIANG RAI / NORTHERN HIGHLANDS'],
   'TATO Coffee pouch': ['ถุงกาแฟ TATO Coffee', 'TATO Coffee pouch'],
   'close': ['ปิด', 'close'],
   'print': ['พิมพ์', 'print'],
