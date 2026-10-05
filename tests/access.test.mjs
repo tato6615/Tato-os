@@ -73,6 +73,13 @@ test("public routes stay public; admin-only methods stay protected", async () =>
 });
 test("public-config exposes the Turnstile site key only when both keys are set, never the secret", async () => {
   const a = await (await publicConfig.onRequestGet({ env: { TURNSTILE_SITE_KEY: "site", TURNSTILE_SECRET: "sec" } })).text();
-  assert.deepEqual(JSON.parse(a), { turnstile_site_key: "site" }); assert.ok(!a.includes("sec\""));
-  assert.deepEqual(JSON.parse(await (await publicConfig.onRequestGet({ env: { TURNSTILE_SITE_KEY: "site" } })).text()), { turnstile_site_key: "" });
+  assert.deepEqual(JSON.parse(a), { turnstile_site_key: "site", line_oa: "" }); assert.ok(!a.includes("sec\""));
+  assert.deepEqual(JSON.parse(await (await publicConfig.onRequestGet({ env: { TURNSTILE_SITE_KEY: "site" } })).text()), { turnstile_site_key: "", line_oa: "" });
+});
+test("public-config exposes a well-formed LINE OA id and drops anything else", async () => {
+  const get = async (v) => JSON.parse(await (await publicConfig.onRequestGet({ env: { PAYMENT_LINE_OA: v } })).text()).line_oa;
+  assert.equal(await get("@abc123xy"), "@abc123xy");
+  assert.equal(await get("  @abc123xy "), "@abc123xy");
+  assert.equal(await get("bad value<script>"), "");
+  assert.equal(await get(undefined), "");
 });

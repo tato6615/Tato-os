@@ -246,3 +246,25 @@
 - คอลัมน์ใหม่ใน leads เพิ่มเองผ่าน shared/schema.js (migrations/2026-10-05_cafe_lure_ladder.sql ไว้รันมือถ้าต้องการ)
 - เหตุการณ์ใหม่ใน behavior: calc_view, calc_result, calc_to_checklist, calc_to_form, checklist_view, checklist_unlock, cafe_sample_toggle, cafe_first_order_click
 - ทดสอบ: node --test tests/cafe-ladder.test.mjs
+
+## อัปเดต 5 ต.ค. 2569 (SEO พื้นฐาน + Header/Footer + ปุ่ม LINE, กิ่ง seo/basics-th)
+ยังไม่ merge เข้า main ตรวจ diff แล้ว `git pull --rebase origin main` ก่อน push (CI จะ build `dist/` ให้เอง)
+
+### ที่ทำแล้ว
+- **SEO หน้าแรก** (`index.html`): title/description/og เป็นไทย, `og:locale`, schema Organization + WebSite (มีเบอร์ 064-293-6615 และ "เชียงใหม่ TH" ไม่มีที่อยู่ถนน; ถ้าไม่อยากให้เบอร์อยู่ใน schema ให้ลบ `telephone`)
+- **SEO หน้า `/cafe/*`**: canonical, BreadcrumbList, WebPage (เครื่องคำนวณเป็น WebApplication ฟรี), ขนาดรูป og
+- **เช็กลิสต์**: แสดงหัวข้อ 5 หมวดให้ทุกคนอ่านได้ก่อนกรอกฟอร์ม (`#outline` ซ่อนเมื่อปลดล็อก) รายการติ๊กยังล็อกด้วยฟอร์มเหมือนเดิม
+- **sitemap**: มี 7 URL (รวม `/cafe/`, `/cafe/calculator/`, `/cafe/checklist/`) และ `scripts/gen-roast-pages.mjs` เติม 3 URL นี้ให้เองแล้ว (เดิมสคริปต์เขียนทับแล้ว URL `/cafe/*` หาย) หมายเหตุ: ตอนรันสคริปต์ หน้า `public/roast/*` จะต่างจากที่ commit อยู่เล็กน้อย (ท้ายแท็ก og) ยังไม่ได้ commit ส่วนนั้น
+- **Header/Footer ร่วมของ `/cafe/*`**: `public/cafe/shared.css` + ส่วน header/footer ในแต่ละหน้า (ฟอนต์ Manrope + Anuphan, ปุ่มแคปซูล, ปุ่ม "แชต LINE" ลิงก์ lin.ee/8EwFz5i) ไม่มีปุ่มสลับ TH/EN เพราะหน้า `/cafe/*` เป็นไทยล้วน `_headers` ตั้ง `shared.css` เป็น no-cache
+- **ปุ่ม LINE พร้อมผลคำนวณ** (`/cafe/calculator/`): กดแล้วส่งตัวเลขที่คำนวณ (ราคาขาย กรัม/แก้ว ต้นทุนเมล็ด ต้นทุน/กำไรต่อแก้ว กำไรต่อเดือน) ไปในข้อความ ไม่มีข้อมูลส่วนตัว
+  - ถ้าตั้ง `PAYMENT_LINE_OA` (เช่น `@xxxx`) ใน Cloudflare: ใช้ `line.me/R/oaMessage/...` ฝังข้อความในแชตให้เลย (`/api/public-config` คืนค่า `line_oa` เพิ่ม ตรวจรูปแบบก่อนส่ง)
+  - ถ้าไม่ตั้ง: ลิงก์สั้น lin.ee ฝังข้อความไม่ได้ จึงคัดลอกข้อความลงคลิปบอร์ดแล้วบอกให้กดวางในแชต
+  - event ใหม่ใน behavior: `calc_to_line` (มี `prefilled` บอกว่าฝังข้อความได้หรือไม่)
+- เทสต์: 55 ผ่านทั้งหมด (เพิ่มเทสต์ `line_oa` ใน `tests/access.test.mjs`) lint ผ่าน
+
+### ยังเหลือ
+- เจ้าของทำ: Google Business Profile, แปะลิงก์ `/cafe/calculator/?src=facebook|tiktok|line` ตามช่องทาง, ซื้อโดเมนแล้วผูก Custom domains (ต้องแก้ DOMAIN ใน `scripts/gen-roast-pages.mjs`, canonical ทุกหน้า, sitemap, robots ตามข้อ A5 ด้านบน), หลัง deploy ส่ง sitemap ใหม่ใน Search Console แล้ว Request indexing 3 หน้า `/cafe/*`
+- เจ้าของทำ: ตั้ง `PAYMENT_LINE_OA` ใน Cloudflare ถ้าอยากให้ข้อความขึ้นในแชต LINE เอง
+- ยังไม่ทำ: บรรทัดบอกกลุ่มลูกค้าใน hero หน้าแรก ("เมล็ดคั่วสดสำหรับร้านกาแฟ"), ปุ่ม "ส่งสำเนาเช็กลิสต์ทาง LINE", หลักฐานความน่าเชื่อถือ (รูปจริงของไร่/การคั่ว/วันที่คั่ว) ต้องเป็นของจริงเท่านั้น
+- ตรวจหลัง deploy: ดูหน้า `/cafe/*` บนเว็บสดทั้งเดสก์ท็อปและมือถือ (เรนเดอร์ทดสอบในเครื่องแล้วผ่าน แต่ยังไม่ได้ดูบนเว็บจริง)
+

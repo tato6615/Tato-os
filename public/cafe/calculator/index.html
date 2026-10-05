@@ -58,6 +58,8 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;alig
 <div id="next" style="display:none">
 <a class="btn" id="goList" href="/cafe/checklist/">รับเช็กลิสต์เปิดร้านกาแฟ</a>
 <a class="btn alt" id="goSample" href="/cafe/">คุยกับเรา / ขอตัวอย่างเมล็ด</a>
+<a class="btn" id="goLine" href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer" style="background:#06c755;color:#fff">ถามเรื่องเมล็ดทาง LINE พร้อมผลคำนวณนี้</a>
+<p class="dim" id="lineNote" style="display:none;margin:8px 0 0"></p>
 </div>
 <div class="navrow"><a class="nb alt" href="/cafe/" onclick="if(document.referrer.indexOf(location.host)>-1){history.back();return false}">← ย้อนกลับ</a><a class="nb alt" href="/">🏠 หน้าแรก</a></div><p class="dim"><a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
 </main>
@@ -110,6 +112,30 @@ function run(){
 ids.forEach(function(i){$(i).addEventListener("input",run)});
 $("goList").addEventListener("click",function(){track("calc_to_checklist")});
 $("goSample").addEventListener("click",function(){track("calc_to_form")});
+var lineOa="";
+fetch("/api/public-config",{cache:"no-store"}).then(function(r){return r.json()}).then(function(c){lineOa=(c&&c.line_oa)||""}).catch(function(){});
+function lineMsg(){
+  if(!last) return "";
+  var L=["สวัสดีครับ ผมลองคำนวณต้นทุนกาแฟจากเครื่องคำนวณของ TATO ได้ผลดังนี้",
+    "ขายแก้วละ "+baht(last.price)+" ใช้เมล็ด "+last.grams+" กรัม/แก้ว ซื้อเมล็ดอยู่ "+baht(last.bean_kg)+"/กก.",
+    "ต้นทุนรวมต่อแก้ว "+baht(last.cost_cup)+" กำไรต่อแก้ว "+baht(last.profit_cup)];
+  if(last.profit_month!==undefined) L.push("กำไรขั้นต้นต่อเดือนประมาณ "+baht(last.profit_month)+" (ที่ "+last.cups_day+" แก้ว/วัน เปิด "+last.days+" วัน)");
+  L.push("อยากถามเรื่องเมล็ด/ขอตัวอย่างครับ");
+  return L.join("\n");
+}
+function copyText(t){
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function(){return true},function(){return false}); }catch(e){}
+  try{ var ta=document.createElement("textarea"); ta.value=t; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); var ok=document.execCommand("copy"); document.body.removeChild(ta); return Promise.resolve(!!ok); }catch(e2){ return Promise.resolve(false); }
+}
+$("goLine").addEventListener("click",function(ev){
+  var m=lineMsg(), note=$("lineNote");
+  track("calc_to_line",{profit_month:(last&&last.profit_month)||null,cost_cup:(last&&last.cost_cup)||null,prefilled:!!lineOa});
+  if(!m) return;
+  if(lineOa){ this.href="https://line.me/R/oaMessage/"+lineOa+"/?"+encodeURIComponent(m); note.style.display="none"; return; }
+  // ไม่มี OA id สาธารณะ: ลิงก์สั้น lin.ee ฝังข้อความไม่ได้ จึงคัดลอกข้อความไว้ให้วางในแชต
+  copyText(m).then(function(ok){ note.textContent=ok?"คัดลอกผลคำนวณไว้แล้ว เมื่อ LINE เปิด กดวางในแชตแล้วส่งได้เลย":"ถ้า LINE เปิดแล้ว ให้พิมพ์ผลคำนวณของคุณส่งมาได้เลย"; note.style.display="block"; });
+});
+
 var pre=carry(); if(pre.price!==undefined)$("price").value=pre.price; if(pre.grams!==undefined)$("grams").value=pre.grams; if(pre.bean_kg!==undefined)$("beanKg").value=pre.bean_kg; if(pre.other_cost!==undefined)$("other").value=pre.other_cost; if(pre.cups_day!==undefined)$("cups").value=pre.cups_day; if(pre.days!==undefined)$("days").value=pre.days;
 run();
 })();
