@@ -161,7 +161,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   19.824° N, 99.782° E
                 </span>
                 <span className="px-3 py-1 rounded bg-[#0f0e0d]/85 backdrop-blur-md font-mono text-[11px] text-[#f3bc8b] border border-white/10">
-                  DOI WIANG ESTATE LOT #DW-04
+                  {tr('DOI WIANG ESTATE', 'ไร่ดอยเวียง')}
                 </span>
               </div>
 
@@ -203,7 +203,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   Arabica 100%
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
-                  Pure single-estate Catimor & Typica lineage. No blends, no compromises.
+                  {tr('Single-estate Arabica from one origin. No blends.', 'อาราบิก้าจากแหล่งปลูกเดียว ไม่ผสมแหล่งอื่น')}
                 </p>
               </div>
 
@@ -265,7 +265,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   </span>
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 leading-normal">
-                  Only blood-red cherries at 22+ Brix density are harvested during the December freeze.
+                  {tr('Ripe cherries are picked by hand, selected for quality.', 'เก็บผลเชอร์รี่สุกด้วยมือ คัดเฉพาะผลที่คุณภาพดี')}
                 </p>
               </div>
             </div>
@@ -274,12 +274,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             <div className="lg:col-span-6 space-y-8">
               <div>
                 <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
-                  Obsessive Grading. Zero Defect Philosophy.
+                  {tr('Careful Selection. Clean Cup.', 'คัดเลือกพิถีพิถัน เพื่อรสที่สะอาด')}
                 </h3>
                 <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 font-light leading-relaxed">
                   {tr(
-                    'Every bean tells the history of Doi Wiang’s soil. Before entering the roaster drum, our cherries undergo rigorous floating separation, optical sorting, and extended slow fermentation in controlled temperature tanks.',
-                    'ทุกเมล็ดสะท้อนเรื่องราวของผืนดินดอยเวียง ก่อนเข้าสู่ถังคั่ว ผลกาแฟผ่านการแยกลอย คัดด้วยระบบแสง และหมักช้าในถังควบคุมอุณหภูมิ'
+                    'Every bean tells the story of Doi Wiang’s soil. We select ripe cherries and process them with care, then roast to order.',
+                    'ทุกเมล็ดบอกเรื่องราวของผืนดินดอยเวียง เราคัดผลสุกและแปรรูปอย่างพิถีพิถัน แล้วคั่วสดตามออเดอร์'
                   )}
                 </p>
               </div>
@@ -291,10 +291,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                     <span className="material-symbols-outlined text-[18px]">water_drop</span>
                   </div>
                   <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
-                    Anaerobic & Washed
+                    {tr('Careful Processing', 'แปรรูปอย่างพิถีพิถัน')}
                   </h4>
                   <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
-                    48-hour oxygen-free tank fermentation followed by double mountain wash for supreme clarity.
+                    {tr('Cherries are processed with attention to cleanliness and consistency.', 'แปรรูปโดยใส่ใจความสะอาดและความสม่ำเสมอของเมล็ด')}
                   </p>
                 </div>
 
@@ -306,7 +306,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                     Raised Solar Beds
                   </h4>
                   <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
-                    Sun-dried slowly across 18 days on elevated bamboo mesh to stabilize moisture at exactly 10.5%.
+                    {tr('Dried slowly on raised beds to help keep flavor even.', 'ตากช้าๆ บนแคร่ยกสูงเพื่อให้รสชาติสม่ำเสมอ')}
                   </p>
                 </div>
               </div>
@@ -322,8 +322,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span className="text-[#e6e1df] font-semibold">Elevated Tier African Mesh</span>
                 </div>
                 <div className="flex justify-between text-[#e3beb3]/70">
-                  <span>DEFECT RATE:</span>
-                  <span className="text-[#ff5e1a] font-semibold">&lt; 0.05% Specialty SCAA Graded</span>
+                  <span>{tr('ORIGIN:', 'แหล่งปลูก:')}</span>
+                  <span className="text-[#ff5e1a] font-semibold">{tr('Doi Wiang Pa, Chiang Mai', 'ดอยเวียงผา เชียงใหม่')}</span>
                 </div>
               </div>
             </div>
@@ -486,7 +486,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <div>
                 <div className="inline-flex items-center gap-1.5 text-[#ff5e1a] font-mono text-[11px] uppercase tracking-widest mb-2 font-semibold">
                   <span className="material-symbols-outlined text-[16px]">local_fire_department</span>
-                  <span>Fresh Roast Guaranteed</span>
+                  <span>{tr('Roasted Fresh To Order', 'คั่วสดตามออเดอร์')}</span>
                 </div>
                 <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
                   Roasted Fresh To Order. Peak Aromatics.
@@ -500,7 +500,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <div className="space-y-2.5 font-['Manrope'] text-[14px] text-[#e6e1df]">
                 <div className="flex items-center gap-3 p-3 bg-[#211f1e] rounded-lg border border-[#2b2a28]">
                   <span className="material-symbols-outlined text-[#ff5e1a] text-[20px]">check_circle</span>
-                  <span>Roast-on-Demand (จัดส่งภายใน 48 ชม. หลังคั่ว)</span>
+                  <span>{tr('Roast-on-Demand', 'คั่วสดตามออเดอร์')}</span>
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-[#211f1e] rounded-lg border border-[#2b2a28]">
                   <span className="material-symbols-outlined text-[#f3bc8b] text-[20px]">check_circle</span>
