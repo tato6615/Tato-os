@@ -18,6 +18,7 @@ input::placeholder{color:#6f6863;opacity:1}
 button,.btn{display:block;box-sizing:border-box;text-align:center;text-decoration:none;width:100%;margin-top:14px;padding:13px;border:0;border-radius:10px;background:#ff5e1a;color:#390c00;font:inherit;font-weight:700;cursor:pointer}
 .btn.alt{background:#2b2a28;color:#e6e1df}button[disabled]{opacity:.6}
 a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#a39a95;margin-top:14px}.chk input{width:auto;margin-top:5px}
+.navrow{display:flex;gap:10px;margin:14px 0}.nb{flex:1;box-sizing:border-box;text-align:center;text-decoration:none;padding:13px 10px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700}.nb.alt{background:#2b2a28;color:#e6e1df}
 </style></head><body><main>
 
 <h1>เครื่องคำนวณต้นทุนกาแฟต่อแก้ว</h1>
@@ -52,7 +53,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;alig
 <a class="btn" id="goList" href="/cafe/checklist/">รับเช็กลิสต์เปิดร้านกาแฟ</a>
 <a class="btn alt" id="goSample" href="/cafe/">คุยกับเรา / ขอตัวอย่างเมล็ด</a>
 </div>
-<p class="dim"><a href="/cafe/">← หน้าร้านกาแฟ</a> · <a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
+<div class="navrow"><a class="nb alt" href="/cafe/" onclick="if(document.referrer.indexOf(location.host)>-1){history.back();return false}">← ย้อนกลับ</a><a class="nb alt" href="/">🏠 หน้าแรก</a></div><p class="dim"><a href="/privacy/">นโยบายความเป็นส่วนตัว</a></p>
 </main>
 <script>
 (function(){
