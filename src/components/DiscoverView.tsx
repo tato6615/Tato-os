@@ -463,7 +463,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               MEET TATO.
             </h2>
             <p className="text-[20px] text-[#f3bc8b] font-light mt-1 font-['Anuphan']">
-              พบกับ TATO
+              {tr('Single-origin Arabica, roasted to order', 'อาราบิก้าสายพันธุ์เดียว คั่วสดตามออเดอร์')}
             </p>
           </div>
 
