@@ -522,7 +522,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           <div className="max-w-2xl">
             <h2 className="font-['Manrope'] text-2xl md:text-3xl font-bold text-[#e6e1df] leading-tight">
-              {tr('Own a café? Try our beans first', 'มีร้านกาแฟ? ลองเมล็ดของเราก่อน')}
+              {tr('Own a café? Know your cost per cup first', 'มีร้านกาแฟ? รู้ต้นทุนต่อแก้วก่อน')}
             </h2>
             <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
               {tr(
@@ -530,13 +530,22 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 'บอกเราเกี่ยวกับร้านของคุณและขอตัวอย่างเมล็ดขนาดเล็ก เราจะติดต่อกลับเพื่อยืนยัน'
               )}
             </p>
-            <a
-              href="/cafe/?src=site-home"
-              className="mt-8 inline-flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-colors"
-            >
-              <span>{tr('Request a sample', 'ขอตัวอย่างเมล็ด')}</span>
-              <span className="material-symbols-outlined text-[16px]">storefront</span>
-            </a>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <a
+                href="/cafe/calculator/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-colors"
+              >
+                <span>{tr('Calculate cost per cup', 'คำนวณต้นทุนต่อแก้ว')}</span>
+                <span className="material-symbols-outlined text-[16px]">calculate</span>
+              </a>
+              <a
+                href="/cafe/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-colors"
+              >
+                <span>{tr('Request a sample', 'ขอตัวอย่างเมล็ด')}</span>
+                <span className="material-symbols-outlined text-[16px]">storefront</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
