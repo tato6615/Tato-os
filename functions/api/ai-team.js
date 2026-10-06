@@ -198,7 +198,7 @@ function unsupportedNumbers(text, data) {
     .replace(/^[ \t]*(?:•[ \t]*)?\d+[.)][ \t]+/gm, "")
     .replace(/\b[LR]\d{1,2}\b/g, "");
   const found = body.match(/\d+(?:\.\d+)?/g) || [];
-  return found.filter((n) => !allowed.has(n) && !(Number.isInteger(+n) && +n <= 3));
+  return found.filter((n) => !allowed.has(n));
 }
 
 function langIssue(text, lang) {
@@ -215,8 +215,28 @@ function langIssue(text, lang) {
   return null;
 }
 
-function verifyText(text, data, lang) {
-  return qualityIssue(text) || langIssue(text, lang) || (unsupportedNumbers(text, data).length ? "ตัวเลขไม่พบในข้อมูล" : null);
+function phantomRefs(text, refs) {
+  return (String(text).match(/\b[LR]\d{1,2}\b/g) || []).filter((m) => !(refs && refs[m]));
+}
+
+// A claim about paid orders must equal the real count (0 when there are none).
+function paidClaimIssue(text, ev) {
+  const real = String((ev.counts && ev.counts.paid_orders) || 0);
+  const pats = [
+    /(?:ออเดอร์|คำสั่งซื้อ)ที่(?:จ่ายแล้ว|ชำระแล้ว|ชำระเงินแล้ว)\s*(\d+)/g,
+    /(\d+)\s*(?:รายการ\s*)?(?:ออเดอร์|คำสั่งซื้อ)ที่(?:จ่าย|ชำระ)/g,
+    /(\d+)\s+paid\s+orders?/gi,
+    /paid\s+orders?\s+(?:are|is|was|were|=|:)?\s*(\d+)/gi,
+  ];
+  for (const re of pats) for (const m of String(text).matchAll(re)) if (m[1] !== real) return "จำนวนออเดอร์ที่จ่ายแล้วไม่ตรงข้อมูลจริง";
+  return null;
+}
+
+function verifyText(text, data, lang, ev) {
+  return qualityIssue(text) || langIssue(text, lang)
+    || (unsupportedNumbers(text, data).length ? "ตัวเลขไม่พบในข้อมูล" : null)
+    || (ev && phantomRefs(text, ev.refs).length ? "อ้างรหัสลูกค้าที่ไม่มีจริง" : null)
+    || (ev && paidClaimIssue(text, ev));
 }
 
 const EN_RULE = "IMPORTANT: Write the entire answer in English only, in a professional tone. Use at most 3 short bullet points, one sentence each. Use only numbers that appear in the data exactly as written; never calculate new numbers or percentages. Never suggest discounts, prices, promotions or free offers. Do not use system field names. L1 and L2 codes are allowed. If the data is insufficient, begin with: Insufficient data. Then say what should be collected next.";
@@ -305,7 +325,7 @@ async function runRoleCore(role, ev, env, lang = "th") {
     }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     // ลองใหม่เมื่อไม่ผ่านด่าน
-    if (text && verifyText(cleanOutput(text), slice.data, lang)) {
+    if (text && verifyText(cleanOutput(text), slice.data, lang, ev)) {
       r = await call({ max_tokens: 1200, temperature: 0.3, chat_template_kwargs: { enable_thinking: false } });
       text = extractText(r).trim() || text;
     }
@@ -313,6 +333,8 @@ async function runRoleCore(role, ev, env, lang = "th") {
     const qi = text ? (qualityIssue(text) || langIssue(text, lang)) : null;
     if (qi) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "คุณภาพข้อความ AI ไม่ผ่านเกณฑ์ (" + qi + ") จึงแสดงสรุปจากกฎแทน" };
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
+    const claim = paidClaimIssue(text, ev) || (phantomRefs(text, ev.refs).length ? "อ้างรหัสลูกค้าที่ไม่มีจริง" : null);
+    if (claim) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "ข้อความ AI ไม่ผ่านการตรวจ (" + claim + ") จึงแสดงสรุปจากกฎแทน" };
     const bad = unsupportedNumbers(text, slice.data);
     if (bad.length) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "ตัวเลขที่ AI อ้างไม่พบในข้อมูลจริง จึงแสดงสรุปจากกฎแทน", unverified: bad.slice(0, 5) };
     text = text.replace(/\b([LR]\d{1,2})\b/g, (m) => (ev.refs[m] ? ev.refs[m] : m));

@@ -25,7 +25,7 @@ test("unknown agent -> 400", async () => {
 });
 
 test("no real data: AI is NOT called (no guessing)", async () => {
-  const AI = mkAI();
+  const AI = mkAI("- ข้อมูลยังไม่เพียงพอ ต้องเก็บข้อมูลเพิ่มก่อนสรุป");
   const { env } = fresh({ AI });
   const r = await team.onRequestPost({ request: hq({ agent: "all" }), env });
   const j = await r.json();
@@ -112,4 +112,35 @@ test("unreadable orders table is reported, not silently treated as zero", async 
   await DB.prepare("DROP TABLE orders").run();
   const j = await (await team.onRequestPost({ request: hq({ agent: "data", lang: "th" }), env })).json();
   assert.deepEqual(j.warnings, ["orders_unreadable"]);
+});
+
+test("AI that invents '1 paid order' (real: 0) is rejected and the rules summary is shown", async () => {
+  for (const [lang, text] of [["th", "- ต้องเก็บรายละเอียดของออเดอร์ที่จ่ายแล้ว 1 รายการ เพื่อดูช่องทาง"], ["en", "- Insufficient data. Collect details of the 1 paid order to see the channel."]]) {
+    const AI = mkAI(text);
+    const { env } = fresh({ AI });
+    await lead.onRequestPost({ request: leadReq({ name: "สมหญิง ใจดี", phone: "0812345672", stage: "planning", consent: true }), env });
+    const j = await (await team.onRequestPost({ request: hq({ agent: "strategy", lang }), env })).json();
+    assert.equal(j.results[0].status, "AI_UNVERIFIED", lang);
+  }
+});
+
+test("AI that cites L-codes that do not exist is rejected", async () => {
+  const AI = mkAI("- Insufficient data. Collect more details for L1 and L2 before concluding anything.");
+  const { env } = fresh({ AI });
+  const j = await (await team.onRequestPost({ request: hq({ agent: "research", lang: "en" }), env })).json();
+  assert.equal(j.results[0].status, "AI_UNVERIFIED");
+});
+
+test("small invented numbers (1-3) are no longer waved through", async () => {
+  const AI = mkAI("- ข้อมูลยังไม่เพียงพอ ควรทักร้านที่สนใจ 2 ร้านภายในสัปดาห์นี้ก่อน");
+  const { env } = fresh({ AI });
+  const j = await (await team.onRequestPost({ request: hq({ agent: "growth", lang: "th" }), env })).json();
+  assert.equal(j.results[0].status, "AI_UNVERIFIED");
+});
+
+test("an honest 'insufficient data' answer still passes", async () => {
+  const AI = mkAI("- ข้อมูลยังไม่เพียงพอ ต้องเก็บข้อมูลลูกค้าและยอดสั่งซื้อเพิ่มก่อนสรุป");
+  const { env } = fresh({ AI });
+  const j = await (await team.onRequestPost({ request: hq({ agent: "growth", lang: "th" }), env })).json();
+  assert.equal(j.results[0].status, "AI_ANALYZED");
 });
