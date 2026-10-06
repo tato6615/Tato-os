@@ -174,7 +174,7 @@ function cleanOutput(t) {
 }
 
 function qualityIssue(text) {
-  if (text.length > 900) return "ยาวเกินกำหนด " + text.length + " ตัวอักษร";
+  if (text.length > 900) return "ยาวเกินกำหนด " + text.length + " ตัวอักษร | หัว: " + text.slice(0, 200).replace(/\n/g, " ") + " | ท้าย: " + text.slice(-200).replace(/\n/g, " ");
   if (/\uFFFD/.test(text)) return "พบอักขระเสีย";
   if (/\b[a-z]+_[a-z_]+\b/i.test(text) || /(^|\s)_[a-z]/i.test(text)) return "พบชื่อฟิลด์ระบบ";
   if (/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]{3,}/.test(text)) return "สระ/วรรณยุกต์ซ้อนผิดปกติ";
@@ -207,7 +207,7 @@ async function runRole(role, ev, env) {
         { role: "user", content: JSON.stringify(slice.data) },
       ];
     const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
-    let r = await call({ max_tokens: 1500, temperature: 0.1, repetition_penalty: 1.15, chat_template_kwargs: { enable_thinking: false } });
+    let r = await call({ max_tokens: 600, temperature: 0.1, repetition_penalty: 1.15, chat_template_kwargs: { enable_thinking: false } });
     let text = extractText(r).trim();
     if (!text) {
       r = await call({ max_tokens: 4000 });
