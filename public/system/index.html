@@ -224,15 +224,15 @@ async function loadSalesOrders(){
   }catch(e){toast('Sales load error · '+e.message)}
 }
 const AI_KEY={'Research AI':'research','Market AI':'market','Behavior AI':'behavior','Strategy AI':'strategy','Product AI':'product','Growth AI':'growth','Data AI':'data','Automation AI':'automation'};
-const AI_ST={AI_ANALYZED:'วิเคราะห์โดย AI',RULES_ONLY:'สรุปจากกฎ (ยังไม่ได้ผูก Workers AI)',NO_DATA:'ยังไม่มีข้อมูลจริง',AI_ERROR:'AI ผิดพลาด ใช้สรุปจากกฎ',AI_EMPTY:'AI ไม่ตอบ ใช้สรุปจากกฎ',AI_UNVERIFIED:'AI ไม่ผ่านการตรวจ ใช้สรุปจากกฎ'};
+const AI_ST_EN={AI_ANALYZED:'AI analysis',RULES_ONLY:'Rules-based summary (Workers AI not bound)',NO_DATA:'No real data yet',AI_ERROR:'AI error, rules-based summary shown',AI_EMPTY:'AI returned nothing, rules-based summary shown',AI_UNVERIFIED:'AI failed verification, rules-based summary shown'};const AI_ST={AI_ANALYZED:'วิเคราะห์โดย AI',RULES_ONLY:'สรุปจากกฎ (ยังไม่ได้ผูก Workers AI)',NO_DATA:'ยังไม่มีข้อมูลจริง',AI_ERROR:'AI ผิดพลาด ใช้สรุปจากกฎ',AI_EMPTY:'AI ไม่ตอบ ใช้สรุปจากกฎ',AI_UNVERIFIED:'AI ไม่ผ่านการตรวจ ใช้สรุปจากกฎ'};
 async function runTeam(key,label){
   const box=document.getElementById('aiOut');
   if(box)box.innerHTML='<div class="card"><p>กำลังวิเคราะห์ '+esc(label||key)+' …</p></div>';
   try{
-    const res=await fetch('/api/ai-team',{method:'POST',headers:{'x-requested-with':'tato-hq','content-type':'application/json'},body:JSON.stringify({agent:key})});
+    const res=await fetch('/api/ai-team',{method:'POST',headers:{'x-requested-with':'tato-hq','content-type':'application/json'},body:JSON.stringify({agent:key,lang:L})});
     const j=await res.json();
     if(!j.success)throw new Error(j.error||j.status||('HTTP '+res.status));
-    if(box)box.innerHTML=(j.ai_bound?'':'<div class="card"><span class="tag to">Workers AI ยังไม่ได้ผูก</span><p>ตอนนี้แสดงสรุปจากกฎ เปิด Binding ชื่อ AI ใน Cloudflare Pages แล้ว Retry deployment</p></div>')+j.results.map(function(r){return '<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3>'+esc(r.label)+'</h3><span class="tag '+(r.status==='AI_ANALYZED'?'tg':'to')+'">'+esc(AI_ST[r.status]||r.status)+'</span></div><p style="white-space:pre-wrap">'+esc(r.output||'')+'</p>'+(r.cached?'<p class="sub">ผลล่าสุด (เพิ่งรันไป)</p>':'')+((r.note||r.error)?'<p class="sub">'+esc(r.note||r.error)+'</p>':'')+'<span class="tag tg">เสนอแนะเท่านั้น เจ้าของตัดสินใจ</span></div>'}).join('');
+    if(box)box.innerHTML=(j.ai_bound?'':'<div class="card"><span class="tag to">Workers AI ยังไม่ได้ผูก</span><p>ตอนนี้แสดงสรุปจากกฎ เปิด Binding ชื่อ AI ใน Cloudflare Pages แล้ว Retry deployment</p></div>')+j.results.map(function(r){return '<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3>'+esc(r.label)+'</h3><span class="tag '+(r.status==='AI_ANALYZED'?'tg':'to')+'">'+esc((L==='en'?AI_ST_EN:AI_ST)[r.status]||r.status)+'</span></div><p style="white-space:pre-wrap">'+esc(r.output||'')+'</p>'+(r.cached?'<p class="sub">ผลล่าสุด (เพิ่งรันไป)</p>':'')+((r.note||r.error)?'<p class="sub">'+esc(r.note||r.error)+'</p>':'')+'<span class="tag tg">'+(L==='en'?'Suggestion only · owner decides':'เสนอแนะเท่านั้น เจ้าของตัดสินใจ')+'</span></div>'}).join('');
     toast('AI Team เสร็จแล้ว');
   }catch(e){if(box)box.innerHTML='<div class="card"><p>เรียก AI Team ไม่สำเร็จ: '+esc(e.message)+'</p></div>';toast('AI Team error')}
 }

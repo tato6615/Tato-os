@@ -196,20 +196,92 @@ function unsupportedNumbers(text, data) {
   return found.filter((n) => !allowed.has(n) && !(Number.isInteger(+n) && +n <= 3));
 }
 
-function langIssue(text) {
+function langIssue(text, lang) {
   const th = (text.match(/[\u0E00-\u0E7F]/g) || []).length;
   const en = (text.match(/[A-Za-z]/g) || []).length;
   if (th + en === 0) return "ไม่มีตัวอักษร";
+  if (lang === "en") {
+    if (th > 3) return "contains Thai text";
+    if (en < 10) return "too short";
+    if (!/[.!?)\d]$/.test(text.trim())) return "incomplete sentence";
+    return null;
+  }
   if (th / (th + en) < 0.5) return "ไม่ใช่ภาษาไทยเป็นหลัก";
   return null;
 }
 
-function verifyText(text, data) {
-  return qualityIssue(text) || langIssue(text) || (unsupportedNumbers(text, data).length ? "ตัวเลขไม่พบในข้อมูล" : null);
+function verifyText(text, data, lang) {
+  return qualityIssue(text) || langIssue(text, lang) || (unsupportedNumbers(text, data).length ? "ตัวเลขไม่พบในข้อมูล" : null);
 }
 
-async function runRole(role, ev, env) {
+const EN_RULE = "IMPORTANT: Write the entire answer in English only, in a professional tone. Use at most 3 short bullet points, one sentence each. Use only numbers that appear in the data exactly as written; never calculate new numbers or percentages. Never suggest discounts, prices, promotions or free offers. Do not use system field names. L1 and L2 codes are allowed. If the data is insufficient, begin with: Insufficient data. Then say what should be collected next.";
+const EN_NO_DATA = "No real data yet (no leads, orders or sessions), so AI was not called, to avoid guessing.";
+const EN_NOTES = {
+  RULES_ONLY: "Workers AI is not bound yet, so the rules-based summary is shown.",
+  AI_EMPTY: "AI returned no answer, so the rules-based summary is shown.",
+  AI_ERROR: "The AI call failed, so the rules-based summary is shown.",
+  AI_UNVERIFIED: "AI text did not pass quality checks, so the rules-based summary is shown instead.",
+};
+
+function fallbackEn(role, ev, slice) {
+  try {
+    const c = ev.counts || {};
+    switch (role) {
+      case "research":
+        return ev.signals && ev.signals.length
+          ? "There are " + ev.signals.length + " market signals in the system. The owner should review them on the Market page."
+          : "No market signals yet (0). Suggested to collect: new cafe openings in Chiang Mai, competitor bean prices, and questions cafes often ask, then record them on the Market page.";
+      case "market": {
+        const ls = ev.leads || [];
+        if (!ls.length) return "No real leads yet, so customers cannot be grouped.";
+        const by = {};
+        ls.forEach((l) => { const k = l.stage || "unknown"; by[k] = (by[k] || 0) + 1; });
+        return ls.length + " real leads. By stage: " + Object.entries(by).map(([k, v]) => k + " " + v).join(", ") + ".";
+      }
+      case "behavior": {
+        const m = /:[^\d]*(\d+)[^\d]*(\d+)[^\d]*(\d+)/.exec((slice && slice.fallback) || "");
+        return ev.funnel && ev.funnel.available && m
+          ? "30-day sessions: page views " + m[1] + ", started ordering " + m[2] + ", sample requests " + m[3] + "."
+          : "Behavior data cannot be read yet.";
+      }
+      case "strategy": {
+        const w = ev.brain && ev.brain.warnings;
+        return w && w.length
+          ? "Marketing Brain raised " + w.length + " warning(s), shown in Thai on the Marketing page. Review them before planning experiments."
+          : "Not enough data yet to suggest experiments. Collect real sessions and leads first.";
+      }
+      case "product":
+        return "Orders by status: " + (ev.orders && ev.orders.by_status && ev.orders.by_status.length ? JSON.stringify(ev.orders.by_status) : "none yet") + ". Recommendations must wait for more real order data.";
+      case "growth": {
+        const a = sliceFor("automation", ev).data;
+        return a.leads_uncontacted_total
+          ? a.leads_uncontacted_total + " leads not yet contacted (" + a.leads_uncontacted_over_24h + " waiting over 24 hours). Use the chat script to follow up."
+          : "No leads waiting for contact. Use the time to approach new cafes and post in groups.";
+      }
+      case "data":
+        return "Excluded test data: leads " + c.test_leads + ", orders " + c.test_orders + " | Real data: leads " + c.real_leads + ", paid orders " + c.paid_orders + ", sessions (30 days) " + c.sessions_30d + (ev.evidence_level !== "ok" ? " (too little to read a trend)" : "");
+      case "automation": {
+        const a = sliceFor("automation", ev).data;
+        return "Pending approval: leads uncontacted over 24 h: " + a.leads_uncontacted_over_24h + " | unpaid orders over 24 h: " + a.orders_pending_over_24h + " | shops due or near reorder: " + (ev.reorder ? ev.reorder.length : 0);
+      }
+      default: return "";
+    }
+  } catch (e) {
+    return "Rules-based summary is unavailable.";
+  }
+}
+
+async function runRole(role, ev, env, lang = "th") {
+  const o = await runRoleCore(role, ev, env, lang);
+  if (lang !== "en" || !o) return o;
+  if (o.status === "NO_DATA") o.output = EN_NO_DATA;
+  if (EN_NOTES[o.status]) o.note = EN_NOTES[o.status]; else if (o.note) delete o.note;
+  return o;
+}
+
+async function runRoleCore(role, ev, env, lang = "th") {
   const meta = ROLES[role], slice = sliceFor(role, ev);
+  if (lang === "en" && slice) slice.fallback = fallbackEn(role, ev, slice);
   const out = { agent: role, label: meta.label, evidence_level: ev.evidence_level, prompt_version: PROMPT_VERSION };
   const needsData = role !== "growth" && role !== "research";
   if (ev.evidence_level === "none" && needsData) return { ...out, status: "NO_DATA", output: "ยังไม่มีข้อมูลจริง (ไม่มี lead ออเดอร์ หรือเซสชัน) จึงไม่เรียก AI เพื่อไม่ให้เดา", rules_summary: slice.fallback };
@@ -217,7 +289,7 @@ async function runRole(role, ev, env) {
   try {
     const messages = [
         { role: "system", content: GUARD + " หน้าที่ของคุณ: " + meta.job + (ev.evidence_level === "thin" ? " ข้อมูลตอนนี้น้อย ให้ระบุว่าเป็นข้อสังเกตเบื้องต้น" : "") },
-        { role: "user", content: JSON.stringify(slice.data).slice(0, 6000) },
+        ...(lang === "en" ? [{ role: "system", content: EN_RULE }] : []), { role: "user", content: JSON.stringify(slice.data).slice(0, 6000) },
       ];
     const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
     let r = await call({ max_tokens: 1200, temperature: 0.2, chat_template_kwargs: { enable_thinking: false } });
@@ -228,12 +300,12 @@ async function runRole(role, ev, env) {
     }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     // ลองใหม่เมื่อไม่ผ่านด่าน
-    if (text && verifyText(cleanOutput(text), slice.data)) {
+    if (text && verifyText(cleanOutput(text), slice.data, lang)) {
       r = await call({ max_tokens: 1200, temperature: 0.3, chat_template_kwargs: { enable_thinking: false } });
       text = extractText(r).trim() || text;
     }
     text = cleanOutput(text);
-    const qi = text ? (qualityIssue(text) || langIssue(text)) : null;
+    const qi = text ? (qualityIssue(text) || langIssue(text, lang)) : null;
     if (qi) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "คุณภาพข้อความ AI ไม่ผ่านเกณฑ์ (" + qi + ") จึงแสดงสรุปจากกฎแทน" };
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     const bad = unsupportedNumbers(text, slice.data);
@@ -272,6 +344,7 @@ export async function onRequestPost(context) {
     const db = context.env && context.env.DB;
     if (!db) return json({ success: false, status: "DB_BINDING_NOT_FOUND" }, 500);
     const body = await context.request.json().catch(() => ({}));
+    const lang = body && body.lang === "en" ? "en" : "th";
     const want = String(body.agent || "");
     const roles = want === "all" ? Object.keys(ROLES) : ROLES[want] ? [want] : null;
     if (!roles) return json({ success: false, status: "UNKNOWN_AGENT", valid: [...Object.keys(ROLES), "all"] }, 400);
@@ -287,7 +360,7 @@ export async function onRequestPost(context) {
     }
     if (toRun.length) {
       const ev = await gather(context);
-      const fresh = await Promise.all(toRun.map((k) => runRole(k, ev, context.env)));
+      const fresh = await Promise.all(toRun.map((k) => runRole(k, ev, context.env, lang)));
       for (const r of fresh) { await save(db, r); results.push(r); }
     }
     results.sort((a, b) => Object.keys(ROLES).indexOf(a.agent) - Object.keys(ROLES).indexOf(b.agent));
