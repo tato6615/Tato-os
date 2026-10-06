@@ -37,6 +37,7 @@ const GUARD = [
   "ห้ามคำนวณเปอร์เซ็นต์ ค่าเฉลี่ย หรือตัวเลขใหม่เอง ใช้เฉพาะตัวเลขที่ปรากฏในข้อมูลที่ให้ตามที่เขียนไว้เท่านั้น",
   "ใช้ศัพท์ภาษาไทยที่เข้าใจง่าย หลีกเลี่ยงศัพท์อังกฤษที่ไม่จำเป็น ห้ามใช้ชื่อฟิลด์ในระบบ เช่น total_real_leads ในคำตอบ",
   "ถ้าข้อมูลไม่พอ ให้ตอบสั้น ๆ ว่า ข้อมูลยังไม่เพียงพอ พร้อมระบุว่าต้องเก็บข้อมูลอะไรเพิ่ม ห้ามเดาหรือคาดการณ์",
+  "ตอบเป็นภาษาไทยเท่านั้น ห้ามมีประโยคภาษาอังกฤษ ยกเว้นรหัส L1 L2 ไม่เกิน 3 ข้อ ข้อละไม่เกิน 1 ประโยค",
 ].join(" ");
 
 function json(d, s = 200) {
@@ -122,7 +123,7 @@ export function sliceFor(role, ev) {
   switch (role) {
     case "research": return {
       data: { signals: ev.signals, counts: ev.counts },
-      fallback: ev.signals.length ? "มีสัญญาณตลาดในระบบ " + ev.signals.length + " รายการ ให้เจ้าของไล่ดูในหน้า Market" : "ยังไม่มีสัญญาณตลาดในระบบ (0 รายการ) ควรเก็บเอง: ร้านกาแฟเปิดใหม่ในเชียงใหม่ ราคาเมล็ดของคู่แข่ง และคำถามที่ร้านถามบ่อย แล้วบันทึกผ่าน POST /api/market",
+      fallback: ev.signals.length ? "มีสัญญาณตลาดในระบบ " + ev.signals.length + " รายการ ให้เจ้าของไล่ดูในหน้า Market" : "ยังไม่มีสัญญาณตลาดในระบบ (0 รายการ) ควรเก็บเอง: ร้านกาแฟเปิดใหม่ในเชียงใหม่ ราคาเมล็ดของคู่แข่ง และคำถามที่ร้านถามบ่อย แล้วบันทึกในหน้า Market",
     };
     case "market": return {
       data: { leads_by_stage: countBy("stage"), leads_by_src: countBy("src"), leads_by_kg_week: countBy("kg_week"), leads_by_machine: countBy("machine"), total_real_leads: ev.leads.length },
@@ -138,7 +139,7 @@ export function sliceFor(role, ev) {
     };
     case "product": return {
       data: { orders: ev.orders.by_status, leads_by_kg_week: countBy("kg_week"), leads_by_menu: countBy("menu"), leads_with_note: ev.leads.filter((l) => l.has_note).length },
-      fallback: "ออเดอร์แยกสถานะ: " + (ev.orders.by_status.length ? JSON.stringify(ev.orders.by_status) : "ยังไม่มี") + " ข้อเสนอแนะต้องรอข้อมูลคำสั่งซื้อจริงเพิ่ม",
+      fallback: "ออเดอร์แยกสถานะ: " + (ev.orders.by_status.length ? JSON.stringify(ev.orders.by_status) : "ยังไม่มี") + " | ข้อเสนอแนะ: ต้องรอข้อมูลคำสั่งซื้อจริงเพิ่ม",
     };
     case "growth": return {
       data: { uncontacted_leads: uncontacted.slice(0, 10), channels_with_leads: countBy("src"), reorder_due: ev.reorder },
@@ -174,7 +175,7 @@ function cleanOutput(t) {
 }
 
 function qualityIssue(text) {
-  if (text.length > 900) return "ยาวเกินกำหนด " + text.length + " ตัวอักษร | หัว: " + text.slice(0, 200).replace(/\n/g, " ") + " | ท้าย: " + text.slice(-200).replace(/\n/g, " ");
+  if (text.length > 700) return "ยาวเกินกำหนด";
   if (/\uFFFD/.test(text)) return "พบอักขระเสีย";
   if (/\b[a-z]+_[a-z_]+\b/i.test(text) || /(^|\s)_[a-z]/i.test(text)) return "พบชื่อฟิลด์ระบบ";
   if (/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]{3,}/.test(text)) return "สระ/วรรณยุกต์ซ้อนผิดปกติ";
@@ -195,6 +196,18 @@ function unsupportedNumbers(text, data) {
   return found.filter((n) => !allowed.has(n) && !(Number.isInteger(+n) && +n <= 3));
 }
 
+function langIssue(text) {
+  const th = (text.match(/[\u0E00-\u0E7F]/g) || []).length;
+  const en = (text.match(/[A-Za-z]/g) || []).length;
+  if (th + en === 0) return "ไม่มีตัวอักษร";
+  if (th / (th + en) < 0.5) return "ไม่ใช่ภาษาไทยเป็นหลัก";
+  return null;
+}
+
+function verifyText(text, data) {
+  return qualityIssue(text) || langIssue(text) || (unsupportedNumbers(text, data).length ? "ตัวเลขไม่พบในข้อมูล" : null);
+}
+
 async function runRole(role, ev, env) {
   const meta = ROLES[role], slice = sliceFor(role, ev);
   const out = { agent: role, label: meta.label, evidence_level: ev.evidence_level, prompt_version: PROMPT_VERSION };
@@ -204,18 +217,23 @@ async function runRole(role, ev, env) {
   try {
     const messages = [
         { role: "system", content: GUARD + " หน้าที่ของคุณ: " + meta.job + (ev.evidence_level === "thin" ? " ข้อมูลตอนนี้น้อย ให้ระบุว่าเป็นข้อสังเกตเบื้องต้น" : "") },
-        { role: "user", content: JSON.stringify(slice.data) },
+        { role: "user", content: JSON.stringify(slice.data).slice(0, 6000) },
       ];
     const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
-    let r = await call({ max_tokens: 600, temperature: 0.1, repetition_penalty: 1.15, chat_template_kwargs: { enable_thinking: false } });
+    let r = await call({ max_tokens: 1200, temperature: 0.2, chat_template_kwargs: { enable_thinking: false } });
     let text = extractText(r).trim();
     if (!text) {
-      r = await call({ max_tokens: 4000 });
+      r = await call({ max_tokens: 2000, temperature: 0.2, chat_template_kwargs: { enable_thinking: false } });
       text = extractText(r).trim();
     }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
+    // ลองใหม่เมื่อไม่ผ่านด่าน
+    if (text && verifyText(cleanOutput(text), slice.data)) {
+      r = await call({ max_tokens: 1200, temperature: 0.3, chat_template_kwargs: { enable_thinking: false } });
+      text = extractText(r).trim() || text;
+    }
     text = cleanOutput(text);
-    const qi = text ? qualityIssue(text) : null;
+    const qi = text ? (qualityIssue(text) || langIssue(text)) : null;
     if (qi) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "คุณภาพข้อความ AI ไม่ผ่านเกณฑ์ (" + qi + ") จึงแสดงสรุปจากกฎแทน" };
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     const bad = unsupportedNumbers(text, slice.data);
