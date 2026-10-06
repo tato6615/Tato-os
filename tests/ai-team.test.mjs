@@ -144,3 +144,33 @@ test("an honest 'insufficient data' answer still passes", async () => {
   const j = await (await team.onRequestPost({ request: hq({ agent: "growth", lang: "th" }), env })).json();
   assert.equal(j.results[0].status, "AI_ANALYZED");
 });
+
+test("rephrased invented claims are caught (paid money 1 time, 2 people in the form)", async () => {
+  const bad = [
+    ["th", "ข้อมูลยังไม่เพียงพอ ต้องเก็บชื่อหรือเบอร์โทรศัพท์ของลูกค้าที่เข้าฟอร์ม 2 คน และรายละเอียดออเดอร์ที่มีการจ่ายเงิน 1 ครั้ง"],
+    ["en", "Insufficient data. Collect details of the 2 people who filled the form and the order that paid 1 time."],
+  ];
+  for (const [lang, text] of bad) {
+    const { env } = fresh({ AI: mkAI(text) });
+    await lead.onRequestPost({ request: leadReq({ name: "สมหญิง ใจดี", phone: "0812345674", stage: "planning", consent: true }), env });
+    const j = await (await team.onRequestPost({ request: hq({ agent: "strategy", lang }), env })).json();
+    assert.equal(j.results[0].status, "AI_UNVERIFIED", lang);
+  }
+});
+
+test("zero claims that match the data are accepted", async () => {
+  const { env } = fresh({ AI: mkAI("ข้อมูลยังไม่เพียงพอ ตอนนี้ออเดอร์ที่จ่ายแล้ว 0 รายการ และ lead จริง 0 ราย ต้องเก็บข้อมูลเพิ่มก่อนสรุป") });
+  await lead.onRequestPost({ request: leadReq({ name: "ทดสอบ", phone: "0812345673", stage: "planning", consent: true, is_test: true }), env });
+  const j = await (await team.onRequestPost({ request: hq({ agent: "growth", lang: "th" }), env })).json();
+  assert.ok(["AI_ANALYZED", "AI_UNVERIFIED"].includes(j.results[0].status));
+});
+
+test("claimIssue: the exact sentence that slipped through on the live site is rejected", () => {
+  const ev = { counts: { paid_orders: 0, real_leads: 0 } };
+  const live = "ข้อมูลยังไม่เพียงพอที่จะสรุปได้ชัดเจน ต้องเก็บข้อมูลเพิ่มเติมคือ ชื่อหรือเบอร์โทรศัพท์ของลูกค้าที่เข้าฟอร์ม 2 คน และรายละเอียดออเดอร์ที่มีการจ่ายเงิน 1 ครั้ง เพื่อตรวจสอบว่าลูกค้าเหล่านั้นเข้ามาผ่านช่องทางไหน";
+  assert.ok(team.claimIssue(live, ev));
+  assert.ok(team.claimIssue("Collect details of the 1 paid order.", ev));
+  assert.equal(team.claimIssue("ข้อมูลยังไม่เพียงพอ ต้องเก็บข้อมูลลูกค้าและยอดสั่งซื้อเพิ่มก่อนสรุป", ev), null);
+  assert.equal(team.claimIssue("ตอนนี้ออเดอร์ที่จ่ายแล้ว 0 รายการ และ lead จริง 0 ราย", ev), null);
+  assert.equal(team.claimIssue("ออเดอร์ที่จ่ายแล้ว 2 รายการ", { counts: { paid_orders: 2, real_leads: 5 } }), null);
+});

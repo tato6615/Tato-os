@@ -219,18 +219,27 @@ function phantomRefs(text, refs) {
   return (String(text).match(/\b[LR]\d{1,2}\b/g) || []).filter((m) => !(refs && refs[m]));
 }
 
-// A claim about paid orders must equal the real count (0 when there are none).
-function paidClaimIssue(text, ev) {
-  const real = String((ev.counts && ev.counts.paid_orders) || 0);
-  const pats = [
-    /(?:ออเดอร์|คำสั่งซื้อ)ที่(?:จ่ายแล้ว|ชำระแล้ว|ชำระเงินแล้ว)\s*(\d+)/g,
-    /(\d+)\s*(?:รายการ\s*)?(?:ออเดอร์|คำสั่งซื้อ)ที่(?:จ่าย|ชำระ)/g,
-    /(\d+)\s+paid\s+orders?/gi,
-    /paid\s+orders?\s+(?:are|is|was|were|=|:)?\s*(\d+)/gi,
-  ];
-  for (const re of pats) for (const m of String(text).matchAll(re)) if (m[1] !== real) return "จำนวนออเดอร์ที่จ่ายแล้วไม่ตรงข้อมูลจริง";
-  return null;
+// Claims about paid orders / form leads must equal the real counts (0 when there are none).
+// Looks at any number sitting right next to the key words, so rephrasing does not slip through.
+export function claimIssue(text, ev) {
+  const t = String(text), c = ev.counts || {};
+  const paid = String(c.paid_orders || 0), leads = String(c.real_leads || 0);
+  const check = (pats, real, msg) => {
+    for (const re of pats) for (const m of t.matchAll(re)) if (m[1] !== real) return msg;
+    return null;
+  };
+  return check([
+    /(?:จ่ายแล้ว|จ่ายเงิน|ชำระเงิน|ชำระแล้ว|ชำระ|จ่าย)[^\d\n]{0,12}?(\d+)/g,
+    /(\d+)\s*(?:รายการ|ครั้ง|ราย)?\s*(?:ที่)?(?:มีการ)?(?:จ่าย|ชำระ)/g,
+    /paid[^\d\n]{0,15}?(\d+)/gi,
+    /(\d+)\s+paid\b/gi,
+  ], paid, "จำนวนออเดอร์ที่จ่ายแล้วไม่ตรงข้อมูลจริง")
+  || check([
+    /(?:ฟอร์ม|\bleads?\b|ลีด|\bform\b)[^\d\n]{0,12}?(\d+)/gi,
+    /(\d+)\s*(?:คน|ราย|ร้าน)?\s*(?:ที่)?(?:เข้า|กรอก|ส่ง)?(?:ฟอร์ม|form)/gi,
+  ], leads, "จำนวน lead/ฟอร์มไม่ตรงข้อมูลจริง");
 }
+const paidClaimIssue = claimIssue;
 
 function verifyText(text, data, lang, ev) {
   return qualityIssue(text) || langIssue(text, lang)
