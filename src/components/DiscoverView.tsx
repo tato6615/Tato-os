@@ -7,6 +7,13 @@ interface DiscoverViewProps {
   onGoToProduct: (preselectedRoast?: RoastType) => void;
 }
 
+// Short "good for" hint shown as the card badge (general roast guidance; owner may edit the wording).
+const BEST_FOR: Record<RoastType, { th: string; en: string }> = {
+  dark: { th: 'เหมาะกับนมและลาเต้', en: 'GOOD WITH MILK' },
+  medium: { th: 'ชงได้หลายแบบ', en: 'ALL-ROUNDER' },
+  light: { th: 'เหมาะกับดริป', en: 'GOOD FOR POUR-OVER' },
+};
+
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>('medium');
   const { language } = useLanguage();
@@ -382,7 +389,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                             : 'bg-[#67401a]/50 text-[#f3bc8b]'
                         }`}
                       >
-                        {profile.isBestseller ? 'SIGNATURE BESTSELLER' : `PROFILE 0${profile.id === 'dark' ? 1 : 3}`}
+                        {profile.isBestseller
+                          ? (language === 'th' ? 'แนะนำ' : 'RECOMMENDED')
+                          : (language === 'th' ? BEST_FOR[profile.id].th : BEST_FOR[profile.id].en)}
                       </span>
                       <span
                         className="w-3.5 h-3.5 rounded-full border border-white/20"
@@ -413,8 +422,23 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                     </div>
                   </div>
 
+                  {/* Price + what you get */}
+                  <div className="mt-6">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">550</span>
+                      <span className="font-['Anuphan'] text-[14px] text-[#e3beb3]">
+                        {language === 'th' ? 'บาท ต่อ กก.' : 'THB per kg'}
+                      </span>
+                    </div>
+                    <p className="font-['Anuphan'] text-[13px] text-[#e3beb3]/70 mt-1">
+                      {language === 'th'
+                        ? 'คั่วสดตามออเดอร์ · เลือกเมล็ดหรือบดได้'
+                        : 'Roasted to order · whole bean or ground'}
+                    </p>
+                  </div>
+
                   {/* Roast Density Level Meter */}
-                  <div className="mt-8 pt-4 border-t border-[#363433]/50 space-y-2">
+                  <div className="mt-5 pt-4 border-t border-[#363433]/50 space-y-2">
                     <div className="flex justify-between font-mono text-[11px] text-[#e3beb3]/70">
                       <span>{language === 'th' ? 'ความเข้มของการคั่ว' : 'ROAST INTENSITY'}</span>
                       <span className="text-[#ff5e1a] font-bold">{profile.intensityDisplay}</span>
@@ -433,14 +457,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                           e.stopPropagation();
                           onGoToProduct(profile.id);
                         }}
-                        className={`w-full py-2.5 px-4 rounded-lg font-['Manrope'] text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                        className={`w-full py-3.5 px-4 rounded-lg font-['Anuphan'] text-[15px] font-bold transition-all flex items-center justify-center gap-2 border ${
                           isSelected
-                            ? 'bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf]'
-                            : 'bg-[#2b2a28] text-[#e6e1df] hover:bg-[#ff5e1a] hover:text-[#390c00]'
+                            ? 'bg-[#ff5e1a] border-[#ff5e1a] text-[#390c00] hover:bg-[#ff7a40]'
+                            : 'bg-transparent border-[#ff5e1a]/70 text-[#ffb59c] hover:bg-[#ff5e1a] hover:text-[#390c00]'
                         }`}
                       >
                         <span>{language === 'th' ? 'สั่งคั่วนี้' : 'ORDER THIS ROAST'}</span>
-                        <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                        <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                       </button>
                     </div>
                   </div>

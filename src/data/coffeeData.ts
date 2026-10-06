@@ -28,7 +28,7 @@ export const ROAST_PROFILES: RoastProfile[] = [
   {
     id: 'medium',
     name: 'MEDIUM',
-    nameThai: 'คั่วกลาง · แนะนำ',
+    nameThai: 'คั่วกลาง',
     subtitle: 'กลาง • Sweet & Balanced',
     description: 'Caramel sweetness, stone fruit balance, sweet brown sugar notes, and a remarkably smooth honey finish.',
     notes: ['Caramel Cane', 'Ripe Stone Fruit', 'Wild Honey'],
