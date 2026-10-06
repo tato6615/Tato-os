@@ -165,14 +165,17 @@ async function runRole(role, ev, env) {
   if (ev.evidence_level === "none" && needsData) return { ...out, status: "NO_DATA", output: "ยังไม่มีข้อมูลจริง (ไม่มี lead ออเดอร์ หรือเซสชัน) จึงไม่เรียก AI เพื่อไม่ให้เดา", rules_summary: slice.fallback };
   if (!env.AI || typeof env.AI.run !== "function") return { ...out, status: "RULES_ONLY", output: slice.fallback, rules_summary: slice.fallback, note: "ยังไม่ได้ผูก Workers AI (Binding ชื่อ AI) จึงแสดงสรุปจากกฎ" };
   try {
-    const r = await env.AI.run(MODEL, {
-      max_tokens: 700,
-      messages: [
+    const messages = [
         { role: "system", content: GUARD + " หน้าที่ของคุณ: " + meta.job + (ev.evidence_level === "thin" ? " ข้อมูลตอนนี้น้อย ให้ระบุว่าเป็นข้อสังเกตเบื้องต้น" : "") },
         { role: "user", content: JSON.stringify(slice.data) },
-      ],
-    });
+      ];
+    const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
+    let r = await call({ max_tokens: 1500, chat_template_kwargs: { enable_thinking: false } });
     let text = extractText(r).trim();
+    if (!text) {
+      r = await call({ max_tokens: 4000 });
+      text = extractText(r).trim();
+    }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     text = text.replace(/\b([LR]\d{1,2})\b/g, (m) => (ev.refs[m] ? ev.refs[m] : m));
     return { ...out, status: "AI_ANALYZED", model: MODEL, output: text, rules_summary: slice.fallback };
