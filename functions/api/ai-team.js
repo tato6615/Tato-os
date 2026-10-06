@@ -174,7 +174,7 @@ function cleanOutput(t) {
 }
 
 function qualityIssue(text) {
-  if (text.length > 600) return "ยาวเกินกำหนด";
+  if (text.length > 900) return "ยาวเกินกำหนด " + text.length + " ตัวอักษร";
   if (/\uFFFD/.test(text)) return "พบอักขระเสีย";
   if (/\b[a-z]+_[a-z_]+\b/i.test(text) || /(^|\s)_[a-z]/i.test(text)) return "พบชื่อฟิลด์ระบบ";
   if (/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]{3,}/.test(text)) return "สระ/วรรณยุกต์ซ้อนผิดปกติ";
