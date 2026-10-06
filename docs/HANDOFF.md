@@ -323,4 +323,17 @@
 ต่อยอดภายหลัง (ไม่ขวางการขาย)
 - ตามคำตอบผู้ตรวจ PDPA (แบนเนอร์ยินยอม)
 - Workers AI และตัววิเคราะห์ SEO/GEO เมื่อมีเซสชันจริง 30-50 ครั้งขึ้นไป
-- โดเมนของตัวเอง + Cloudflare Access, Turnstile, อีเมลลูกค้า, ตรวจสลิป
+
+## อัปเดต 6 ต.ค. 2569 (ปิดงานความปลอดภัย)
+ทำแล้วและตรวจบนเว็บจริงแล้ว
+- ตัด referrer ออกจาก behavior tracking ทุกหน้า, session_id หมดอายุ 30 วัน (`tato_session_at`)
+- Security header: nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy, HSTS (30 วัน), CSP แบบ allowlist (ทดสอบ Turnstile + สั่งซื้อ + HQ ผ่านแล้ว)
+- `/privacy/` และ `docs/TRACKER-PDPA-REVIEW.md` ตรงกับระบบจริง
+- Turnstile, อีเมลลูกค้า, ตรวจสลิป, โดเมน + Access: เจ้าของทดสอบผ่านแล้ว
+
+ต่อยอดภายหลัง (ไม่ขวางการขาย)
+- ส่ง `TRACKER-PDPA-REVIEW.md` ฉบับใหม่ให้ผู้ตรวจ แล้วทำตามคำตอบ (แบนเนอร์ยินยอมถ้าจำเป็น)
+- Workers AI และตัววิเคราะห์ SEO/GEO เมื่อมีเซสชันจริง 30-50 ครั้งขึ้นไป
+- CSP ยังต้องเปิด `'unsafe-inline'` เพราะ `/system/` มี onclick 43 จุดและหน้า cafe มี inline script/style ถ้าอยากเข้มขึ้นต้องย้ายออกเป็นไฟล์ก่อน (ไม่เร่งด่วน)
+- HSTS ตอนนี้ 30 วัน ถ้าเว็บนิ่งแล้วค่อยขยายเป็น 6 เดือน
+\n
