@@ -32,6 +32,11 @@ const GUARD = [
   "ห้ามอ้างว่า \"เก็บด้วยมือ\" \"หมักกลางคืน\" หรือรางวัล/ใบรับรองใด ๆ เพราะยังไม่ได้ยืนยัน",
   "เสนอแนะเท่านั้น ไม่ตัดสินใจแทนเจ้าของ ไม่บอกว่าได้ลงมือทำสิ่งใดไปแล้ว",
   "อ้างลูกค้าด้วยรหัส L1, L2 ตามที่ให้มา ห้ามเดาชื่อหรือเบอร์",
+  "รูปแบบคำตอบ: ภาษาไทยทางการ ประโยคสั้น ไม่เกิน 3 ข้อ ขึ้นต้นแต่ละข้อด้วย - ห้ามใช้ Markdown ห้ามใช้เครื่องหมาย ** หรือ #",
+  "ห้ามเสนอส่วนลด ราคา โปรโมชัน การแจกฟรี หรือการเปลี่ยนราคา เพราะเป็นอำนาจตัดสินใจของเจ้าของ",
+  "ห้ามคำนวณเปอร์เซ็นต์ ค่าเฉลี่ย หรือตัวเลขใหม่เอง ใช้เฉพาะตัวเลขที่ปรากฏในข้อมูลที่ให้ตามที่เขียนไว้เท่านั้น",
+  "ใช้ศัพท์ภาษาไทยที่เข้าใจง่าย หลีกเลี่ยงศัพท์อังกฤษที่ไม่จำเป็น ห้ามใช้ชื่อฟิลด์ในระบบ เช่น total_real_leads ในคำตอบ",
+  "ถ้าข้อมูลไม่พอ ให้ตอบสั้น ๆ ว่า ข้อมูลยังไม่เพียงพอ พร้อมระบุว่าต้องเก็บข้อมูลอะไรเพิ่ม ห้ามเดาหรือคาดการณ์",
 ].join(" ");
 
 function json(d, s = 200) {
@@ -158,6 +163,26 @@ export function extractText(r) {
   return typeof c === "string" ? c : JSON.stringify(c);
 }
 
+function cleanOutput(t) {
+  return String(t || "")
+    .replace(/\*\*|__|`/g, "")
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]*/gm, "")
+    .replace(/^[ \t]*[*\-•][ \t]+/gm, "• ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function unsupportedNumbers(text, data) {
+  const norm = (x) => String(x).replace(/,/g, "");
+  const allowed = new Set((JSON.stringify(data).match(/\d+(?:\.\d+)?/g) || []).map(norm));
+  const body = norm(text)
+    .replace(/^[ \t]*(?:•[ \t]*)?\d+[.)][ \t]+/gm, "")
+    .replace(/\b[LR]\d{1,2}\b/g, "");
+  const found = body.match(/\d+(?:\.\d+)?/g) || [];
+  return found.filter((n) => !allowed.has(n) && !(Number.isInteger(+n) && +n <= 3));
+}
+
 async function runRole(role, ev, env) {
   const meta = ROLES[role], slice = sliceFor(role, ev);
   const out = { agent: role, label: meta.label, evidence_level: ev.evidence_level, prompt_version: PROMPT_VERSION };
@@ -170,13 +195,17 @@ async function runRole(role, ev, env) {
         { role: "user", content: JSON.stringify(slice.data) },
       ];
     const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
-    let r = await call({ max_tokens: 1500, chat_template_kwargs: { enable_thinking: false } });
+    let r = await call({ max_tokens: 1500, temperature: 0.2, chat_template_kwargs: { enable_thinking: false } });
     let text = extractText(r).trim();
     if (!text) {
       r = await call({ max_tokens: 4000 });
       text = extractText(r).trim();
     }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
+    text = cleanOutput(text);
+    if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
+    const bad = unsupportedNumbers(text, slice.data);
+    if (bad.length) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "ตัวเลขที่ AI อ้างไม่พบในข้อมูลจริง จึงแสดงสรุปจากกฎแทน", unverified: bad.slice(0, 5) };
     text = text.replace(/\b([LR]\d{1,2})\b/g, (m) => (ev.refs[m] ? ev.refs[m] : m));
     return { ...out, status: "AI_ANALYZED", model: MODEL, output: text, rules_summary: slice.fallback };
   } catch (e) {
