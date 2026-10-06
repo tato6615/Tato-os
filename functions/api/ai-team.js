@@ -173,6 +173,18 @@ function cleanOutput(t) {
     .trim();
 }
 
+function qualityIssue(text) {
+  if (text.length > 600) return "ยาวเกินกำหนด";
+  if (/\uFFFD/.test(text)) return "พบอักขระเสีย";
+  if (/\b[a-z]+_[a-z_]+\b/i.test(text) || /(^|\s)_[a-z]/i.test(text)) return "พบชื่อฟิลด์ระบบ";
+  if (/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]{3,}/.test(text)) return "สระ/วรรณยุกต์ซ้อนผิดปกติ";
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const heads = lines.filter((l) => l.length < 60 && !/^[•\d]/.test(l));
+  if (new Set(heads).size < heads.length) return "มีหัวข้อซ้ำ";
+  if (!/[.!?ๆ\u0E01-\u0E4E)\d]$/.test(text)) return "ประโยคจบไม่สมบูรณ์";
+  return null;
+}
+
 function unsupportedNumbers(text, data) {
   const norm = (x) => String(x).replace(/,/g, "");
   const allowed = new Set((JSON.stringify(data).match(/\d+(?:\.\d+)?/g) || []).map(norm));
@@ -195,7 +207,7 @@ async function runRole(role, ev, env) {
         { role: "user", content: JSON.stringify(slice.data) },
       ];
     const call = (opts) => env.AI.run(MODEL, { messages, ...opts });
-    let r = await call({ max_tokens: 1500, temperature: 0.2, chat_template_kwargs: { enable_thinking: false } });
+    let r = await call({ max_tokens: 1500, temperature: 0.1, repetition_penalty: 1.15, chat_template_kwargs: { enable_thinking: false } });
     let text = extractText(r).trim();
     if (!text) {
       r = await call({ max_tokens: 4000 });
@@ -203,6 +215,8 @@ async function runRole(role, ev, env) {
     }
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     text = cleanOutput(text);
+    const qi = text ? qualityIssue(text) : null;
+    if (qi) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "คุณภาพข้อความ AI ไม่ผ่านเกณฑ์ (" + qi + ") จึงแสดงสรุปจากกฎแทน" };
     if (!text) return { ...out, status: "AI_EMPTY", output: slice.fallback, rules_summary: slice.fallback };
     const bad = unsupportedNumbers(text, slice.data);
     if (bad.length) return { ...out, status: "AI_UNVERIFIED", output: slice.fallback, rules_summary: slice.fallback, note: "ตัวเลขที่ AI อ้างไม่พบในข้อมูลจริง จึงแสดงสรุปจากกฎแทน", unverified: bad.slice(0, 5) };
