@@ -85,3 +85,31 @@ test("GET lists all eight roles", async () => {
   const j = await (await team.onRequestGet({ request: new Request(ORIGIN + "/api/ai-team"), env })).json();
   assert.equal(j.roles.length, 8);
 });
+
+test("cooldown cache is per language: switching th -> en re-runs and returns English", async () => {
+  const AI = mkAI("- Insufficient data. Collect more leads and sessions before drawing conclusions.");
+  const { env } = fresh({ AI });
+  await lead.onRequestPost({ request: leadReq({ name: "สมหญิง ใจดี", phone: "0812345671", stage: "planning", consent: true }), env });
+  await team.onRequestPost({ request: hq({ agent: "research", lang: "th" }), env });
+  const j = await (await team.onRequestPost({ request: hq({ agent: "research", lang: "en" }), env })).json();
+  assert.notEqual(j.results[0].cached, true);
+  assert.ok(!/[\u0E00-\u0E7F]/.test(j.results[0].output), "English request returned Thai");
+  const again = await (await team.onRequestPost({ request: hq({ agent: "research", lang: "en" }), env })).json();
+  assert.equal(again.results[0].cached, true); // same language inside the cooldown is still cached
+});
+
+test("orders table with only `amount` (as in production) is still read", async () => {
+  const { DB, env } = fresh();
+  await DB.prepare("ALTER TABLE orders DROP COLUMN total_amount").run();
+  await DB.prepare("INSERT INTO orders (id, amount, total_kg, status, is_test) VALUES ('o1', 550, 1, 'paid', 0)").run();
+  const j = await (await team.onRequestPost({ request: hq({ agent: "data", lang: "th" }), env })).json();
+  assert.deepEqual(j.warnings, []);
+  assert.match(j.results[0].output, /ออเดอร์จ่ายแล้ว 1/);
+});
+
+test("unreadable orders table is reported, not silently treated as zero", async () => {
+  const { DB, env } = fresh();
+  await DB.prepare("DROP TABLE orders").run();
+  const j = await (await team.onRequestPost({ request: hq({ agent: "data", lang: "th" }), env })).json();
+  assert.deepEqual(j.warnings, ["orders_unreadable"]);
+});

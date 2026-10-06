@@ -1,0 +1,114 @@
+diff --git a/functions/api/ai-team.js b/functions/api/ai-team.js
+index c4b94b7..420b749 100644
+--- a/functions/api/ai-team.js
++++ b/functions/api/ai-team.js
+@@ -49,7 +49,9 @@ const hoursSince = (iso) => { const t = Date.parse(iso); return Number.isFinite(
+ async function safe(fn, fallback) { try { return await fn(); } catch (e) { return fallback; } }
+ 
+ async function ensureRunsTable(db) {
+-  await db.prepare("CREATE TABLE IF NOT EXISTS ai_team_runs (id TEXT PRIMARY KEY, agent TEXT NOT NULL, status TEXT NOT NULL, evidence_level TEXT, output TEXT, error TEXT, created_at TEXT NOT NULL)").run();
++  await db.prepare("CREATE TABLE IF NOT EXISTS ai_team_runs (id TEXT PRIMARY KEY, agent TEXT NOT NULL, status TEXT NOT NULL, evidence_level TEXT, output TEXT, error TEXT, created_at TEXT NOT NULL, lang TEXT)").run();
++  const cols = ((await db.prepare("PRAGMA table_info(ai_team_runs)").all()).results || []).map((c) => c.name);
++  if (!cols.includes("lang")) await db.prepare("ALTER TABLE ai_team_runs ADD COLUMN lang TEXT").run();
+   await db.prepare("CREATE INDEX IF NOT EXISTS ai_team_runs_agent_idx ON ai_team_runs(agent, created_at)").run();
+ }
+ 
+@@ -65,10 +67,13 @@ export async function gather(context) {
+   });
+ 
+   const orders = await safe(async () => {
+-    const r = (await db.prepare("SELECT status, COUNT(*) AS n, COALESCE(SUM(total_kg),0) AS kg, COALESCE(SUM(total_amount),0) AS amt FROM orders WHERE COALESCE(is_test,0)=0 AND status!='cancelled' GROUP BY status").all()).results || [];
++    const ocols = new Set(((await db.prepare("PRAGMA table_info(orders)").all()).results || []).map((c) => c.name));
++    const amtCol = ocols.has("amount") ? "amount" : ocols.has("total_amount") ? "total_amount" : null;
++    const amtExpr = amtCol ? "COALESCE(SUM(" + amtCol + "),0)" : "0";
++    const r = (await db.prepare("SELECT status, COUNT(*) AS n, COALESCE(SUM(total_kg),0) AS kg, " + amtExpr + " AS amt FROM orders WHERE COALESCE(is_test,0)=0 AND status!='cancelled' GROUP BY status").all()).results || [];
+     const pend = (await db.prepare("SELECT created_at FROM orders WHERE COALESCE(is_test,0)=0 AND status='pending' ORDER BY created_at ASC LIMIT 20").all()).results || [];
+     return { by_status: r, pending_hours: pend.map((p) => hoursSince(p.created_at)) };
+-  }, { by_status: [], pending_hours: [] });
++  }, { by_status: [], pending_hours: [], unreadable: true });
+ 
+   const funnel = await safe(async () => {
+     const cols = new Set(((await db.prepare("PRAGMA table_info(behavior_events)").all()).results || []).map((c) => c.name));
+@@ -109,8 +114,8 @@ export async function gather(context) {
+   const paidOrders = (orders.by_status.find((o) => o.status === "paid") || {}).n || 0;
+   const sessions = funnel.events.content_view || 0;
+   const real = leads.length + orders.by_status.reduce((a, o) => a + o.n, 0) + sessions;
+-  const evidence_level = real === 0 ? "none" : (leads.length + paidOrders < 5 || sessions < 30) ? "thin" : "ok";
+-  return { refs, evidence_level, counts: { real_leads: leads.length, paid_orders: paidOrders, sessions_30d: sessions, test_leads: testCounts.leads, test_orders: testCounts.orders }, leads, orders, funnel, ads, signals, brain, reorder };
++  const evidence_level = real === 0 ? "none" : (orders.unreadable || leads.length + paidOrders < 5 || sessions < 30) ? "thin" : "ok";
++  return { refs, evidence_level, warnings: orders.unreadable ? ["orders_unreadable"] : [], counts: { real_leads: leads.length, paid_orders: paidOrders, sessions_30d: sessions, test_leads: testCounts.leads, test_orders: testCounts.orders }, leads, orders, funnel, ads, signals, brain, reorder };
+ }
+ 
+ /** Per-role evidence slice (what the model may see) + deterministic fallback text. */
+@@ -317,10 +322,10 @@ async function runRoleCore(role, ev, env, lang = "th") {
+   }
+ }
+ 
+-async function save(db, r) {
++async function save(db, r, lang = "th") {
+   const id = crypto.randomUUID();
+-  await db.prepare("INSERT INTO ai_team_runs (id,agent,status,evidence_level,output,error,created_at) VALUES (?,?,?,?,?,?,?)")
+-    .bind(id, r.agent, r.status, r.evidence_level || null, r.output || null, r.error || null, new Date().toISOString()).run();
++  await db.prepare("INSERT INTO ai_team_runs (id,agent,status,evidence_level,output,error,created_at,lang) VALUES (?,?,?,?,?,?,?,?)")
++    .bind(id, r.agent, r.status, r.evidence_level || null, r.output || null, r.error || null, new Date().toISOString(), lang).run();
+   return id;
+ }
+ 
+@@ -354,16 +359,18 @@ export async function onRequestPost(context) {
+     const results = [];
+     const toRun = [];
+     for (const k of roles) {
+-      const last = await db.prepare("SELECT status, evidence_level, output, created_at FROM ai_team_runs WHERE agent=? ORDER BY created_at DESC LIMIT 1").bind(k).first();
++      const last = await db.prepare("SELECT status, evidence_level, output, created_at FROM ai_team_runs WHERE agent=? AND COALESCE(lang,'th')=? ORDER BY created_at DESC LIMIT 1").bind(k, lang).first();
+       if (last && Date.now() - Date.parse(last.created_at) < COOLDOWN_MS) results.push({ agent: k, label: ROLES[k].label, status: last.status, evidence_level: last.evidence_level, output: last.output, cached: true });
+       else toRun.push(k);
+     }
++    let warnings = [];
+     if (toRun.length) {
+       const ev = await gather(context);
++      warnings = ev.warnings;
+       const fresh = await Promise.all(toRun.map((k) => runRole(k, ev, context.env, lang)));
+-      for (const r of fresh) { await save(db, r); results.push(r); }
++      for (const r of fresh) { await save(db, r, lang); results.push(r); }
+     }
+     results.sort((a, b) => Object.keys(ROLES).indexOf(a.agent) - Object.keys(ROLES).indexOf(b.agent));
+-    return json({ success: true, layer: PROMPT_VERSION, ai_bound: !!(context.env.AI && typeof context.env.AI.run === "function"), results });
++    return json({ success: true, layer: PROMPT_VERSION, ai_bound: !!(context.env.AI && typeof context.env.AI.run === "function"), warnings, results });
+   } catch (e) { return json({ success: false, error: String(e && e.message || e) }, 500); }
+ }
+diff --git a/tests/ai-team.test.mjs b/tests/ai-team.test.mjs
+index 34e441c..183ffe4 100644
+--- a/tests/ai-team.test.mjs
++++ b/tests/ai-team.test.mjs
+@@ -85,3 +85,31 @@ test("GET lists all eight roles", async () => {
+   const j = await (await team.onRequestGet({ request: new Request(ORIGIN + "/api/ai-team"), env })).json();
+   assert.equal(j.roles.length, 8);
+ });
++
++test("cooldown cache is per language: switching th -> en re-runs and returns English", async () => {
++  const AI = mkAI("- Insufficient data. Collect more leads and sessions before drawing conclusions.");
++  const { env } = fresh({ AI });
++  await lead.onRequestPost({ request: leadReq({ name: "สมหญิง ใจดี", phone: "0812345671", stage: "planning", consent: true }), env });
++  await team.onRequestPost({ request: hq({ agent: "research", lang: "th" }), env });
++  const j = await (await team.onRequestPost({ request: hq({ agent: "research", lang: "en" }), env })).json();
++  assert.notEqual(j.results[0].cached, true);
++  assert.ok(!/[\u0E00-\u0E7F]/.test(j.results[0].output), "English request returned Thai");
++  const again = await (await team.onRequestPost({ request: hq({ agent: "research", lang: "en" }), env })).json();
++  assert.equal(again.results[0].cached, true); // same language inside the cooldown is still cached
++});
++
++test("orders table with only `amount` (as in production) is still read", async () => {
++  const { DB, env } = fresh();
++  await DB.prepare("ALTER TABLE orders DROP COLUMN total_amount").run();
++  await DB.prepare("INSERT INTO orders (id, amount, total_kg, status, is_test) VALUES ('o1', 550, 1, 'paid', 0)").run();
++  const j = await (await team.onRequestPost({ request: hq({ agent: "data", lang: "th" }), env })).json();
++  assert.deepEqual(j.warnings, []);
++  assert.match(j.results[0].output, /ออเดอร์จ่ายแล้ว 1/);
++});
++
++test("unreadable orders table is reported, not silently treated as zero", async () => {
++  const { DB, env } = fresh();
++  await DB.prepare("DROP TABLE orders").run();
++  const j = await (await team.onRequestPost({ request: hq({ agent: "data", lang: "th" }), env })).json();
++  assert.deepEqual(j.warnings, ["orders_unreadable"]);
++});
