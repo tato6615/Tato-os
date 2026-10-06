@@ -81,7 +81,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
   calcKeys.forEach(function(k){var v=q.get(k);if(v!==null&&v!==""&&isFinite(Number(v)))calc[k]=Number(v)});
   var busy=false, sid;
   try{sid=localStorage.getItem("tato_session")||crypto.randomUUID();localStorage.setItem("tato_session",sid)}catch(e){sid=String(Date.now())}
-  function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign,referrer:document.referrer||null}})}).catch(function(){})}catch(e){}}
+  function track(t){try{fetch("/api/behavior",{keepalive:true,method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({session_id:sid,event_type:t,page:"/cafe/",metadata:{source:"TATO_CAFE_PAGE",is_test:meta.is_test,src:meta.src,utm_source:meta.utm_source,utm_medium:meta.utm_medium,utm_campaign:meta.utm_campaign}})}).catch(function(){})}catch(e){}}
   track("cafe_view");
   function syncSample(){$("sampleBox").style.display=$("sample").checked?"block":"none"}
   $("sample").addEventListener("change",function(){syncSample();if($("sample").checked)track("cafe_sample_toggle")});
