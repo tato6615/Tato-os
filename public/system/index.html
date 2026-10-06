@@ -60,7 +60,7 @@ async function loadDashboard(){
     set('dashRevenue',money(revenue)); try{const ob=document.querySelector('.nav button[data-p="orders"] span');if(ob)ob.textContent=(window.TATO_NAV_ORDERS||'Orders ↗')+(pendOs.length?' ('+pendOs.length+(window.TATO_LANG==='en'?' pending':' รอ')+')':'')}catch(e){} /*ordersNavBadge*/
     set('dashOrders',n(paidOs.length)+' paid · '+n(pendOs.length)+' awaiting (฿'+n(pendAmt)+')'); set('dashCustomers',n(cs.length));
     set('dashKg',n(kg)+' kg');set('dashKgMeta',pendKg?('+'+n(pendKg)+' kg awaiting payment'):'from paid orders'); set('dashRepeat',buying?((repeat/buying)*100).toFixed(1)+'%':'0%'); set('dashRepeatMeta',n(repeat)+' repeat');
-    set('dashBehavior',n(bs.length)); set('dashMarket',n(ms.length)+' market signals');
+    set('dashBehavior',n(Number.isFinite(Number(behavior.total))?Number(behavior.total):bs.length)); set('dashMarket',n(ms.length)+' market signals');
     (function(){const box=document.getElementById('mkList');if(!box)return;const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       box.innerHTML=ms.length?ms.slice(0,20).map(x=>'<div class="item"><strong>'+esc(x.title||x.keyword||x.signal_type||'Signal')+'</strong><span class="tag">'+esc(x.signal_type||'MARKET')+'</span><small>score '+Number(x.score||0)+'</small></div>').join(''):'<div class="item"><small>ยังไม่มีสัญญาณตลาดที่บันทึกไว้</small></div>';
       const pill=document.getElementById('mkPill');if(pill)pill.textContent=ms.length+' รายการ';})();

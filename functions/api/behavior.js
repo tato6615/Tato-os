@@ -9,7 +9,12 @@ export async function onRequestGet(context) {
       `)
       .all();
 
-    return Response.json({ success: true, events: results });
+    let total = results.length;
+    try {
+      const c = await context.env.DB.prepare("SELECT COUNT(*) AS n FROM behavior_events").first();
+      if (c && Number.isFinite(Number(c.n))) total = Number(c.n);
+    } catch (e) {}
+    return Response.json({ success: true, events: results, total });
   } catch (error) {
     return Response.json(
       { success: false, error: error.message },

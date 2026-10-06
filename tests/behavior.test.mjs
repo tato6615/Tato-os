@@ -26,3 +26,14 @@ test("behavior: rejects oversized payloads and non-object bodies", async () => {
   assert.equal((await post(DB, null, "x".repeat(9000))).status, 413);
   assert.equal(DB.raw.prepare("SELECT COUNT(*) n FROM behavior_events").get().n, 0);
 });
+
+test("behavior GET: returns true total, not just the page size", async () => {
+  const DB = db();
+  const ins = DB.raw.prepare("INSERT INTO behavior_events (id,event_type,metadata) VALUES (?,?,?)");
+  for (let i = 0; i < 205; i++) ins.run("e" + i, "view", "{}");
+  const withFirst = { ...DB, prepare(sql) { const o = DB.prepare(sql); o.first = async () => DB.raw.prepare(sql).get(); return o; } };
+  const r = await behavior.onRequestGet({ env: { DB: withFirst } });
+  const j = await r.json();
+  assert.equal(j.events.length, 200);
+  assert.equal(j.total, 205);
+});
