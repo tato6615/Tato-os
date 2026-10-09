@@ -68,7 +68,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               href="/cafe/?src=site-hero-line"
               className="text-[#ff5e1a] font-semibold underline underline-offset-4 hover:text-[#ffb59c] transition-colors"
             >
-              {tr('Café owner? Ask for a sample →', 'เป็นร้านกาแฟ? ขอตัวอย่างเมล็ด →')}
+              {tr('Café owner? See café pricing →', 'เป็นร้านกาแฟ? ดูราคาและสั่งครั้งแรก →')}
             </a>
           </p>
 
@@ -562,8 +562,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             </h2>
             <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
               {tr(
-                'Tell us about your café and request a small sample. We will contact you to confirm.',
-                'บอกเราเกี่ยวกับร้านของคุณและขอตัวอย่างเมล็ดขนาดเล็ก เราจะติดต่อกลับเพื่อยืนยัน'
+                'Tell us about your café. First order is 550 THB/kg with no minimum, shipping not included.',
+                'บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลยที่ 550 บาท/กก. ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง'
               )}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -585,7 +585,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 href="/cafe/?src=site-home"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-colors"
               >
-                <span>{tr('Request a sample', 'ขอตัวอย่างเมล็ด')}</span>
+                <span>{tr('Café order & contact', 'สั่งและติดต่อสำหรับร้านกาแฟ')}</span>
                 <span className="material-symbols-outlined text-[16px]">storefront</span>
               </a>
             </div>
