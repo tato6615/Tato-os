@@ -45,8 +45,16 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const [customerNote, setCustomerNote] = useState('');
   const [customerPostal, setCustomerPostal] = useState('');
   const [consent, setConsent] = useState(false);
-  const [codeInput, setCodeInput] = useState('');
-  const [appliedCode, setAppliedCode] = useState('');
+  // Cafe links carry ?code=CAFE so cafés get their price without typing the code.
+  const urlCode = (() => {
+    try {
+      return (new URLSearchParams(window.location.search).get('code') || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+    } catch {
+      return '';
+    }
+  })();
+  const [codeInput, setCodeInput] = useState(urlCode);
+  const [appliedCode, setAppliedCode] = useState(urlCode);
   const [serverQuote, setServerQuote] = useState<ServerQuote | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const requestIdRef = useRef<string | null>(null);
@@ -92,7 +100,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     }
   }, [initialRoast]);
 
-  const unitPrice = 550;
+  const unitPrice = 650; // retail price per kg (must match products.price in D1). Cafés get 550 via code CAFE.
   const minimumQuantityKg = 0.5;
   const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
@@ -497,7 +505,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-['Manrope'] text-4xl md:text-5xl font-bold tracking-tight text-[#e6e1df]">
-                  550
+                  {unitPrice.toLocaleString('th-TH')}
                 </span>
                 <span className="font-['Manrope'] text-lg text-[#f3bc8b] font-medium">
                   THB / KG

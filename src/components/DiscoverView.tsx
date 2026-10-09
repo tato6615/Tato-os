@@ -425,7 +425,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   {/* Price + what you get */}
                   <div className="mt-6">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">550</span>
+                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">650</span>
                       <span className="font-['Anuphan'] text-[14px] text-[#e3beb3]">
                         {language === 'th' ? 'บาท ต่อ กก.' : 'THB per kg'}
                       </span>
@@ -611,7 +611,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               STARTING AT
             </span>
             <span className="font-['Manrope'] text-2xl font-bold tracking-tight text-[#ff5e1a]">
-              550 THB
+              650 THB
             </span>
             <span className="font-mono text-[12px] text-[#e3beb3]/70">/ KG</span>
           </div>
