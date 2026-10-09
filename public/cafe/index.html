@@ -33,7 +33,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 <main>
 <span class="eyebrow">FOR CAFÉS</span><h1>เมล็ดกาแฟสำหรับร้านเปิดใหม่</h1>
 <p>กำลังวางแผนเปิดร้าน หรือเปิดแล้วและอยากเปลี่ยนเจ้าเมล็ด? สั่งครั้งแรกได้เลยที่ 550 บาท/กก. ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง หรือบอกเมนูและเครื่องที่ใช้ เจ้าของร้านจะติดต่อกลับเพื่อช่วยเลือกระดับคั่วที่เหมาะ</p>
-<div class="navrow"><a class="nb" id="orderTop" href="/"><span class="material-symbols-outlined">shopping_bag</span>สั่งครั้งแรก 550 บาท/กก.</a><a class="nb alt" id="lineTop" href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer"><span class="material-symbols-outlined">chat</span>ทัก LINE</a></div>
+<div class="navrow"><a class="nb" id="orderTop" href="/?code=CAFE"><span class="material-symbols-outlined">shopping_bag</span>สั่งครั้งแรก 550 บาท/กก.</a><a class="nb alt" id="lineTop" href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer"><span class="material-symbols-outlined">chat</span>ทัก LINE</a></div>
 <div class="card">
 <div class="tools"><a class="tool" href="/cafe/calculator/"><span class="ti"><span class="material-symbols-outlined">calculate</span></span><span class="tt"><b>คำนวณต้นทุนกาแฟ</b><small>ดูต้นทุนเมล็ดต่อแก้วและกำไรต่อเดือน</small></span><span class="go material-symbols-outlined">arrow_forward</span></a><a class="tool" href="/cafe/checklist/"><span class="ti"><span class="material-symbols-outlined">checklist</span></span><span class="tt"><b>เช็กลิสต์เปิดร้าน</b><small>5 หมวดที่ควรเช็กก่อนลงเงินจริง</small></span><span class="go material-symbols-outlined">arrow_forward</span></a></div>
 <p style="margin:0">เมล็ดอาราบิก้าจากดอยเวียงผา เชียงใหม่ คั่วสดตามสั่ง มี 3 ระดับ: คั่วเข้ม · คั่วกลาง · คั่วอ่อน</p>
@@ -59,7 +59,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
 
 <div id="ok" class="card ok"><h2 style="margin-top:0">ได้รับแล้ว ขอบคุณครับ</h2>
 <p>เจ้าของร้านจะติดต่อกลับทางเบอร์ที่ระบุ ถ้าอยากคุยเลยติดต่อได้ที่ <a href="tel:0642936615">064-293-6615</a> หรือ <a href="https://lin.ee/8EwFz5i" target="_blank" rel="noopener noreferrer">LINE OA</a></p>
-<a class="btn" id="firstOrder" href="/" style="display:block;box-sizing:border-box;text-align:center;text-decoration:none;margin-top:14px;padding:13px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700">สั่งครั้งแรกได้เลย 550 บาท/กก.</a>
+<a class="btn" id="firstOrder" href="/?code=CAFE" style="display:block;box-sizing:border-box;text-align:center;text-decoration:none;margin-top:14px;padding:13px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700">สั่งครั้งแรกได้เลย 550 บาท/กก.</a>
 <p class="dim" style="margin-bottom:0">ราคายังไม่รวมค่าส่ง ไม่มีขั้นต่ำพิเศษสำหรับร้านค้า คุยกับเจ้าของร้านก่อนสั่งได้เสมอ</p></div>
 
 <div class="navrow"><a class="nb alt" href="/"><span class="material-symbols-outlined">arrow_back</span>กลับหน้าแรก</a></div>
@@ -85,7 +85,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.ok{display:none;border-color:
     if(window.turnstile){mount();return}
     var sc=document.createElement("script"); sc.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; sc.async=true; sc.onload=mount; document.head.appendChild(sc);
   }).catch(function(){});
-  function passQS(){var p=new URLSearchParams();["src","utm_source","utm_medium","utm_campaign","test"].forEach(function(k){if(q.get(k))p.set(k,q.get(k))});p.set("utm_source",q.get("utm_source")||"cafe_page");var t=p.toString();return t?"?"+t:""}
+  function passQS(){var p=new URLSearchParams();["src","utm_source","utm_medium","utm_campaign","test"].forEach(function(k){if(q.get(k))p.set(k,q.get(k))});p.set("utm_source",q.get("utm_source")||"cafe_page");p.set("code","CAFE");var t=p.toString();return t?"?"+t:""}
   $("orderTop").href="/"+passQS();$("orderTop").addEventListener("click",function(){track("cafe_first_order_click")});
   var started=false;
   $("f").addEventListener("focusin",function(){if(!started){started=true;track("cafe_form_start")}});

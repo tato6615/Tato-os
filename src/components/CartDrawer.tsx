@@ -27,9 +27,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const unitPrice = 550;
+  const unitPrice = 650; // retail per kg; same value as ProductView and products.price in D1
   const quantityGrams = Math.round(quantityKg * 1000);
-  const subtotal = Math.round(quantityGrams * 0.55);
+  const subtotal = Math.round((quantityGrams * unitPrice) / 1000);
   const shipping = quantityKg >= 2 ? 0 : 50;
   const total = subtotal + shipping;
 
@@ -85,7 +85,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     Doi Wiang 100% Arabica
                   </p>
                   <p className="font-mono text-[13px] font-semibold text-[#f3bc8b] pt-1">
-                    550 THB / KG
+                    650 THB / KG
                   </p>
                 </div>
               </div>
