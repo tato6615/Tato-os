@@ -1,6 +1,7 @@
 import React from 'react';
 import { RoastType, GrindType } from '../types';
 import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
+import { quote as buildQuote } from '../../shared/shipping.js';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -28,10 +29,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   if (!isOpen) return null;
 
   const unitPrice = 650; // retail per kg; same value as ProductView and products.price in D1
-  const quantityGrams = Math.round(quantityKg * 1000);
-  const subtotal = Math.round((quantityGrams * unitPrice) / 1000);
-  const shipping = quantityKg >= 2 ? 0 : 50;
-  const total = subtotal + shipping;
+  // Same formula as checkout (shared/shipping.js): shipping is by parcel weight, there is no free shipping.
+  // Postal code is unknown here, so this is the default-zone fee; checkout shows the exact total.
+  const { subtotal, shipping, total, contactShop } = buildQuote({ kg: quantityKg, unitPrice });
 
   const currentRoast = ROAST_PROFILES.find((r) => r.id === selectedRoast) || ROAST_PROFILES[1];
   const currentGrind = GRIND_OPTIONS.find((g) => g.id === selectedGrind) || GRIND_OPTIONS[0];
@@ -181,9 +181,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="flex justify-between">
                 <span>ค่าจัดส่งทั่วไทย:</span>
                 <span className="font-mono text-[#e6e1df]">
-                  {quantityKg >= 2 ? 'FREE (ฟรี)' : `${shipping} THB`}
+                  {contactShop ? 'ติดต่อร้าน' : `${shipping.toLocaleString('th-TH')} THB`}
                 </span>
               </div>
+              <p className="text-[11px] text-[#e3beb3]/60 font-['Anuphan'] leading-snug">
+                ค่าส่งคิดตามน้ำหนักพัสดุ ไม่มีส่งฟรี · กรอกรหัสส่วนลดได้ตอนชำระเงิน
+              </p>
               <div className="flex justify-between pt-2 border-t border-[#211f1e] text-[16px] font-bold text-[#e6e1df]">
                 <span>ยอดชำระสุทธิ:</span>
                 <span className="font-mono text-[#ff5e1a] text-xl">
