@@ -118,7 +118,7 @@ async function checkSlip(o,file){
     var t={SLIP_OK:"✅ สลิปถูกต้อง ยอดตรง และยังไม่เคยใช้ — กดยืนยันเงินเข้าได้",AMOUNT_MISMATCH:"⚠️ ยอดในสลิปไม่ตรงกับออเดอร์ ("+(j.slip_amount!=null?j.slip_amount:"?")+" ต่อ "+j.expected_amount+")",SLIP_ALREADY_USED:"⛔ สลิปนี้เคยใช้กับออเดอร์อื่นแล้ว",SLIP_NOT_VERIFIED:"⛔ ตรวจสลิปไม่ผ่าน (อาจปลอม/อ่านไม่ได้)",SLIP_VERIFY_NOT_CONFIGURED:"ยังไม่ได้ตั้งค่าบริการตรวจสลิป"}[j.status]||("ผิดพลาด: "+(j.status||j.error||r.status));
     alert(t);await load()}catch(e){alert("ไม่สำเร็จ: "+e.message)}
 }
-var METHOD={thaipost:"ไปรษณีย์ไทย",kerry:"Kerry",flash:"Flash",jt:"J&T",other:"อื่น ๆ"};
+var METHOD={thaipost:"ไปรษณีย์ไทย",self:"ร้านส่งเอง",kerry:"Kerry",flash:"Flash",jt:"J&T",other:"อื่น ๆ"};
 function card(o){
   var fresh=newIds.indexOf(o.id)>=0,c=el("div","card"+(fresh?" fresh":""));
   var h=el("div","row"),left=el("span");
@@ -151,12 +151,15 @@ function card(o){
   if(o.status==="cancelled"){var rb=el("button","btn2","เปิดออเดอร์กลับ (เริ่มนับ 48 ชม. ใหม่)");rb.style.marginTop="8px";rb.onclick=function(){act(o,"reopen",null,"เปิดออเดอร์ "+o.number+" กลับ?")};c.appendChild(rb)}
   if(o.status==="paid"){
     var sec=el("div","sec");
-    if(o.fulfillment==="shipped"){sec.appendChild(row("ขนส่ง",METHOD[o.courier]||o.courier));sec.appendChild(row("เลขพัสดุ",o.tracking_no));sec.appendChild(row("ส่งเมื่อ",new Date(o.shipped_at).toLocaleString("th-TH")))}
+    if(o.fulfillment==="shipped"){sec.appendChild(row("ขนส่ง",METHOD[o.courier]||o.courier));if(o.courier==="self"){if(o.tracking_no)sec.appendChild(row("หมายเหตุ",o.tracking_no))}else sec.appendChild(row("เลขพัสดุ",o.tracking_no));sec.appendChild(row("ส่งเมื่อ",new Date(o.shipped_at).toLocaleString("th-TH")))}
     else{
-      sec.appendChild(el("div","dim","ใส่เลขพัสดุเมื่อส่งของ (ลูกค้าจะเห็นที่ลิงก์สถานะ)"));
+      sec.appendChild(el("div","dim","ใส่เลขพัสดุเมื่อส่งของ หรือเลือก \"ร้านส่งเอง\" ถ้าไม่ได้ฝากขนส่ง (ลูกค้าจะเห็นที่ลิงก์สถานะ)"));
       var f=el("div","inline"),sel=el("select");Object.keys(METHOD).forEach(function(k){var op=el("option",null,METHOD[k]);op.value=k;sel.appendChild(op)});
       var ti=el("input");ti.placeholder="เลขพัสดุ";ti.autocapitalize="characters";
-      var sb=el("button","btn2","บันทึกเลขพัสดุ");sb.onclick=function(){if(!ti.value.trim()){alert("กรอกเลขพัสดุ");return}act(o,"set_tracking",{tracking_no:ti.value,courier:sel.value})};
+      var sb=el("button","btn2","บันทึกเลขพัสดุ");
+      function syncSelf(){var self=sel.value==="self";ti.placeholder=self?"หมายเหตุ (ไม่บังคับ) เช่น ส่งพรุ่งนี้บ่าย":"เลขพัสดุ";ti.autocapitalize=self?"sentences":"characters";sb.textContent=self?"บันทึกว่าส่งแล้ว":"บันทึกเลขพัสดุ"}
+      sel.onchange=syncSelf;
+      sb.onclick=function(){var self=sel.value==="self";if(!self&&!ti.value.trim()){alert("กรอกเลขพัสดุ");return}if(self&&!confirm("ยืนยันว่าส่งออเดอร์ "+o.number+" เองแล้ว?"))return;act(o,"set_tracking",{tracking_no:ti.value,courier:sel.value})};
       f.appendChild(sel);f.appendChild(ti);f.appendChild(sb);sec.appendChild(f);
     }
     c.appendChild(sec);
