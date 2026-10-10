@@ -8,8 +8,8 @@
 <section class="module" id="p-monitor"><header class="top"><div><div class="ey" data-i="ey">Launch Monitor</div><div class="title" data-i="title"></div><div class="sub" id="mnSub">…</div></div><div class="actions"><button class="btn" id="mnRefresh" data-i="refresh"></button><a class="btn primary" href="/admin/" style="text-decoration:none" data-i="manage"></a></div></header><div id="mnAlerts"></div><div class="grid kpis"><div class="card"><div class="label" data-i="kOrders"></div><div class="value" id="mnOrders">0</div><div class="muted" id="mnOrdersMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kRev"></div><div class="value" id="mnRev">฿0</div><div class="muted" id="mnRevMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kPend"></div><div class="value" id="mnPend">0</div><div class="muted" id="mnPendMeta">&nbsp;</div></div><div class="card"><div class="label" data-i="kLeads"></div><div class="value" id="mnLeads">0</div><div class="muted" id="mnLeadsMeta">&nbsp;</div></div></div><div class="card gap"><div class="head"><h3 data-i="health"></h3><span class="pill" id="mnHealthPill">…</span></div><div id="mnHealth"></div></div><div class="card gap"><div class="head"><h3 data-i="recent"></h3><span class="pill" data-i="auto"></span></div><div class="tablebox"><table class="table"><thead><tr><th data-i="thOrder"></th><th data-i="thCust"></th><th>kg</th><th data-i="thTotal"></th><th data-i="thStatus"></th><th data-i="thTime"></th></tr></thead><tbody id="mnTable"><tr><td colspan="6">…</td></tr></tbody></table></div></div></section>
 <section class="module" id="p-market"><header class="top"><div><div class="ey">Market Intelligence</div><div class="title">What is the market doing?</div><div class="sub">Signals → evidence → hypothesis → action.</div></div><div class="actions"><button class="btn primary" onclick="modal('signal')">＋ Signal</button></div></header><div class="card"><div class="head"><h3>Signal board</h3><span class="pill" id="mkPill">ข้อมูลจริง</span></div><div class="list" id="mkList"><div class="item"><small>กำลังโหลด…</small></div></div></div><div class="card gap"><div class="item"><strong>หน้านี้แสดงเฉพาะสัญญาณที่บันทึกเข้ามาจริง</strong><small>ยังไม่มีระบบสแกนตลาดอัตโนมัติ ไม่มีคะแนน AI ถ้าจะเพิ่มสัญญาณ กด “＋ Signal” เอง การตัดสินใจเรื่องโฆษณาให้ดูที่ Marketing Brain</small></div></div></section>
 <section class="module" id="p-behavior"><header class="top"><div><div class="ey">Behavior Engine</div><div class="title">Observe → Understand → Act</div><div class="sub">First-party events become explainable intent signals.</div></div><div class="actions"><button class="btn" onclick="toast('Event dictionary ready')">Dictionary</button><button class="btn primary" onclick="modal('event')">＋ Event</button></div></header><div class="card" style="margin:0 0 12px;padding:10px 14px;border-color:#f59e0b"><small>⚠ ตัวอย่างหน้าตา (DEMO) ตัวเลขในหน้านี้ไม่ใช่ข้อมูลจริง อย่านำไปตัดสินใจ</small></div><div class="grid kpis"><div class="card"><div class="label">Events · 24h</div><div class="value">8,421</div><div class="up" style="font-size:13px">↑ 11.2%</div></div><div class="card"><div class="label">High-intent sessions</div><div class="value">286</div><div class="up" style="font-size:13px">↑ 18.6%</div></div><div class="card"><div class="label">Tool users</div><div class="value">94</div><div class="up" style="font-size:13px">2.3× conversion</div></div><div class="card"><div class="label">Returning users</div><div class="value">41%</div><div style="font-size:13px">+3.1 pts</div></div><div class="card"><div class="label">Reorder risk</div><div class="value">14</div><div class="warn" style="font-size:13px">Review soon</div></div></div><div class="grid two gap"><div class="card"><div class="head"><h3>Customer journey</h3><span class="pill">LIVE MODEL</span></div><div class="metric"><span>VISIT</span><b>4,921</b></div><div class="metric"><span>SEARCH</span><b>1,840</b></div><div class="metric"><span>TOOL_USE</span><b>94</b></div><div class="metric"><span>PRODUCT_VIEW</span><b>672</b></div><div class="metric"><span>ADD_TO_CART</span><b>188</b></div><div class="metric"><span>PURCHASE</span><b>71</b></div><div class="metric"><span>REORDER</span><b>46</b></div></div><div class="card"><div class="head"><h3>Intent composition</h3><span class="pill">CURRENT</span></div><div class="meter"><div class="ml"><span>Planning</span><b>42%</b></div><div class="track"><i style="width:42%"></i></div></div><div class="meter"><div class="ml"><span>Research</span><b>31%</b></div><div class="track"><i style="width:31%"></i></div></div><div class="meter"><div class="ml"><span>Ready to buy</span><b>27%</b></div><div class="track"><i style="width:27%"></i></div></div><div class="item"><strong>Detected pattern</strong><small>Calculator → product view → return visit is one of the strongest observed paths.</small></div></div></div><div class="card gap"><div class="head"><h3>Recent event stream</h3><span class="pill">DEMO</span></div><div class="tablebox"><table class="table"><tr><th>Time</th><th>Event</th><th>Object</th><th>Stage</th><th>Signal</th></tr><tr><td>20:48</td><td>CALCULATOR_USE</td><td>Café Profit</td><td><span class="tag to">INTENT</span></td><td>High</td></tr><tr><td>20:43</td><td>PRODUCT_VIEW</td><td>Espresso Doi Wiang</td><td><span class="tag">RESEARCH</span></td><td>Medium</td></tr><tr><td>20:39</td><td>RETURN</td><td>/wholesale</td><td><span class="tag tg">RETURN</span></td><td>High</td></tr><tr><td>20:31</td><td>ADD_TO_CART</td><td>Sample Pack</td><td><span class="tag to">BUY</span></td><td>Very high</td></tr></table></div></div></section>
-<section class="module" id="p-customers"><header class="top"><div><div class="ey">Customer OS</div><div class="title" data-cu="title">ลูกค้า: ใหม่ / ประจำ / คาเฟ่</div><div class="sub" data-cu="sub">สถานะคำนวณจากออเดอร์ที่จ่ายแล้ว และแก้เองได้ในตาราง</div></div><div class="actions"><input class="search" id="custsearch" placeholder="ค้นหาชื่อหรือเบอร์…" oninput="renderCustomers()"><button class="btn primary" data-cu="add" onclick="modal('customer')">＋ เพิ่มลูกค้า</button></div></header><div class="grid kpis cu-kpis"><div class="card" data-tone="all"><div class="label" data-cu="kAll">ลูกค้าทั้งหมด</div><div class="value" id="cc">0</div><div class="muted" data-cu="kAllM">รายการใน CRM</div></div><div class="card" data-tone="new"><div class="label" data-cu="kNew">ลูกค้าใหม่</div><div class="value" id="cNew">0</div><div class="muted" data-cu="kNewM">จ่ายแล้ว 1 ออเดอร์</div></div><div class="card" data-tone="regular"><div class="label" data-cu="kReg">ลูกค้าประจำ</div><div class="value" id="cReg">0</div><div class="muted" data-cu="kRegM">2+ ออเดอร์ หรือตั้งเอง</div></div><div class="card" data-tone="cafe"><div class="label" data-cu="kCafe">ราคาคาเฟ่ ฿550</div><div class="value" id="cCafe">0</div><div class="muted" data-cu="kCafeM">ใช้โค้ด CAFE หรือตั้งเอง</div></div></div><div class="card gap cu-list"><div class="head"><h3 data-cu="list">รายชื่อลูกค้า</h3><span class="pill" data-cu="real">ข้อมูลจริง</span></div><div class="cu-filters" id="cuFilters"></div><div class="tablebox cu-box"><table class="table" id="ct"></table></div><div class="cu-sum" id="cuSummary"></div></div></section>
-<section class="module" id="p-leads"><header class="top"><div><div class="ey">Café Leads</div><div class="title">ร้านที่ขอคุยผ่านหน้า /cafe/</div><div class="sub">เฉพาะ lead จริง (ไม่รวมที่ติดป้ายทดสอบ)</div></div><div class="actions"><label class="muted" style="font-size:13px;margin-right:10px"><input type="checkbox" id="ldShowTest" onchange="loadLeads()"> แสดงรายการทดสอบ</label><button class="btn" onclick="loadLeads()">Refresh</button></div></header><div class="grid kpis"><div class="card"><div class="label">Leads ทั้งหมด</div><div class="value" id="ldTotal">0</div><div class="muted" style="font-size:13px" id="ldTotalMeta">ยังไม่มีข้อมูล</div></div><div class="card"><div class="label">7 วันล่าสุด</div><div class="value" id="ldWeek">0</div><div class="muted" style="font-size:13px">lead ใหม่</div></div><div class="card"><div class="label">กำลังจะเปิดร้าน</div><div class="value" id="ldPre">0</div><div class="muted" style="font-size:13px">วางแผน + เปิดเร็ว ๆ นี้</div></div><div class="card"><div class="label">เข้าชม → ส่งฟอร์ม</div><div class="value" id="ldRate">-</div><div class="muted" style="font-size:13px" id="ldRateMeta">จาก 200 เหตุการณ์ล่าสุด</div></div></div><div class="card gap"><div class="head"><h3>Lead ล่าสุด</h3><span class="pill" id="ldSrc">ช่องทาง: -</span></div><div class="tablebox"><table class="table"><thead><tr><th>เวลา</th><th>ชื่อ</th><th>เบอร์</th><th>ร้าน</th><th>สถานะ</th><th>เมนู / เครื่อง / ปริมาณ</th><th>ช่องทาง</th><th>จัดการ</th></tr></thead><tbody id="ldBody"><tr><td colspan="8" class="muted">กำลังโหลด…</td></tr></tbody></table></div></div><div class="card gap"><div class="head"><h3>ร้านที่ใกล้ถึงเวลาสั่งซ้ำ</h3><span class="pill">ประมาณการ</span></div><div class="muted" style="font-size:13px;margin-bottom:8px">เฉพาะร้านที่เคยกรอกฟอร์ม /cafe/ และมีออเดอร์ที่ชำระแล้ว ระบบไม่ส่งข้อความเอง ให้คัดลอกข้อความไปส่งทาง LINE</div><div class="tablebox"><table class="table"><thead><tr><th>ร้าน</th><th>สั่งล่าสุด</th><th>ครบรอบ</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="roBody"><tr><td colspan="5" class="muted">กำลังโหลด…</td></tr></tbody></table></div></div></section>
+<section class="module" id="p-customers"><header class="top"><div><div class="ey">Customer OS</div><div class="title">ลูกค้า: ใหม่ / ประจำ / คาเฟ่</div><div class="sub">สถานะคำนวณจากออเดอร์ที่จ่ายแล้ว แก้เองได้จากช่องสถานะ <span style="white-space:nowrap">(ข้อมูลจริง)</span></div></div><div class="actions"><input class="search" id="custsearch" placeholder="Search customers…" oninput="renderCustomers()"><button class="btn primary" onclick="modal('customer')">＋ Customer</button></div></header><div class="grid kpis cu-kpis"><div class="card"><div class="label">All customers</div><div class="value" id="cc">0</div><div class="muted" style="font-size:13px">CRM records</div></div><div class="card"><div class="label thai">ลูกค้าใหม่</div><div class="value" id="cNew">0</div><div class="muted" style="font-size:13px">จ่าย 1 ออเดอร์</div></div><div class="card"><div class="label thai">ลูกค้าประจำ</div><div class="value" id="cReg">0</div><div class="muted" style="font-size:13px">2+ ออเดอร์ หรือตั้งเอง</div></div><div class="card"><div class="label thai">กลุ่มราคาคาเฟ่ ฿550</div><div class="value" id="cCafe">0</div><div class="muted" style="font-size:13px">ใช้โค้ด CAFE หรือตั้งเอง</div></div></div><div class="card gap"><div class="head"><h3>Customer list</h3><span class="pill">REAL DATA</span></div><div class="tablebox"><table class="table" id="ct"><tr><th>Customer</th><th class="thai">สถานะ</th><th class="thai">แก้สถานะ</th><th class="thai">กลุ่มราคา</th><th>Orders</th><th>kg</th><th>Revenue</th><th>Gross profit</th><th>Last order</th></tr></table></div></div></section>
+<section class="module" id="p-leads"><header class="top"><div><div class="ey">Café Leads</div><div class="title">ร้านที่ขอคุยผ่านหน้า /cafe/</div><div class="sub">เฉพาะ lead จริง (ไม่รวมที่ติดป้ายทดสอบ)</div></div><div class="actions"><label class="muted" style="font-size:13px;margin-right:10px"><input type="checkbox" id="ldShowTest" onchange="loadLeads()"> แสดงรายการทดสอบ</label><button class="btn" onclick="loadLeads()">Refresh</button></div></header><div class="grid kpis"><div class="card"><div class="label">Leads ทั้งหมด</div><div class="value" id="ldTotal">0</div><div class="muted" style="font-size:13px" id="ldTotalMeta">ยังไม่มีข้อมูล</div></div><div class="card"><div class="label">7 วันล่าสุด</div><div class="value" id="ldWeek">0</div><div class="muted" style="font-size:13px">lead ใหม่</div></div><div class="card"><div class="label">กำลังจะเปิดร้าน</div><div class="value" id="ldPre">0</div><div class="muted" style="font-size:13px">วางแผน + เปิดเร็ว ๆ นี้</div></div><div class="card"><div class="label">เข้าชม → ส่งฟอร์ม</div><div class="value" id="ldRate">-</div><div class="muted" style="font-size:13px" id="ldRateMeta">จาก 200 เหตุการณ์ล่าสุด</div></div></div><div class="card gap"><div class="head"><h3>Lead ล่าสุด</h3><span class="pill" id="ldSrc">ช่องทาง: -</span></div><div class="tablebox"><table class="table"><thead><tr><th>เวลา</th><th>ชื่อ</th><th>เบอร์</th><th>ร้าน</th><th class="thai">สถานะ</th><th>เมนู / เครื่อง / ปริมาณ</th><th>ช่องทาง</th><th>จัดการ</th></tr></thead><tbody id="ldBody"><tr><td colspan="8" class="muted">กำลังโหลด…</td></tr></tbody></table></div></div><div class="card gap"><div class="head"><h3>ร้านที่ใกล้ถึงเวลาสั่งซ้ำ</h3><span class="pill">ประมาณการ</span></div><div class="muted" style="font-size:13px;margin-bottom:8px">เฉพาะร้านที่เคยกรอกฟอร์ม /cafe/ และมีออเดอร์ที่ชำระแล้ว ระบบไม่ส่งข้อความเอง ให้คัดลอกข้อความไปส่งทาง LINE</div><div class="tablebox"><table class="table"><thead><tr><th>ร้าน</th><th>สั่งล่าสุด</th><th>ครบรอบ</th><th class="thai">สถานะ</th><th>จัดการ</th></tr></thead><tbody id="roBody"><tr><td colspan="5" class="muted">กำลังโหลด…</td></tr></tbody></table></div></div></section>
 <section class="module" id="p-products"><header class="top"><div><div class="ey">Product OS</div><div class="title">Product, price, margin, quality.</div><div class="sub">Connected to demand and customer feedback.</div></div><div class="actions"><button class="btn" onclick="toast('Catalog sync queued')">↻ Sync</button><button class="btn primary" onclick="modal('product')">＋ Product</button></div></header><div class="card" style="margin:0 0 12px;padding:10px 14px;border-color:#f59e0b"><small>⚠ ตัวอย่างหน้าตา (DEMO) ตัวเลขในหน้านี้ไม่ใช่ข้อมูลจริง อย่านำไปตัดสินใจ</small></div><div class="grid three"><div class="card hero"><div class="label">Featured</div><h2>Espresso · Doi Wiang</h2><p>Arabica 100% · Single Origin · Café-ready profile.</p><span class="tag to">HIGH DEMAND</span><span class="tag tg">ACTIVE</span></div><div class="card"><div class="label">Blended margin</div><div class="value">50.1%</div><div class="up" style="font-size:13px">Healthy</div><div class="metric"><span>Revenue</span><b>฿184.9k</b></div><div class="metric"><span>COGS</span><b>฿92.3k</b></div></div><div class="card"><div class="label">Supply capacity</div><div class="value">—</div><div class="muted" style="font-size:13px">Placeholder; add real capacity later.</div><button class="btn" style="margin-top:10px" onclick="go('settings')">Configure</button></div></div><div class="card gap"><div class="head"><h3>Catalog</h3><span class="pill">DEMO</span></div><div class="tablebox"><table class="table"><tr><th>Product</th><th>Origin</th><th>Roast</th><th>Cost/kg</th><th>Price/kg</th><th>Margin</th></tr><tr><td>Doi Wiang Espresso</td><td>Thailand</td><td>Medium-dark</td><td>฿390</td><td>฿550</td><td>29.1%</td></tr><tr><td>Doi Wiang Filter</td><td>Thailand</td><td>Medium</td><td>฿390</td><td>฿590</td><td>33.9%</td></tr><tr><td>Sample Discovery Pack</td><td>Multi</td><td>Curated</td><td>—</td><td>฿390</td><td>—</td></tr></table></div></div></section>
 <section class="module" id="p-sales"><header class="top"><div><div class="ey">Sales OS</div><div class="title">Revenue that feeds the loop.</div><div class="sub">Revenue counts only orders with verified payment.</div></div><div class="actions"><a class="btn primary" href="/admin/" style="text-decoration:none">จัดการออเดอร์ / ยืนยันเงินเข้า ↗</a><button class="btn" onclick="modal('order')">＋ Order</button></div></header><div class="grid kpis"><div class="card"><div class="label">Revenue · paid</div><div class="value" id="sRev">฿0</div><div class="muted" id="sRevMeta">verified payments</div></div><div class="card"><div class="label">Paid orders</div><div class="value" id="sPaid">0</div><div class="muted">confirmed</div></div><div class="card"><div class="label">Awaiting payment</div><div class="value" id="sPend">0</div><div class="muted" id="sPendAmt">฿0</div></div><div class="card"><div class="label">Average paid order</div><div class="value" id="sAvg">฿0</div><div class="muted">paid only</div></div><div class="card"><div class="label">kg / paid order</div><div class="value" id="sKg">0</div><div class="muted">paid only</div></div></div><div class="card gap"><div class="head"><h3>Recent orders</h3><span class="pill">LIVE · D1</span></div><div class="tablebox"><table class="table"><thead><tr><th>Order</th><th>Customer</th><th>kg</th><th>Total</th><th>Status</th><th>Source</th></tr></thead><tbody id="salesOrders"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></div></section>
 <section class="module" id="p-ai"><header class="top"><div><div class="ey">AI Team</div><div class="title">One team. One shared brain.</div><div class="sub">Eight roles, one data layer, founder approval for high-impact decisions.</div></div><div class="actions"><button class="btn primary" onclick="runAI()">✦ Run team</button></div></header><div class="grid ai">
@@ -96,67 +96,25 @@ const state={learning:null};
 const CONTENT_ID="5127d38f-6601-41dd-bb30-9e4346dd9a4c";
 
 async function syncNow(b){if(b)b.disabled=true;try{await loadDashboard();toast('รีเฟรชข้อมูลล่าสุดแล้ว')}catch(e){toast('รีเฟรชไม่สำเร็จ: '+(e&&e.message||e))}finally{if(b)b.disabled=false}}
-let LAST_M=null,CU_FILTER='all';
-const CU_T={
-  th:{title:'ลูกค้า: ใหม่ / ประจำ / คาเฟ่',sub:'สถานะคำนวณจากออเดอร์ที่จ่ายแล้ว และแก้เองได้ในตาราง',search:'ค้นหาชื่อหรือเบอร์…',add:'＋ เพิ่มลูกค้า',
-    kAll:'ลูกค้าทั้งหมด',kAllM:'รายการใน CRM',kNew:'ลูกค้าใหม่',kNewM:'จ่ายแล้ว 1 ออเดอร์',kReg:'ลูกค้าประจำ',kRegM:'2+ ออเดอร์ หรือตั้งเอง',kCafe:'ราคาคาเฟ่ ฿550',kCafeM:'ใช้โค้ด CAFE หรือตั้งเอง',
-    list:'รายชื่อลูกค้า',real:'ข้อมูลจริง',
-    cols:{cust:'ลูกค้า',status:'สถานะ',group:'กลุ่มราคา',orders:'ออเดอร์',kg:'กก.',rev:'รายได้',gp:'กำไรขั้นต้น',last:'สั่งล่าสุด'},
-    f:{all:'ทั้งหมด',new:'ใหม่',regular:'ประจำ',cafe:'คาเฟ่',lead:'ยังไม่ซื้อ'},
-    st:{lead:'ยังไม่ซื้อ',new:'ลูกค้าใหม่',regular:'ลูกค้าประจำ'},auto:'อัตโนมัติ',manual:'ตั้งเอง',
-    retail:'ราคาปลีก ฿650',cafeCode:'คาเฟ่ ฿550 · ใช้โค้ด CAFE',cafeSet:'คาเฟ่ ฿550 (ตั้งเอง)',
-    empty:'ยังไม่มีลูกค้า',noMatch:'ไม่พบลูกค้าที่ตรงกับเงื่อนไข',shown:'แสดง'},
-  en:{title:'Customers: New / Regular / Café',sub:'Status is calculated from paid orders and can be overridden in the table.',search:'Search name or phone…',add:'＋ Add customer',
-    kAll:'All customers',kAllM:'CRM records',kNew:'New customers',kNewM:'1 paid order',kReg:'Regular customers',kRegM:'2+ orders or set manually',kCafe:'Café price ฿550',kCafeM:'CAFE code or set manually',
-    list:'Customer list',real:'REAL DATA',
-    cols:{cust:'Customer',status:'Status',group:'Price group',orders:'Orders',kg:'kg',rev:'Revenue',gp:'Gross profit',last:'Last order'},
-    f:{all:'All',new:'New',regular:'Regular',cafe:'Café',lead:'No purchase'},
-    st:{lead:'No purchase yet',new:'New',regular:'Regular'},auto:'auto',manual:'manual',
-    retail:'Retail ฿650',cafeCode:'Café ฿550 · CAFE code',cafeSet:'Café ฿550 (manual)',
-    empty:'No customers yet',noMatch:'No customers match this filter',shown:'Showing'}
-};
-function cuLang(){return window.TATO_LANG==='en'?'en':'th'}
-function cuStatic(){
-  const T=CU_T[cuLang()];
-  document.querySelectorAll('#p-customers [data-cu]').forEach(e=>{const v=T[e.getAttribute('data-cu')];if(v!=null)e.textContent=v});
-  const s=document.getElementById('custsearch');if(s)s.placeholder=T.search;
-}
-function applyCustomerLang(){cuStatic();if(LAST_M)renderCustomers()}
-function setCuFilter(f){CU_FILTER=f;renderCustomers()}
+let LAST_M=null;
 function renderCustomers(M){
   if(M)LAST_M=M; M=LAST_M; const tb=document.getElementById('ct'); if(!tb||!M)return;
-  cuStatic();
-  const lg=cuLang(),T=CU_T[lg];
   const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=v=>'฿'+Number(v||0).toLocaleString('en-US',{maximumFractionDigits:0});
-  const fd=s=>{s=String(s||'').slice(0,10);if(!/^\d{4}-\d\d-\d\d$/.test(s))return '—';return new Date(s+'T00:00:00Z').toLocaleDateString(lg==='th'?'th-TH':'en-GB',{day:'numeric',month:'short',year:'2-digit',timeZone:'UTC'})};
-  const ini=n=>{const a=Array.from(String(n||'?').replace(/^[เแโใไ\s]+/,''));return (a[0]||'?').toUpperCase()};
   const q=(document.getElementById('custsearch')?.value||'').toLowerCase();
-  const all=M.customers;
-  const cnt={all:all.length,new:all.filter(r=>r.status==='new').length,regular:all.filter(r=>r.status==='regular').length,cafe:all.filter(r=>r.cafePrice).length,lead:all.filter(r=>r.status==='lead').length};
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  set('cc',cnt.all);set('cNew',cnt.new);set('cReg',cnt.regular);set('cCafe',cnt.cafe);
-  if(CU_FILTER==='lead'&&!cnt.lead)CU_FILTER='all';
-  const keys=['all','new','regular','cafe'].concat(cnt.lead?['lead']:[]);
-  const fb=document.getElementById('cuFilters');
-  if(fb)fb.innerHTML=keys.map(k=>'<button type="button" class="cu-chip'+(CU_FILTER===k?' on':'')+'" onclick="setCuFilter(\''+k+'\')">'+esc(T.f[k])+' <b>'+cnt[k]+'</b></button>').join('');
-  const match=r=>CU_FILTER==='all'||(CU_FILTER==='cafe'?r.cafePrice:r.status===CU_FILTER);
-  const rows=all.filter(r=>match(r)&&(!q||(r.name+' '+r.phone).toLowerCase().includes(q)));
-  const opts=(list,sel)=>list.map(o=>'<option value="'+o[0]+'"'+(sel===o[0]?' selected':'')+'>'+esc(o[1])+'</option>').join('');
-  const C=T.cols,dl=k=>' data-l="'+esc(C[k])+'"';
-  const head='<thead><tr><th>'+esc(C.cust)+'</th><th>'+esc(C.status)+'</th><th>'+esc(C.group)+'</th><th class="num">'+esc(C.orders)+'</th><th class="num">'+esc(C.kg)+'</th><th class="num">'+esc(C.rev)+'</th><th class="num">'+esc(C.gp)+'</th><th class="num">'+esc(C.last)+'</th></tr></thead>';
-  const body=rows.map(r=>{const id=esc(r.id);
-    const stOpts=[['',(T.st[r.auto]||r.auto)+' · '+T.auto],['new',T.st.new+' ('+T.manual+')'],['regular',T.st.regular+' ('+T.manual+')']];
-    const grOpts=[['',r.cafePrice&&!r.groupManual?T.cafeCode:T.retail],['cafe',T.cafeSet]];
-    return '<tr><td class="c-name"><div class="c-who"><span class="cu-av">'+esc(ini(r.name))+'</span><div><b>'+esc(r.name)+'</b><small>'+esc(r.phone||'—')+'</small></div></div></td>'+
-    '<td class="c-st"'+dl('status')+'><select class="sel '+esc(r.status)+'" onchange="setTier(\''+id+'\',\'tier\',this.value)">'+opts(stOpts,r.manual||'')+'</select></td>'+
-    '<td class="c-gr"'+dl('group')+'><select class="sel '+(r.cafePrice?'cafe':'retail')+'" onchange="setTier(\''+id+'\',\'price_group\',this.value)">'+opts(grOpts,r.groupManual?'cafe':'')+'</select></td>'+
-    '<td class="num c-n c-n1"'+dl('orders')+'>'+r.orders+'</td><td class="num c-n c-n2"'+dl('kg')+'>'+r.kg+'</td><td class="num c-n c-n3"'+dl('rev')+'>'+money(r.revenue)+'</td><td class="num c-n c-n4"'+dl('gp')+'>'+money(r.profit)+'</td><td class="num c-n c-n5"'+dl('last')+'>'+esc(fd(r.last))+'</td></tr>'}).join('')||
-    '<tr class="c-emptyrow"><td colspan="8" class="c-empty">'+esc(all.length?T.noMatch:T.empty)+'</td></tr>';
-  tb.innerHTML=head+'<tbody>'+body+'</tbody>';
-  const sum=rows.reduce((s,r)=>({o:s.o+r.orders,k:s.k+r.kg,v:s.v+r.revenue,p:s.p+r.profit}),{o:0,k:0,v:0,p:0});
-  const sb=document.getElementById('cuSummary');
-  if(sb)sb.innerHTML=rows.length?'<span>'+esc(T.shown)+' <b>'+rows.length+' / '+all.length+'</b></span><span>'+esc(C.orders)+' <b>'+sum.o+'</b></span><span>'+esc(C.kg)+' <b>'+sum.k+'</b></span><span>'+esc(C.rev)+' <b>'+money(sum.v)+'</b></span><span>'+esc(C.gp)+' <b>'+money(sum.p)+'</b></span>':'';
+  const L={lead:'ยังไม่ซื้อ',new:'ลูกค้าใหม่',regular:'ลูกค้าประจำ'};
+  const rows=M.customers.filter(r=>!q||(r.name+' '+r.phone).toLowerCase().includes(q));
+  const T=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  T('cc',M.customers.length);T('cNew',M.customers.filter(r=>r.status==='new').length);
+  T('cReg',M.customers.filter(r=>r.status==='regular').length);T('cCafe',M.customers.filter(r=>r.cafePrice).length);
+  const opts=(list,sel)=>list.map(o=>'<option value="'+o[0]+'"'+(sel===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');
+  tb.innerHTML='<tr><th>Customer</th><th class="thai">สถานะ</th><th class="thai">แก้สถานะ</th><th class="thai">กลุ่มราคา</th><th>Orders</th><th>kg</th><th>Revenue</th><th>Gross profit</th><th>Last order</th></tr>'+
+  (rows.map(r=>{const id=esc(r.id);
+    return '<tr><td>'+esc(r.name)+'<small style="display:block;color:#777">'+esc(r.phone)+'</small></td>'+
+    '<td><span class="st '+esc(r.status)+'">'+esc(L[r.status]||r.status)+'</span>'+(r.cafePrice?' <span class="st cafe">คาเฟ่ ฿550</span>':'')+'</td>'+
+    '<td><select class="tier" onchange="setTier(\''+id+'\',\'tier\',this.value)">'+opts([['','อัตโนมัติ ('+(L[r.auto]||r.auto)+')'],['new','ลูกค้าใหม่'],['regular','ลูกค้าประจำ']],r.manual||'')+'</select></td>'+
+    '<td><select class="tier" onchange="setTier(\''+id+'\',\'price_group\',this.value)">'+opts([['',r.cafePrice&&!r.groupManual?'อัตโนมัติ (ใช้โค้ด CAFE)':'ราคาปลีก ฿650'],['cafe','คาเฟ่ ฿550']],r.groupManual?'cafe':'')+'</select></td>'+
+    '<td>'+r.orders+'</td><td>'+r.kg+'</td><td>'+money(r.revenue)+'</td><td>'+money(r.profit)+'</td><td>'+esc((r.last||'—').slice(0,10))+'</td></tr>'}).join('')||'<tr><td colspan="9" style="color:#777">ยังไม่มีลูกค้า</td></tr>');
 }
 async function setTier(id,field,value){
   try{
@@ -494,81 +452,20 @@ document.getElementById('global')?.addEventListener('keydown',e=>{if(e.key==='En
 .main{margin-left:0!important;width:100%!important;padding:64px 30px 45px!important}
 .mobile{display:none!important}
 @media(max-width:560px){.main{padding:64px 15px 40px!important}}
-/* ===== Customers page polish ===== */
-#tatoBar button{height:42px;padding:0 16px;border-radius:10px;display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:1;cursor:pointer}
-#p-customers .top{align-items:flex-end}
-#p-customers .title{line-height:1.3;text-wrap:balance}
-#p-customers .sub{max-width:520px;line-height:1.6;text-wrap:pretty}
-#p-customers .actions{align-items:stretch;flex-wrap:nowrap}
-#p-customers .actions .search{width:270px;height:42px;padding:0 14px}
-#p-customers .actions .btn{height:42px;padding:0 16px;white-space:nowrap}
-#p-customers .search:focus{border-color:#ff6a0088;box-shadow:0 0 0 3px #ff6a0018}
-html[lang="th"] #p-customers .label,html[lang="th"] #p-customers .pill,html[lang="th"] #p-customers #ct th{letter-spacing:.01em;text-transform:none;font-size:12.5px}
+/* customers: tidy + easy to tap */
+.thai{letter-spacing:.02em!important;text-transform:none!important}
+#p-customers .sub{max-width:560px;line-height:1.6}
 .cu-kpis{grid-template-columns:repeat(4,1fr)!important}
-.cu-kpis .card{position:relative;overflow:hidden;padding:18px 20px}
-.cu-kpis .card::before{content:"";position:absolute;left:0;top:0;right:0;height:2px;background:var(--tone,#333)}
-.cu-kpis .card[data-tone="all"]{--tone:#555}
-.cu-kpis .card[data-tone="new"]{--tone:#6f94ff}
-.cu-kpis .card[data-tone="regular"]{--tone:var(--g)}
-.cu-kpis .card[data-tone="cafe"]{--tone:var(--o)}
-.cu-kpis .value{font-size:32px;font-variant-numeric:tabular-nums}
-.cu-kpis .muted{font-size:13px}
-.cu-list{padding:22px}
-.cu-filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
-.cu-chip{border:1px solid #2c2c2c;background:#131313;color:#b5b0a8;border-radius:999px;padding:7px 8px 7px 14px;font-size:13px;display:inline-flex;gap:8px;align-items:center;cursor:pointer;font-family:inherit}
-.cu-chip:hover{background:#1a1a1a;color:#fff}
-.cu-chip b{font-weight:600;color:#fff;background:#222;border-radius:999px;padding:1px 8px;font-size:12px;min-width:24px;text-align:center}
-.cu-chip.on{background:#ff6a001f;border-color:#ff6a0066;color:#ffd0b0}
-.cu-chip.on b{background:var(--o);color:#111}
-.cu-box{border-radius:14px;background:#0d0d0d}
-#ct{min-width:980px}
-#ct th,#ct td{padding:14px 16px;vertical-align:middle}
-#ct th{white-space:nowrap}
-#ct td{font-size:14px;color:#cfcac2}
-#ct tbody tr:hover td{background:#121212}
-#ct .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-#ct .c-empty{text-align:center;color:#77726a;padding:34px 16px}
-.c-who{display:flex;gap:12px;align-items:center;min-width:0}
-.c-who b{display:block;font-weight:600;color:#f1ede5;font-size:14px;line-height:1.35}
-.c-who small{display:block;color:#7d786f;font-size:12px;margin-top:1px;font-variant-numeric:tabular-nums}
-.cu-av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;background:linear-gradient(145deg,#2a1a0d,#161616);border:1px solid #3a281c;color:#ffb27a;flex:none}
-.sel{-webkit-appearance:none;appearance:none;width:100%;min-width:170px;height:36px;border-radius:10px;border:1px solid #2e2e2e;background-color:#141414;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;background-size:12px;color:#ddd;padding:0 32px 0 12px;font:inherit;font-size:13px;cursor:pointer;outline:0}
-.sel:focus{border-color:#ff6a0088;box-shadow:0 0 0 3px #ff6a0018}
-.sel.new{color:#a1beff;background-color:#101a2c;border-color:#293a5b}
-.sel.regular{color:#8fe4a4;background-color:#102016;border-color:#25432d}
-.sel.cafe{color:#ff9b62;background-color:#21160f;border-color:#54321f}
-.sel.lead,.sel.retail{color:#bdb8b0}
-.sel option{background:#151515;color:#eee}
-.cu-sum{display:flex;gap:6px 22px;flex-wrap:wrap;color:#8a857d;font-size:13px;margin-top:16px;padding-top:16px;border-top:1px solid #1d1d1d}
-.cu-sum b{color:#eee;font-variant-numeric:tabular-nums;font-weight:600}
-@media(max-width:900px){
-  .cu-kpis{grid-template-columns:repeat(2,1fr)!important}
-  #p-customers .actions{width:100%}
-  #p-customers .actions .search{flex:1;width:auto;min-width:0}
-  .cu-list{padding:16px}
-  .cu-box{border:0;background:none;overflow:visible}
-  #ct{min-width:0;display:block}
-  #ct thead{display:none}
-  #ct tbody{display:grid;gap:12px}
-  #ct tr{display:grid;grid-template-columns:repeat(6,1fr);gap:12px 10px;padding:16px;background:#0f0f0f;border:1px solid #242424;border-radius:16px}
-  #ct td{display:block;padding:0;border:0!important;background:none!important}
-  #ct .c-name{grid-column:1/-1}
-  #ct .c-st,#ct .c-gr{grid-column:span 3}
-  #ct .c-n1,#ct .c-n2,#ct .c-n3{grid-column:span 2}
-  #ct .c-n4,#ct .c-n5{grid-column:span 3}
-  #ct td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:#77726a;margin-bottom:5px}
-  #ct td.c-n{background:#141414!important;border-radius:10px;padding:10px 12px}
-  #ct .num{text-align:left}
-  #ct .sel{min-width:0}
-  #ct .c-emptyrow{display:block;text-align:center}
-  #ct .c-empty{display:block}
-}
-@media(max-width:560px){
-  .cu-kpis .value{font-size:26px}
-  .cu-kpis .card{padding:14px 16px}
-  #ct .c-st,#ct .c-gr{grid-column:1/-1}
-  #p-customers .actions .btn{padding:0 14px}
-}
+@media(max-width:900px){.cu-kpis{grid-template-columns:repeat(2,1fr)!important}}
+#p-customers .tablebox{-webkit-overflow-scrolling:touch}
+#ct{min-width:900px}
+#ct th,#ct td{padding:12px 14px;vertical-align:middle}
+#ct td{white-space:nowrap}
+#ct th:first-child,#ct td:first-child{position:sticky;left:0;z-index:1;background:#0f0f0f}
+#ct td:first-child{white-space:normal;min-width:150px}
+#ct .st{white-space:nowrap}
+#ct td:nth-child(2){line-height:2}
+.tier{min-height:42px;min-width:150px;padding:8px 10px;font-size:14px;cursor:pointer}
 </style>
 <div id="tatoBackdrop"></div>
 <div id="tatoBar"><button id="tatoMenu" aria-label="menu">☰ <span id="tatoMenuTxt"></span></button><button id="tatoLang"></button></div>
@@ -613,7 +510,6 @@ function applyLang(){
   document.querySelectorAll('#p-monitor [data-i]').forEach(e=>{const k=e.dataset.i;if(k!=='ey')e.textContent=t(k)});
   Object.keys(D[L].nav).forEach(k=>{const e=document.querySelector('.nav button[data-p="'+k+'"] span');if(e&&!(k==='orders'&&/\(/.test(e.textContent)))e.textContent=D[L].nav[k]});
   $('tatoMenuTxt').textContent=t('menu');$('tatoLang').textContent=t('lang');
-  try{applyCustomerLang()}catch(e){}
   if(last)render(last);
 }
 async function ping(key,url,json){const t0=performance.now();try{const r=await fetch(url,{cache:'no-store'});const ms=Math.round(performance.now()-t0);let ok=r.ok,note='';if(ok&&json){const d=await r.json().catch(()=>null);if(!d||d.success===false){ok=false;note='bad'}}if(!r.ok)note='HTTP '+r.status;return{key,ok,ms,note}}catch(e){return{key,ok:false,ms:Math.round(performance.now()-t0),note:'noconn'}}}
