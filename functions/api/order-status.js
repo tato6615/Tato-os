@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
     if (!o || !o.tok || !safeEq(o.tok, t)) return json({ success: false, status: "NOT_FOUND" }, 404);
     const st = statusLabel(o);
     const courier = String(o.courier || "");
-    const track = o.tracking_no ? { courier, tracking_no: o.tracking_no, url: TRACK_URLS[courier.toLowerCase()] ? TRACK_URLS[courier.toLowerCase()] + encodeURIComponent(o.tracking_no) : "", shipped_at: o.shipped_at || null } : null;
+    const track = (o.tracking_no || courier === "self") ? { courier, tracking_no: o.tracking_no || "", url: TRACK_URLS[courier.toLowerCase()] ? TRACK_URLS[courier.toLowerCase()] + encodeURIComponent(o.tracking_no) : "", shipped_at: o.shipped_at || null } : null;
     const addr = String(o.d_address || "");
     const env = context.env || {};
     return json({
