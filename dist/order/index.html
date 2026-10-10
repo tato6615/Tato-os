@@ -38,7 +38,7 @@ fetch("/api/order-status?id="+encodeURIComponent(q.get("id")||"")+"&t="+encodeUR
   out.appendChild(c);
   if(o.status==="cancelled")out.appendChild(el("div","card",o.cancel_reason==="expired_unpaid"?"ออเดอร์นี้ถูกยกเลิกอัตโนมัติเพราะไม่ได้ชำระเงินภายใน 48 ชั่วโมง หากโอนแล้วโปรดติดต่อร้านพร้อมสลิป":"ออเดอร์นี้ถูกยกเลิกแล้ว"));
   var t=x.j.tracking;
-  if(t){var tc=el("div","card");tc.appendChild(el("h2",null,"การจัดส่ง"));tc.appendChild(row("ขนส่ง",t.courier));tc.appendChild(row("เลขพัสดุ",t.tracking_no));
+  if(t){var tc=el("div","card");tc.appendChild(el("h2",null,"การจัดส่ง"));if(t.courier==="self"){tc.appendChild(row("จัดส่งโดย","ร้านส่งเอง"));if(t.tracking_no)tc.appendChild(row("หมายเหตุ",t.tracking_no))}else{tc.appendChild(row("ขนส่ง",t.courier));tc.appendChild(row("เลขพัสดุ",t.tracking_no))}
     if(t.url){var a=el("a","btn","ติดตามพัสดุ");a.href=t.url;a.target="_blank";a.rel="noopener noreferrer";tc.appendChild(a)}out.appendChild(tc)}
   else if(o.status==="paid")out.appendChild(el("div","card","ชำระเงินแล้ว ร้านกำลังคั่วและแพ็ค เลขพัสดุจะแสดงที่หน้านี้เมื่อจัดส่ง"));
   var p=x.j.payment;
