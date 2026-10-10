@@ -9,7 +9,7 @@ import { sendEmail } from "../../shared/notify.js";
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), { status: s, headers: { "content-type": "application/json; charset=UTF-8", "cache-control": "no-store" } });
 }
-const COURIERS = ["thaipost", "kerry", "flash", "jt", "other"];
+const COURIERS = ["thaipost", "self", "kerry", "flash", "jt", "other"];
 
 export async function onRequestGet(context) {
   try {
@@ -73,9 +73,12 @@ export async function onRequestPost(context) {
     const stamp = new Date().toISOString();
 
     if (b.action === "set_tracking") {
-      const tracking = String(b.tracking_no || "").trim().replace(/\s+/g, "");
       const courier = String(b.courier || "other").toLowerCase();
-      if (!/^[A-Za-z0-9\-]{6,30}$/.test(tracking)) return json({ success: false, status: "INVALID_TRACKING_NO", error: "เลขพัสดุต้องเป็นตัวอักษร/ตัวเลข 6-30 ตัว" }, 400);
+      const isSelf = courier === "self"; // shop delivers by itself: no tracking number, optional short note
+      const tracking = isSelf
+        ? String(b.tracking_no || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 100)
+        : String(b.tracking_no || "").trim().replace(/\s+/g, "");
+      if (!isSelf && !/^[A-Za-z0-9\-]{6,30}$/.test(tracking)) return json({ success: false, status: "INVALID_TRACKING_NO", error: "เลขพัสดุต้องเป็นตัวอักษร/ตัวเลข 6-30 ตัว" }, 400);
       if (!COURIERS.includes(courier)) return json({ success: false, status: "INVALID_COURIER" }, 400);
       if (String(o.status).toLowerCase() !== "paid") return json({ success: false, status: "ORDER_NOT_PAID", error: "ใส่เลขพัสดุได้เมื่อออเดอร์ชำระแล้วเท่านั้น" }, 409);
       await db.prepare("UPDATE orders SET tracking_no=?, courier=?, fulfillment_status='shipped', shipped_at=? WHERE id=?").bind(tracking, courier, stamp, id).run();
@@ -84,7 +87,7 @@ export async function onRequestPost(context) {
       if (to && o.tok) {
         emailed = await sendEmail(env, {
           to, subject: "ออเดอร์ " + orderNo(id) + " จัดส่งแล้ว",
-          text: "ออเดอร์ " + orderNo(id) + " จัดส่งแล้ว\nขนส่ง: " + courier + "\nเลขพัสดุ: " + tracking + "\n\nดูสถานะ: " + statusUrl(origin, id, o.tok),
+          text: "ออเดอร์ " + orderNo(id) + " จัดส่งแล้ว\n" + (isSelf ? "จัดส่งโดย: ร้านส่งเอง\n" + (tracking ? "หมายเหตุ: " + tracking + "\n" : "") : "ขนส่ง: " + courier + "\nเลขพัสดุ: " + tracking + "\n") + "\nดูสถานะ: " + statusUrl(origin, id, o.tok),
         });
       }
       return json({ success: true, status: "TRACKING_SAVED", emailed });
