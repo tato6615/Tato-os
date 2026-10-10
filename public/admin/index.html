@@ -207,16 +207,19 @@ function renderConfig(l){
   var sv=el("button","btn2","บันทึก");sv.onclick=async function(){try{await post("/api/admin-config",{action:"set_setting",key:"max_open_kg",value:ci.value});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};
   f.appendChild(ci);f.appendChild(sv);cap.appendChild(f);l.appendChild(cap);
   var dc=el("div","card");dc.appendChild(el("h3",null,"รหัสส่วนลด"));
+  var nf=el("div","inline sec"),code=el("input"),type=el("select"),val=el("input"),mk=el("input"),mu=el("input"),ex=el("input");
   cfgData.codes.forEach(function(k){
-    var r=el("div","row");r.appendChild(el("span",null,k.code+" · "+(k.type==="percent"?k.value+"%":money(k.value)+" บาท")+(k.min_kg?" · ขั้นต่ำ "+k.min_kg+" กก.":"")+" · ใช้ "+k.used_count+(k.max_uses!=null?"/"+k.max_uses:"")+(k.expires_at?" · หมด "+String(k.expires_at).slice(0,10):"")));
-    var tg=el("button","btn2",k.active?"ปิด":"เปิด");tg.onclick=async function(){try{await post("/api/admin-config",{action:"toggle_code",code:k.code,active:!k.active});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};r.appendChild(tg);dc.appendChild(r);
+    var r=el("div","row");r.appendChild(el("span",null,k.code+" · "+(k.type==="percent"?k.value+"%":money(k.value)+" บาท")+(k.min_kg?" · ขั้นต่ำ "+k.min_kg+" กก.":"")+" · ใช้ "+k.used_count+(k.max_uses!=null?"/"+k.max_uses:"")+(k.expires_at?" · หมด "+String(k.expires_at).slice(0,10):"")+(k.active?"":" · (ปิดอยู่)")));
+    var ed=el("button","btn2","แก้");ed.onclick=function(){code.value=k.code;type.value=k.type;val.value=k.value;mk.value=k.min_kg||"";mu.value=k.max_uses!=null?k.max_uses:"";ex.value=k.expires_at?String(k.expires_at).slice(0,10):"";nf.scrollIntoView({behavior:"smooth",block:"center"});code.focus()};r.appendChild(ed);
+    var tg=el("button","btn2",k.active?"ปิด":"เปิด");tg.onclick=async function(){try{await post("/api/admin-config",{action:"toggle_code",code:k.code,active:!k.active});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};r.appendChild(tg);
+    var dl=el("button","btn2","ลบ");dl.style.color="#ffb4ab";dl.onclick=async function(){if(!confirm("ลบรหัส "+k.code+" ถาวร?\nย้อนกลับไม่ได้ (ออเดอร์เก่าที่เคยใช้รหัสนี้ยังอยู่ตามเดิม)\nถ้าแค่อยากหยุดใช้ชั่วคราว ให้กดปุ่ม \"ปิด\" แทน"))return;try{await post("/api/admin-config",{action:"delete_code",code:k.code});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};r.appendChild(dl);
+    dc.appendChild(r);
   });
   if(!cfgData.codes.length)dc.appendChild(el("p","dim","ยังไม่มีรหัส"));
-  var nf=el("div","inline sec"),code=el("input"),type=el("select"),val=el("input"),mk=el("input"),mu=el("input"),ex=el("input");
   code.placeholder="รหัส เช่น WELCOME10";type.appendChild(Object.assign(el("option",null,"ลด %"),{value:"percent"}));type.appendChild(Object.assign(el("option",null,"ลดบาท"),{value:"fixed"}));
   val.type="number";val.placeholder="มูลค่า";mk.type="number";mk.placeholder="ขั้นต่ำ กก.";mu.type="number";mu.placeholder="ใช้ได้สูงสุดกี่ครั้ง";ex.type="date";
-  var add=el("button","btn2","สร้าง/แก้รหัส");add.onclick=async function(){try{await post("/api/admin-config",{action:"save_code",code:code.value,type:type.value,value:val.value,min_kg:mk.value||0,max_uses:mu.value,expires_at:ex.value?ex.value+"T23:59:59+07:00":""});await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};
-  [code,type,val,mk,mu,ex,add].forEach(function(x){nf.appendChild(x)});dc.appendChild(nf);l.appendChild(dc);
+  var add=el("button","btn2","สร้าง/แก้รหัส");add.onclick=async function(){try{await post("/api/admin-config",{action:"save_code",code:code.value,type:type.value,value:val.value,min_kg:mk.value||0,max_uses:mu.value,expires_at:ex.value?ex.value+"T23:59:59+07:00":""});code.value="";val.value="";mk.value="";mu.value="";ex.value="";await loadConfig()}catch(e){alert("ไม่สำเร็จ: "+e.message)}};
+  ex.title="วันหมดอายุ (เว้นว่าง = ไม่หมดอายุ)";var exl=el("span","dim","หมดอายุ (ถ้ามี)");[code,type,val,mk,mu,exl,ex,add].forEach(function(x){nf.appendChild(x)});dc.appendChild(nf);l.appendChild(dc);
 }
 async function load(){
   try{var j=await api("/api/admin-orders");failCount=0;all=j.orders||[];notifyCfg=j.notify||null;setConn(true);renderNotify();detect();if(filter!=="report"&&filter!=="config")render();else chrome()}
