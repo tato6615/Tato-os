@@ -10,7 +10,7 @@
     if (o.subtotal != null && o.subtotal !== "") return num(o.subtotal) - num(o.discount_amount);
     return num(o.amount != null ? o.amount : o.total_amount) - num(o.shipping_fee);
   }
-  var TIERS = ["new", "regular", "cafe"];
+  var TIERS = ["new", "regular"]; // history override; price group (cafe) is separate
 
   function summarize(orders, customers, products, adRows) {
     orders = orders || []; customers = customers || []; products = products || []; adRows = adRows || [];
@@ -42,16 +42,18 @@
     var rows = customers.map(function (c) {
       var s = by[c.id] || { orders: 0, kg: 0, revenue: 0, profit: 0, cafe: false, last: "" };
       var auto = s.orders >= 2 ? "regular" : s.orders === 1 ? "new" : "lead";
-      var manual = TIERS.indexOf(String(c.tier || "")) >= 0 ? c.tier : null;
+      var manual = TIERS.indexOf(String(c.tier || "")) >= 0 ? c.tier : null; // founder override of new/regular
+      // Price group is independent of purchase history. tier="cafe" is the old way of storing it.
+      var groupManual = String(c.price_group || "") === "cafe" || String(c.tier || "") === "cafe";
       return { id: c.id, name: c.name || c.email || c.id, phone: c.phone || "", status: manual || auto, auto: auto, manual: manual,
-        orders: s.orders, kg: s.kg, revenue: s.revenue, profit: s.profit, cafePrice: s.cafe || manual === "cafe", last: s.last };
+        groupManual: groupManual, cafePrice: s.cafe || groupManual,
+        orders: s.orders, kg: s.kg, revenue: s.revenue, profit: s.profit, last: s.last };
     });
     var buyers = Object.keys(by).length;
     var repeat = Object.keys(by).filter(function (k) { return by[k].orders > 1; }).length;
     t.buyers = buyers; t.repeat = repeat;
     t.repeatPct = buyers ? (repeat / buyers) * 100 : 0;
-    // "regular" by status also counts customers the founder marked regular/cafe by hand
-    t.regularCount = rows.filter(function (r) { return r.status === "regular" || r.status === "cafe"; }).length;
+    t.regularCount = rows.filter(function (r) { return r.status === "regular"; }).length;
     return { totals: t, customers: rows };
   }
   root.TatoMetrics = { summarize: summarize, productRevenue: productRevenue, TIERS: TIERS };
