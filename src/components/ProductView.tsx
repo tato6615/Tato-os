@@ -137,19 +137,28 @@ export const ProductView: React.FC<ProductViewProps> = ({
     return () => window.clearTimeout(h);
   }, [quoteKey]);
 
+  const formVisible = !completedOrder;
   useEffect(() => {
-    if (!siteKey || !turnstileBoxRef.current) return;
+    // The order form unmounts after a successful order and mounts again for the next customer,
+    // so the Turnstile widget must be created again each time the form comes back.
+    if (!siteKey || !formVisible || !turnstileBoxRef.current) return;
     const w = window as any;
     const mount = () => {
       if (!w.turnstile || !turnstileBoxRef.current || turnstileIdRef.current !== null) return;
       turnstileIdRef.current = w.turnstile.render(turnstileBoxRef.current, { sitekey: siteKey, theme: 'dark', callback: (t: string) => setTurnstileToken(t), 'expired-callback': () => setTurnstileToken(''), 'error-callback': () => setTurnstileToken('') });
     };
-    if (w.turnstile) { mount(); return; }
     let sc = document.getElementById('cf-turnstile-script') as HTMLScriptElement | null;
-    if (!sc) { sc = document.createElement('script'); sc.id = 'cf-turnstile-script'; sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; sc.async = true; document.head.appendChild(sc); }
-    sc.addEventListener('load', mount);
-    return () => sc && sc.removeEventListener('load', mount);
-  }, [siteKey]);
+    if (w.turnstile) { mount(); }
+    else {
+      if (!sc) { sc = document.createElement('script'); sc.id = 'cf-turnstile-script'; sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; sc.async = true; document.head.appendChild(sc); }
+      sc.addEventListener('load', mount);
+    }
+    return () => {
+      if (sc) sc.removeEventListener('load', mount);
+      if (turnstileIdRef.current !== null) { try { w.turnstile.remove(turnstileIdRef.current); } catch {} turnstileIdRef.current = null; }
+      setTurnstileToken('');
+    };
+  }, [siteKey, formVisible]);
 
   useEffect(() => {
     if (!prefill) return;
