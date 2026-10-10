@@ -89,7 +89,7 @@ export async function onRequestPost(context) {
 
     const head = kind === "checklist" ? "📋 ขอเช็กลิสต์เปิดร้าน" : sampleOn ? "🎁 ร้านขอตัวอย่างเมล็ด " + grams + " กรัม" : "☕ ลูกค้าร้านใหม่ขอคุย";
     const calc = calcJson(b.calc);
-    let msg = (isTest ? "[ทดสอบ] " : "") + head + "\n" + clip(name, 120) + " โทร " + phone +
+    let msg = head + "\n" + clip(name, 120) + " โทร " + phone +
       "\nร้าน: " + (row.shop || "-") + "\nสถานะ: " + STAGE_TH[stage] +
       "\nเมนูหลัก: " + (row.menu || "-") + "\nเครื่อง: " + (row.machine || "-") + "\nปริมาณ/สัปดาห์: " + (row.kg || "-") +
       (row.note ? "\nหมายเหตุ: " + row.note : "") + "\nช่องทาง: " + (row.src || row.us || "ไม่ระบุ");
