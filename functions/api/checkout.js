@@ -214,7 +214,7 @@ export async function onRequestPost(context){
     await recordEvent(db,"purchase_intent",{...ev,amount:q.total,quantity_kg:kg});
 
     const num=orderNo(orderId), link=statusUrl(origin,orderId,token);
-    const msg=(isTest?"[ทดสอบ] ":"")+"🛒 ออเดอร์ใหม่ "+num+"\nยอด "+q.total+" บาท ("+kg+" กก.) ค่าส่ง "+q.shipping+" บาท"+(q.discount?" ส่วนลด "+q.discount+" บาท ("+cr.code.code+")":"")+"\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+phone+"\nที่อยู่: "+clip(b.address,300)+" "+postal+"\nหมายเหตุ: "+clip(b.note,200)+"\nช่องทาง: "+(utmSource?utmSource+"/"+utmMedium:"ไม่ระบุ")+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+origin+"/admin/";
+    const msg="🛒 ออเดอร์ใหม่ "+num+"\nยอด "+q.total+" บาท ("+kg+" กก.) ค่าส่ง "+q.shipping+" บาท"+(q.discount?" ส่วนลด "+q.discount+" บาท ("+cr.code.code+")":"")+"\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+phone+"\nที่อยู่: "+clip(b.address,300)+" "+postal+"\nหมายเหตุ: "+clip(b.note,200)+"\nช่องทาง: "+(utmSource?utmSource+"/"+utmMedium:"ไม่ระบุ")+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+origin+"/admin/";
     const jobs=[notifyOwner(env,msg)];
     if(email) jobs.push(sendEmail(env,{to:email,subject:"ยืนยันออเดอร์ "+num+" - TATO Coffee",text:"ขอบคุณที่สั่งซื้อ TATO Coffee\nเลขออเดอร์ "+num+"\nยอดชำระ "+q.total+" บาท ("+kg+" กก.)\n\nดูสถานะออเดอร์/วิธีชำระเงิน/เลขพัสดุได้ที่ลิงก์นี้ (เปิดซ้ำได้ตลอด):\n"+link+"\n\nออเดอร์ที่ยังไม่ชำระภายใน 48 ชั่วโมงจะถูกยกเลิกอัตโนมัติ"}));
     const nj=Promise.all(jobs);
