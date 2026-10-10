@@ -2,6 +2,7 @@
 //   GET  -> {codes:[...], settings:{max_open_kg, ...}}
 //   POST -> {action:"save_code", code, type, value, min_kg, max_uses, expires_at}
 //           {action:"toggle_code", code, active}
+//           {action:"delete_code", code}
 //           {action:"set_setting", key:"max_open_kg", value:"" | number}
 
 import { ensureSchema } from "../../shared/schema.js";
@@ -50,6 +51,12 @@ export async function onRequestPost(context) {
     if (b.action === "toggle_code") {
       await db.prepare("UPDATE discount_codes SET active=? WHERE code=?").bind(b.active ? 1 : 0, String(b.code || "").toUpperCase()).run();
       return json({ success: true, status: "CODE_UPDATED" });
+    }
+    if (b.action === "delete_code") {
+      const code = String(b.code || "").trim().toUpperCase();
+      if (!code) return json({ success: false, status: "INVALID_CODE" }, 400);
+      await db.prepare("DELETE FROM discount_codes WHERE code=?").bind(code).run();
+      return json({ success: true, status: "CODE_DELETED" });
     }
     if (b.action === "set_setting") {
       const key = String(b.key || "");
