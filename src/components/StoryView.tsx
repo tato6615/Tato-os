@@ -16,7 +16,7 @@ interface StoryViewProps {
 const COUNT = 7;
 const AUTO_MS = 5500;
 const AUTO_MS_ROASTS = 9000;
-const IDLE_MS = 7000;
+const IDLE_MS = 4000;
 
 const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
   light: { th: 'ดอกมะลิ ซิตรัส ชาเอิร์ลเกรย์', en: 'Jasmine, citrus, Earl Grey tea', feel: { th: 'หอมใส', en: 'Bright & aromatic' }, accent: '#f3bc8b' },
@@ -98,6 +98,11 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   const goTo = (i: number) =>
     trackRef.current?.scrollTo({ left: Math.max(0, Math.min(COUNT - 1, i)) * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' });
   const userGo = (i: number) => { lastTouch.current = Date.now(); goTo(i); };
+  const onTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('a,button,input,select,textarea')) return;
+    if (window.getSelection()?.toString()) return;
+    userGo(e.clientX < window.innerWidth / 3 ? active - 1 : active + 1);
+  };
 
   useEffect(() => {
     const track = trackRef.current;
@@ -159,7 +164,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   // เลื่อนอัตโนมัติแบบเงียบ ๆ (ไม่มีปุ่มหรือข้อความบอก):
   // รอผู้ใช้เงียบ 7 วินาทีหลังแตะ/เลื่อน และรอระหว่างชี้การ์ดหรือซ่อนแท็บ หยุดที่ฉากสุดท้าย
   useEffect(() => {
-    if (reduce || active >= COUNT - 1) return;
+    if (active >= COUNT - 1) return;
     let t = 0;
     const tick = () => {
       if (document.hidden || hover.current || Date.now() - lastTouch.current < IDLE_MS) { t = window.setTimeout(tick, 1000); return; }
@@ -167,7 +172,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
     };
     t = window.setTimeout(tick, active === 5 ? AUTO_MS_ROASTS : AUTO_MS);
     return () => window.clearTimeout(t);
-  }, [active, reduce]);
+  }, [active]);
 
   const scene = 'relative shrink-0 w-screen h-full snap-start overflow-hidden flex items-center px-6 md:pl-16 md:pr-32 lg:pl-24 lg:pr-36 pb-32 md:pb-28';
   const grid = 'relative z-10 w-full md:grid md:grid-cols-[1.3fr_0.7fr] md:gap-10 items-center';
@@ -227,7 +232,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
       <div className="absolute top-0 inset-x-0 z-40 h-[3px] bg-[#5b4138]/30"><div ref={barRef} className="h-full origin-left bg-[#ff5e1a]" style={{ transform: 'scaleX(0)' }} /></div>
 
       {/* scenes */}
-      <div ref={trackRef} className="absolute inset-0 flex overflow-x-auto overflow-y-hidden snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={trackRef} onClick={onTrackClick} className="absolute inset-0 flex overflow-x-auto overflow-y-hidden snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* 1 hero */}
         <section ref={setRef(0)} className={`${scene} ${on(0)}`}>
           {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
@@ -288,16 +293,14 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
 
         {/* 5 roast to order */}
         <section ref={setRef(4)} className={`${scene} bg-[#141312] ${on(4)}`}>
+          {bg(ASSETS.storyRoastPour, '50% 72%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal' })}
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/85 via-[#141312]/40 to-transparent" />
           {glow('right-[10%] top-[20%] w-[480px] h-[480px]')}
           <div className={grid}>
             <div data-copy>
               <span className={label}>04 · Roasted</span>
               <h2 className={head}><Lines text={tr('We don’t roast stock.\nWe roast when\nyou order.', 'เราไม่คั่วสต็อก\nเราคั่วเมื่อคุณสั่ง')} base={100} /></h2>
               <p className={sub} style={delay(600)}>{tr('Every order is roasted to order.', 'ทุกออเดอร์คั่วตามคำสั่งซื้อ')}</p>
-            </div>
-            <div data-vis className="mt-6 md:mt-0 flex md:justify-end pointer-events-none">
-              <img src={ASSETS.storyRoastPour} alt={tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม')} decoding="async" loading="lazy"
-                className="h-[26vh] md:h-[58vh] aspect-[2/3] object-cover rounded-xl border border-[#5b4138]/40 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)]" />
             </div>
           </div>
         </section>
