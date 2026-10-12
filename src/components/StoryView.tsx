@@ -15,6 +15,7 @@ interface StoryViewProps {
 const COUNT = 7;
 const AUTO_MS = 6500;
 const AUTO_MS_ROASTS = 9500;
+const IDLE_MS = 7000;
 
 const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
   light: { th: 'ดอกมะลิ ซิตรัส ชาเอิร์ลเกรย์', en: 'Jasmine, citrus, Earl Grey tea', feel: { th: 'หอมใส', en: 'Bright & aromatic' }, accent: '#f3bc8b' },
@@ -35,8 +36,8 @@ const CSS = `
 @keyframes tvmist{from{transform:translateX(-14%)}to{transform:translateX(14%)}}
 .tv-glow{animation:tvglow 9s ease-in-out infinite alternate}
 @keyframes tvglow{from{transform:translate3d(-8%,6%,0) scale(1);opacity:.45}to{transform:translate3d(10%,-8%,0) scale(1.3);opacity:.85}}
-.tv-bean{animation:tvbean 8s ease-in-out infinite}
-@keyframes tvbean{0%{fill:#6f8a3d}28%{fill:#c8a463}55%{fill:#8a5a34}82%{fill:#392015}100%{fill:#6f8a3d}}
+.tv-bc{animation:tvbc 8s ease-in-out infinite}
+@keyframes tvbc{0%{opacity:0}10%{opacity:1}28%{opacity:1}40%{opacity:0}100%{opacity:0}}
 .tv-wob{animation:tvwob 3.4s ease-in-out infinite;transform-origin:100px 130px}
 @keyframes tvwob{50%{transform:rotate(7deg) translateY(-6px)}}
 .tv-steam{animation:tvsteam 3.6s ease-out infinite;opacity:0}
@@ -55,7 +56,7 @@ const CSS = `
 .tv-ring{animation:tvring linear forwards}
 @keyframes tvring{from{stroke-dashoffset:151}to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){
-  .tv-kb,.tv-mist,.tv-glow,.tv-bean,.tv-wob,.tv-steam,.tv-pulse,.tv-nudge,.tv-ring{animation:none}
+  .tv-kb,.tv-mist,.tv-glow,.tv-bc,.tv-wob,.tv-steam,.tv-pulse,.tv-nudge,.tv-ring{animation:none}
   .tv-line>span,.tv-fade,.tv-grow,.tv-card,.tv-seed{transition:none}
 }
 `;
@@ -115,15 +116,11 @@ const RoastBean: React.FC = () => (
       <circle key={x} className="tv-steam" style={{ animationDelay: `${i * 1.1}s` }} cx={x} cy="40" r="9" fill="#e6e1df" opacity=".4" />
     ))}
     <g className="tv-wob">
-      <ellipse className="tv-bean" cx="100" cy="150" rx="68" ry="94" />
+      {['#6f8a3d', '#c8a463', '#8a5a34', '#392015'].map((c, i) => (
+        <ellipse key={c} className="tv-bc" style={{ animationDelay: `${-i * 2}s`, opacity: i === 3 ? 1 : 0 }} cx="100" cy="150" rx="68" ry="94" fill={c} />
+      ))}
       <path d="M100 62 C70 120 130 180 100 238" stroke="#141312" strokeWidth="9" fill="none" strokeLinecap="round" opacity=".6" />
     </g>
-  </svg>
-);
-
-const Arrow: React.FC<{ dir: 'l' | 'r' }> = ({ dir }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {dir === 'r' ? <path d="M9 5l7 7-7 7" /> : <path d="M15 5l-7 7 7 7" />}
   </svg>
 );
 
@@ -136,14 +133,15 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   const sceneRefs = useRef<(HTMLElement | null)[]>([]);
   const [active, setActive] = useState(0);
   const [seen, setSeen] = useState<boolean[]>(() => Array.from({ length: COUNT }, (_, i) => reduce || i === 0));
-  const [auto, setAuto] = useState(!reduce);
+  const lastTouch = useRef(0);
+  const hover = useRef(false);
   const src = (() => {
     try { return new URLSearchParams(window.location.search).get('src') || 'doi-wiang'; } catch { return 'doi-wiang'; }
   })();
 
   const goTo = (i: number) =>
     trackRef.current?.scrollTo({ left: Math.max(0, Math.min(COUNT - 1, i)) * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' });
-  const userGo = (i: number) => { setAuto(false); goTo(i); };
+  const userGo = (i: number) => { lastTouch.current = Date.now(); goTo(i); };
 
   useEffect(() => {
     const track = trackRef.current;
@@ -177,13 +175,13 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
     };
     const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
     const onWheel = (e: WheelEvent) => {
-      setAuto(false);
+      lastTouch.current = Date.now();
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); track.scrollLeft += e.deltaY; }
     };
-    const stopAuto = () => setAuto(false);
+    const stopAuto = () => { lastTouch.current = Date.now(); };
     const onKey = (e: KeyboardEvent) => {
       const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-      if (d) { setAuto(false); track.scrollBy({ left: d * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' }); }
+      if (d) { lastTouch.current = Date.now(); track.scrollBy({ left: d * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' }); }
     };
     track.addEventListener('scroll', onScroll, { passive: true });
     track.addEventListener('wheel', onWheel, { passive: false });
@@ -202,12 +200,18 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
     };
   }, [reduce]);
 
-  // เลื่อนอัตโนมัติ: หยุดทันทีเมื่อผู้ใช้แตะ เลื่อน หรือกดปุ่ม และมีปุ่มหยุด/เล่นเอง
+  // เลื่อนอัตโนมัติแบบเงียบ ๆ (ไม่มีปุ่มหรือข้อความบอก):
+  // รอผู้ใช้เงียบ 7 วินาทีหลังแตะ/เลื่อน และรอระหว่างชี้การ์ดหรือซ่อนแท็บ หยุดที่ฉากสุดท้าย
   useEffect(() => {
-    if (!auto || active >= COUNT - 1) return;
-    const t = window.setTimeout(() => goTo(active + 1), active === 5 ? AUTO_MS_ROASTS : AUTO_MS);
+    if (reduce || active >= COUNT - 1) return;
+    let t = 0;
+    const tick = () => {
+      if (document.hidden || hover.current || Date.now() - lastTouch.current < IDLE_MS) { t = window.setTimeout(tick, 1000); return; }
+      goTo(active + 1);
+    };
+    t = window.setTimeout(tick, active === 5 ? AUTO_MS_ROASTS : AUTO_MS);
     return () => window.clearTimeout(t);
-  }, [auto, active]);
+  }, [active, reduce]);
 
   const scene = 'relative shrink-0 w-screen h-full snap-start overflow-hidden flex items-center px-6 md:pl-16 md:pr-32 lg:pl-24 lg:pr-36 pb-32 md:pb-28';
   const grid = 'relative z-10 w-full md:grid md:grid-cols-[1.3fr_0.7fr] md:gap-10 items-center';
@@ -226,9 +230,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
     </div>
   );
   const glow = (cls: string) => <div className={`tv-glow pointer-events-none absolute rounded-full blur-3xl bg-[#ff5e1a]/25 ${cls}`} />;
-
-  const ringDur = (active === 5 ? AUTO_MS_ROASTS : AUTO_MS) / 1000;
-  const last = active === COUNT - 1;
 
   return (
     <div className="fixed inset-0 bg-[#141312] text-[#e6e1df] font-['Manrope'] selection:bg-[#ff5e1a] selection:text-[#390c00]">
@@ -340,6 +341,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
                 const n = ROAST_NOTES[id];
                 return (
                   <button key={id} onClick={() => onGoToProduct(id)} style={{ ...delay(450 + i * 160), borderTop: `3px solid ${n.accent}` }}
+                    onPointerEnter={() => { hover.current = true; }} onPointerLeave={() => { hover.current = false; }}
                     className="tv-card text-left rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 hover:border-[#ff5e1a]/70 p-4 md:p-6 focus-visible:outline-2 focus-visible:outline-[#ffb59c]">
                     <span className="flex items-center gap-3">
                       <span className="inline-block h-4 w-4 rounded-full" style={{ background: n.accent }} />
@@ -375,40 +377,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
             </div>
           </div>
         </section>
-      </div>
-
-      {/* scroll cue (first scene) */}
-      {active === 0 && (
-        <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-[96px] md:bottom-[100px] flex items-center gap-3 text-[#e3beb3] font-['Anuphan'] text-sm pointer-events-none">
-          <span className="tv-nudge inline-flex"><Arrow dir="l" /></span>
-          <span>{tr('Swipe or scroll to continue', 'ปัดหรือเลื่อนไปทางซ้ายเพื่อไปต่อ')}</span>
-        </div>
-      )}
-
-      {/* controls */}
-      <div className="absolute z-30 right-4 md:right-8 bottom-[84px] md:bottom-1/2 md:translate-y-1/2 flex flex-col items-center gap-3">
-        {last ? (
-          <button onClick={() => userGo(0)} aria-label={tr('Start over', 'เริ่มใหม่')} className="h-14 w-14 rounded-full bg-[#2b2a28]/80 backdrop-blur-md border border-[#5b4138] text-[#e6e1df] grid place-items-center font-['Anuphan'] text-xs">↺</button>
-        ) : (
-          <button onClick={() => userGo(active + 1)} aria-label={tr('Next scene', 'ฉากถัดไป')} className={`relative h-14 w-14 rounded-full bg-[#ff5e1a] text-[#390c00] grid place-items-center ${auto ? '' : 'tv-pulse'}`}>
-            {auto && (
-              <svg key={active} className="absolute inset-0 -rotate-90" viewBox="0 0 56 56" aria-hidden="true">
-                <circle cx="28" cy="28" r="24" fill="none" stroke="#390c00" strokeOpacity=".25" strokeWidth="3" />
-                <circle className="tv-ring" style={{ animationDuration: `${ringDur}s` }} cx="28" cy="28" r="24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="151" />
-              </svg>
-            )}
-            <Arrow dir="r" />
-          </button>
-        )}
-        {active > 0 && (
-          <button onClick={() => userGo(active - 1)} aria-label={tr('Previous scene', 'ฉากก่อนหน้า')} className="h-10 w-10 rounded-full bg-[#2b2a28]/80 backdrop-blur-md border border-[#5b4138] text-[#e6e1df] grid place-items-center"><Arrow dir="l" /></button>
-        )}
-        {!last && (
-          <button onClick={() => setAuto((v) => !v)} aria-pressed={auto} aria-label={auto ? tr('Pause autoplay', 'หยุดเลื่อนอัตโนมัติ') : tr('Play autoplay', 'เลื่อนอัตโนมัติ')}
-            className="px-3 py-1.5 rounded-full bg-[#2b2a28]/80 backdrop-blur-md border border-[#5b4138] text-[11px] font-bold text-[#e3beb3]">
-            {auto ? `❚❚ ${tr('Pause', 'หยุด')}` : `▶ ${tr('Auto', 'อัตโนมัติ')}`}
-          </button>
-        )}
       </div>
 
       {/* sticky order bar */}
