@@ -108,9 +108,11 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
             <span className="font-semibold tracking-wider">{language === 'th' ? 'สั่งซื้อ TATO' : 'ORDER TATO'}</span>
-            <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#141312] text-[#ffb59c] text-[10px] font-bold">
-              {cartCount}
-            </span>
+            {cartCount > 0 && (
+              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#141312] text-[#ffb59c] text-[10px] font-bold">
+                {cartCount}
+              </span>
+            )}
           </button>
 
           <div className="flex items-center rounded-full border border-[#5b4138]/50 bg-[#211f1e] p-0.5" aria-label="Language">

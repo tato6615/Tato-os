@@ -363,8 +363,6 @@ export const ProductView: React.FC<ProductViewProps> = ({
           <span className="text-[#d4c3bd]">ESTATE ARCHIVE</span>
           <span className="text-[#5b4138]">/</span>
           <span className="text-[#d4c3bd]">DOI WIANG LOT 2025</span>
-          <span className="text-[#5b4138]">/</span>
-          <span className="text-[#ff5e1a] font-semibold">TATO 1,500M</span>
         </div>
         <div className="flex items-center gap-2 bg-[#2b2a28] px-3.5 py-1.5 rounded-full border border-[#363433]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#ff5e1a] animate-pulse" />
@@ -393,20 +391,6 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#0f0e0d]/80 backdrop-blur-md text-[#f3bc8b] border border-white/10">
                   DOI WIANG PA 1,500M
                 </span>
-                <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#0f0e0d]/80 backdrop-blur-md text-[#d4c3bd] border border-white/10">
-                  ARABICA 100%
-                </span>
-              </div>
-
-              <div className="absolute bottom-4 right-4 pointer-events-none">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#363433]/90 backdrop-blur-md text-[#e6e1df] border border-white/10">
-                  <span className="material-symbols-outlined text-[15px] text-[#ff5e1a]">
-                    local_fire_department
-                  </span>
-                  <span className="font-mono text-[11px] tracking-wide font-medium">
-                    ROAST-TO-ORDER
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -434,15 +418,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   {tr('Cherries selectively hand-picked at peak ripeness on steep northern highland slopes. Cold mountain night fermentation.', 'เก็บผลเชอร์รี่ด้วยมือเฉพาะผลที่สุกเต็มที่บนพื้นที่ลาดชันทางภาคเหนือ และหมักในอุณหภูมิที่เย็นจากภูเขายามค่ำคืน')}
                 </p>
               </div>
-              <div className="pt-2 flex items-center justify-between font-mono text-[11px] text-[#d4c3bd]">
-                <span>DOI WIANG PA • CHIANG MAI</span>
-                <span>WASHED / SLOW-DRIED</span>
-              </div>
             </div>
           </div>
 
           {/* Technical Assurance Strip */}
-          <div className="grid grid-cols-3 gap-3 bg-[#0f0e0d] p-4 rounded-xl border border-[#2b2a28]">
+          <div className="grid grid-cols-2 gap-3 bg-[#0f0e0d] p-4 rounded-xl border border-[#2b2a28]">
             <div className="text-center space-y-0.5">
               <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">
                 Packaging
@@ -451,20 +431,12 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 Degassing Valve
               </span>
             </div>
-            <div className="text-center space-y-0.5 border-x border-[#211f1e]">
+            <div className="text-center space-y-0.5 border-l border-[#211f1e]">
               <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">
                 Pouch Barrier
               </span>
               <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">
                 Foil Sealed
-              </span>
-            </div>
-            <div className="text-center space-y-0.5">
-              <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">
-                Origin Proof
-              </span>
-              <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">
-                Doi Wiang Pa
               </span>
             </div>
           </div>
@@ -478,8 +450,6 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <span className="font-['Manrope'] text-[11px] font-bold text-[#ff5e1a] uppercase tracking-widest">
                 SINGLE ESTATE EXCLUSIVE
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#5b4138]" />
-              <span className="font-mono text-[11px] text-[#f3bc8b]">CROP LOT 2025</span>
             </div>
             <h1 className="font-['Manrope'] text-3xl md:text-5xl font-medium tracking-tight text-[#e6e1df] uppercase">
               TATO COFFEE
@@ -1049,16 +1019,6 @@ value={customerPostal}
               </div>
             </div>
           )}
-
-          {/* Estate Heritage Note */}
-          <div className="bg-[#0f0e0d]/80 rounded-xl p-4 flex items-start gap-3 border border-[#2b2a28]">
-            <span className="material-symbols-outlined text-[#ff5e1a] text-[20px] shrink-0 mt-0.5">
-              verified
-            </span>
-            <p className="font-['Anuphan'] text-[13px] text-[#e3beb3]/80 leading-relaxed">
-              <strong>Arabica 100%:</strong> เมล็ดกาแฟอาราบิก้าจากดอยเวียงผา เชียงใหม่ คั่วสดตามออเดอร์
-            </p>
-          </div>
         </div>
       </div>
 

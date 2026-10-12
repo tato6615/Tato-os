@@ -58,7 +58,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
 
           {/* Supporting Spec Note */}
           <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 max-w-xl font-light">
-            Arabica 100% • Single Origin • Doi Wiang Pa 1,500m
+            Single Origin • Doi Wiang Pa, Chiang Mai
           </p>
 
           {/* Audience line: tells café owners this site is for them too */}
@@ -98,31 +98,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <span className="material-symbols-outlined text-[22px]">calculate</span>
               <span>{tr('Cost per cup', 'คำนวณต้นทุนกาแฟ')}</span>
             </a>
-          </div>
-
-          {/* Facts strip: real, verified facts only */}
-          <div className="mt-10 grid grid-cols-3 gap-2 w-full max-w-md pt-4 border-t border-[#5b4138]/40 text-center">
-            <div>
-              <p className="font-['Manrope'] text-base font-bold text-[#e6e1df]">1,500 m</p>
-              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">{tr('Altitude', 'ความสูง')}</p>
-            </div>
-            <div className="border-x border-[#5b4138]/40">
-              <p className="font-['Manrope'] text-base font-bold text-[#ff5e1a]">100%</p>
-              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">Arabica</p>
-            </div>
-            <div>
-              <p className="font-['Manrope'] text-base font-bold text-[#e6e1df]">{tr('To order', 'ตามออเดอร์')}</p>
-              <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">{tr('Roasted fresh', 'คั่วสด')}</p>
-            </div>
-          </div>
-
-          {/* Coordinates Quick Strip */}
-          <div className="mt-16 flex items-center gap-6 text-[#e3beb3]/60 font-mono text-[11px] uppercase tracking-widest hidden md:flex">
-            <span>DOI WIANG PA • CHIANG MAI</span>
-            <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,500 MASL</span>
-            <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,500 MASL ELEVATION</span>
           </div>
         </div>
       </section>
@@ -317,22 +292,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   </p>
                 </div>
               </div>
-
-              {/* Technical Spec Baseline */}
-              <div className="bg-[#2b2a28]/60 p-4 rounded-lg space-y-2 font-mono text-[12px] border border-[#363433]">
-                <div className="flex justify-between text-[#e3beb3]/70">
-                  <span>HARVEST METHOD:</span>
-                  <span className="text-[#e6e1df] font-semibold">100% Selective Hand Pluck</span>
-                </div>
-                <div className="flex justify-between text-[#e3beb3]/70">
-                  <span>DRYING PROCESS:</span>
-                  <span className="text-[#e6e1df] font-semibold">Elevated Tier African Mesh</span>
-                </div>
-                <div className="flex justify-between text-[#e3beb3]/70">
-                  <span>{tr('ORIGIN:', 'แหล่งปลูก:')}</span>
-                  <span className="text-[#ff5e1a] font-semibold">{tr('Doi Wiang Pa, Chiang Mai', 'ดอยเวียงผา เชียงใหม่')}</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -523,10 +482,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               {/* Feature Bullets */}
               <div className="space-y-2.5 font-['Manrope'] text-[14px] text-[#e6e1df]">
                 <div className="flex items-center gap-3 p-3 bg-[#211f1e] rounded-lg border border-[#2b2a28]">
-                  <span className="material-symbols-outlined text-[#ff5e1a] text-[20px]">check_circle</span>
-                  <span>{tr('Roast-on-Demand', 'คั่วสดตามออเดอร์')}</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-[#211f1e] rounded-lg border border-[#2b2a28]">
                   <span className="material-symbols-outlined text-[#f3bc8b] text-[20px]">check_circle</span>
                   <span>เลือกขนาดบดตามอุปกรณ์สกัด (Espresso, Filter, Whole Bean)</span>
                 </div>
@@ -632,10 +587,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">local_shipping</span>
               Nationwide Delivery
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">verified_user</span>
-              Doi Wiang Pa Origin
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">lock</span>

@@ -5,6 +5,7 @@ import { RoastType } from '../types';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
+  onGoToDiscover?: () => void;
 }
 
 // หน้าเล่าเรื่องแบบเลื่อนซ้าย-ขวา (scrollytelling) ที่ /doi-wiang/
@@ -80,7 +81,7 @@ const CountUp: React.FC<{ run: boolean; to: number }> = ({ run, to }) => {
   return <>{v.toLocaleString('en-US')}</>;
 };
 
-export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
+export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDiscover }) => {
   const { language, setLanguage } = useLanguage();
   const tr = (en: string, th: string) => (language === 'th' ? th : en);
   const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -365,7 +366,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
             <div data-copy>
               <span className={label}>06 · Order</span>
               <h2 className={head}><Lines text={tr('From the mountain\nto your cup', 'ชิมจากดอย\nถึงถ้วยของคุณ')} base={100} /></h2>
-              <p className={sub} style={delay(500)}>{tr('Home brewers from 650 THB/kg. Cafés: first order 550 THB/kg, no minimum.', 'ดื่มเองเริ่ม 650 บาท/กก. ร้านกาแฟสั่งครั้งแรก 550 บาท/กก. ไม่มีขั้นต่ำ')}</p>
+              <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. Cafés: no minimum on your first order.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำสำหรับออเดอร์แรก')}</p>
               <div className="tv-fade mt-8 flex flex-wrap gap-3" style={delay(700)}>
                 <button onClick={() => onGoToProduct('medium')} className="tv-pulse px-6 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">
                   {tr('Order fresh-roasted · 650 THB/kg', 'สั่งกาแฟคั่วสด 650 บาท/กก.')}
@@ -375,16 +376,21 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
                 </a>
               </div>
               <p className="tv-fade mt-5 text-[13px] text-[#e3beb3]/70 font-['Anuphan']" style={delay(850)}>{tr('Prices exclude shipping. Questions? Call 064-293-6615.', 'ราคายังไม่รวมค่าส่ง สอบถามได้ที่ 064-293-6615')}</p>
+              {onGoToDiscover && (
+                <button onClick={onGoToDiscover} className="tv-fade mt-2 min-h-11 text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df] font-['Anuphan']" style={delay(1000)}>{tr('Learn more about the coffee →', 'ดูรายละเอียดเกี่ยวกับกาแฟ →')}</button>
+              )}
             </div>
           </div>
         </section>
       </div>
 
       {/* sticky order bar */}
+      {active < COUNT - 1 && (
       <div className="absolute bottom-0 inset-x-0 z-30 flex justify-center gap-2.5 px-3.5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#0f0e0d]/90 to-transparent">
         <button onClick={() => onGoToProduct('medium')} className="flex-1 max-w-[280px] py-3 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-sm">{tr('Order · 650/kg', 'สั่งกาแฟ 650/กก.')}</button>
         <a href={`/cafe/?src=${src}`} className="flex-1 max-w-[280px] py-3 rounded-full text-center border border-[#5b4138] bg-[#0f0e0d]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-sm">{tr('Cafés · 550/kg', 'ร้านกาแฟ 550/กก.')}</a>
       </div>
+      )}
     </div>
   );
 };

@@ -21,14 +21,6 @@ export const Footer: React.FC = () => {
             <p className="font-['Manrope'] text-[14px] leading-relaxed text-[#e3beb3]/70 max-w-md">
               100% Arabica from Doi Wiang Pa, Chiang Mai (1,500 MASL), roasted fresh to order.
             </p>
-            <div className="flex items-center gap-2 pt-1">
-              <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#f3bc8b]">
-                DOI WIANG PA • CHIANG MAI
-              </span>
-              <span className="font-mono text-[12px] px-2.5 py-0.5 rounded-full bg-[#2b2a28] text-[#ffb59c]">
-                1,500M ELEVATION
-              </span>
-            </div>
           </div>
 
           {/* Provenance */}
@@ -61,8 +53,6 @@ export const Footer: React.FC = () => {
           </div>
           <div className="flex items-center gap-6">
             <span>DOI WIANG PA • CHIANG MAI</span>
-            <span>ELEVATION 1,500M</span>
-            <span>CHIANG MAI / NORTHERN HIGHLANDS</span>
             <a href="/cafe/?src=site" className="text-[#ffb59c] hover:text-[#e6e1df] transition-colors">สำหรับร้านกาแฟ · FOR CAFÉS</a>
           </div>
         </div>

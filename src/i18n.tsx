@@ -32,6 +32,7 @@ const DICT: Record<string, [string, string]> = {
   'ORDER TATO': ['สั่งซื้อ TATO', 'ORDER TATO'],
   'Single-Origin Terroir Reserve': ['กาแฟซิงเกิลออริจินจากแหล่งปลูกเฉพาะ', 'Single-Origin Terroir Reserve'],
   'Arabica 100% • Single Origin • Doi Wiang Pa 1,500m': ['อาราบิก้า 100% • ซิงเกิลออริจิน • ดอยเวียงผา 1,500 ม.', 'Arabica 100% • Single Origin • Doi Wiang Pa 1,500m'],
+  'Single Origin • Doi Wiang Pa, Chiang Mai': ['ซิงเกิลออริจิน • ดอยเวียงผา เชียงใหม่', 'Single Origin • Doi Wiang Pa, Chiang Mai'],
   '01 / ORIGIN': ['01 / แหล่งกำเนิด', '01 / ORIGIN'],
   'FROM DOI WIANG.': ['จากดอยเวียง', 'FROM DOI WIANG.'],
   'จากแหล่งกำเนิดบนดอยเวียง': ['จากแหล่งกำเนิดบนดอยเวียง', 'From Doi Wiang'],
