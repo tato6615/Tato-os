@@ -204,14 +204,14 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   const delay = (ms: number) => ({ transitionDelay: `${ms}ms` });
   // full-bleed photo behind the copy. first = load before anything else (scene 1)
   // tone: 'bright' for light, misty photos; 'dim' for text-heavy scenes; default sits between
-  const TONES = { dim: 'opacity-45 brightness-[0.7] contrast-125', normal: 'opacity-65 brightness-[0.7] contrast-125', bright: 'opacity-85 brightness-[0.9] contrast-110' };
-  const bg = (url: string, pos: string, alt: string, opts: { first?: boolean; tone?: keyof typeof TONES } = {}) => (
+  const TONES = { dim: 'opacity-45 brightness-[0.7] contrast-125', normal: 'opacity-65 brightness-[0.7] contrast-125', bright: 'opacity-85 brightness-[0.9] contrast-110', clear: 'opacity-100 brightness-100 contrast-110' };
+  const bg = (url: string, pos: string, alt: string, opts: { first?: boolean; tone?: keyof typeof TONES; veil?: string } = {}) => (
     <div className="absolute inset-0 z-0">
       <div data-par className="absolute inset-0">
         <img src={url} alt={alt} decoding="async" loading={opts.first ? 'eager' : 'lazy'} fetchPriority={opts.first ? 'high' : 'auto'}
           className={`tv-kb w-full h-full object-cover ${TONES[opts.tone ?? 'normal']}`} style={{ objectPosition: pos }} />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/60 to-[#141312]/40" />
+      <div className={`absolute inset-0 ${opts.veil ?? 'bg-gradient-to-t from-[#141312] via-[#141312]/60 to-[#141312]/40'}`} />
     </div>
   );
   // portrait photo: lower half of the screen on phones (so it never sits under the copy),
@@ -312,9 +312,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
 
         {/* 5 roast to order */}
         <section ref={setRef(4)} className={`${scene} bg-[#141312] ${on(4)}`}>
-          {bg(ASSETS.storyRoastPour, '50% 72%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal' })}
-          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/85 via-[#141312]/40 to-transparent" />
-          {glow('right-[10%] top-[20%] w-[480px] h-[480px]')}
+          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'clear', veil: 'bg-gradient-to-t from-[#141312]/90 via-[#141312]/5 to-transparent' })}
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/60 via-[#141312]/15 to-transparent" />
           <div className={grid}>
             <div data-copy>
               <span className={label}>04 · Roasted</span>
