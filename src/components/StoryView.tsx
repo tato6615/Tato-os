@@ -14,9 +14,9 @@ interface StoryViewProps {
 // alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
 const COUNT = 7;
-const AUTO_MS = 5500;
-const AUTO_MS_ROASTS = 9000;
-const IDLE_MS = 4000;
+const AUTO_MS = 3500;
+const AUTO_MS_ROASTS = 6000;
+const IDLE_MS = 3000;
 
 const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
   light: { th: 'ดอกมะลิ ซิตรัส ชาเอิร์ลเกรย์', en: 'Jasmine, citrus, Earl Grey tea', feel: { th: 'หอมใส', en: 'Bright & aromatic' }, accent: '#f3bc8b' },
@@ -226,7 +226,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
             <button type="button" onClick={() => setLanguage('th')} aria-pressed={language === 'th'} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[11px] font-bold transition-all ${language === 'th' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#e3beb3]'}`}>TH</button>
             <button type="button" onClick={() => setLanguage('en')} aria-pressed={language === 'en'} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[11px] font-bold transition-all ${language === 'en' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#e3beb3]'}`}>EN</button>
           </div>
-          <a href={`/?src=${src}`} className="hidden sm:inline font-mono text-[12px] text-[#f3bc8b] tracking-widest">{tr('SHOP', 'หน้าร้าน')}</a>
+          <a href={`/?shop=1&src=${src}`} className="hidden sm:inline font-mono text-[12px] text-[#f3bc8b] tracking-widest">{tr('SHOP', 'หน้าร้าน')}</a>
         </div>
       </div>
       <div className="absolute top-0 inset-x-0 z-40 h-[3px] bg-[#5b4138]/30"><div ref={barRef} className="h-full origin-left bg-[#ff5e1a]" style={{ transform: 'scaleX(0)' }} /></div>
