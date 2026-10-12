@@ -138,14 +138,14 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
         const par = s.querySelector<HTMLElement>('[data-par]');
         const vis = s.querySelector<HTMLElement>('[data-vis]');
         if (copy) {
-          const ap = Math.min(1, Math.abs(p));
-          copy.style.transform = `translateX(${p * 90}px) scale(${1 - ap * 0.05})`;
-          copy.style.filter = ap > 0.01 ? `blur(${ap * 9}px)` : 'none';
+          copy.style.transform = `translateX(${p * 90}px)`;
           copy.style.opacity = String(Math.max(0, 1 - Math.min(1, Math.abs(p)) * 0.95));
         }
         if (par) {
           const ap = Math.min(1, Math.abs(p));
-          par.style.transform = `translateX(${p * -70}px) scale(${1.12 + ap * 0.22})`;
+          // ฉาก 1-6: ภาพที่ออกซูมเข้า ภาพใหม่นิ่ง / ฉากสุดท้าย: ซูมออกเผยถุงกับถ้วย
+          const z = i === COUNT - 1 ? 1.12 + ap * 0.3 : p < 0 ? 1.12 + ap * 0.2 : 1.12;
+          par.style.transform = `translateX(${p * -70}px) scale(${z})`;
           par.style.opacity = String(Math.max(0, 1 - ap * 0.9));
         }
         if (vis) {
