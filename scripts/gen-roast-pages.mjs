@@ -45,7 +45,7 @@ ${specs.length?`<h2>Origin</h2><ul>${specs.map(s=>`<li><b>${esc(s.label)}:</b> $
   writeFileSync(`public/roast/${r.id}/index.html`, html);
 }
 // หน้าสแตติกที่ไม่ได้สร้างจากสคริปต์นี้ ต้องคงไว้ใน sitemap ทุกครั้งที่สร้างใหม่
-for (const path of ['/cafe/', '/cafe/calculator/', '/cafe/checklist/']) urls.push(`${DOMAIN}${path}`);
+for (const path of ['/cafe/', '/cafe/calculator/', '/cafe/checklist/', '/cafe/cost-per-cup/', '/cafe/open-cafe-guide/', '/cafe/chiang-mai-beans/']) urls.push(`${DOMAIN}${path}`);
 writeFileSync('public/sitemap.xml',
 `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

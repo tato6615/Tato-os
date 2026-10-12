@@ -903,7 +903,7 @@ value={customerPostal}
                   <span>ORDER TATO · สั่งซื้อ TATO</span>
                 </button>
                 <p className="text-center font-['Anuphan'] text-[12px] text-[#e3beb3]/70">
-                  🔒 ชำระเงินปลายทาง หรือรับลิงก์ชำระผ่านพร้อมเพย์ทาง SMS / อีเมลยืนยัน
+                  🔒 ชำระเงินผ่านพร้อมเพย์ (สแกน QR) แล้วส่งสลิปให้ร้านทาง LINE ร้านจะยืนยันออเดอร์หลังตรวจยอดโอน
                 </p>
               </div>
             </form>
@@ -1006,16 +1006,14 @@ value={customerPostal}
         <div className="space-y-2 mb-8">
           <div className="flex items-center gap-2">
             <span className="font-['Manrope'] text-[11px] font-bold text-[#ff5e1a] uppercase tracking-wider">
-              CUPPING PROFILE
+              TASTING PROFILE
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#5b4138]" />
-            <span className="font-mono text-[11px] text-[#e3beb3]/70">SCA SCORE: 85.50</span>
           </div>
           <h2 className="font-['Manrope'] text-2xl md:text-3xl font-medium tracking-tight text-[#e6e1df] uppercase">
             Sensory Notes & Extraction Range
           </h2>
           <p className="font-['Anuphan'] text-[14px] md:text-[15px] text-[#e3beb3]/80 max-w-2xl leading-relaxed">
-            โปรไฟล์กลิ่นและรสชาติที่ถูกบันทึกจากการคัปปิ้งโดย Q Grader ประจำไร่ดอยเวียง ค้นพบอัตลักษณ์เฉพาะตัวของดินภูเขาและความสูง 1,500 เมตร
+            โปรไฟล์กลิ่นและรสชาติโดยประมาณของกาแฟล็อตนี้ จากแหล่งปลูกที่ความสูง 1,500 เมตร
           </p>
         </div>
 
