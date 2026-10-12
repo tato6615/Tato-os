@@ -301,7 +301,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
         {/* 4 drying */}
         <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
           {bg(ASSETS.storyDrying, '62% 55%', tr('Coffee beans drying on raised beds', 'เมล็ดกาแฟตากบนแคร่ยกพื้น'), { tone: 'bright' })}
-          {glow('left-[30%] top-[10%] w-[520px] h-[520px]')}
           <div className={grid}>
             <div data-copy>
               <span className={label}>03 · Dried</span>
