@@ -312,9 +312,10 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
         </section>
 
         {/* 5 roast to order */}
-        <section ref={setRef(4)} className={`${scene} bg-[#141312] ${on(4)}`}>
-          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'clear', veil: 'bg-gradient-to-t from-[#141312]/90 via-[#141312]/5 to-transparent' })}
-          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/60 via-[#141312]/15 to-transparent" />
+        {/* cinematic dark: copy sits at the top, the pouring beans own the lower half */}
+        <section ref={setRef(4)} className={`${scene} !items-start pt-24 md:pt-28 bg-[#141312] ${on(4)}`}>
+          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal', veil: 'bg-[linear-gradient(to_bottom,rgba(20,19,18,.92)_0%,rgba(20,19,18,.6)_26%,rgba(20,19,18,.08)_52%,rgba(20,19,18,.88)_100%)]' })}
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/55 via-[#141312]/10 to-transparent" />
           <div className={grid}>
             <div data-copy>
               <span className={label}>04 · {tr('Roasted', 'การคั่ว')}</span>
