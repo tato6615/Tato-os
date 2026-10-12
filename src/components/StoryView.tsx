@@ -366,7 +366,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
             <div data-copy>
               <span className={label}>06 · Order</span>
               <h2 className={head}><Lines text={tr('From the mountain\nto your cup', 'ชิมจากดอย\nถึงถ้วยของคุณ')} base={100} /></h2>
-              <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. Cafés: no minimum on your first order.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำสำหรับออเดอร์แรก')}</p>
+              <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. No minimum for cafés.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำ')}</p>
               <div className="tv-fade mt-8 flex flex-wrap gap-3" style={delay(700)}>
                 <button onClick={() => onGoToProduct('medium')} className="tv-pulse px-6 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">
                   {tr('Order fresh-roasted · 650 THB/kg', 'สั่งกาแฟคั่วสด 650 บาท/กก.')}
