@@ -9,6 +9,16 @@ export const ASSETS = {
   cherriesAndBeans: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTkvneiKxmnYdX5NbkCXfn_7uuEDHPd8BT2Om2EzQJwp_z4TaerMDgvHVz26AK5KOlrujtwfyE37J1glIFAjZM1WAoZoiowl1TsP7d4h-Y4mt5U1fVQFzlG2U47IG_jhxs8ReKEUe3Xxr7ecbeTYzFxeEnb6H-Dym7SjAmS66b0hjH5b7WghsNvRXuQAhiLpYMf-k2cB74JidKlMdY9abT9vfugYEu9KPEw82laHXx3bximT3GlYfZ',
   // Luxury Matte Black Bag on Slate
   matteBlackPouch: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAbIzdMnw2jjWiXYz-togQEk5-N7FeBrWLzAqvXfCSjbzJCS7JOa7lqTyFUpRlXYZUjswL78ElMcj0zyHanXzz5dTopAJ5I8WXrDyfgZ3M5h6AT2MT8lOv1iDYD4pUpjidOATycTN5L_6F4Uv0-VmqS0dSVI-ROZQ35yF4TSq6VzcT4VoVK0UIVrTbiw_HWDv4gHUPjE0Pkwg8tY0vUgsvaQND3AwayyqEjpTmTPMf14E4vgYFgXQRj',
+  // Story page (/doi-wiang/) photos, colour-graded to one warm tone, in public/images/story/
+  // Scenes 1-6 are stock/atmosphere photos, not shot at the farm: swap in farm photos by replacing the files (same names).
+  storyMist: '/images/story/01-mist.webp',
+  storyRidges: '/images/story/02-ridges.webp',
+  storyCherries: '/images/story/03-cherries.webp',
+  storyDrying: '/images/story/04-drying.webp',
+  storyRoastPour: '/images/story/05-roast-pour.webp',
+  storyRoastDrum: '/images/story/06-roast-drum.webp',
+  storyBeansTrio: '/images/story/06b-beans-trio.webp',
+  storyBag: '/images/story/07-bag.webp',
 };
 
 export const ROAST_PROFILES: RoastProfile[] = [
