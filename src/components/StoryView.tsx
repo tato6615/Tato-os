@@ -8,13 +8,14 @@ interface StoryViewProps {
 }
 
 // หน้าเล่าเรื่องแบบเลื่อนซ้าย-ขวา (scrollytelling) ที่ /doi-wiang/
-// ใช้สี ฟอนต์ และรูปเดิมของเว็บ (ASSETS ใน coffeeData.ts)
+// ใช้สี ฟอนต์ ของเว็บ และรูปใน ASSETS (coffeeData.ts) ไฟล์ภาพอยู่ที่ public/images/story/
 // เนื้อหาใช้เฉพาะข้อเท็จจริงที่ตรงกับหน้าเว็บ: ไม่มีส่งฟรี ไม่มีใบรับรอง ไม่ระบุระยะเวลาคั่ว/ส่ง
-// ภาพประกอบฉากตาก/คั่วเป็นภาพวาดประกอบ ไม่ใช่ภาพถ่ายจริง
+// ภาพฉาก 1-6 เป็นภาพบรรยากาศจากคลังภาพฟรี ปรับโทนสีให้เป็นชุดเดียวกัน ไม่ใช่ภาพถ่ายจากไร่โดยตรง
+// alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
 const COUNT = 7;
-const AUTO_MS = 6500;
-const AUTO_MS_ROASTS = 9500;
+const AUTO_MS = 5500;
+const AUTO_MS_ROASTS = 9000;
 const IDLE_MS = 7000;
 
 const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
@@ -36,14 +37,6 @@ const CSS = `
 @keyframes tvmist{from{transform:translateX(-14%)}to{transform:translateX(14%)}}
 .tv-glow{animation:tvglow 9s ease-in-out infinite alternate}
 @keyframes tvglow{from{transform:translate3d(-8%,6%,0) scale(1);opacity:.45}to{transform:translate3d(10%,-8%,0) scale(1.3);opacity:.85}}
-.tv-bc{animation:tvbc 8s ease-in-out infinite}
-@keyframes tvbc{0%{opacity:0}10%{opacity:1}28%{opacity:1}40%{opacity:0}100%{opacity:0}}
-.tv-wob{animation:tvwob 3.4s ease-in-out infinite;transform-origin:100px 130px}
-@keyframes tvwob{50%{transform:rotate(7deg) translateY(-6px)}}
-.tv-steam{animation:tvsteam 3.6s ease-out infinite;opacity:0}
-@keyframes tvsteam{0%{transform:translateY(0);opacity:0}25%{opacity:.55}100%{transform:translateY(-80px);opacity:0}}
-.tv-seed{opacity:0;transition:opacity .5s ease}
-.tv-on .tv-seed{opacity:1}
 .tv-pulse{animation:tvpulse 2.4s ease-out infinite}
 @keyframes tvpulse{0%{box-shadow:0 0 0 0 rgba(255,94,26,.55)}100%{box-shadow:0 0 0 22px rgba(255,94,26,0)}}
 .tv-nudge{animation:tvnudge 1.5s ease-in-out infinite}
@@ -56,8 +49,8 @@ const CSS = `
 .tv-ring{animation:tvring linear forwards}
 @keyframes tvring{from{stroke-dashoffset:151}to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){
-  .tv-kb,.tv-mist,.tv-glow,.tv-bc,.tv-wob,.tv-steam,.tv-pulse,.tv-nudge,.tv-ring{animation:none}
-  .tv-line>span,.tv-fade,.tv-grow,.tv-card,.tv-seed{transition:none}
+  .tv-kb,.tv-mist,.tv-glow,.tv-pulse,.tv-nudge,.tv-ring{animation:none}
+  .tv-line>span,.tv-fade,.tv-grow,.tv-card{transition:none}
 }
 `;
 
@@ -86,43 +79,6 @@ const CountUp: React.FC<{ run: boolean; to: number }> = ({ run, to }) => {
   }, [run, to]);
   return <>{v.toLocaleString('en-US')}</>;
 };
-
-// ภาพวาดประกอบ: แคร่ตากเมล็ด
-const DryingBeds: React.FC = () => {
-  const cols = ['#8a5a34', '#c8a463', '#d4c3bd', '#a7743f'];
-  const rows = [78, 160, 242];
-  return (
-    <svg viewBox="0 0 400 300" className="w-full max-w-[460px]" aria-hidden="true">
-      {rows.map((y, r) => (
-        <g key={r}>
-          {Array.from({ length: 15 }).map((_, i) => (
-            <ellipse key={i} className="tv-seed" style={{ transitionDelay: `${300 + (r * 15 + i) * 45}ms` }}
-              cx={34 + i * 24 + ((i * 7 + r * 5) % 6)} cy={y - 6 - ((i * 3 + r) % 4)} rx="8" ry="5.5"
-              transform={`rotate(${(i * 37 + r * 19) % 70 - 35} ${34 + i * 24} ${y - 6})`} fill={cols[(i + r) % 4]} />
-          ))}
-          <rect x="18" y={y} width="364" height="8" rx="2" fill="#5b4138" />
-          <rect x="34" y={y + 8} width="6" height="34" fill="#3b3937" />
-          <rect x="360" y={y + 8} width="6" height="34" fill="#3b3937" />
-        </g>
-      ))}
-    </svg>
-  );
-};
-
-// ภาพวาดประกอบ: เมล็ดกาแฟเปลี่ยนสีตามระดับคั่ว (ไม่ได้ระบุเวลา)
-const RoastBean: React.FC = () => (
-  <svg viewBox="0 0 200 270" className="w-full max-w-[300px]" aria-hidden="true">
-    {[78, 100, 122].map((x, i) => (
-      <circle key={x} className="tv-steam" style={{ animationDelay: `${i * 1.1}s` }} cx={x} cy="40" r="9" fill="#e6e1df" opacity=".4" />
-    ))}
-    <g className="tv-wob">
-      {['#6f8a3d', '#c8a463', '#8a5a34', '#392015'].map((c, i) => (
-        <ellipse key={c} className="tv-bc" style={{ animationDelay: `${-i * 2}s`, opacity: i === 3 ? 1 : 0 }} cx="100" cy="150" rx="68" ry="94" fill={c} />
-      ))}
-      <path d="M100 62 C70 120 130 180 100 238" stroke="#141312" strokeWidth="9" fill="none" strokeLinecap="round" opacity=".6" />
-    </g>
-  </svg>
-);
 
 export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   const { language, setLanguage } = useLanguage();
@@ -221,12 +177,26 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
   const on = (i: number) => (seen[i] ? 'tv-on' : '');
   const setRef = (i: number) => (el: HTMLElement | null) => { sceneRefs.current[i] = el; };
   const delay = (ms: number) => ({ transitionDelay: `${ms}ms` });
-  const bg = (url: string, pos: string, alt: string) => (
+  // full-bleed photo behind the copy. first = load before anything else (scene 1)
+  // tone: 'bright' for light, misty photos; 'dim' for text-heavy scenes; default sits between
+  const TONES = { dim: 'opacity-45 brightness-[0.7] contrast-125', normal: 'opacity-65 brightness-[0.7] contrast-125', bright: 'opacity-85 brightness-[0.9] contrast-110' };
+  const bg = (url: string, pos: string, alt: string, opts: { first?: boolean; tone?: keyof typeof TONES } = {}) => (
     <div className="absolute inset-0 z-0">
       <div data-par className="absolute inset-0">
-        <img src={url} alt={alt} className="tv-kb w-full h-full object-cover opacity-65 brightness-[0.7] contrast-125" style={{ objectPosition: pos }} />
+        <img src={url} alt={alt} decoding="async" loading={opts.first ? 'eager' : 'lazy'} fetchPriority={opts.first ? 'high' : 'auto'}
+          className={`tv-kb w-full h-full object-cover ${TONES[opts.tone ?? 'normal']}`} style={{ objectPosition: pos }} />
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/60 to-[#141312]/40" />
+    </div>
+  );
+  // portrait photo: lower half of the screen on phones (so it never sits under the copy),
+  // right-hand panel fading into the dark on wide screens (keeps the bag sharp and uncropped)
+  const bgSide = (url: string, pos: string, alt: string) => (
+    <div className="absolute inset-0 z-0">
+      <div data-par className="absolute inset-x-0 bottom-0 h-[54%] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[52%] overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_32%)] md:[mask-image:linear-gradient(to_right,transparent,#000_16%)]">
+        <img src={url} alt={alt} decoding="async" loading="lazy" className="tv-kb w-full h-full object-cover opacity-85 md:opacity-90" style={{ objectPosition: pos }} />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/50 via-transparent to-transparent md:from-[#141312]/60" />
     </div>
   );
   const glow = (cls: string) => <div className={`tv-glow pointer-events-none absolute rounded-full blur-3xl bg-[#ff5e1a]/25 ${cls}`} />;
@@ -260,7 +230,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
       <div ref={trackRef} className="absolute inset-0 flex overflow-x-auto overflow-y-hidden snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* 1 hero */}
         <section ref={setRef(0)} className={`${scene} ${on(0)}`}>
-          {bg(ASSETS.highlandAerial, 'center', 'Doi Wiang highland coffee plantation in morning mist')}
+          {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
           <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
           <div className={grid}>
             <div data-copy className="max-w-5xl md:col-span-2">
@@ -273,7 +243,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
 
         {/* 2 altitude */}
         <section ref={setRef(1)} className={`${scene} ${on(1)}`}>
-          {bg(ASSETS.highlandAerial, '80% 40%', 'Misty mountain slopes of Doi Wiang Pa')}
+          {bg(ASSETS.storyRidges, '50% 45%', tr('Layers of mountain ridges fading into haze', 'สันเขาซ้อนกันหลายชั้นจางหายไปในหมอก'), { tone: 'bright' })}
           <div className={grid}>
             <div data-copy>
               <span className={label}>01 · Origin</span>
@@ -292,7 +262,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
 
         {/* 3 growers */}
         <section ref={setRef(2)} className={`${scene} ${on(2)}`}>
-          {bg(ASSETS.cherriesAndBeans, 'center', 'Coffee cherries and beans')}
+          {bg(ASSETS.storyCherries, '50% 50%', tr('Ripe coffee cherries on the branch', 'ผลกาแฟสุกบนกิ่ง'))}
           {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
           <div className={grid}>
             <div data-copy className="md:col-span-2 max-w-5xl">
@@ -304,7 +274,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
         </section>
 
         {/* 4 drying */}
-        <section ref={setRef(3)} className={`${scene} bg-[#0f0e0d] ${on(3)}`}>
+        <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
+          {bg(ASSETS.storyDrying, '62% 55%', tr('Coffee beans drying on raised beds', 'เมล็ดกาแฟตากบนแคร่ยกพื้น'), { tone: 'bright' })}
           {glow('left-[30%] top-[10%] w-[520px] h-[520px]')}
           <div className={grid}>
             <div data-copy>
@@ -312,7 +283,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
               <h2 className={head}><Lines text={tr('Dried on\nraised beds', 'ตากบน\nแคร่ยกพื้น')} base={100} /></h2>
               <p className={sub} style={delay(500)}>{tr('The beans are dried on raised beds before they reach our roaster.', 'เมล็ดถูกตากบนแคร่ยกพื้น ก่อนเดินทางมาถึงเครื่องคั่วของเรา')}</p>
             </div>
-            <div data-vis className="mt-8 md:mt-0 flex md:justify-end pointer-events-none"><DryingBeds /></div>
           </div>
         </section>
 
@@ -325,16 +295,26 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
               <h2 className={head}><Lines text={tr('We don’t roast stock.\nWe roast when\nyou order.', 'เราไม่คั่วสต็อก\nเราคั่วเมื่อคุณสั่ง')} base={100} /></h2>
               <p className={sub} style={delay(600)}>{tr('Every order is roasted to order.', 'ทุกออเดอร์คั่วตามคำสั่งซื้อ')}</p>
             </div>
-            <div data-vis className="mt-6 md:mt-0 flex md:justify-end pointer-events-none"><div className="w-[190px] md:w-[300px]"><RoastBean /></div></div>
+            <div data-vis className="mt-6 md:mt-0 flex md:justify-end pointer-events-none">
+              <img src={ASSETS.storyRoastPour} alt={tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม')} decoding="async" loading="lazy"
+                className="h-[26vh] md:h-[58vh] aspect-[2/3] object-cover rounded-xl border border-[#5b4138]/40 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)]" />
+            </div>
           </div>
         </section>
 
         {/* 6 roast levels -> opens the real order flow */}
-        <section ref={setRef(5)} className={`${scene} bg-[#0f0e0d] ${on(5)}`}>
+        <section ref={setRef(5)} className={`${scene} bg-[#0f0e0d] pt-16 md:pt-0 ${on(5)}`}>
+          {bg(ASSETS.storyRoastDrum, '60% 50%', tr('Roasted coffee beans turning in a drum roaster', 'เมล็ดกาแฟคั่วหมุนอยู่ในเครื่องคั่วแบบดรัม'), { tone: 'dim' })}
           {glow('left-[-5%] bottom-[0%] w-[460px] h-[460px]')}
           <div data-copy className="relative z-10 w-full max-w-6xl">
-            <span className={label}>05 · Roasts</span>
-            <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
+            <div className="md:flex md:items-end md:justify-between md:gap-10">
+              <div>
+                <span className={label}>05 · Roasts</span>
+                <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
+              </div>
+              <img src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')} decoding="async" loading="lazy"
+                className="tv-fade hidden md:block shrink-0 w-[300px] lg:w-[360px] pointer-events-none" style={delay(600)} />
+            </div>
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
               {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => {
                 const p = ROAST_PROFILES.find((r) => r.id === id)!;
@@ -359,8 +339,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
 
         {/* 7 call to action */}
         <section ref={setRef(6)} className={`${scene} ${on(6)}`}>
-          {bg(ASSETS.matteBlackPouch, '75% center', 'TATO Coffee matte black pouch')}
-          <div className={grid}>
+          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'))}
+          <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
               <span className={label}>06 · Order</span>
               <h2 className={head}><Lines text={tr('From the mountain\nto your cup', 'ชิมจากดอย\nถึงถ้วยของคุณ')} base={100} /></h2>
