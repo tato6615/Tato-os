@@ -224,7 +224,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/50 via-transparent to-transparent md:from-[#141312]/60" />
     </div>
   );
-  const glow = (cls: string) => <div className={`tv-glow pointer-events-none absolute rounded-full blur-3xl bg-[#ff5e1a]/25 ${cls}`} />;
+  const glow = (cls: string) => <div className={`tv-glow pointer-events-none absolute rounded-full blur-3xl bg-black/60 ${cls}`} />;
 
   return (
     <div className="fixed inset-0 bg-[#141312] text-[#e6e1df] font-['Manrope'] selection:bg-[#ff5e1a] selection:text-[#390c00]">
