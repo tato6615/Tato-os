@@ -475,7 +475,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   Roasted Fresh To Order. Peak Aromatics.
                 </h3>
                 <p className="mt-3 font-['Anuphan'] text-[15px] md:text-[16px] text-[#e3beb3]/80 leading-relaxed">
-                  คั่วสดใหม่ทุกออเดอร์ เพื่อให้คุณได้ดื่มกาแฟในจุดที่รสชาติและกลิ่นหอมสมบูรณ์ที่สุด บรรจุในถุงฟอยล์กันความชื้นแบบมีวาล์วทางเดียว (One-way Degassing Valve) เพื่อกักเก็บแก๊สอะโรมาติกส์ได้นานถึง 90 วัน
+                  คั่วสดใหม่ทุกออเดอร์ เพื่อให้คุณได้ดื่มกาแฟในจุดที่รสชาติและกลิ่นหอมสมบูรณ์ที่สุด บรรจุในถุงฟอยล์กันความชื้นแบบมีวาล์วทางเดียว (One-way Degassing Valve) เพื่อช่วยรักษากลิ่นหอมของเมล็ด
                 </p>
               </div>
 
@@ -487,7 +487,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-[#211f1e] rounded-lg border border-[#2b2a28]">
                   <span className="material-symbols-outlined text-[#ffb59c] text-[20px]">check_circle</span>
-                  <span>Single Origin 100% Traceability จากแปลงดอยเวียงโดยตรง</span>
+                  <span>Single Origin จากดอยเวียงผา เชียงใหม่ ไม่ผสมแหล่งอื่น</span>
                 </div>
               </div>
 
@@ -501,7 +501,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
                 <span className="font-mono text-[12px] text-[#e3beb3]/70">
-                  Available in 250g / 500g / 1,000g (1 KG)
+                  {tr('Minimum order 0.5 kg, in 0.5 kg steps', 'สั่งขั้นต่ำ 0.5 กก. เพิ่มครั้งละ 0.5 กก.')}
                 </span>
               </div>
             </div>
