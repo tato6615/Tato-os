@@ -58,7 +58,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
 
           {/* Supporting Spec Note */}
           <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 max-w-xl font-light">
-            Arabica 100% • Single Origin • Doi Wiang Pa 1,500m
+            Single Origin • Doi Wiang Pa, Chiang Mai
           </p>
 
           {/* Audience line: tells café owners this site is for them too */}
@@ -114,15 +114,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct }) => 
               <p className="font-['Manrope'] text-base font-bold text-[#e6e1df]">{tr('To order', 'ตามออเดอร์')}</p>
               <p className="text-[10px] tracking-wider uppercase text-[#e3beb3]/70">{tr('Roasted fresh', 'คั่วสด')}</p>
             </div>
-          </div>
-
-          {/* Coordinates Quick Strip */}
-          <div className="mt-16 flex items-center gap-6 text-[#e3beb3]/60 font-mono text-[11px] uppercase tracking-widest hidden md:flex">
-            <span>DOI WIANG PA • CHIANG MAI</span>
-            <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,500 MASL</span>
-            <span className="w-1 h-1 rounded-full bg-[#5b4138]" />
-            <span>1,500 MASL ELEVATION</span>
           </div>
         </div>
       </section>

@@ -40,7 +40,7 @@ function CustomerApp(){
  const openProduct=(r:RoastType=roast)=>{if(story){setStory(false);try{{const q=new URLSearchParams(window.location.search);q.set('shop','1');window.history.replaceState(null,'','/?'+q.toString())}}catch{}}setRoast(r);setView('product');track('content_click',{roast:r});track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
  if(story)return <StoryView onGoToProduct={openProduct}/>;
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
-  <Header currentView={view} onNavigate={navigate} cartCount={1} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>{}}/>
+  <Header currentView={view} onNavigate={navigate} cartCount={0} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>{}}/>
   <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} prefill={prefill} onPrefillConsumed={()=>setPrefill(null)} onTrack={track} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>{}}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>
   <Footer/>
  </div>;
