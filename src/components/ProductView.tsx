@@ -360,15 +360,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
       {/* Breadcrumb & Lot Indicator */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
         <div className="flex items-center gap-2 font-mono text-[12px] text-[#e3beb3]/70">
-          <span className="text-[#d4c3bd]">ESTATE ARCHIVE</span>
+          <span className="text-[#d4c3bd]">{tr('SHOP', 'ร้านค้า')}</span>
           <span className="text-[#5b4138]">/</span>
           <span className="text-[#d4c3bd]">DOI WIANG LOT 2025</span>
-        </div>
-        <div className="flex items-center gap-2 bg-[#2b2a28] px-3.5 py-1.5 rounded-full border border-[#363433]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#ff5e1a] animate-pulse" />
-          <span className="font-mono text-[11px] text-[#ffb59c] uppercase font-medium">
-            CRAFT MICRO-BATCH ACTIVE
-          </span>
         </div>
       </div>
 
@@ -404,9 +398,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/80 to-transparent" />
-              <span className="absolute bottom-2 left-2.5 font-mono text-[10px] text-[#e3beb3]/80 uppercase tracking-wider font-semibold">
-                HARVEST SPECIMEN
-              </span>
+              <span className="absolute bottom-2 left-2.5 font-mono text-[10px] text-[#e3beb3]/80 uppercase tracking-wider font-semibold">{tr('HARVEST', 'การเก็บเกี่ยว')}</span>
             </div>
 
             <div className="col-span-7 bg-[#1d1b1a] rounded-xl p-4 flex flex-col justify-between border border-[#2b2a28]">
@@ -424,20 +416,12 @@ export const ProductView: React.FC<ProductViewProps> = ({
           {/* Technical Assurance Strip */}
           <div className="grid grid-cols-2 gap-3 bg-[#0f0e0d] p-4 rounded-xl border border-[#2b2a28]">
             <div className="text-center space-y-0.5">
-              <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">
-                Packaging
-              </span>
-              <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">
-                Degassing Valve
-              </span>
+              <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">{tr('Packaging', 'บรรจุภัณฑ์')}</span>
+              <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">{tr('One-way valve', 'วาล์วระบายแก๊สทางเดียว')}</span>
             </div>
             <div className="text-center space-y-0.5 border-l border-[#211f1e]">
-              <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">
-                Pouch Barrier
-              </span>
-              <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">
-                Foil Sealed
-              </span>
+              <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase tracking-wider block">{tr('Moisture barrier', 'ชั้นกันความชื้น')}</span>
+              <span className="font-['Manrope'] text-[13px] text-[#e6e1df] font-medium">{tr('Foil sealed', 'ซีลฟอยล์')}</span>
             </div>
           </div>
         </div>
@@ -447,9 +431,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
           {/* Header & Identity Section */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="font-['Manrope'] text-[11px] font-bold text-[#ff5e1a] uppercase tracking-widest">
-                SINGLE ESTATE EXCLUSIVE
-              </span>
+              <span className="font-['Manrope'] text-[11px] font-bold text-[#ff5e1a] uppercase tracking-widest">{tr('SINGLE ORIGIN', 'ซิงเกิลออริจิน')}</span>
             </div>
             <h1 className="font-['Manrope'] text-3xl md:text-5xl font-medium tracking-tight text-[#e6e1df] uppercase">
               TATO COFFEE
@@ -480,7 +462,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
           <div className="bg-[#211f1e] rounded-xl p-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border border-[#2b2a28]">
             <div className="space-y-1">
               <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase tracking-widest">
-                Base Investment / ราคาต่อกิโลกรัม
+                {tr('Price per kg', 'ราคาต่อกิโลกรัม')}
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-['Manrope'] text-4xl md:text-5xl font-bold tracking-tight text-[#e6e1df]">
@@ -492,13 +474,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
               </div>
             </div>
             <div className="text-left md:text-right space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#67401a]/40 text-[#ffdcc0] font-mono text-[11px] border border-[#67401a]">
-                <span className="material-symbols-outlined text-[14px]">local_shipping</span>
-                <span>SHIPPING BY WEIGHT</span>
-              </div>
               <p className="font-['Anuphan'] text-[12px] text-[#e3beb3]/70">
-                รวมภาษีมูลค่าเพิ่มแล้ว · ค่าจัดส่งคิดตามน้ำหนักพัสดุ
+                {tr('VAT included · shipping calculated by parcel weight', 'รวมภาษีมูลค่าเพิ่มแล้ว · ค่าจัดส่งคิดตามน้ำหนักพัสดุ')}
               </p>
+              <a href="/cafe/?src=shop" className="inline-block font-['Anuphan'] text-[13px] text-[#ffb59c] underline underline-offset-4 hover:text-[#e6e1df]">{tr('Café owner? 550 THB/kg →', 'เจ้าของร้านกาแฟ? ราคา 550 บาท/กก. →')}</a>
             </div>          </div>
 
           {/* ORDER CONFIGURATION OR SUCCESS STAGE */}

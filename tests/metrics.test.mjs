@@ -1,4 +1,4 @@
-// Tests for public/system/metrics.js (revenue, profit, customer status).
+// Tests for public/system/marketing/metrics.js (revenue, profit, customer status).
 // Run:  node --test tests/metrics.test.mjs
 // Numbers come from the shop's real orders on 10 Oct 2026. Cost = 390 THB/kg.
 import test from "node:test";
@@ -9,7 +9,7 @@ import vm from "node:vm";
 // metrics.js is a plain browser script, so load it in a sandbox with a fake `window`.
 const sandbox = { window: {} };
 vm.runInNewContext(
-  fs.readFileSync(new URL("../public/system/metrics.js", import.meta.url), "utf8"),
+  fs.readFileSync(new URL("../public/system/marketing/metrics.js", import.meta.url), "utf8"),
   sandbox
 );
 const { summarize } = sandbox.window.TatoMetrics;

@@ -260,7 +260,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
           <div className={grid}>
             <div data-copy className="max-w-5xl md:col-span-2">
-              <span className={label}>Single-Origin · Doi Wiang Pa</span>
+              <span className={label}>{tr('Single-Origin · Doi Wiang Pa', 'ซิงเกิลออริจิน · ดอยเวียงผา')}</span>
               <h1 className={`${head} lg:!text-[72px] xl:!text-[88px]`}><Lines text={tr('Coffee from\nDoi Wiang Pa,\nroasted when\nyou order', 'กาแฟจากดอยเวียงผา\nคั่วสดเมื่อคุณสั่ง')} base={150} /></h1>
               <p className={sub} style={delay(700)}>{tr('100% Arabica from Chiang Mai. Not coffee that sits on a shelf.', 'อาราบิก้า 100% จากเชียงใหม่ ไม่ใช่กาแฟที่นอนรอบนชั้นวาง')}</p>
             </div>
@@ -272,7 +272,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bg(ASSETS.storyRidges, '50% 45%', tr('Layers of mountain ridges fading into haze', 'สันเขาซ้อนกันหลายชั้นจางหายไปในหมอก'), { tone: 'bright' })}
           <div className={grid}>
             <div data-copy>
-              <span className={label}>01 · Origin</span>
+              <span className={label}>01 · {tr('Origin', 'แหล่งปลูก')}</span>
               <h2 className={head}><Lines text={tr('Above\nsea level', 'สูงกว่า\nน้ำทะเล')} base={100} /></h2>
               <p className={sub} style={delay(500)}>{tr('Before it was your cup, it grew on Doi Wiang Pa, Chaiprakan District, Chiang Mai.', 'ก่อนเป็นถ้วยของคุณ มันเติบโตบนดอยเวียงผา อ.ไชยปราการ จ.เชียงใหม่')}</p>
             </div>
@@ -292,7 +292,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
           <div className={grid}>
             <div data-copy className="md:col-span-2 max-w-5xl">
-              <span className={label}>02 · Grown</span>
+              <span className={label}>02 · {tr('Grown', 'ผู้ปลูก')}</span>
               <h2 className={head}><Lines text={tr('Grown by the\nLahu people', 'ปลูกโดย\nชาวลาหู่')} base={100} /></h2>
               <p className={sub} style={delay(550)}>{tr('100% Arabica from Lahu hill-tribe growers on Doi Wiang Pa.', 'อาราบิก้า 100% จากชาวเขาเผ่าลาหู่ที่ดอยเวียงผา')}</p>
             </div>
@@ -304,7 +304,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bg(ASSETS.storyDrying, '62% 55%', tr('Coffee beans drying on raised beds', 'เมล็ดกาแฟตากบนแคร่ยกพื้น'), { tone: 'bright' })}
           <div className={grid}>
             <div data-copy>
-              <span className={label}>03 · Dried</span>
+              <span className={label}>03 · {tr('Dried', 'การตาก')}</span>
               <h2 className={head}><Lines text={tr('Dried on\nraised beds', 'ตากบน\nแคร่ยกพื้น')} base={100} /></h2>
               <p className={sub} style={delay(500)}>{tr('The beans are dried on raised beds before they reach our roaster.', 'เมล็ดถูกตากบนแคร่ยกพื้น ก่อนเดินทางมาถึงเครื่องคั่วของเรา')}</p>
             </div>
@@ -317,7 +317,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/60 via-[#141312]/15 to-transparent" />
           <div className={grid}>
             <div data-copy>
-              <span className={label}>04 · Roasted</span>
+              <span className={label}>04 · {tr('Roasted', 'การคั่ว')}</span>
               <h2 className={head}><Lines text={tr('We don’t roast stock.\nWe roast when\nyou order.', 'เราไม่คั่วสต็อก\nเราคั่วเมื่อคุณสั่ง')} base={100} /></h2>
               <p className={sub} style={delay(600)}>{tr('Every order is roasted to order.', 'ทุกออเดอร์คั่วตามคำสั่งซื้อ')}</p>
             </div>
@@ -331,7 +331,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           <div data-copy className="relative z-10 w-full max-w-6xl">
             <div className="md:flex md:items-end md:justify-between md:gap-10">
               <div>
-                <span className={label}>05 · Roasts</span>
+                <span className={label}>05 · {tr('Roasts', 'ระดับการคั่ว')}</span>
                 <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
               </div>
               <img src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')} decoding="async" loading="lazy"
@@ -364,7 +364,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'))}
           <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
-              <span className={label}>06 · Order</span>
+              <span className={label}>06 · {tr('Order', 'สั่งซื้อ')}</span>
               <h2 className={head}><Lines text={tr('From the mountain\nto your cup', 'ชิมจากดอย\nถึงถ้วยของคุณ')} base={100} /></h2>
               <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. No minimum for cafés.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำ')}</p>
               <div className="tv-fade mt-8 flex flex-wrap gap-3" style={delay(700)}>
