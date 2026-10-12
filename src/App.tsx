@@ -38,7 +38,8 @@ function CustomerApp(){
  useEffect(()=>{try{const q=new URLSearchParams(window.location.search);if(q.get('test')==='1')localStorage.setItem('tato_is_test','1');if(q.get('test')==='0')localStorage.removeItem('tato_is_test');saveUtm();track('content_view',{src:q.get('src'),mobile:/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1)})}catch{track('content_view')}},[]);
  const navigate=(next:PageView,sectionId?:string)=>{setView(next);if(sectionId)requestAnimationFrame(()=>document.getElementById(sectionId)?.scrollIntoView({behavior:'smooth'}));};
  const openProduct=(r:RoastType=roast)=>{if(story){setStory(false);try{{const q=new URLSearchParams(window.location.search);q.set('shop','1');window.history.replaceState(null,'','/?'+q.toString())}}catch{}}setRoast(r);setView('product');track('content_click',{roast:r});track('product_view',{roast:r});window.scrollTo({top:0,behavior:'smooth'});};
- if(story)return <StoryView onGoToProduct={openProduct}/>;
+ const openDiscover=()=>{setStory(false);try{const q=new URLSearchParams(window.location.search);q.set('shop','1');window.history.replaceState(null,'','/?'+q.toString())}catch{}setView('discover');track('content_click',{target:'discover'});window.scrollTo({top:0});};
+ if(story)return <StoryView onGoToProduct={openProduct} onGoToDiscover={openDiscover}/>;
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
   <Header currentView={view} onNavigate={navigate} cartCount={0} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>{}}/>
   <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} prefill={prefill} onPrefillConsumed={()=>setPrefill(null)} onTrack={track} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>{}}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>

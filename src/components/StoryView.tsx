@@ -5,6 +5,7 @@ import { RoastType } from '../types';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
+  onGoToDiscover?: () => void;
 }
 
 // หน้าเล่าเรื่องแบบเลื่อนซ้าย-ขวา (scrollytelling) ที่ /doi-wiang/
@@ -80,7 +81,7 @@ const CountUp: React.FC<{ run: boolean; to: number }> = ({ run, to }) => {
   return <>{v.toLocaleString('en-US')}</>;
 };
 
-export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
+export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDiscover }) => {
   const { language, setLanguage } = useLanguage();
   const tr = (en: string, th: string) => (language === 'th' ? th : en);
   const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -375,6 +376,9 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
                 </a>
               </div>
               <p className="tv-fade mt-5 text-[13px] text-[#e3beb3]/70 font-['Anuphan']" style={delay(850)}>{tr('Prices exclude shipping. Questions? Call 064-293-6615.', 'ราคายังไม่รวมค่าส่ง สอบถามได้ที่ 064-293-6615')}</p>
+              {onGoToDiscover && (
+                <button onClick={onGoToDiscover} className="tv-fade mt-2 min-h-11 text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df] font-['Anuphan']" style={delay(1000)}>{tr('Learn more about the coffee →', 'ดูรายละเอียดเกี่ยวกับกาแฟ →')}</button>
+              )}
             </div>
           </div>
         </section>
