@@ -95,8 +95,22 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
     try { return new URLSearchParams(window.location.search).get('src') || 'doi-wiang'; } catch { return 'doi-wiang'; }
   })();
 
-  const goTo = (i: number) =>
-    trackRef.current?.scrollTo({ left: Math.max(0, Math.min(COUNT - 1, i)) * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' });
+  const animRef = useRef(0);
+  const goTo = (i: number) => {
+    const t = trackRef.current;
+    if (!t) return;
+    const target = Math.max(0, Math.min(COUNT - 1, i)) * window.innerWidth;
+    cancelAnimationFrame(animRef.current);
+    if (reduce) { t.scrollTo({ left: target, behavior: 'auto' }); return; }
+    const from = t.scrollLeft, dist = target - from, t0 = performance.now(), D = 950;
+    t.style.scrollSnapType = 'none';
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / D);
+      t.scrollLeft = from + dist * (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+      if (k < 1) animRef.current = requestAnimationFrame(step); else t.style.scrollSnapType = '';
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
   const userGo = (i: number) => { lastTouch.current = Date.now(); goTo(i); };
   const onTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('a,button,input,select,textarea')) return;
@@ -124,10 +138,16 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
         const par = s.querySelector<HTMLElement>('[data-par]');
         const vis = s.querySelector<HTMLElement>('[data-vis]');
         if (copy) {
-          copy.style.transform = `translateX(${p * 90}px)`;
+          const ap = Math.min(1, Math.abs(p));
+          copy.style.transform = `translateX(${p * 90}px) scale(${1 - ap * 0.05})`;
+          copy.style.filter = ap > 0.01 ? `blur(${ap * 9}px)` : 'none';
           copy.style.opacity = String(Math.max(0, 1 - Math.min(1, Math.abs(p)) * 0.95));
         }
-        if (par) par.style.transform = `translateX(${p * -70}px) scale(1.12)`;
+        if (par) {
+          const ap = Math.min(1, Math.abs(p));
+          par.style.transform = `translateX(${p * -70}px) scale(${1.12 + ap * 0.22})`;
+          par.style.opacity = String(Math.max(0, 1 - ap * 0.9));
+        }
         if (vis) {
           vis.style.transform = `translateX(${p * -150}px)`;
           vis.style.opacity = String(Math.max(0, 1 - Math.min(1, Math.abs(p)) * 0.9));
@@ -139,10 +159,10 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct }) => {
       lastTouch.current = Date.now();
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); track.scrollLeft += e.deltaY; }
     };
-    const stopAuto = () => { lastTouch.current = Date.now(); };
+    const stopAuto = () => { lastTouch.current = Date.now(); cancelAnimationFrame(animRef.current); track.style.scrollSnapType = ''; };
     const onKey = (e: KeyboardEvent) => {
       const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-      if (d) { lastTouch.current = Date.now(); track.scrollBy({ left: d * window.innerWidth, behavior: reduce ? 'auto' : 'smooth' }); }
+      if (d) { lastTouch.current = Date.now(); goTo(Math.round(track.scrollLeft / window.innerWidth) + d); }
     };
     track.addEventListener('scroll', onScroll, { passive: true });
     track.addEventListener('wheel', onWheel, { passive: false });
