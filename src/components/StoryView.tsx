@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
-import { Fog, Smoke, PowderGrind, FxDebug } from './StoryFx';
+import { Fog, Smoke, FxDebug } from './StoryFx';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -16,6 +16,9 @@ interface StoryViewProps {
 // alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
 const COUNT = 7;
+// เมล็ดคั่วอ่อน/กลาง/เข้ม: ตัดจากภาพ 06b-beans-trio.webp (643x299) ด้วย CSS ไม่ต้องมีไฟล์ใหม่
+const BEAN_CROP: Record<RoastType, { x: number; w: number }> = { light: { x: 10, w: 195 }, medium: { x: 228, w: 193 }, dark: { x: 443, w: 191 } };
+const TRIO_W = 643, TRIO_H = 299;
 // where smoke starts, as fractions of the photo (05-roast-pour: along the pouring beans; 07-bag: the cup rim)
 const ROAST_EMITTERS = [{ nx: 0.6, ny: 0.52 }, { nx: 0.45, ny: 0.66 }, { nx: 0.3, ny: 0.8 }];
 const CUP_EMITTERS = [{ nx: 0.57, ny: 0.555 }];
@@ -53,6 +56,8 @@ const CSS = `
 .tv-on .tv-card:hover{transform:translateY(-6px);background-color:#211f1e}
 .tv-bag{height:88px;width:auto;max-width:100%;object-fit:contain;transform-origin:50% 90%;transition:transform .35s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 16px 22px rgba(0,0,0,.55));will-change:transform}
 @media (min-width:768px){.tv-bag{height:clamp(130px,21vh,280px)}}
+.tv-bean{flex:none;height:44px;background-repeat:no-repeat;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
+@media (min-width:768px){.tv-bean{height:64px}}
 .tv-ring{animation:tvring linear forwards}
 @keyframes tvring{from{stroke-dashoffset:151}to{stroke-dashoffset:0}}
 .tv-zoom{transform:scale(1.04);transform-origin:var(--zo,50% 50%)}
@@ -338,7 +343,13 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 4 drying */}
         <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
-          {bgSide(ASSETS.storyDrying, '38% 50%', tr('A farmer sorting dried green coffee beans in a woven tray', 'เกษตรกรกำลังคัดเมล็ดกาแฟสารในกระด้งสาน'))}
+          <div className="absolute inset-0 z-0">
+            <img src={ASSETS.storyDrying} alt="" aria-hidden="true" decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-60 brightness-75 saturate-125" style={{ objectPosition: '50% 45%' }} />
+            <div data-par className="absolute inset-x-0 bottom-0 h-[54%] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[62%] overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_32%)] md:[mask-image:linear-gradient(to_right,transparent,#000_14%)]">
+              <img src={ASSETS.storyDrying} alt={tr('A farmer sorting dried green coffee beans in a woven tray', 'เกษตรกรกำลังคัดเมล็ดกาแฟสารในกระด้งสาน')} decoding="async" loading="lazy" className="tv-kb w-full h-full object-cover opacity-95" style={{ objectPosition: '38% 50%' }} />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/55 via-transparent to-transparent md:bg-gradient-to-r md:from-[#141312]/70 md:via-[#141312]/20 md:to-transparent" />
+          </div>
           <div className={grid}>
             <div data-copy>
               <span className={label}>03 · {tr('Dried', 'การตาก')}</span>
@@ -367,13 +378,11 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bg(ASSETS.storyRoastDrum, '60% 50%', tr('Roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วในถังของเครื่องคั่ว'), { tone: 'dim' })}
           {glow('left-[-5%] bottom-[0%] w-[460px] h-[460px]')}
           <div data-copy className="relative z-10 w-full max-w-6xl">
-            <div className="md:flex md:items-end md:justify-between md:gap-10">
+            <div>
               <div>
                 <span className={label}>05 · {tr('Roasts', 'ระดับการคั่ว')}</span>
                 <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
               </div>
-              <PowderGrind run={active === 5} src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')}
-                className="tv-fade hidden md:block shrink-0 w-[300px] lg:w-[360px] pointer-events-none" style={delay(600)} />
             </div>
             <div className="mt-5 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-5">
               {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => {
@@ -388,7 +397,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
                     </span>
                     <span className="block min-w-0 flex-1">
                       <span className="flex items-center gap-3">
-                        <span className="inline-block h-4 w-4 rounded-full" style={{ background: n.accent }} />
+                        <span className="tv-bean" role="img" aria-label={tr(`${p.name} roast bean`, `เมล็ดกาแฟ${p.nameThai}`)}
+                          style={{ aspectRatio: `${BEAN_CROP[id].w} / ${TRIO_H}`, backgroundImage: `url(${ASSETS.storyBeansTrio})`, backgroundSize: `${(TRIO_W / BEAN_CROP[id].w) * 100}% 100%`, backgroundPosition: `${(BEAN_CROP[id].x / (TRIO_W - BEAN_CROP[id].w)) * 100}% 0` }} />
                         <span className="font-['Anuphan'] font-semibold text-xl md:text-2xl text-[#e6e1df]">{tr(p.name, p.nameThai)}</span>
                       </span>
                       <span className="block mt-2 md:mt-3 font-['Anuphan'] font-light text-sm md:text-base text-[#e3beb3]/85">{tr(n.en, n.th)}</span>
