@@ -1,4 +1,4 @@
-import { RoastProfile, GrindType } from '../types';
+import { RoastProfile, GrindType, RoastType } from '../types';
 
 export const ASSETS = {
   // Brand Logo
@@ -10,7 +10,7 @@ export const ASSETS = {
   // Luxury Matte Black Bag on Slate
   matteBlackPouch: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAbIzdMnw2jjWiXYz-togQEk5-N7FeBrWLzAqvXfCSjbzJCS7JOa7lqTyFUpRlXYZUjswL78ElMcj0zyHanXzz5dTopAJ5I8WXrDyfgZ3M5h6AT2MT8lOv1iDYD4pUpjidOATycTN5L_6F4Uv0-VmqS0dSVI-ROZQ35yF4TSq6VzcT4VoVK0UIVrTbiw_HWDv4gHUPjE0Pkwg8tY0vUgsvaQND3AwayyqEjpTmTPMf14E4vgYFgXQRj',
   // Story page (/doi-wiang/) photos, colour-graded to one warm tone, in public/images/story/
-  // Scenes 1-6 are stock/atmosphere photos, not shot at the farm: swap in farm photos by replacing the files (same names).
+  // Scenes 3 (cherries), 4 (sorting beans) and 6 (roaster) are real photos; scenes 1, 2, 5 are still stock atmosphere photos: swap them by replacing the files (same names).
   storyMist: '/images/story/01-mist.webp',
   storyRidges: '/images/story/02-ridges.webp',
   storyCherries: '/images/story/03-cherries.webp',
@@ -19,6 +19,14 @@ export const ASSETS = {
   storyRoastDrum: '/images/story/06-roast-drum.webp',
   storyBeansTrio: '/images/story/06b-beans-trio.webp',
   storyBag: '/images/story/07-bag.webp',
+};
+
+// Photoreal TATO bags, one per roast (public/images/bags/). `cut` = transparent cut-out for dark backgrounds,
+// `scene` = full photo (burlap + beans). Made by compositing the logo/label onto a real blank-bag photo.
+export const BAG_IMAGES: Record<RoastType, { cut: string; scene: string }> = {
+  light:  { cut: '/images/bags/light.webp',  scene: '/images/bags/light-scene.webp' },
+  medium: { cut: '/images/bags/medium.webp', scene: '/images/bags/medium-scene.webp' },
+  dark:   { cut: '/images/bags/dark.webp',   scene: '/images/bags/dark-scene.webp' },
 };
 
 export const ROAST_PROFILES: RoastProfile[] = [
