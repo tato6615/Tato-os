@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
-import { Fog, Smoke, PowderGrind } from './StoryFx';
+import { Fog, Smoke, PowderGrind, FxDebug } from './StoryFx';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -108,6 +108,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
     try { return new URLSearchParams(window.location.search).get('src') || 'doi-wiang'; } catch { return 'doi-wiang'; }
   })();
 
+  const debug = (() => { try { return new URLSearchParams(window.location.search).get('fxdebug') === '1'; } catch { return false; } })();
   const animRef = useRef(0);
   const goTo = (i: number) => {
     const t = trackRef.current;
@@ -407,6 +408,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
         <a href={`/cafe/?src=${src}`} className="flex-1 max-w-[280px] py-3 rounded-full text-center border border-[#5b4138] bg-[#0f0e0d]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-sm">{tr('Cafés · 550/kg', 'ร้านกาแฟ 550/กก.')}</a>
       </div>
       )}
+      {debug && <FxDebug active={active} count={COUNT} />}
     </div>
   );
 };

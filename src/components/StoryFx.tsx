@@ -276,3 +276,48 @@ export const PowderGrind: React.FC<PowderProps> = ({ run, src, alt, className, s
   if (plain) return <img src={src} alt={alt} decoding="async" loading="lazy" className={className} style={style} />;
   return <canvas ref={ref} role="img" aria-label={alt} width={643} height={299} className={className} style={style} />;
 };
+
+// ---------- diagnostics ----------
+// Shown only when the page is opened with ?fxdebug=1. Reports what this device is actually doing so a
+// screenshot is enough to tell "effect not running" from "effect running but hard to see".
+export const FX_BUILD = 'fx-2026-10-13-a';
+export const FxDebug: React.FC<{ active: number; count: number }> = ({ active, count }) => {
+  const [lines, setLines] = useState<string[]>([]);
+  useEffect(() => {
+    const read = () => {
+      const out: string[] = [];
+      try {
+        out.push(`build ${FX_BUILD}`);
+        out.push(`reduce-motion: ${reduceMotion() ? 'ON (effects off)' : 'off'}`);
+        out.push(`viewport ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio || 1}x`);
+        out.push(`scene ${active + 1}/${count}`);
+        const sec = document.querySelectorAll('section')[active];
+        const cvs = sec ? Array.from(sec.querySelectorAll('canvas')) : [];
+        if (!cvs.length) out.push('canvas in this scene: none');
+        cvs.forEach((c, i) => {
+          let drawn = '?';
+          try {
+            const g = c.getContext('2d');
+            if (g && c.width > 0 && c.height > 0) {
+              const d = g.getImageData(0, 0, c.width, c.height).data;
+              let k = 0;
+              for (let p = 3; p < d.length; p += 4) if (d[p] > 8) k++;
+              drawn = `${((100 * k) / (c.width * c.height)).toFixed(1)}%`;
+            }
+          } catch (e: any) { drawn = `err ${e && e.name}`; }
+          out.push(`canvas ${i + 1}: shown ${c.clientWidth}x${c.clientHeight}, drawn ${drawn}`);
+        });
+        out.push(navigator.userAgent.slice(0, 70));
+      } catch (e: any) { out.push(`debug error: ${e && e.message}`); }
+      setLines(out);
+    };
+    read();
+    const id = window.setInterval(read, 1000);
+    return () => window.clearInterval(id);
+  }, [active, count]);
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed left-2 top-16 z-[60] max-w-[92vw] rounded-md bg-black/80 px-2.5 py-2 font-mono text-[11px] leading-snug text-[#9bff9b]">
+      {lines.map((l, i) => <div key={i}>{l}</div>)}
+    </div>
+  );
+};
