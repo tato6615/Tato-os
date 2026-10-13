@@ -334,22 +334,16 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
           <div className={grid}>
             <div data-copy className="md:col-span-2 max-w-5xl">
-              <span className={label}>02 · {tr('Grown', 'ผู้ปลูก')}</span>
-              <h2 className={head}><Lines text={tr('Grown by the\nLahu people', 'ปลูกโดย\nชาวลาหู่')} base={100} /></h2>
-              <p className={sub} style={delay(550)}>{tr('100% Arabica from Lahu hill-tribe growers on Doi Wiang Pa.', 'อาราบิก้า 100% จากชาวเขาเผ่าลาหู่ที่ดอยเวียงผา')}</p>
+              <span className={label}>02 · {tr('Growing', 'การปลูก')}</span>
+              <h2 className={head}><Lines text={tr('Grown by the Lahu\nand Akha peoples,\nin their tribal way of life', 'การปลูก\nจากชาวลาหู่ อาข่า\nและวิถีชนเผ่า')} base={100} /></h2>
+              <p className={sub} style={delay(550)}>{tr('100% Arabica from Lahu and Akha hill-tribe growers on Doi Wiang Pa.', 'อาราบิก้า 100% จากชาวเขาเผ่าลาหู่และอาข่าที่ดอยเวียงผา')}</p>
             </div>
           </div>
         </section>
 
         {/* 4 drying */}
         <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
-          <div className="absolute inset-0 z-0">
-            <img src={ASSETS.storyDrying} alt="" aria-hidden="true" decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-60 brightness-75 saturate-125" style={{ objectPosition: '50% 45%' }} />
-            <div data-par className="absolute inset-x-0 bottom-0 h-[54%] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[62%] overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_32%)] md:[mask-image:linear-gradient(to_right,transparent,#000_14%)]">
-              <img src={ASSETS.storyDrying} alt={tr('A farmer sorting dried green coffee beans in a woven tray', 'เกษตรกรกำลังคัดเมล็ดกาแฟสารในกระด้งสาน')} decoding="async" loading="lazy" className="tv-kb w-full h-full object-cover opacity-95" style={{ objectPosition: '38% 50%' }} />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/55 via-transparent to-transparent md:bg-gradient-to-r md:from-[#141312]/70 md:via-[#141312]/20 md:to-transparent" />
-          </div>
+          {bg('/images/story/04-drying-beds.webp', '60% 55%', tr('Coffee beans drying on raised beds under shade net on a hillside', 'เมล็ดกาแฟตากบนแคร่ยกพื้นคลุมตาข่ายพรางแสง บนเนินเขา'), { tone: 'bright', veil: 'bg-gradient-to-b from-[#141312]/80 via-[#141312]/45 to-[#141312]/25 md:bg-gradient-to-r md:from-[#141312]/88 md:via-[#141312]/45 md:to-transparent' })}
           <div className={grid}>
             <div data-copy>
               <span className={label}>03 · {tr('Dried', 'การตาก')}</span>
