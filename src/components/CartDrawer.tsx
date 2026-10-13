@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoastType, GrindType } from '../types';
-import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
+import { BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
 import { quote as buildQuote } from '../../shared/shipping.js';
 
 interface CartDrawerProps {
@@ -70,9 +70,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div className="bg-[#1d1b1a] rounded-xl p-4 border border-[#2b2a28] space-y-4">
               <div className="flex gap-4">
                 <img
-                  src={ASSETS.matteBlackPouch}
-                  alt="TATO Coffee pouch"
-                  className="w-20 h-24 object-cover rounded-lg bg-[#0f0e0d] border border-[#2b2a28]"
+                  src={BAG_IMAGES[selectedRoast].cut}
+                  alt="TATO Coffee bag"
+                  className="w-20 h-24 object-contain p-1.5 rounded-lg bg-[#0f0e0d] border border-[#2b2a28]"
                 />
                 <div className="flex-1 space-y-1">
                   <span className="font-mono text-[10px] text-[#ff5e1a] uppercase font-bold tracking-wider">
