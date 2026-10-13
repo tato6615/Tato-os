@@ -305,10 +305,10 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bg(ASSETS.storyRoastDrum, '50% 42%', tr('Freshly roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วใหม่ในถังของเครื่องคั่ว'), { first: true, tone: 'dim', veil: 'bg-gradient-to-b from-[#141312]/88 via-[#141312]/78 to-[#141312]/90 md:bg-gradient-to-r md:from-[#141312]/96 md:via-[#141312]/82 md:to-[#141312]/68' })}
           <div aria-hidden="true" className="pointer-events-none select-none absolute z-[1] right-[-3%] top-[46%] -translate-y-1/2 font-['Manrope'] font-extrabold leading-none tracking-tighter text-[#ff5e1a]/[0.11] text-[44vw] md:text-[30vw]">TATO</div>
           <div className="pointer-events-none absolute z-[1] right-[2%] top-[22%] w-[60vw] h-[60vw] md:w-[40vw] md:h-[40vw] rounded-full bg-[#ff5e1a]/20 blur-[110px]" />
-          <div className="relative z-10 w-full md:grid md:grid-cols-[0.95fr_1.05fr] md:gap-4 items-center pt-8 md:pt-0">
+          <div className="relative z-10 w-full md:grid md:grid-cols-[1.1fr_0.9fr] md:gap-4 items-center pt-8 md:pt-0">
             <div data-copy>
               <span className={label}>{tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}</span>
-              <h1 className={head}><Lines text={tr('Fresh-roasted coffee\nfrom Doi Wiang Pa', 'กาแฟคั่วสด\nจากดอยเวียงผา')} base={150} /></h1>
+              <h1 className={`${head} md:!text-5xl lg:!text-[60px] xl:!text-[72px]`}><Lines text={tr('Fresh-roasted coffee\nfrom Doi Wiang Pa', 'กาแฟคั่วสด\nจากดอยเวียงผา')} base={150} /></h1>
               <p className={sub} style={delay(600)}>{tr('100% Arabica, roasted when you order.', 'อาราบิก้า 100% คั่วเมื่อคุณสั่ง')}</p>
               <div className="tv-fade mt-6 flex flex-wrap items-center gap-3" style={delay(800)}>
                 <button onClick={() => onGoToProduct('medium')} className="px-7 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Order coffee', 'สั่งกาแฟเลย')}</button>
@@ -317,18 +317,18 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               <a href={`/cafe/?src=${src}`} className="tv-fade mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]" style={delay(950)}>{tr('Order for your café · 550 THB/kg →', 'สั่งสำหรับร้านกาแฟ 550 บาท/กก. →')}</a>
             </div>
             <div data-vis className="relative mt-6 md:mt-0 flex items-end justify-center pointer-events-none">
-              {([['light', -9, 's', 0], ['dark', 9, 's', 2], ['medium', 0, 'm', 1]] as [RoastType, number, 's' | 'm', number][]).map(([id, rot, size, i]) => (
-                <img key={id} src={BAG_IMAGES[id].cut} alt={tr(`TATO Coffee bag, ${id} roast`, `ถุงกาแฟ TATO ${id === 'light' ? 'คั่วอ่อน' : id === 'medium' ? 'คั่วกลาง' : 'คั่วเข้ม'}`)}
-                  decoding="async" fetchPriority="high" draggable={false} className={`tv-card w-auto ${size === 'm' ? 'tv-hbag-m relative z-[3]' : 'tv-hbag-s relative z-[1]'}`}
-                  style={{ ...delay(450 + i * 150), marginLeft: id === 'light' ? 0 : id === 'dark' ? '-22%' : '-22%', marginRight: id === 'light' ? '-22%' : 0, order: id === 'light' ? 0 : id === 'medium' ? 1 : 2, rotate: `${rot}deg`, filter: 'drop-shadow(0 22px 30px rgba(0,0,0,.65))' }} />
-              ))}
-              <div className="tv-fade absolute z-[4] right-[4%] top-[6%] md:top-[10%] w-[88px] h-[88px] md:w-[124px] md:h-[124px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1100)}>
-                <span className="text-[28px] md:text-[42px] font-extrabold leading-none">650</span>
-                <span className="text-[11px] md:text-[14px] font-semibold mt-0.5">{tr('THB / kg', 'บาท / กก.')}</span>
-              </div>
+              {/* ถุงใบเดียว สัดส่วนจริง: กำหนดแค่ความสูง ความกว้างตามภาพ (max-w-none กัน Tailwind บีบความกว้างจนภาพเพี้ยน) */}
+              <span className="relative inline-block">
+                <img src={BAG_IMAGES.medium.cut} alt={tr('TATO Coffee bag, medium roast', 'ถุงกาแฟ TATO คั่วกลาง')} decoding="async" fetchPriority="high" draggable={false}
+                  className="tv-card block flex-none max-w-none w-auto" style={{ ...delay(450), height: 'clamp(240px, min(44vh, 36vw), 520px)', filter: 'drop-shadow(0 22px 30px rgba(0,0,0,.65))' }} />
+                <span className="tv-fade absolute z-[4] right-[-14%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1000)}>
+                  <span className="text-[26px] md:text-[34px] font-extrabold leading-none">650</span>
+                  <span className="text-[11px] md:text-[13px] font-semibold mt-0.5 whitespace-nowrap">{tr('THB/kg', 'บาท/กก.')}</span>
+                </span>
+              </span>
               {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => (
                 <span key={id} aria-hidden="true" className="tv-float absolute z-[2] hidden sm:block"
-                  style={{ ['--r' as string]: `${i * 40 - 30}deg`, animationDelay: `${i * -1.8}s`, left: ['2%', '88%', '8%'][i], top: ['16%', '52%', '70%'][i], height: ['34px', '42px', '30px'][i], aspectRatio: `${BEAN_CROP[id].w} / ${TRIO_H}`, backgroundImage: `url(${ASSETS.storyBeansTrio})`, backgroundRepeat: 'no-repeat', backgroundSize: `${(TRIO_W / BEAN_CROP[id].w) * 100}% 100%`, backgroundPosition: `${(BEAN_CROP[id].x / (TRIO_W - BEAN_CROP[id].w)) * 100}% 0`, filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' } as React.CSSProperties} />
+                  style={{ ['--r' as string]: `${i * 40 - 30}deg`, animationDelay: `${i * -1.8}s`, left: ['6%', '90%', '12%'][i], top: ['14%', '58%', '72%'][i], height: ['30px', '36px', '26px'][i], aspectRatio: `${BEAN_CROP[id].w} / ${TRIO_H}`, backgroundImage: `url(${ASSETS.storyBeansTrio})`, backgroundRepeat: 'no-repeat', backgroundSize: `${(TRIO_W / BEAN_CROP[id].w) * 100}% 100%`, backgroundPosition: `${(BEAN_CROP[id].x / (TRIO_W - BEAN_CROP[id].w)) * 100}% 0`, filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' } as React.CSSProperties} />
               ))}
             </div>
           </div>
