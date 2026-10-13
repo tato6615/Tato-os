@@ -3,6 +3,8 @@ import { useLanguage } from '../i18n';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
 
+const StoryBag3D = React.lazy(() => import('./StoryBag3D'));
+
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
   onGoToDiscover?: () => void;
@@ -89,6 +91,11 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
   const barRef = useRef<HTMLDivElement>(null);
   const sceneRefs = useRef<(HTMLElement | null)[]>([]);
   const [active, setActive] = useState(0);
+  const posRef = useRef(0);
+  const [bagOn, setBagOn] = useState(false);
+  const [gl3d, setGl3d] = useState(false);
+  const [bagRoast, setBagRoast] = useState<RoastType>('medium');
+  useEffect(() => { if (active >= 3) setBagOn(true); }, [active]);
   const [seen, setSeen] = useState<boolean[]>(() => Array.from({ length: COUNT }, (_, i) => reduce || i === 0));
   const lastTouch = useRef(0);
   const hover = useRef(false);
@@ -127,6 +134,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
       ticking = false;
       const vw = window.innerWidth;
       const pos = track.scrollLeft / vw;
+      posRef.current = pos;
       const a = Math.min(COUNT - 1, Math.max(0, Math.round(pos)));
       setActive(a);
       setSeen((s) => (s[a] ? s : s.map((v, i) => v || i === a)));
@@ -344,7 +352,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
                 const n = ROAST_NOTES[id];
                 return (
                   <button key={id} onClick={() => onGoToProduct(id)} style={{ ...delay(450 + i * 160), borderTop: `3px solid ${n.accent}` }}
-                    onPointerEnter={() => { hover.current = true; }} onPointerLeave={() => { hover.current = false; }}
+                    onPointerEnter={() => { hover.current = true; setBagRoast(id); }} onFocus={() => setBagRoast(id)} onPointerLeave={() => { hover.current = false; }}
                     className="tv-card text-left rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 hover:border-[#ff5e1a]/70 p-4 md:p-6 focus-visible:outline-2 focus-visible:outline-[#ffb59c]">
                     <span className="flex items-center gap-3">
                       <span className="inline-block h-4 w-4 rounded-full" style={{ background: n.accent }} />
@@ -362,7 +370,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 7 call to action */}
         <section ref={setRef(6)} className={`${scene} ${on(6)}`}>
-          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'))}
+          {!gl3d && bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'))}
           <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
               <span className={label}>06 · {tr('Order', 'สั่งซื้อ')}</span>
@@ -384,6 +392,13 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           </div>
         </section>
       </div>
+
+      {/* 3D bag + beans layer (loads when the story reaches the roast scene) */}
+      {bagOn && (
+        <React.Suspense fallback={null}>
+          <StoryBag3D posRef={posRef} roast={bagRoast} onReady={setGl3d} />
+        </React.Suspense>
+      )}
 
       {/* sticky order bar */}
       {active < COUNT - 1 && (
