@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
-import { Fog, Smoke, FxDebug } from './StoryFx';
+import { Smoke, FxDebug } from './StoryFx';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -295,16 +295,30 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
       {/* scenes */}
       <div ref={trackRef} onClick={onTrackClick} className="absolute inset-0 flex overflow-x-auto overflow-y-hidden snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {/* 1 hero */}
+        {/* 1 hero: ต้องรู้ทันทีว่าเป็นร้านขายกาแฟ (ถุงสินค้า + ราคา + ปุ่มสั่ง) */}
         <section ref={setRef(0)} className={`${scene} ${on(0)}`}>
-          {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
-          <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
-          <Fog run={active <= 1} />
-          <div className={grid}>
-            <div data-copy className="max-w-5xl md:col-span-2">
-              <span className={label}>{tr('Single-Origin · Doi Wiang Pa', 'ซิงเกิลออริจิน · ดอยเวียงผา')}</span>
-              <h1 className={`${head} lg:!text-[72px] xl:!text-[88px]`}><Lines text={tr('Coffee from\nDoi Wiang Pa,\nroasted when\nyou order', 'กาแฟจากดอยเวียงผา\nคั่วสดเมื่อคุณสั่ง')} base={150} /></h1>
-              <p className={sub} style={delay(700)}>{tr('100% Arabica from Chiang Mai. Not coffee that sits on a shelf.', 'อาราบิก้า 100% จากเชียงใหม่ ไม่ใช่กาแฟที่นอนรอบนชั้นวาง')}</p>
+          {bg(ASSETS.storyRoastDrum, '50% 42%', tr('Freshly roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วใหม่ในถังของเครื่องคั่ว'), { first: true, tone: 'dim', veil: 'bg-gradient-to-b from-[#141312]/75 via-[#141312]/55 to-[#141312]/80 md:bg-gradient-to-r md:from-[#141312]/92 md:via-[#141312]/65 md:to-[#141312]/35' })}
+          <div className="relative z-10 w-full md:grid md:grid-cols-[1.05fr_0.95fr] md:gap-6 items-center pt-10 md:pt-0">
+            <div data-copy>
+              <span className={label}>{tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}</span>
+              <h1 className={head}><Lines text={tr('Fresh-roasted coffee\nfrom Doi Wiang Pa', 'กาแฟคั่วสด\nจากดอยเวียงผา')} base={150} /></h1>
+              <p className={sub} style={delay(600)}>{tr('100% Arabica, roasted when you order.', 'อาราบิก้า 100% คั่วเมื่อคุณสั่ง')}</p>
+              <div className="tv-fade mt-5 flex flex-wrap gap-2" style={delay(750)}>
+                {[tr('Light · Medium · Dark', 'คั่วอ่อน · กลาง · เข้ม'), tr('650 THB/kg', '650 บาท/กก.'), tr('Cafés 550 THB/kg', 'ร้านกาแฟ 550 บาท/กก.')].map((t) => (
+                  <span key={t} className="px-3.5 py-1.5 rounded-full border border-[#f3bc8b]/40 bg-[#141312]/50 font-['Anuphan'] text-[13px] md:text-sm text-[#f3bc8b]">{t}</span>
+                ))}
+              </div>
+              <div className="tv-fade mt-7 flex flex-wrap gap-3" style={delay(900)}>
+                <button onClick={() => onGoToProduct('medium')} className="px-7 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Order coffee', 'สั่งกาแฟเลย')}</button>
+                <button onClick={() => userGo(1)} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Our story →', 'ดูเรื่องราว →')}</button>
+              </div>
+            </div>
+            <div data-vis className="mt-6 md:mt-0 flex items-end justify-center pointer-events-none">
+              {([['light', -5, 0], ['medium', 0, 1], ['dark', 5, 0]] as [RoastType, number, number][]).map(([id, rot, big], i) => (
+                <img key={id} src={BAG_IMAGES[id].cut} alt={tr(`TATO Coffee bag, ${id} roast`, `ถุงกาแฟ TATO ${id === 'light' ? 'คั่วอ่อน' : id === 'medium' ? 'คั่วกลาง' : 'คั่วเข้ม'}`)}
+                  decoding="async" fetchPriority="high" draggable={false} className="tv-card"
+                  style={{ ...delay(500 + i * 150), height: big ? 'clamp(150px,34vh,440px)' : 'clamp(125px,28vh,370px)', width: 'auto', marginLeft: i ? '-4%' : 0, zIndex: big ? 2 : 1, transform: undefined, filter: 'drop-shadow(0 20px 28px rgba(0,0,0,.6))', rotate: `${rot}deg` }} />
+              ))}
             </div>
           </div>
         </section>
