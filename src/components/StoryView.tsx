@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
+import { Fog, Smoke, PowderGrind } from './StoryFx';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -15,6 +16,9 @@ interface StoryViewProps {
 // alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
 const COUNT = 7;
+// where smoke starts, as fractions of the photo (05-roast-pour: along the pouring beans; 07-bag: the cup rim)
+const ROAST_EMITTERS = [{ nx: 0.6, ny: 0.52 }, { nx: 0.45, ny: 0.66 }, { nx: 0.3, ny: 0.8 }];
+const CUP_EMITTERS = [{ nx: 0.57, ny: 0.555 }];
 const AUTO_MS = 3500;
 const AUTO_MS_ROASTS = 6000;
 const IDLE_MS = 3000;
@@ -49,8 +53,16 @@ const CSS = `
 .tv-on .tv-card:hover{transform:translateY(-6px);background-color:#211f1e}
 .tv-ring{animation:tvring linear forwards}
 @keyframes tvring{from{stroke-dashoffset:151}to{stroke-dashoffset:0}}
+.tv-zoom{transform:scale(1.04);transform-origin:var(--zo,50% 50%)}
+.tv-on .tv-zoom{animation:tvzoom 9s cubic-bezier(.22,.6,.2,1) .2s forwards}
+@keyframes tvzoom{from{transform:scale(1.04)}to{transform:scale(1.8)}}
+.tv-drop{opacity:0}
+.tv-on .tv-drop{animation:tvdrop 1.5s cubic-bezier(.4,0,.6,1) .35s both}
+@keyframes tvdrop{0%{opacity:0;transform:translateY(-150%)}12%{opacity:1}55%{opacity:1;transform:translateY(0)}70%{transform:translateY(-9%)}85%{transform:translateY(0)}93%{transform:translateY(-2.5%)}100%{opacity:1;transform:translateY(0)}}
 @media (prefers-reduced-motion:reduce){
-  .tv-kb,.tv-mist,.tv-glow,.tv-pulse,.tv-nudge,.tv-ring{animation:none}
+  .tv-kb,.tv-mist,.tv-glow,.tv-pulse,.tv-nudge,.tv-ring,.tv-zoom,.tv-drop{animation:none}
+  .tv-zoom{transform:scale(1.2)}
+  .tv-drop{opacity:1!important;transform:none!important}
   .tv-line>span,.tv-fade,.tv-grow,.tv-card{transition:none}
 }
 `;
@@ -206,21 +218,23 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
   // full-bleed photo behind the copy. first = load before anything else (scene 1)
   // tone: 'bright' for light, misty photos; 'dim' for text-heavy scenes; default sits between
   const TONES = { dim: 'opacity-45 brightness-[0.7] contrast-125', normal: 'opacity-65 brightness-[0.7] contrast-125', bright: 'opacity-85 brightness-[0.9] contrast-110', clear: 'opacity-100 brightness-100 contrast-110' };
-  const bg = (url: string, pos: string, alt: string, opts: { first?: boolean; tone?: keyof typeof TONES; veil?: string } = {}) => (
+  const bg = (url: string, pos: string, alt: string, opts: { first?: boolean; tone?: keyof typeof TONES; veil?: string; zoom?: string; fx?: React.ReactNode } = {}) => (
     <div className="absolute inset-0 z-0">
       <div data-par className="absolute inset-0">
         <img src={url} alt={alt} decoding="async" loading={opts.first ? 'eager' : 'lazy'} fetchPriority={opts.first ? 'high' : 'auto'}
-          className={`tv-kb w-full h-full object-cover ${TONES[opts.tone ?? 'normal']}`} style={{ objectPosition: pos }} />
+          className={`${opts.zoom ? 'tv-zoom' : 'tv-kb'} w-full h-full object-cover ${TONES[opts.tone ?? 'normal']}`} style={opts.zoom ? ({ objectPosition: pos, '--zo': opts.zoom } as React.CSSProperties) : { objectPosition: pos }} />
+        {opts.fx && <div className="tv-kb pointer-events-none absolute inset-0">{opts.fx}</div>}
       </div>
       <div className={`absolute inset-0 ${opts.veil ?? 'bg-gradient-to-t from-[#141312] via-[#141312]/60 to-[#141312]/40'}`} />
     </div>
   );
   // portrait photo: lower half of the screen on phones (so it never sits under the copy),
   // right-hand panel fading into the dark on wide screens (keeps the bag sharp and uncropped)
-  const bgSide = (url: string, pos: string, alt: string) => (
+  const bgSide = (url: string, pos: string, alt: string, fx?: React.ReactNode) => (
     <div className="absolute inset-0 z-0">
       <div data-par className="absolute inset-x-0 bottom-0 h-[54%] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[52%] overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_32%)] md:[mask-image:linear-gradient(to_right,transparent,#000_16%)]">
         <img src={url} alt={alt} decoding="async" loading="lazy" className="tv-kb w-full h-full object-cover opacity-85 md:opacity-90" style={{ objectPosition: pos }} />
+        {fx && <div className="tv-kb pointer-events-none absolute inset-0">{fx}</div>}
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/50 via-transparent to-transparent md:from-[#141312]/60" />
     </div>
@@ -258,6 +272,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
         <section ref={setRef(0)} className={`${scene} ${on(0)}`}>
           {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
           <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
+          <Fog run={active <= 1} />
           <div className={grid}>
             <div data-copy className="max-w-5xl md:col-span-2">
               <span className={label}>{tr('Single-Origin · Doi Wiang Pa', 'ซิงเกิลออริจิน · ดอยเวียงผา')}</span>
@@ -278,8 +293,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
             </div>
             <div data-vis className="relative mt-10 md:mt-0 flex items-end gap-5 md:justify-end pointer-events-none">
               <div className="tv-grow w-[3px] h-32 md:h-72 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
-              <div>
-                <div className="font-['Manrope'] font-extrabold leading-none text-[#ffb59c] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums"><CountUp run={seen[1]} to={1500} /></div>
+              <div className="tv-drop">
+                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums"><CountUp run={seen[1]} to={1500} /></div>
                 <div className="mt-2 font-mono text-[12px] md:text-sm tracking-[0.18em] text-[#f3bc8b] uppercase">{tr('metres above sea level', 'เมตร เหนือระดับน้ำทะเล')}</div>
               </div>
             </div>
@@ -288,7 +303,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 3 growers */}
         <section ref={setRef(2)} className={`${scene} ${on(2)}`}>
-          {bg(ASSETS.storyCherries, '50% 50%', tr('Ripe coffee cherries on the branch', 'ผลกาแฟสุกบนกิ่ง'))}
+          {bg(ASSETS.storyCherries, '50% 50%', tr('Ripe coffee cherries on the branch', 'ผลกาแฟสุกบนกิ่ง'), { zoom: '15% 60%' })}
           {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
           <div className={grid}>
             <div data-copy className="md:col-span-2 max-w-5xl">
@@ -314,7 +329,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
         {/* 5 roast to order */}
         {/* cinematic dark: copy sits at the top, the pouring beans own the lower half */}
         <section ref={setRef(4)} className={`${scene} !items-start pt-24 md:pt-28 bg-[#141312] ${on(4)}`}>
-          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal', veil: 'bg-[linear-gradient(to_bottom,rgba(20,19,18,.92)_0%,rgba(20,19,18,.6)_26%,rgba(20,19,18,.08)_52%,rgba(20,19,18,.88)_100%)]' })}
+          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal', fx: <Smoke run={Math.abs(active - 4) <= 1} iw={900} ih={1350} pos={[0.5, 0.4]} preset="roast" emitters={ROAST_EMITTERS} />, veil: 'bg-[linear-gradient(to_bottom,rgba(20,19,18,.92)_0%,rgba(20,19,18,.6)_26%,rgba(20,19,18,.08)_52%,rgba(20,19,18,.88)_100%)]' })}
           <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/55 via-[#141312]/10 to-transparent" />
           <div className={grid}>
             <div data-copy>
@@ -335,7 +350,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
                 <span className={label}>05 · {tr('Roasts', 'ระดับการคั่ว')}</span>
                 <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
               </div>
-              <img src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')} decoding="async" loading="lazy"
+              <PowderGrind run={active === 5} src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')}
                 className="tv-fade hidden md:block shrink-0 w-[300px] lg:w-[360px] pointer-events-none" style={delay(600)} />
             </div>
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
@@ -362,7 +377,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 7 call to action */}
         <section ref={setRef(6)} className={`${scene} ${on(6)}`}>
-          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'))}
+          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'), <Smoke run={active >= 5} iw={784} ih={1168} pos={[0.3, 0.62]} preset="steam" emitters={CUP_EMITTERS} />)}
           <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
               <span className={label}>06 · {tr('Order', 'สั่งซื้อ')}</span>
