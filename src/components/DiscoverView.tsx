@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
-const Bag3D = React.lazy(() => import('./Bag3D'));
 import { RoastType } from '../types';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 
@@ -622,11 +621,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </div>
         </div>
       </section>
-
-      {/* ==================== 3D EXPLODED BAG (scroll-driven, lazy) ==================== */}
-      <React.Suspense fallback={null}>
-        <Bag3D roast={selectedRoast} onRoast={setSelectedRoast} onOrder={onGoToProduct} />
-      </React.Suspense>
 
       {/* ==================== 04 / PRODUCT SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d] overflow-hidden">
