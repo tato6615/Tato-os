@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
 import { PaymentBox } from './ReceiptsPanel';
-import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
+import { ASSETS, BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
 import { useLanguage, translateText } from '../i18n';
 import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
@@ -377,8 +377,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
           <div className="relative bg-[#0f0e0d] rounded-2xl overflow-hidden shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)] group border border-[#2b2a28]">
             <div className="aspect-[4/5] w-full relative flex items-center justify-center overflow-hidden bg-[#1d1b1a]">
               <img
-                src={ASSETS.matteBlackPouch}
-                alt="TATO Single Origin Matte Black Bag nestled on dark slate stone"
+                key={selectedRoast}
+                src={BAG_IMAGES[selectedRoast].scene}
+                alt={tr(`TATO Coffee bag, ${selectedRoast} roast`, `ถุงกาแฟ TATO ระดับคั่ว${selectedRoast === 'light' ? 'อ่อน' : selectedRoast === 'medium' ? 'กลาง' : 'เข้ม'}`)}
                 className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d] via-transparent to-black/20 pointer-events-none" />
