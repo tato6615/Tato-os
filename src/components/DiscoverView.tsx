@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
-import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
+import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 
 interface DiscoverViewProps {
   onGoToProduct: (preselectedRoast?: RoastType) => void;
@@ -644,8 +644,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <div className="lg:col-span-6 relative flex items-center justify-center">
               <div className="relative w-full max-w-md rounded-xl overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.85)] group border border-[#2b2a28]">
                 <img
-                  src={ASSETS.matteBlackPouch}
-                  alt="TATO Coffee luxury matte black pouch with copper foil badge resting on natural black slate with roasted coffee beans"
+                  src={BAG_IMAGES.medium.scene}
+                  alt="TATO Coffee bag with roasted coffee beans on burlap"
                   className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/60 via-transparent to-transparent pointer-events-none" />
