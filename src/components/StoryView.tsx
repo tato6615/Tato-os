@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
-import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
+import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
 import { Fog, Smoke, PowderGrind, FxDebug } from './StoryFx';
 
@@ -12,7 +12,7 @@ interface StoryViewProps {
 // หน้าเล่าเรื่องแบบเลื่อนซ้าย-ขวา (scrollytelling) ที่ /doi-wiang/
 // ใช้สี ฟอนต์ ของเว็บ และรูปใน ASSETS (coffeeData.ts) ไฟล์ภาพอยู่ที่ public/images/story/
 // เนื้อหาใช้เฉพาะข้อเท็จจริงที่ตรงกับหน้าเว็บ: ไม่มีส่งฟรี ไม่มีใบรับรอง ไม่ระบุระยะเวลาคั่ว/ส่ง
-// ภาพฉาก 1-6 เป็นภาพบรรยากาศจากคลังภาพฟรี ปรับโทนสีให้เป็นชุดเดียวกัน ไม่ใช่ภาพถ่ายจากไร่โดยตรง
+// ภาพฉาก 3, 4 และ 6 เป็นภาพถ่ายจริงของร้าน (ผลกาแฟ, การคัดเมล็ด, เครื่องคั่ว) ส่วนฉาก 1, 2 และ 5 ยังเป็นภาพบรรยากาศจากคลังภาพฟรี
 // alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
 const COUNT = 7;
@@ -51,6 +51,8 @@ const CSS = `
 .tv-card{opacity:0;transform:translateY(34px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1),border-color .25s,background-color .25s}
 .tv-on .tv-card{opacity:1;transform:none}
 .tv-on .tv-card:hover{transform:translateY(-6px);background-color:#211f1e}
+.tv-bag{height:88px;width:auto;max-width:100%;object-fit:contain;transform-origin:50% 90%;transition:transform .35s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 16px 22px rgba(0,0,0,.55));will-change:transform}
+@media (min-width:768px){.tv-bag{height:clamp(130px,21vh,280px)}}
 .tv-ring{animation:tvring linear forwards}
 @keyframes tvring{from{stroke-dashoffset:151}to{stroke-dashoffset:0}}
 .tv-zoom{transform:scale(1.04);transform-origin:var(--zo,50% 50%)}
@@ -63,9 +65,28 @@ const CSS = `
   .tv-kb,.tv-mist,.tv-glow,.tv-pulse,.tv-nudge,.tv-ring,.tv-zoom,.tv-drop{animation:none}
   .tv-zoom{transform:scale(1.2)}
   .tv-drop{opacity:1!important;transform:none!important}
-  .tv-line>span,.tv-fade,.tv-grow,.tv-card{transition:none}
+  .tv-line>span,.tv-fade,.tv-grow,.tv-card,.tv-bag{transition:none}
 }
 `;
+
+// photoreal bag that leans toward the finger / cursor. Static for prefers-reduced-motion.
+const BagTilt: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
+  const ref = useRef<HTMLImageElement>(null);
+  const move = (e: React.PointerEvent<HTMLElement>) => {
+    const el = ref.current;
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(900px) rotateY(${(x * 22).toFixed(1)}deg) rotateX(${(-y * 10).toFixed(1)}deg) translateY(-8px) scale(1.04)`;
+  };
+  const leave = () => { if (ref.current) ref.current.style.transform = ''; };
+  return (
+    <span className="block md:mb-5" onPointerMove={move} onPointerLeave={leave} onPointerCancel={leave}>
+      <img ref={ref} src={src} alt={alt} loading="lazy" decoding="async" draggable={false} className="tv-bag mx-auto" />
+    </span>
+  );
+};
 
 const Lines: React.FC<{ text: string; base?: number }> = ({ text, base = 0 }) => (
   <>
@@ -304,7 +325,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 3 growers */}
         <section ref={setRef(2)} className={`${scene} ${on(2)}`}>
-          {bg(ASSETS.storyCherries, '50% 50%', tr('Ripe coffee cherries on the branch', 'ผลกาแฟสุกบนกิ่ง'), { zoom: '15% 60%' })}
+          {bg(ASSETS.storyCherries, '50% 50%', tr('Freshly picked coffee cherries in a pink mesh sack', 'ผลกาแฟสดที่เพิ่งเก็บ ในถุงตาข่ายสีชมพู'), { zoom: '15% 60%' })}
           {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
           <div className={grid}>
             <div data-copy className="md:col-span-2 max-w-5xl">
@@ -317,7 +338,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 4 drying */}
         <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
-          {bg(ASSETS.storyDrying, '62% 55%', tr('Coffee beans drying on raised beds', 'เมล็ดกาแฟตากบนแคร่ยกพื้น'), { tone: 'bright' })}
+          {bgSide(ASSETS.storyDrying, '38% 50%', tr('A farmer sorting dried green coffee beans in a woven tray', 'เกษตรกรกำลังคัดเมล็ดกาแฟสารในกระด้งสาน'))}
           <div className={grid}>
             <div data-copy>
               <span className={label}>03 · {tr('Dried', 'การตาก')}</span>
@@ -343,7 +364,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
         {/* 6 roast levels -> opens the real order flow */}
         <section ref={setRef(5)} className={`${scene} bg-[#0f0e0d] pt-16 md:pt-0 ${on(5)}`}>
-          {bg(ASSETS.storyRoastDrum, '60% 50%', tr('Roasted coffee beans turning in a drum roaster', 'เมล็ดกาแฟคั่วหมุนอยู่ในเครื่องคั่วแบบดรัม'), { tone: 'dim' })}
+          {bg(ASSETS.storyRoastDrum, '60% 50%', tr('Roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วในถังของเครื่องคั่ว'), { tone: 'dim' })}
           {glow('left-[-5%] bottom-[0%] w-[460px] h-[460px]')}
           <div data-copy className="relative z-10 w-full max-w-6xl">
             <div className="md:flex md:items-end md:justify-between md:gap-10">
@@ -354,21 +375,26 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               <PowderGrind run={active === 5} src={ASSETS.storyBeansTrio} alt={tr('Light, medium and dark roasted beans side by side', 'เมล็ดกาแฟคั่วอ่อน กลาง เข้ม เรียงข้างกัน')}
                 className="tv-fade hidden md:block shrink-0 w-[300px] lg:w-[360px] pointer-events-none" style={delay(600)} />
             </div>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
+            <div className="mt-5 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-5">
               {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => {
                 const p = ROAST_PROFILES.find((r) => r.id === id)!;
                 const n = ROAST_NOTES[id];
                 return (
                   <button key={id} onClick={() => onGoToProduct(id)} style={{ ...delay(450 + i * 160), borderTop: `3px solid ${n.accent}` }}
                     onPointerEnter={() => { hover.current = true; }} onPointerLeave={() => { hover.current = false; }}
-                    className="tv-card text-left rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 hover:border-[#ff5e1a]/70 p-4 md:p-6 focus-visible:outline-2 focus-visible:outline-[#ffb59c]">
-                    <span className="flex items-center gap-3">
-                      <span className="inline-block h-4 w-4 rounded-full" style={{ background: n.accent }} />
-                      <span className="font-['Anuphan'] font-semibold text-xl md:text-2xl text-[#e6e1df]">{tr(p.name, p.nameThai)}</span>
+                    className="tv-card text-left rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 hover:border-[#ff5e1a]/70 p-4 md:p-6 flex items-center gap-4 md:block focus-visible:outline-2 focus-visible:outline-[#ffb59c]">
+                    <span className="block w-20 shrink-0 md:w-auto">
+                      <BagTilt src={BAG_IMAGES[id].cut} alt={tr(`TATO Coffee bag, ${p.name.toLowerCase()} roast`, `ถุงกาแฟ TATO ${p.nameThai}`)} />
                     </span>
-                    <span className="block mt-3 font-['Anuphan'] font-light text-sm md:text-base text-[#e3beb3]/85">{tr(n.en, n.th)}</span>
-                    <span className="block mt-2 font-['Anuphan'] text-[13px]" style={{ color: n.accent }}>{tr(n.feel.en, n.feel.th)}</span>
-                    <span className="block mt-4 font-['Anuphan'] text-[13px] text-[#e6e1df]/70">{tr('Order this roast', 'สั่งระดับคั่วนี้')} ›</span>
+                    <span className="block min-w-0 flex-1">
+                      <span className="flex items-center gap-3">
+                        <span className="inline-block h-4 w-4 rounded-full" style={{ background: n.accent }} />
+                        <span className="font-['Anuphan'] font-semibold text-xl md:text-2xl text-[#e6e1df]">{tr(p.name, p.nameThai)}</span>
+                      </span>
+                      <span className="block mt-2 md:mt-3 font-['Anuphan'] font-light text-sm md:text-base text-[#e3beb3]/85">{tr(n.en, n.th)}</span>
+                      <span className="block mt-1 md:mt-2 font-['Anuphan'] text-[13px]" style={{ color: n.accent }}>{tr(n.feel.en, n.feel.th)}</span>
+                      <span className="block mt-2 md:mt-4 font-['Anuphan'] text-[13px] text-[#e6e1df]/70">{tr('Order this roast', 'สั่งระดับคั่วนี้')} ›</span>
+                    </span>
                   </button>
                 );
               })}
