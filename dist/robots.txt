@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /admin/
-Disallow: /system/
-
-Sitemap: https://tato-os.pages.dev/sitemap.xml

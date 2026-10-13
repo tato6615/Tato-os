@@ -1,0 +1,7 @@
+{
+  "name": "TATO Coffee",
+  "description": "เมล็ดกาแฟอาราบิก้า 100% ซิงเกิลออริจิน ดอยเวียงผา เชียงใหม่ คั่วสดตามออเดอร์ สำหรับดื่มเองและร้านกาแฟ",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

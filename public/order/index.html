@@ -3,14 +3,20 @@
 <meta name="robots" content="noindex,nofollow"><title>สถานะออเดอร์ | TATO Coffee</title>
 <style>
 body{margin:0;background:#141312;color:#e6e1df;font-family:system-ui,-apple-system,"Sarabun","Anuphan",sans-serif;line-height:1.7}
-main{max-width:640px;margin:auto;padding:24px 16px 60px}
+main{max-width:640px;margin:auto;padding:24px 16px 60px;animation:orderPageEnter .4s cubic-bezier(.16,1,.3,1) both}
+@keyframes orderPageEnter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 6px;color:#f3bc8b}
-.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:16px;margin:14px 0}
+.card{background:#1d1b1a;border:1px solid #2b2a28;border-radius:12px;padding:16px;margin:14px 0;transition:transform .2s ease,border-color .2s ease}
+.card:hover{border-color:rgba(255,94,26,.35)}
+.pop-in{animation:popIn .35s cubic-bezier(.16,1,.3,1) both}
+@keyframes popIn{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 .row{display:flex;justify-content:space-between;gap:12px;font-size:14px}.row span:first-child{color:#a39a95}
 .no{color:#ff5e1a;font-weight:700}.tag{display:inline-block;padding:3px 10px;border-radius:99px;background:#3a2a20;font-size:13px}
 .tag.paid,.tag.shipped{background:#173a24;color:#7be0a0}.tag.cancelled{background:#4a1b17;color:#ff9b91}
-a{color:#f3bc8b}.btn{display:block;text-align:center;padding:12px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;text-decoration:none;margin-top:10px}
+a{color:#f3bc8b}.btn{display:block;text-align:center;padding:12px;border-radius:10px;background:#ff5e1a;color:#390c00;font-weight:700;text-decoration:none;margin-top:10px;transition:transform .15s ease,background .2s ease}
+.btn:hover{transform:translateY(-2px);background:#822800;color:#ffdbcf}.btn:active{transform:scale(.98)}
 .dim{color:#a39a95;font-size:13px}
+@media(prefers-reduced-motion:reduce){main,.pop-in{animation:none!important}.btn{transform:none!important}}
 </style>
 </head><body><main>
 <h1>สถานะออเดอร์</h1><p class="dim">ลิงก์นี้เปิดซ้ำได้ตลอด ห้ามส่งต่อให้ผู้อื่น</p>
@@ -27,7 +33,7 @@ fetch("/api/order-status?id="+encodeURIComponent(q.get("id")||"")+"&t="+encodeUR
 .then(function(x){
   out.textContent="";
   if(!x.ok||!x.j.success){out.appendChild(el("div","card","ไม่พบออเดอร์นี้ ลิงก์อาจไม่ถูกต้อง กรุณาติดต่อร้านพร้อมเลขออเดอร์"));return}
-  var o=x.j.order,c=el("div","card"),h=el("div","row");
+  var o=x.j.order,c=el("div","card pop-in"),h=el("div","row");
   h.appendChild(el("span","no",o.number));h.appendChild(el("span","tag "+o.status,o.status_th));c.appendChild(h);
   c.appendChild(row("วันที่สั่ง",new Date(o.created_at).toLocaleString("th-TH")));
   c.appendChild(row("ผู้รับ",o.name));c.appendChild(row("ที่อยู่",o.address_masked));

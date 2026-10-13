@@ -61,4 +61,30 @@ button:active:not([disabled]){transform:scale(.98)}
 .nb.alt:hover{background:rgba(255,94,26,.1)}
 .btn.alt{background:transparent;border:1px solid rgba(255,94,26,.55);color:#ff5e1a}
 .btn.alt:hover{background:rgba(255,94,26,.1)}
-.btn{transition:opacity .2s,background .2s}
+.btn{transition:opacity .2s,background .2s,transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:scale(.98)}
+.nb:hover{transform:translateY(-2px)}
+.nb:active{transform:scale(.98)}
+
+/* ===== Page & Component Motion ===== */
+main{animation:cafePageEnter .4s cubic-bezier(.16,1,.3,1) both}
+@keyframes cafePageEnter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.card:hover{border-color:rgba(255,94,26,.35)}
+
+.pop-in{animation:popIn .35s cubic-bezier(.16,1,.3,1) both}
+@keyframes popIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+input,select,textarea{transition:border-color .2s ease,box-shadow .2s ease}
+details{transition:border-color .2s ease}
+details summary{transition:color .2s ease}
+details[open]{border-color:rgba(255,94,26,.4)}
+
+@media(prefers-reduced-motion:reduce){
+  main{animation:none!important}
+  .pop-in{animation:none!important}
+  button,.btn,.nb,.tool{transform:none!important}
+}
+

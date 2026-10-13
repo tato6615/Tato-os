@@ -42,7 +42,17 @@ function CustomerApp(){
  if(story)return <StoryView onGoToProduct={openProduct} onGoToDiscover={openDiscover}/>;
  return <div className="min-h-screen bg-[#141312] text-[#e6e1df]">
   <Header currentView={view} onNavigate={navigate} cartCount={0} onOpenCart={()=>openProduct(roast)} onOpenOrders={()=>{}}/>
-  <main className="pt-20">{view==='product'?<ProductView initialRoast={roast} prefill={prefill} onPrefillConsumed={()=>setPrefill(null)} onTrack={track} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>{}}/>:<DiscoverView onGoToProduct={openProduct}/>}</main>
+  <main className="pt-20">
+    {view === 'product' ? (
+      <div key="view-product" className="animate-page-enter">
+        <ProductView initialRoast={roast} prefill={prefill} onPrefillConsumed={()=>setPrefill(null)} onTrack={track} onOrderSuccess={async(o)=>{const r=await sendCheckout(o);if(r.ok&&r.order){const ro=r.order;setOrders(p=>[ro,...p]);}return r;}} onViewOrders={()=>{}}/>
+      </div>
+    ) : (
+      <div key="view-discover" className="animate-page-enter">
+        <DiscoverView onGoToProduct={openProduct}/>
+      </div>
+    )}
+  </main>
   <Footer/>
  </div>;
 }

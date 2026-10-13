@@ -52,3 +52,280 @@ body {
   letter-spacing: normal;
   white-space: nowrap;
 }
+
+/* ==================== GLOBAL MOTION SYSTEM ==================== */
+@keyframes pageFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageFadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes heroGlow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes subtleFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes shimmerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 94, 26, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 94, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 94, 26, 0);
+  }
+}
+
+@keyframes kenBurnsSlow {
+  0% {
+    transform: scale(1.02) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.08) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1.02) translate(0, 0);
+  }
+}
+
+@keyframes warmPulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1) translate(-50%, -50%);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.15) translate(-50%, -50%);
+  }
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes checkmarkStroke {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes celebrationPop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Page & Section Entrance Animations */
+.animate-page-enter {
+  animation: pageFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-page-scale {
+  animation: pageFadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-stagger-1 {
+  animation: pageFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.animate-stagger-2 {
+  animation: pageFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.animate-stagger-3 {
+  animation: pageFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+}
+
+.animate-stagger-4 {
+  animation: pageFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both;
+}
+
+.animate-stagger-5 {
+  animation: pageFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+/* Atmospheric Animation Classes */
+.animate-ken-burns {
+  animation: kenBurnsSlow 24s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: subtleFloat 4.5s ease-in-out infinite;
+}
+
+.animate-warm-pulse {
+  animation: warmPulse 8s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: shimmerPulse 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-shake {
+  animation: shakeError 0.45s ease-in-out both;
+}
+
+.animate-pop {
+  animation: celebrationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+/* Tactile Micro-Interactions */
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.75);
+}
+
+.hover-lift-subtle {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.hover-lift-subtle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+}
+
+.interactive-press {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.interactive-press:active {
+  transform: scale(0.96);
+}
+
+.shimmer-btn {
+  background-size: 200% 100%;
+  transition: all 0.3s ease;
+}
+
+.shimmer-btn:hover {
+  background-position: right center;
+}
+
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-drawer-slide {
+  animation: drawerSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-backdrop-fade {
+  animation: backdropFadeIn 0.25s ease-out both;
+}
+
+/* Smooth reveal class used for scroll-into-view observer */
+.reveal-init {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-enter,
+  .animate-page-scale,
+  .animate-stagger-1,
+  .animate-stagger-2,
+  .animate-stagger-3,
+  .animate-stagger-4,
+  .animate-stagger-5,
+  .animate-ken-burns,
+  .animate-float,
+  .animate-warm-pulse,
+  .animate-pulse-glow,
+  .animate-shake,
+  .animate-pop,
+  .animate-drawer-slide,
+  .animate-backdrop-fade {
+    animation: none !important;
+  }
+  .reveal-init {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .hover-lift:hover,
+  .hover-lift-subtle:hover {
+    transform: none !important;
+  }
+  .interactive-press:active {
+    transform: none !important;
+  }
+}

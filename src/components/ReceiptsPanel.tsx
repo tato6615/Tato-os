@@ -58,8 +58,8 @@ export const PaymentBox: React.FC<{ order: OrderItem }> = ({ order }) => {
 export const ReceiptsPanel: React.FC<{ open: boolean; orders: OrderItem[]; onClose: () => void; onReorder?: (o: OrderItem) => void }> = ({ open, orders, onClose, onReorder }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] bg-black/70 flex items-start justify-center overflow-y-auto p-4" onClick={onClose}>
-      <div className="w-full max-w-xl mt-20 mb-10 bg-[#0f0e0d] border border-[#ff5e1a]/40 rounded-2xl p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 animate-backdrop-fade" onClick={onClose}>
+      <div className="w-full max-w-xl mt-20 mb-10 bg-[#0f0e0d] border border-[#ff5e1a]/40 rounded-2xl p-6 space-y-5 animate-page-enter shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-['Manrope'] text-xl font-semibold text-[#e6e1df]">ใบเสร็จและสถานะคำสั่งซื้อ</h2>
           <button type="button" onClick={onClose} className="px-3 py-1 rounded-lg bg-[#2b2a28] text-[#e6e1df] text-sm">ปิด</button>

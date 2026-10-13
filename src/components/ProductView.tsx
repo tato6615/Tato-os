@@ -64,6 +64,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [shakeForm, setShakeForm] = useState(false);
 
   // Success state
   const [completedOrder, setCompletedOrder] = useState<OrderItem | null>(null);
@@ -271,6 +272,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      setShakeForm(true);
+      setTimeout(() => setShakeForm(false), 550);
       scrollToFirstError(newErrors);
       return;
     }
@@ -482,7 +485,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
           {/* ORDER CONFIGURATION OR SUCCESS STAGE */}
           {!completedOrder ? (
-            <form onFocusCapture={startCheckout} onSubmit={handleFormSubmit} className="space-y-7">
+            <form onFocusCapture={startCheckout} onSubmit={handleFormSubmit} className={`space-y-7 transition-all ${shakeForm ? 'animate-shake' : ''}`}>
               {/* Roast Profile Selector */}
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
@@ -501,10 +504,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
                       <div
                         key={profile.id}
                         onClick={() => { setSelectedRoast(profile.id); onTrack?.('option_change', { option: 'roast', value: profile.id }); }}
-                        className={`cursor-pointer p-4 rounded-xl transition-all duration-200 flex flex-col justify-between border ${
+                        className={`cursor-pointer p-4 rounded-xl transition-all duration-200 flex flex-col justify-between border hover-lift active:scale-[0.98] ${
                           isSelected
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] hover:bg-[#211f1e]'
+                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] shadow-[0_12px_24px_-8px_rgba(255,94,26,0.3)]'
+                            : 'bg-[#1d1b1a] border-[#2b2a28] hover:bg-[#211f1e] hover:border-[#ff5e1a]/40'
                         }`}
                       >
                         <div className="space-y-1">
@@ -559,10 +562,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
                         type="button"
                         key={grind.id}
                         onClick={() => { setSelectedGrind(grind.id); onTrack?.('option_change', { option: 'grind', value: grind.id }); }}
-                        className={`text-left p-3 rounded-lg border transition-all ${
+                        className={`text-left p-3 rounded-lg border transition-all duration-200 hover-lift active:scale-[0.98] ${
                           isSelected
-                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf]'
-                            : 'bg-[#1d1b1a] border-[#2b2a28] hover:bg-[#211f1e] text-[#e6e1df]'
+                            ? 'bg-[#ff5e1a]/10 border-[#ff5e1a] text-[#ffdbcf] shadow-[0_8px_20px_-6px_rgba(255,94,26,0.25)]'
+                            : 'bg-[#1d1b1a] border-[#2b2a28] hover:bg-[#211f1e] hover:border-[#ff5e1a]/40 text-[#e6e1df]'
                         }`}
                       >
                         <div className="font-['Manrope'] text-[13px] font-semibold flex items-center justify-between">
@@ -587,61 +590,87 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 <span className="font-['Manrope'] text-[11px] font-bold text-[#e6e1df] uppercase tracking-wider block">
                   3 · จำนวน / QUANTITY
                 </span>
-                  <div>
-                    <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1.5">
-                      จำนวน (กิโลกรัม) · ขั้นต่ำ 0.5 กก. เพิ่มครั้งละ 0.5 กก.
-                    </label>
-                    <div className="flex items-center justify-between bg-[#1d1b1a] rounded-xl p-2 px-3 border border-[#2b2a28]">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleQuantityChange(-1);
-                          }}
-                          className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto cursor-pointer select-none"
-                          style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
-                          aria-label="Decrease quantity"
-                        >
-                          <span className="material-symbols-outlined text-[18px] pointer-events-none">remove</span>
-                        </button>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          value={quantityInput}
-                          onChange={(e) => handleQuantityInputChange(e.target.value)}
-                          onBlur={handleQuantityInputBlur}
-                          aria-label="Quantity in kilograms"
-                          className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleQuantityChange(1);
-                          }}
-                          className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-colors active:scale-95 touch-manipulation pointer-events-auto cursor-pointer select-none"
-                          style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
-                          aria-label="Increase quantity"
-                        >
-                          <span className="material-symbols-outlined text-[18px] pointer-events-none">add</span>
-                        </button>
-                      </div>
+                
+                {/* Quick Weight Selection Chips */}
+                <div className="flex flex-wrap gap-2">
+                  {[0.5, 1, 2, 5].map((preset) => {
+                    const isSelected = quantityKg === preset;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setQuantityKg(preset);
+                          setQuantityInput(String(preset));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg font-mono text-[12px] font-bold transition-all duration-200 hover-lift-subtle interactive-press border ${
+                          isSelected
+                            ? 'bg-[#ff5e1a] text-[#390c00] border-[#ff5e1a] shadow-[0_4px_12px_rgba(255,94,26,0.35)]'
+                            : 'bg-[#211f1e] text-[#e3beb3] border-[#2b2a28] hover:border-[#ff5e1a]/50'
+                        }`}
+                      >
+                        {preset} KG
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      {/* Live Calculated Breakdown Subtext */}
-                      <div className="text-right">
-                        <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase block">
-                          Packaging Standard
-                        </span>
-                        <span className="font-mono text-[11px] text-[#f3bc8b]">
-                          {packagingLabel}
-                        </span>
-                      </div>
+                <div>
+                  <label className="font-['Manrope'] text-[12px] text-[#e3beb3]/80 block mb-1.5">
+                    จำนวน (กิโลกรัม) · ขั้นต่ำ 0.5 กก. เพิ่มครั้งละ 0.5 กก.
+                  </label>
+                  <div className="flex items-center justify-between bg-[#1d1b1a] rounded-xl p-2 px-3 border border-[#2b2a28] transition-all hover:border-[#5b4138]">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleQuantityChange(-1);
+                        }}
+                        className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-all duration-150 active:scale-90 hover-lift-subtle touch-manipulation pointer-events-auto cursor-pointer select-none"
+                        style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        aria-label="Decrease quantity"
+                      >
+                        <span className="material-symbols-outlined text-[18px] pointer-events-none">remove</span>
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={quantityInput}
+                        onChange={(e) => handleQuantityInputChange(e.target.value)}
+                        onBlur={handleQuantityInputBlur}
+                        aria-label="Quantity in kilograms"
+                        className="font-['Manrope'] text-[18px] font-bold px-2 text-[#e6e1df] w-[78px] text-center bg-transparent border-0 outline-none appearance-none transition-transform focus:scale-105"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleQuantityChange(1);
+                        }}
+                        className="relative z-50 w-9 h-9 rounded-lg bg-[#363433] hover:bg-[#3b3937] text-[#e6e1df] flex items-center justify-center transition-all duration-150 active:scale-90 hover-lift-subtle touch-manipulation pointer-events-auto cursor-pointer select-none"
+                        style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        aria-label="Increase quantity"
+                      >
+                        <span className="material-symbols-outlined text-[18px] pointer-events-none">add</span>
+                      </button>
+                    </div>
+
+                    {/* Live Calculated Breakdown Subtext */}
+                    <div className="text-right">
+                      <span className="font-['Manrope'] text-[10px] text-[#aa897f] uppercase block">
+                        Packaging Standard
+                      </span>
+                      <span className="font-mono text-[11px] text-[#f3bc8b] transition-all">
+                        {packagingLabel}
+                      </span>
                     </div>
                   </div>
+                </div>
 
                 <p className="font-['Anuphan'] text-[12px] text-[#f3bc8b]">
                   {contactShop
@@ -897,7 +926,7 @@ value={customerPostal}
                 <button
                   type="submit"
                   disabled={submitting || capacityFull || contactShop}
-                  className="disabled:opacity-60 w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] flex items-center justify-center gap-2 active:scale-[0.99]"
+                  className="disabled:opacity-60 w-full py-4 px-6 rounded-xl bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] font-['Manrope'] text-[15px] font-bold tracking-wider uppercase transition-all duration-200 shadow-[0_16px_32px_-6px_rgba(255,94,26,0.35)] hover:shadow-[0_20px_40px_-6px_rgba(255,94,26,0.55)] hover:-translate-y-0.5 flex items-center justify-center gap-2 active:scale-[0.98]"
                 >
                   <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
                   <span>ORDER TATO · สั่งซื้อ TATO</span>
@@ -908,11 +937,13 @@ value={customerPostal}
               </div>
             </form>
           ) : (
-            /* IN-PAGE SUCCESS STATE */
-            <div className="bg-[#0f0e0d] rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl border border-[#ff5e1a]/40 animate-fade-in">
+            /* IN-PAGE SUCCESS STAGE */
+            <div className="bg-[#0f0e0d] rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl border border-[#ff5e1a]/40 animate-page-enter">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#ff5e1a] text-[#390c00] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[26px]">check</span>
+                <div className="w-14 h-14 rounded-full bg-[#ff5e1a]/20 border-2 border-[#ff5e1a] text-[#ff5e1a] flex items-center justify-center shrink-0 shadow-[0_0_24px_rgba(255,94,26,0.4)] animate-pop">
+                  <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" style={{ strokeDasharray: 48, animation: 'checkmarkStroke 0.6s ease-out forwards' }} />
+                  </svg>
                 </div>
                 <div>
                   <span className="font-mono text-[11px] text-[#ff5e1a] uppercase tracking-widest block font-bold">
