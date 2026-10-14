@@ -16,12 +16,10 @@ interface Props {
   active: boolean;
   height: string;
   label: string;
-  hint: string;
 }
 
-export default function BagTurntable({ active, height, label, hint }: Props) {
+export default function BagTurntable({ active, height, label }: Props) {
   const cv = useRef<HTMLCanvasElement>(null);
-  const hintRef = useRef<HTMLSpanElement>(null);
   const imgs = useRef<HTMLImageElement[]>([]);
   const s = useRef({ pos: REST, target: REST, drag: false, hover: false, lastX: 0, last: 0 });
 
@@ -65,7 +63,7 @@ export default function BagTurntable({ active, height, label, hint }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [active]);
 
-  const touch = () => { s.current.last = performance.now(); if (hintRef.current) hintRef.current.style.opacity = '0'; };
+  const touch = () => { s.current.last = performance.now(); };
   const onDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     s.current.drag = true; s.current.lastX = e.clientX; touch();
@@ -97,9 +95,6 @@ export default function BagTurntable({ active, height, label, hint }: Props) {
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onLeave} onKeyDown={onKey}
         className="relative z-[1] block max-w-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-4"
         style={{ height, width: 'auto', aspectRatio: `${FW} / ${FH}`, touchAction: 'pan-y', filter: 'drop-shadow(0 24px 34px rgba(0,0,0,.6))' }} />
-      <span ref={hintRef} aria-hidden="true" className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-[-9%] z-[2] whitespace-nowrap font-['Anuphan'] text-[12px] md:text-[13px] tracking-wide text-[#ffb59c]/85 transition-opacity duration-500">
-        ↔ {hint}
-      </span>
     </span>
   );
 }
