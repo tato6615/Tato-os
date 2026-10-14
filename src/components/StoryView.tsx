@@ -321,7 +321,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               {/* ถุงใบเดียว สัดส่วนจริง: กำหนดแค่ความสูง ความกว้างตามภาพ (max-w-none กัน Tailwind บีบความกว้างจนภาพเพี้ยน) */}
               <span className="relative inline-block pointer-events-auto">
                 <BagTurntable active={active === 0} height="clamp(280px, min(60vh, 62vw), 700px)"
-                  label={tr('TATO Coffee black bag, rotate to view every side', 'ถุงกาแฟ TATO สีดำ หมุนดูได้ทุกด้าน')} hint={tr('Drag to rotate', 'ลากเพื่อหมุน')} />
+                  label={tr('TATO Coffee black bag, rotate to view every side', 'ถุงกาแฟ TATO สีดำ หมุนดูได้ทุกด้าน')} />
                 <span className="tv-fade absolute z-[4] right-[-14%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1000)}>
                   <span className="text-[26px] md:text-[34px] font-extrabold leading-none">650</span>
                   <span className="text-[11px] md:text-[13px] font-semibold mt-0.5 whitespace-nowrap">{tr('THB/kg', 'บาท/กก.')}</span>
