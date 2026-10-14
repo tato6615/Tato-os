@@ -3,6 +3,7 @@ import { useLanguage } from '../i18n';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
 import { Smoke, FxDebug } from './StoryFx';
+import BagTurntable from './BagTurntable';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -316,18 +317,18 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               </div>
               <a href={`/cafe/?src=${src}`} className="tv-fade mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]" style={delay(950)}>{tr('Order for your café · 550 THB/kg →', 'สั่งสำหรับร้านกาแฟ 550 บาท/กก. →')}</a>
             </div>
-            <div data-vis className="relative mt-6 md:mt-0 flex items-end justify-center pointer-events-none">
+            <div data-vis className="relative mt-6 md:mt-0 flex items-end justify-center">
               {/* ถุงใบเดียว สัดส่วนจริง: กำหนดแค่ความสูง ความกว้างตามภาพ (max-w-none กัน Tailwind บีบความกว้างจนภาพเพี้ยน) */}
-              <span className="relative inline-block">
-                <img src={BAG_IMAGES.medium.cut} alt={tr('TATO Coffee bag, medium roast', 'ถุงกาแฟ TATO คั่วกลาง')} decoding="async" fetchPriority="high" draggable={false}
-                  className="tv-card block flex-none max-w-none w-auto" style={{ ...delay(450), height: 'clamp(240px, min(44vh, 36vw), 520px)', filter: 'drop-shadow(0 22px 30px rgba(0,0,0,.65))' }} />
+              <span className="relative inline-block pointer-events-auto">
+                <BagTurntable active={active === 0} height="clamp(280px, min(60vh, 62vw), 700px)"
+                  label={tr('TATO Coffee black bag, rotate to view every side', 'ถุงกาแฟ TATO สีดำ หมุนดูได้ทุกด้าน')} hint={tr('Drag to rotate', 'ลากเพื่อหมุน')} />
                 <span className="tv-fade absolute z-[4] right-[-14%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1000)}>
                   <span className="text-[26px] md:text-[34px] font-extrabold leading-none">650</span>
                   <span className="text-[11px] md:text-[13px] font-semibold mt-0.5 whitespace-nowrap">{tr('THB/kg', 'บาท/กก.')}</span>
                 </span>
               </span>
               {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => (
-                <span key={id} aria-hidden="true" className="tv-float absolute z-[2] hidden sm:block"
+                <span key={id} aria-hidden="true" className="tv-float pointer-events-none absolute z-[2] hidden sm:block"
                   style={{ ['--r' as string]: `${i * 40 - 30}deg`, animationDelay: `${i * -1.8}s`, left: ['6%', '90%', '12%'][i], top: ['14%', '58%', '72%'][i], height: ['30px', '36px', '26px'][i], aspectRatio: `${BEAN_CROP[id].w} / ${TRIO_H}`, backgroundImage: `url(${ASSETS.storyBeansTrio})`, backgroundRepeat: 'no-repeat', backgroundSize: `${(TRIO_W / BEAN_CROP[id].w) * 100}% 100%`, backgroundPosition: `${(BEAN_CROP[id].x / (TRIO_W - BEAN_CROP[id].w)) * 100}% 0`, filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' } as React.CSSProperties} />
               ))}
             </div>
