@@ -3,13 +3,13 @@ import React, { useEffect, useRef } from 'react';
 /**
  * ถุงกาแฟสีดำหมุน 3D (turntable): 9 เฟรมภาพถุงจริงคนละมุม + โลโก้ TATO
  * ลากซ้าย/ขวา (มือถือ) หรือเลื่อนเมาส์ (คอม) เพื่อหมุน, ปล่อยแล้วแกว่งช้าๆ เอง
- * เฟรมเรียงตามองศา: หน้าตรง → ข้าง → หลัง  แล้ว cross-fade ระหว่างเฟรมให้ลื่น
+ * เฟรมเรียงตามองศาแบบต่อเนื่อง (ข้างซ้าย → หน้าตรง → ข้างขวา ไม่วนไปหลังถุง) แล้ว cross-fade ระหว่างเฟรมให้ลื่น
  */
-const N = 9;
+const N = 10;
 const FW = 793;
 const FH = 1240;
-const SRC = Array.from({ length: N }, (_, i) => `/images/bag3d/f${i}.webp`);
-const REST = 1.1; // ท่าพัก: เห็นหน้าถุงเอียงเล็กน้อย
+const SRC = Array.from({ length: N }, (_, i) => `/images/bag3d_seq/s${i}.webp`);
+const REST = 4.35; // ท่าพัก: เห็นหน้าถุงเอียงเล็กน้อย
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 interface Props {
@@ -29,12 +29,18 @@ export default function BagTurntable({ active, height, label, hint }: Props) {
     const c = cv.current; const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
     ctx.clearRect(0, 0, FW, FH);
+    // แสดงเฟรมที่ใกล้ที่สุดแบบคมชัด แล้ว cross-fade เฉพาะช่วงสั้นๆ ตรงรอยต่อ (ลดภาพเบิ้ล/ผีซ้อน)
     const p = clamp(s.current.pos, 0, N - 1);
-    const i = Math.floor(p); const f = p - i;
-    const a = imgs.current[i];
+    const n = Math.round(p); const d = p - n;            // -0.5..0.5
+    const BAND = 0.16;                                    // ความกว้างช่วงเฟด
+    const ad = Math.abs(d);
+    const t = clamp((ad - (0.5 - BAND)) / BAND, 0, 1);    // 0 = เฟรมเดียว, 1 = ถึงกึ่งกลาง
+    const e = t * t * (3 - 2 * t) * 0.5;                  // smoothstep, สูงสุด 0.5
+    const a = imgs.current[n];
     if (a?.complete && a.naturalWidth) ctx.drawImage(a, 0, 0, FW, FH);
-    const b = imgs.current[i + 1];
-    if (f > 0.002 && b?.complete && b.naturalWidth) { ctx.globalAlpha = f; ctx.drawImage(b, 0, 0, FW, FH); ctx.globalAlpha = 1; }
+    const nb = n + (d >= 0 ? 1 : -1);
+    const b = imgs.current[nb];
+    if (e > 0.004 && b?.complete && b.naturalWidth) { ctx.globalAlpha = e; ctx.drawImage(b, 0, 0, FW, FH); ctx.globalAlpha = 1; }
   };
 
   useEffect(() => {
@@ -50,8 +56,8 @@ export default function BagTurntable({ active, height, label, hint }: Props) {
     const tick = (now: number) => {
       const st = s.current;
       const idle = !st.drag && !st.hover && now - st.last > 2200;
-      if (idle) st.target = reduce ? REST : REST + 0.9 * Math.sin((now - t0) / 1800);
-      st.pos += (st.target - st.pos) * 0.12;
+      if (idle) st.target = reduce ? REST : REST + 1.4 * Math.sin((now - t0) / 1800);
+      st.pos += (st.target - st.pos) * 0.18;
       draw();
       raf = requestAnimationFrame(tick);
     };
@@ -68,10 +74,10 @@ export default function BagTurntable({ active, height, label, hint }: Props) {
   const onMove = (e: React.PointerEvent) => {
     const st = s.current; const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     if (st.drag) {
-      st.target = clamp(st.target - ((e.clientX - st.lastX) / r.width) * 3.6, 0, N - 1);
+      st.target = clamp(st.target - ((e.clientX - st.lastX) / r.width) * 5.5, 0, N - 1);
       st.lastX = e.clientX; touch();
     } else if (e.pointerType === 'mouse') {
-      st.hover = true; st.target = 0.2 + clamp((e.clientX - r.left) / r.width, 0, 1) * 3.0; touch();
+      st.hover = true; st.target = 1 + clamp((e.clientX - r.left) / r.width, 0, 1) * 7.0; touch();
     }
   };
   const onUp = () => { s.current.drag = false; s.current.last = performance.now(); };
