@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
-import { Smoke, FxDebug } from './StoryFx';
+import { Fog, Smoke, FxDebug } from './StoryFx';
 import BagTurntable from './BagTurntable';
 
 interface StoryViewProps {
@@ -303,9 +303,9 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
       <div ref={trackRef} onClick={onTrackClick} className="absolute inset-0 flex overflow-x-auto overflow-y-hidden snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* 1 hero: สินค้าเป็นพระเอก (ถุงใหญ่ + ตัวอักษรยักษ์ด้านหลัง + ราคา + ปุ่มขึ้นต้นด้วยกริยา) */}
         <section ref={setRef(0)} className={`${scene} ${on(0)}`}>
-          {bg(ASSETS.storyRoastDrum, '50% 42%', tr('Freshly roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วใหม่ในถังของเครื่องคั่ว'), { first: true, tone: 'dim', veil: 'bg-gradient-to-b from-[#141312]/88 via-[#141312]/78 to-[#141312]/90 md:bg-gradient-to-r md:from-[#141312]/96 md:via-[#141312]/82 md:to-[#141312]/68' })}
-          <div aria-hidden="true" className="pointer-events-none select-none absolute z-[1] right-[-3%] top-[46%] -translate-y-1/2 font-['Manrope'] font-extrabold leading-none tracking-tighter text-[#ff5e1a]/[0.11] text-[44vw] md:text-[30vw]">TATO</div>
-          <div className="pointer-events-none absolute z-[1] right-[2%] top-[22%] w-[60vw] h-[60vw] md:w-[40vw] md:h-[40vw] rounded-full bg-[#ff5e1a]/20 blur-[110px]" />
+          {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
+          <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
+          <Fog run={active <= 1} />
           <div className="relative z-10 w-full md:grid md:grid-cols-[1.1fr_0.9fr] md:gap-4 items-center pt-8 md:pt-0">
             <div data-copy>
               <span className={label}>{tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}</span>
