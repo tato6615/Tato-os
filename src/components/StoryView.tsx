@@ -306,7 +306,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           {bg(ASSETS.storyMist, '50% 55%', tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา'), { first: true, tone: 'bright' })}
           <div className="tv-mist pointer-events-none absolute inset-x-[-20%] top-[38%] h-40 z-[1] bg-gradient-to-r from-transparent via-[#e6e1df]/10 to-transparent blur-2xl" />
           <Fog run={active <= 1} />
-          <div className="relative z-10 w-full md:grid md:grid-cols-[1.1fr_0.9fr] md:gap-4 items-center pt-8 md:pt-0">
+          <div className="relative z-10 w-full lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:gap-4 items-center pt-8 lg:pt-0">
             <div data-copy>
               <span className={label}>{tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}</span>
               <h1 className={`${head} md:!text-5xl lg:!text-[60px] xl:!text-[72px]`}><Lines text={tr('Fresh-roasted coffee\nfrom Doi Wiang Pa', 'กาแฟคั่วสด\nจากดอยเวียงผา')} base={150} /></h1>
@@ -317,10 +317,10 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               </div>
               <a href={`/cafe/?src=${src}`} className="tv-fade mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]" style={delay(950)}>{tr('Order for your café · 550 THB/kg →', 'สั่งสำหรับร้านกาแฟ 550 บาท/กก. →')}</a>
             </div>
-            <div data-vis className="relative mt-6 md:mt-0 flex items-end justify-center">
+            <div data-vis className="relative mt-6 lg:mt-0 flex items-end justify-center">
               {/* ถุงใบเดียว สัดส่วนจริง: กำหนดแค่ความสูง ความกว้างตามภาพ (max-w-none กัน Tailwind บีบความกว้างจนภาพเพี้ยน) */}
               <span className="relative inline-block pointer-events-auto">
-                <BagTurntable active={active === 0} height="clamp(280px, min(60vh, 62vw), 700px)"
+                <BagTurntable active={active === 0} height="clamp(280px, min(60vh, 62vw, calc(60vw - 68px)), 700px)"
                   label={tr('TATO Coffee black bag, rotate to view every side', 'ถุงกาแฟ TATO สีดำ หมุนดูได้ทุกด้าน')} />
                 <span className="tv-fade absolute z-[4] right-[-14%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1000)}>
                   <span className="text-[26px] md:text-[34px] font-extrabold leading-none">650</span>
