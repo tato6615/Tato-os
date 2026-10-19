@@ -30,7 +30,7 @@ const IDLE_MS = 3000;
 const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
   light: { th: 'ดอกมะลิ ซิตรัส ชาเอิร์ลเกรย์', en: 'Jasmine, citrus, Earl Grey tea', feel: { th: 'หอมใส', en: 'Bright & aromatic' }, accent: '#f3bc8b' },
   medium: { th: 'คาราเมล พลัมสุก น้ำผึ้งป่า', en: 'Caramel, ripe plum, wild honey', feel: { th: 'หวานกลมกล่อม · เหมาะกับคนเพิ่งเริ่มลอง', en: 'Sweet & balanced · a good first try' }, accent: '#ffb59c' },
-  dark: { th: 'โกโก้เข้ม แมคคาเดเมียคั่ว', en: 'Dark cocoa, roasted macadamia', feel: { th: 'เข้ม', en: 'Bold' }, accent: '#ff5e1a' },
+  dark: { th: 'โกโก้เข้ม แมคคาเดเมียคั่ว', en: 'Dark cocoa, roasted macadamia', feel: { th: 'เข้มลึก ไม่ไหม้', en: 'Deep & smooth' }, accent: '#ff5e1a' },
 };
 
 const CSS = `
@@ -310,7 +310,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
             <div data-copy>
               <span className={label}>{tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}</span>
               <h1 className={`${head} md:!text-5xl lg:!text-[60px] xl:!text-[72px]`}><Lines text={tr('Fresh-roasted coffee\nfrom Doi Wiang Pa', 'กาแฟคั่วสด\nจากดอยเวียงผา')} base={150} /></h1>
-              <p className={sub} style={delay(600)}>{tr('100% Arabica, roasted when you order.', 'อาราบิก้า 100% คั่วเมื่อคุณสั่ง')}</p>
+              <p className={sub} style={delay(600)}>{tr('100% Arabica, roasted when you order. Smooth, never burnt.', 'อาราบิก้า 100% คั่วเมื่อคุณสั่ง นุ่ม ไม่ไหม้')}</p>
               <div className="tv-fade mt-6 flex flex-wrap items-center gap-3" style={delay(800)}>
                 <button onClick={() => onGoToProduct('medium')} className="px-7 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Order coffee', 'สั่งกาแฟเลย')}</button>
                 <button onClick={() => userGo(5)} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Choose a roast', 'เลือกระดับคั่ว')}</button>
