@@ -4,6 +4,7 @@ import { RoastType } from '../types';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG, PHONE } from '../data/siteFacts';
 import { REVIEWS } from '../data/reviews';
+import BagTurntable from './BagTurntable';
 
 interface DiscoverViewProps {
   onGoToProduct: (preselectedRoast?: RoastType) => void;
@@ -60,7 +61,7 @@ const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M 
     const t0 = performance.now();
     let f = 0;
     const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / 1800);
+      const p = Math.min(1, (now - t0) / 2400);
       setVal(Math.round((1 - Math.pow(1 - p, 3)) * target));
       if (p < 1) f = requestAnimationFrame(tick);
     };
@@ -168,12 +169,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </a>
           </div>
           <div className="md:col-span-5 flex justify-center md:justify-end">
-            <img
-              key={selectedRoast}
-              src={BAG_IMAGES[selectedRoast].cut}
-              alt={tr('TATO Coffee bag', 'ถุงกาแฟ TATO')}
-              className="h-[300px] md:h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.7)] animate-page-enter"
-            />
+            <span className="relative inline-block">
+              <BagTurntable
+                active={true}
+                height="clamp(300px, 52vh, 560px)"
+                label={tr('TATO Coffee black bag, drag to rotate', 'ถุงกาแฟ TATO สีดำ ลากเพื่อหมุนดูได้ทุกด้าน')}
+              />
+              <span className="absolute z-[4] right-[-10%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg] pointer-events-none">
+                <span className="text-[26px] md:text-[34px] font-extrabold leading-none">{PRICE_RETAIL}</span>
+                <span className="text-[11px] md:text-[13px] font-semibold mt-0.5 whitespace-nowrap">{tr('THB/kg', 'บาท/กก.')}</span>
+              </span>
+            </span>
           </div>
         </div>
       </section>
@@ -195,13 +201,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </div>
 
           {/* Stat strip: ความสูง / สายพันธุ์ / คั่วสด */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
-              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Elevation', 'ความสูง')}</span>
-              <div className="mt-2 font-['Manrope'] text-[44px] md:text-[56px] leading-none font-bold text-[#ffb59c]">
-                <ElevationCounter target={ELEVATION_M} /><span className="text-[18px] ml-2 text-[#e3beb3]">{tr('MASL', 'ม.')}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+            <div className="sm:col-span-2 flex items-end gap-5 md:gap-8 py-6 md:py-10">
+              <div className="w-[3px] h-28 md:h-56 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
+              <div>
+                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums">
+                  <ElevationCounter target={ELEVATION_M} />
+                </div>
+                <div className="mt-2 font-mono text-[12px] md:text-sm tracking-[0.18em] text-[#f3bc8b] uppercase">
+                  {tr('metres above sea level', 'เมตร เหนือระดับน้ำทะเล')}
+                </div>
               </div>
-              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('Cool highland air, dense beans.', 'อากาศเย็นบนที่สูง เมล็ดแน่น')}</p>
             </div>
             <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
               <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Variety', 'สายพันธุ์')}</span>
@@ -325,7 +335,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   <div>
                     <div className="flex justify-center mb-4 h-[200px]">
                       <img
-                        src={BAG_IMAGES[profile.id].cut}
+                        src="/images/bag3d_seq/s4.webp"
                         alt={tr(`TATO ${profile.name} roast bag`, `ถุงกาแฟ TATO ${profile.nameThai}`)}
                         loading="lazy"
                         className="h-full w-auto object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.6)]"
