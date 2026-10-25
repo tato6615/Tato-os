@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RoastType, GrindType, OrderItem, CheckoutResult } from '../types';
 import { PaymentBox } from './ReceiptsPanel';
-import { ASSETS, BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
+import BagTurntable from './BagTurntable';
+import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } from '../data/coffeeData';
 import { useLanguage, translateText } from '../i18n';
 import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
@@ -377,11 +378,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
           {/* Primary Hero Stage with Image */}
           <div className="relative bg-[#0f0e0d] rounded-2xl overflow-hidden shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)] group border border-[#2b2a28]">
             <div className="aspect-[4/5] w-full relative flex items-center justify-center overflow-hidden bg-[#1d1b1a]">
-              <img
-                key={selectedRoast}
-                src={BAG_IMAGES[selectedRoast].scene}
-                alt={tr(`TATO Coffee bag, ${selectedRoast} roast`, `ถุงกาแฟ TATO ระดับคั่ว${selectedRoast === 'light' ? 'อ่อน' : selectedRoast === 'medium' ? 'กลาง' : 'เข้ม'}`)}
-                className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+              <BagTurntable
+                active={true}
+                height="clamp(300px, 56vh, 560px)"
+                label={tr('TATO Coffee black bag, drag to rotate', 'ถุงกาแฟ TATO สีดำ ลากเพื่อหมุนดูได้ทุกด้าน')}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d] via-transparent to-black/20 pointer-events-none" />
 
@@ -389,6 +389,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <div className="absolute top-4 left-4 flex flex-col gap-1.5 pointer-events-none">
                 <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#0f0e0d]/80 backdrop-blur-md text-[#f3bc8b] border border-white/10">
                   DOI WIANG PA 1,500M
+                </span>
+                <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded bg-[#ff5e1a] text-[#390c00] font-semibold w-fit">
+                  {selectedRoast === 'light' ? tr('LIGHT ROAST', 'คั่วอ่อน') : selectedRoast === 'medium' ? tr('MEDIUM ROAST', 'คั่วกลาง') : tr('DARK ROAST', 'คั่วเข้ม')}
                 </span>
               </div>
             </div>
