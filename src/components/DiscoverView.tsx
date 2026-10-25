@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
-import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG } from '../data/siteFacts';
+import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG, PHONE } from '../data/siteFacts';
+import { REVIEWS } from '../data/reviews';
 
 interface DiscoverViewProps {
   onGoToProduct: (preselectedRoast?: RoastType) => void;
@@ -38,6 +39,36 @@ const SENSORY_METRICS: Record<RoastType, { acidity: number; sweetness: number; b
     aroma: 92,
     bestBrew: { th: 'Espresso / เครื่องชง / ลาเต้นม (เข้มข้น ดาร์กโกโก้ แมคคาเดเมียคั่ว)', en: 'Espresso machine / Milk lattes (Deep roasted macadamia & dark cocoa)' },
   },
+};
+
+const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M }) => {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) setStarted(true); }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setVal(target); return; }
+    const t0 = performance.now();
+    let f = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / 1800);
+      setVal(Math.round((1 - Math.pow(1 - p, 3)) * target));
+      if (p < 1) f = requestAnimationFrame(tick);
+    };
+    f = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(f);
+  }, [started, target]);
+
+  return <span ref={ref}>{val.toLocaleString('en-US')}</span>;
 };
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoToStory }) => {
@@ -90,7 +121,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/55 to-[#141312]/35" />
         </div>
 
-        <div className="relative z-10 w-full max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20 pt-32 pb-12 md:pb-16">
+        <div className="relative z-10 w-full max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20 pt-32 pb-12 md:pb-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-end">
+          <div className="md:col-span-7">
           {onGoToStory && (
             <button
               onClick={onGoToStory}
@@ -134,6 +166,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           >
             {tr(`Order for your café · ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก. →`)}
           </a>
+          </div>
+          <div className="md:col-span-5 flex justify-center md:justify-end">
+            <img
+              key={selectedRoast}
+              src={BAG_IMAGES[selectedRoast].cut}
+              alt={tr('TATO Coffee bag', 'ถุงกาแฟ TATO')}
+              className="h-[300px] md:h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.7)] animate-page-enter"
+            />
+          </div>
         </div>
       </section>
 
@@ -151,6 +192,27 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <p className="mt-3 max-w-xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
               {tr('Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.', 'ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่')}
             </p>
+          </div>
+
+          {/* Stat strip: ความสูง / สายพันธุ์ / คั่วสด */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
+              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Elevation', 'ความสูง')}</span>
+              <div className="mt-2 font-['Manrope'] text-[44px] md:text-[56px] leading-none font-bold text-[#ffb59c]">
+                <ElevationCounter target={ELEVATION_M} /><span className="text-[18px] ml-2 text-[#e3beb3]">{tr('MASL', 'ม.')}</span>
+              </div>
+              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('Cool highland air, dense beans.', 'อากาศเย็นบนที่สูง เมล็ดแน่น')}</p>
+            </div>
+            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
+              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Variety', 'สายพันธุ์')}</span>
+              <div className="mt-2 font-['Manrope'] text-[34px] md:text-[40px] leading-none font-bold text-[#e6e1df]">Arabica 100%</div>
+              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('One origin, no blends.', 'แหล่งปลูกเดียว ไม่ผสมแหล่งอื่น')}</p>
+            </div>
+            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
+              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Roasting', 'การคั่ว')}</span>
+              <div className="mt-2 font-['Anuphan'] text-[30px] md:text-[36px] leading-none font-bold text-[#e6e1df]">{tr('Roasted to order', 'คั่วสดตามออเดอร์')}</div>
+              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('Fresh for every order.', 'สดใหม่ทุกออเดอร์')}</p>
+            </div>
           </div>
 
           {/* Asymmetrical Editorial 2-Column Grid */}
@@ -261,6 +323,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                     }`}
                   />
                   <div>
+                    <div className="flex justify-center mb-4 h-[200px]">
+                      <img
+                        src={BAG_IMAGES[profile.id].cut}
+                        alt={tr(`TATO ${profile.name} roast bag`, `ถุงกาแฟ TATO ${profile.nameThai}`)}
+                        loading="lazy"
+                        className="h-full w-auto object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.6)]"
+                      />
+                    </div>
                     <div className="flex items-center justify-between mb-4">
                       <span
                         className={`font-mono text-[11px] px-2.5 py-1 rounded ${
@@ -550,6 +620,40 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </div>
         </div>
       </section>
+      {/* ==================== 04 / CUSTOMER REVIEWS ==================== */}
+      <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="reviews">
+        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
+          <div className="mb-10">
+            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+              04 · {tr('Reviews', 'รีวิว')}
+            </span>
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+              {tr('What customers say', 'เสียงจากลูกค้า')}
+            </h2>
+          </div>
+          {REVIEWS.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {REVIEWS.map((r, i) => (
+                <figure key={i} className="rounded-2xl bg-[#1d1b1a] border border-[#2b2a28] p-6 md:p-8">
+                  <blockquote className="font-['Anuphan'] text-[17px] md:text-[19px] leading-relaxed text-[#e6e1df]">“{r.text[language === 'th' ? 'th' : 'en']}”</blockquote>
+                  <figcaption className="mt-4 font-['Anuphan'] text-sm text-[#e3beb3]/75">
+                    {r.name} · {r.shop} · {tr('Using our beans since', 'ใช้เมล็ดมา')} {r.usedSince[language === 'th' ? 'th' : 'en']}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-[#1d1b1a] border border-dashed border-[#5b4138]/60 p-8 md:p-10 max-w-2xl">
+              <p className="font-['Anuphan'] text-lg text-[#e6e1df]">
+                {tr('Our first customer reviews are coming soon.', 'รีวิวจากลูกค้าชุดแรกกำลังจะมาเร็วๆ นี้')}
+              </p>
+              <p className="mt-2 font-['Anuphan'] text-[14px] text-[#e3beb3]/75">
+                {tr(`Tried TATO? Tell us on ${PHONE}.`, `เคยลอง TATO แล้ว? เล่าให้เราฟังได้ที่ ${PHONE}`)}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
       {/* ==================== 05 / FINAL CTA SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#141312] overflow-hidden">
         {/* Atmospheric Ambient Glow */}
@@ -557,7 +661,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
 
         <div className="relative z-10 max-w-[1000px] mx-auto px-5 md:px-10 text-center">
           <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
-            04 · {tr('Order', 'สั่งซื้อ')}
+            05 · {tr('Order', 'สั่งซื้อ')}
           </span>
           <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl sm:text-5xl md:text-6xl leading-[1.15]">
             {tr('From the mountain to your cup', 'ชิมจากดอย ถึงถ้วยของคุณ')}
