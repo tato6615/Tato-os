@@ -188,22 +188,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
       <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]" id="origin">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Tag & Title */}
-          <div className="mb-12">
-            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
-              01 · {tr('From the farm', 'จากไร่สู่เมล็ด')}
-            </span>
-            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
-              {tr('Before the roast', 'ก่อนเข้าสู่การคั่ว')}
-            </h2>
-            <p className="mt-3 max-w-xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
-              {tr('Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.', 'ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่')}
-            </p>
-          </div>
-
-          {/* Stat strip: ความสูง / สายพันธุ์ / คั่วสด */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
-            <div className="sm:col-span-2 flex items-end gap-5 md:gap-8 py-6 md:py-10">
-              <div className="w-[3px] h-28 md:h-56 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
+          <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-6 items-end">
+            <div>
+              <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+                01 · {tr('Where it grows', 'แหล่งปลูก')}
+              </span>
+              <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl md:text-6xl leading-[1.12]">
+                {tr('Above sea level', 'สูงกว่า\nน้ำทะเล').split('\n').map((l, i) => <span key={i} className="block">{l}</span>)}
+              </h2>
+              <p className="mt-4 max-w-md font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
+                {tr('Before it was your cup, it grew on Doi Wiang Pa, Chaiprakan District, Chiang Mai.', 'ก่อนเป็นถ้วยของคุณ มันเติบโตบนดอยเวียงผา อ.ไชยปราการ จ.เชียงใหม่')}
+              </p>
+            </div>
+            <div className="flex items-end gap-5 md:gap-8 md:justify-end">
+              <div className="w-[3px] h-32 md:h-72 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
               <div>
                 <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums">
                   <ElevationCounter target={ELEVATION_M} />
@@ -213,6 +211,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Stat strip: ความสูง / สายพันธุ์ / คั่วสด */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
             <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
               <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Variety', 'สายพันธุ์')}</span>
               <div className="mt-2 font-['Manrope'] text-[34px] md:text-[40px] leading-none font-bold text-[#e6e1df]">Arabica 100%</div>
