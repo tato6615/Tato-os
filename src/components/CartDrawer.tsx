@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoastType, GrindType } from '../types';
-import { BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
+import { ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
 import { quote as buildQuote } from '../../shared/shipping.js';
 import { PRICE_RETAIL } from '../data/siteFacts';
 
@@ -71,7 +71,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div className="bg-[#1d1b1a] rounded-xl p-4 border border-[#2b2a28] space-y-4">
               <div className="flex gap-4">
                 <img
-                  src={BAG_IMAGES[selectedRoast].cut}
+                  src="/images/bag3d_seq/s4.webp"
                   alt="TATO Coffee bag"
                   className="w-20 h-24 object-contain p-1.5 rounded-lg bg-[#0f0e0d] border border-[#2b2a28]"
                 />
