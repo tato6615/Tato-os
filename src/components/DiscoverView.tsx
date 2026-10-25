@@ -42,6 +42,20 @@ const SENSORY_METRICS: Record<RoastType, { acidity: number; sweetness: number; b
   },
 };
 
+// ตัวอย่างข้อความเพื่อดูหน้าตาเท่านั้น (ไม่ใช่รีวิวจริง) จะหายเองเมื่อมีรีวิวจริงใน data/reviews.ts
+const SAMPLE_REVIEWS = [
+  {
+    name: { th: 'ลูกค้าตัวอย่าง A', en: 'Sample customer A' },
+    shop: { th: 'ร้านกาแฟตัวอย่าง', en: 'Sample café' },
+    text: { th: 'กลิ่นหอมตั้งแต่เปิดถุง รสนุ่ม ดื่มง่าย ลูกค้าที่ร้านชอบ', en: 'Fragrant the moment you open the bag. Smooth and easy to drink.' },
+  },
+  {
+    name: { th: 'ลูกค้าตัวอย่าง B', en: 'Sample customer B' },
+    shop: { th: 'ดื่มที่บ้าน', en: 'Home brewer' },
+    text: { th: 'คั่วสดจริง ชงดริปแล้วได้กลิ่นผลไม้ชัด จะสั่งซ้ำแน่นอน', en: 'Truly fresh. Brewed as pour-over, the fruity notes come through. Will reorder.' },
+  },
+];
+
 const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M }) => {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
@@ -316,26 +330,19 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </div>
 
           {/* 3 Interactive Roast Profile Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {ROAST_PROFILES.map((profile) => {
               const isSelected = selectedRoast === profile.id;
               return (
                 <div
                   key={profile.id}
                   onClick={() => setSelectedRoast(profile.id)}
-                  className={`cursor-pointer rounded-xl p-6 md:p-8 flex flex-col justify-between transition-all duration-300 shadow-xl relative overflow-hidden border hover-lift active:scale-[0.98] ${
-                    isSelected
-                      ? 'bg-[#2b2a28] border-[#ff5e1a] transform -translate-y-2 shadow-[0_16px_36px_-8px_rgba(255,94,26,0.25)]'
-                      : 'bg-[#1d1b1a] border-[#2b2a28] hover:bg-[#211f1e] hover:border-[#ff5e1a]/40'
+                  className={`cursor-pointer rounded-xl px-2 py-4 md:px-4 flex flex-col justify-between transition-all duration-300 relative active:scale-[0.98] ${
+                    isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1 transition-all ${
-                      isSelected ? 'bg-[#ff5e1a]' : 'bg-[#363433]'
-                    }`}
-                  />
                   <div>
-                    <div className="flex justify-center mb-4 h-[200px]">
+                    <div className={`flex justify-center mb-4 transition-all duration-300 ${isSelected ? 'h-[300px]' : 'h-[240px]'}`}>
                       <img
                         src="/images/bag3d_seq/s4.webp"
                         alt={tr(`TATO ${profile.name} roast bag`, `ถุงกาแฟ TATO ${profile.nameThai}`)}
@@ -361,12 +368,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                       />
                     </div>
 
+                    <div className={`h-[3px] rounded-full mb-3 transition-all duration-300 ${isSelected ? 'w-14 bg-[#ff5e1a]' : 'w-6 bg-[#363433]'}`} />
                     <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-bold">
                       {language === 'th' ? profile.nameThai : profile.name}
                     </h3>
                     <p className="text-[17px] text-[#f3bc8b] font-light mt-0.5 font-['Anuphan']">
                       {translateText(profile.subtitle, language)}
                     </p>
+                    {isSelected && (
+                      <div className="animate-page-enter">
                     <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 mt-4 leading-relaxed">
                       {translateText(profile.description, language)}
                     </p>
@@ -382,6 +392,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                         </span>
                       ))}
                     </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Price + what you get */}
@@ -400,7 +412,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   </div>
 
                   {/* Roast Density Level Meter */}
-                  <div className="mt-5 pt-4 border-t border-[#363433]/50 space-y-2">
+                  <div className="mt-5 space-y-2">
+                    {isSelected && (<>
                     <div className="flex justify-between font-mono text-[11px] text-[#e3beb3]/70">
                       <span>{language === 'th' ? 'ความเข้มของการคั่ว' : 'ROAST INTENSITY'}</span>
                       <span className="text-[#ff5e1a] font-bold">{profile.intensityDisplay}</span>
@@ -411,6 +424,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                         style={{ width: `${(profile.intensity / profile.intensityMax) * 100}%` }}
                       />
                     </div>
+                    </>)}
 
                     {/* Quick Order Button */}
                     <div className="pt-4">
@@ -655,11 +669,22 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl bg-[#1d1b1a] border border-dashed border-[#5b4138]/60 p-8 md:p-10 max-w-2xl">
-              <p className="font-['Anuphan'] text-lg text-[#e6e1df]">
-                {tr('Our first customer reviews are coming soon.', 'รีวิวจากลูกค้าชุดแรกกำลังจะมาเร็วๆ นี้')}
-              </p>
-              <p className="mt-2 font-['Anuphan'] text-[14px] text-[#e3beb3]/75">
+            <div>
+              <span className="inline-block mb-4 font-mono text-[11px] px-2.5 py-1 rounded bg-[#67401a]/50 text-[#f3bc8b]">
+                {tr('SAMPLE · not real reviews yet', 'ตัวอย่างข้อความ · ยังไม่ใช่รีวิวจริง')}
+              </span>
+              <div className="grid gap-6 md:grid-cols-2">
+                {SAMPLE_REVIEWS.map((r, i) => (
+                  <figure key={i} className="rounded-2xl bg-[#1d1b1a] border border-[#2b2a28] p-6 md:p-8">
+                    <div className="text-[#ff5e1a] text-lg tracking-widest mb-3" aria-label="5 stars">★★★★★</div>
+                    <blockquote className="font-['Anuphan'] text-[17px] md:text-[19px] leading-relaxed text-[#e6e1df]">“{r.text[language === 'th' ? 'th' : 'en']}”</blockquote>
+                    <figcaption className="mt-4 font-['Anuphan'] text-sm text-[#e3beb3]/75">
+                      {r.name[language === 'th' ? 'th' : 'en']} · {r.shop[language === 'th' ? 'th' : 'en']}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+              <p className="mt-5 font-['Anuphan'] text-[14px] text-[#e3beb3]/75">
                 {tr(`Tried TATO? Tell us on ${PHONE}.`, `เคยลอง TATO แล้ว? เล่าให้เราฟังได้ที่ ${PHONE}`)}
               </p>
             </div>
