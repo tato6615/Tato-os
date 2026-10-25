@@ -4,6 +4,7 @@ import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
 import { RoastType } from '../types';
 import { Fog, Smoke, FxDebug } from './StoryFx';
 import BagTurntable from './BagTurntable';
+import { REVIEWS } from '../data/reviews';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
@@ -16,7 +17,9 @@ interface StoryViewProps {
 // ภาพฉาก 3, 4 และ 6 เป็นภาพถ่ายจริงของร้าน (ผลกาแฟ, การคัดเมล็ด, เครื่องคั่ว) ส่วนฉาก 1, 2 และ 5 ยังเป็นภาพบรรยากาศจากคลังภาพฟรี
 // alt text จึงบรรยายสิ่งที่เห็นเฉยๆ ไม่อ้างว่าเป็นดอยเวียงผา ถ้าได้ภาพจริงให้เขียนทับไฟล์ชื่อเดิมได้เลย
 
-const COUNT = 7;
+// ฉากรีวิวลูกค้าจะเพิ่มเข้ามาก่อนฉากสุดท้าย เมื่อมีรีวิวจริงใน data/reviews.ts เท่านั้น
+const HAS_REVIEWS = REVIEWS.length > 0;
+const COUNT = HAS_REVIEWS ? 8 : 7;
 // เมล็ดคั่วอ่อน/กลาง/เข้ม: ตัดจากภาพ 06b-beans-trio.webp (643x299) ด้วย CSS ไม่ต้องมีไฟล์ใหม่
 const BEAN_CROP: Record<RoastType, { x: number; w: number }> = { light: { x: 10, w: 195 }, medium: { x: 228, w: 193 }, dark: { x: 443, w: 191 } };
 const TRIO_W = 643, TRIO_H = 299;
@@ -236,7 +239,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
       if (document.hidden || hover.current || Date.now() - lastTouch.current < IDLE_MS) { t = window.setTimeout(tick, 1000); return; }
       goTo(active + 1);
     };
-    t = window.setTimeout(tick, active === 5 ? AUTO_MS_ROASTS : AUTO_MS);
+    t = window.setTimeout(tick, active === 5 || (HAS_REVIEWS && active === 6) ? AUTO_MS_ROASTS : AUTO_MS);
     return () => window.clearTimeout(t);
   }, [active]);
 
@@ -432,12 +435,33 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           </div>
         </section>
 
-        {/* 7 call to action */}
-        <section ref={setRef(6)} className={`${scene} ${on(6)}`}>
+        {/* 7 customer reviews (แสดงเมื่อมีรีวิวจริงเท่านั้น) */}
+        {HAS_REVIEWS && (
+          <section ref={setRef(6)} className={`${scene} bg-[#0f0e0d] ${on(6)}`}>
+            {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
+            <div data-copy className="relative z-10 w-full max-w-6xl">
+              <span className={label}>06 · {tr('Customers', 'ลูกค้า')}</span>
+              <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('What customers say', 'เสียงจากลูกค้า')} base={100} /></h2>
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
+                {REVIEWS.slice(0, 4).map((r, i) => (
+                  <figure key={i} style={delay(450 + i * 160)} className="tv-card rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 p-4 md:p-6">
+                    <blockquote className="font-['Anuphan'] font-light text-sm md:text-lg leading-relaxed text-[#e6e1df]">“{tr(r.text.en, r.text.th)}”</blockquote>
+                    <figcaption className="mt-3 font-['Anuphan'] text-[13px] text-[#e3beb3]/80">
+                      {r.name} · {r.shop} · {tr('Using our beans since', 'ใช้เมล็ดมา')} {tr(r.usedSince.en, r.usedSince.th)}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 7/8 call to action */}
+        <section ref={setRef(COUNT - 1)} className={`${scene} ${on(COUNT - 1)}`}>
           {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'), <Smoke run={active >= 5} iw={784} ih={1168} pos={[0.3, 0.62]} preset="steam" emitters={CUP_EMITTERS} />)}
           <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
-              <span className={label}>06 · {tr('Order', 'สั่งซื้อ')}</span>
+              <span className={label}>0{COUNT - 1} · {tr('Order', 'สั่งซื้อ')}</span>
               <h2 className={head}><Lines text={tr('From the mountain\nto your cup', 'ชิมจากดอย\nถึงถ้วยของคุณ')} base={100} /></h2>
               <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. No minimum for cafés.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำ')}</p>
               <div className="tv-fade mt-8 flex flex-wrap gap-3" style={delay(700)}>
