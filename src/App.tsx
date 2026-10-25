@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { DiscoverView } from './components/DiscoverView';
 import { ProductView } from './components/ProductView';
 import { Footer } from './components/Footer';
+import ReviewsSection from './components/ReviewsSection';
 import { StoryView } from './components/StoryView';
 import { PageView, RoastType, OrderItem, CheckoutResult } from './types';
 import { LanguageProvider } from './i18n';
@@ -50,6 +51,7 @@ function CustomerApp(){
     ) : (
       <div key="view-discover" className="animate-page-enter">
         <DiscoverView onGoToProduct={openProduct}/>
+        <ReviewsSection/>
       </div>
     )}
   </main>
