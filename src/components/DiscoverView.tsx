@@ -157,8 +157,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             {tr('100% Arabica from Doi Wiang Pa, roasted when you order.', 'อาราบิก้า 100% จากดอยเวียงผา คั่วเมื่อคุณสั่ง')}
           </p>
           <div className="mt-5 flex flex-wrap gap-2 font-mono text-[12px] text-[#f3bc8b]">
-            <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">Arabica 100%</span>
-            <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">{ELEVATION_M.toLocaleString('en-US')} MASL</span>
             <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">{tr(`From ${PRICE_RETAIL} THB/kg`, `เริ่มต้น ${PRICE_RETAIL} บาท/กก.`)}</span>
           </div>
           <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -198,128 +196,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         </div>
       </section>
 
-      {/* ==================== 01 / BEAN SECTION (Header "ORIGIN" ลิงก์มาที่นี่) ==================== */}
-      <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]" id="origin">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
-          {/* Section Tag & Title */}
-          <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-6 items-end">
-            <div>
-              <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
-                01 · {tr('Where it grows', 'แหล่งปลูก')}
-              </span>
-              <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl md:text-6xl leading-[1.3]">
-                {tr('Above sea level', 'สูงกว่า\nน้ำทะเล').split('\n').map((l, i) => <span key={i} className="block">{l}</span>)}
-              </h2>
-              <p className="mt-4 max-w-md font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
-                {tr('Before it was your cup, it grew on Doi Wiang Pa, Chaiprakan District, Chiang Mai.', 'ก่อนเป็นถ้วยของคุณ มันเติบโตบนดอยเวียงผา อ.ไชยปราการ จ.เชียงใหม่')}
-              </p>
-            </div>
-            <div className="flex items-end gap-5 md:gap-8 md:justify-end">
-              <div className="w-[3px] h-32 md:h-72 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
-              <div>
-                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums">
-                  <ElevationCounter target={ELEVATION_M} />
-                </div>
-                <div className="mt-2 font-mono text-[12px] md:text-sm tracking-[0.18em] text-[#f3bc8b] uppercase">
-                  {tr('metres above sea level', 'เมตร เหนือระดับน้ำทะเล')}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stat strip: ความสูง / สายพันธุ์ / คั่วสด */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
-            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
-              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Variety', 'สายพันธุ์')}</span>
-              <div className="mt-2 font-['Manrope'] text-[34px] md:text-[40px] leading-none font-bold text-[#e6e1df]">Arabica 100%</div>
-              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('One origin, no blends.', 'แหล่งปลูกเดียว ไม่ผสมแหล่งอื่น')}</p>
-            </div>
-            <div className="bg-[#1d1b1a] rounded-xl p-6 border border-[#2b2a28]">
-              <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Roasting', 'การคั่ว')}</span>
-              <div className="mt-2 font-['Anuphan'] text-[30px] md:text-[36px] leading-none font-bold text-[#e6e1df]">{tr('Roasted to order', 'คั่วสดตามออเดอร์')}</div>
-              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">{tr('Fresh for every order.', 'สดใหม่ทุกออเดอร์')}</p>
-            </div>
-          </div>
-
-          {/* Asymmetrical Editorial 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-            {/* Tactile Slate Visual with Roasted & Cherry Contrast (6 Cols) */}
-            <div className="lg:col-span-6 relative">
-              <div className="relative rounded-xl overflow-hidden shadow-2xl bg-[#211f1e] border border-[#2b2a28]">
-                <img
-                  src={ASSETS.storyRidges}
-                  alt={tr('Misty highland ridges of Doi Wiang Pa at dusk', 'สันเขาและหมอกบนดอยเวียงผายามเย็น')}
-                  className="w-full h-[340px] md:h-[480px] object-cover object-center transform transition-transform duration-700 hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/80 via-transparent to-transparent" />
-              </div>
-
-              {/* Overlapping Micro Terroir Floating Badge */}
-              <div className="absolute -bottom-6 right-3 bg-[#2b2a28]/95 backdrop-blur-md p-4 rounded-lg shadow-2xl max-w-xs border border-[#5b4138]/50 hidden sm:block z-10">
-                <div className="flex items-center gap-1.5 text-[#ffb59c] mb-1">
-                  <span className="material-symbols-outlined text-[18px]">eco</span>
-                  <span className="font-mono text-[11px] tracking-widest font-semibold uppercase">
-                    {tr('Selective Hand-Pick', 'คัดด้วยมือ')}
-                  </span>
-                </div>
-                <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 leading-normal">
-                  {tr('Ripe cherries are picked by hand, selected for quality.', 'เก็บผลเชอร์รี่สุกด้วยมือ คัดเฉพาะผลที่คุณภาพดี')}
-                </p>
-              </div>
-            </div>
-
-            {/* Editorial Content Column (6 Cols) */}
-            <div className="lg:col-span-6 space-y-8">
-              <div>
-                <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
-                  {tr('Careful Selection. Clean Cup.', 'คัดเลือกพิถีพิถัน เพื่อรสที่สะอาด')}
-                </h3>
-                <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 font-light leading-relaxed">
-                  {tr(
-                    'Every bean tells the story of Doi Wiang’s soil. We select ripe cherries and process them with care, then roast to order.',
-                    'ทุกเมล็ดบอกเรื่องราวของผืนดินดอยเวียง เราคัดผลสุกและแปรรูปอย่างพิถีพิถัน แล้วคั่วสดตามออเดอร์'
-                  )}
-                </p>
-              </div>
-
-              {/* Feature Breakdown Strip */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-[#211f1e] p-5 rounded-lg border border-[#2b2a28] shadow-sm">
-                  <div className="w-8 h-8 rounded-full bg-[#67401a] flex items-center justify-center mb-3 text-[#ffdcc0]">
-                    <span className="material-symbols-outlined text-[18px]">water_drop</span>
-                  </div>
-                  <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
-                    {tr('Careful Processing', 'แปรรูปอย่างพิถีพิถัน')}
-                  </h4>
-                  <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
-                    {tr('Cherries are processed with attention to cleanliness and consistency.', 'แปรรูปโดยใส่ใจความสะอาดและความสม่ำเสมอของเมล็ด')}
-                  </p>
-                </div>
-
-                <div className="bg-[#211f1e] p-5 rounded-lg border border-[#2b2a28] shadow-sm">
-                  <div className="w-8 h-8 rounded-full bg-[#ff5e1a]/20 flex items-center justify-center mb-3 text-[#ff5e1a]">
-                    <span className="material-symbols-outlined text-[18px]">wb_sunny</span>
-                  </div>
-                  <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
-                    {tr('Raised Beds', 'ตากบนแคร่ยกพื้น')}
-                  </h4>
-                  <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
-                    {tr('Dried slowly on raised beds to help keep flavor even.', 'ตากช้าๆ บนแคร่ยกสูงเพื่อให้รสชาติสม่ำเสมอ')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ==================== 03 / ROAST SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="roasts">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Header */}
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
-              02 · {tr('Roasts', 'ระดับการคั่ว')}
+              01 · {tr('Roasts', 'ระดับการคั่ว')}
             </span>
             <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.3]">
               {tr('Choose the cup you want', 'เลือกได้ว่าอยากได้ถ้วยแบบไหน')}
@@ -406,8 +289,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                     </div>
                     <p className="font-['Anuphan'] text-[13px] text-[#e3beb3]/70 mt-1">
                       {language === 'th'
-                        ? 'คั่วสดตามออเดอร์ · เลือกเมล็ดหรือบดได้'
-                        : 'Roasted to order · whole bean or ground'}
+                        ? 'เลือกเมล็ดหรือบดได้'
+                        : 'Whole bean or ground'}
                     </p>
                   </div>
 
@@ -530,6 +413,107 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         </div>
       </section>
 
+      {/* ==================== 01 / BEAN SECTION (Header "ORIGIN" ลิงก์มาที่นี่) ==================== */}
+      <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]" id="origin">
+        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
+          {/* Section Tag & Title */}
+          <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-6 items-end">
+            <div>
+              <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+                02 · {tr('Where it grows', 'แหล่งปลูก')}
+              </span>
+              <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl md:text-6xl leading-[1.3]">
+                {tr('Above sea level', 'สูงกว่า\nน้ำทะเล').split('\n').map((l, i) => <span key={i} className="block">{l}</span>)}
+              </h2>
+              <p className="mt-4 max-w-md font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
+                {tr('Before it was your cup, it grew on Doi Wiang Pa, Chaiprakan District, Chiang Mai.', 'ก่อนเป็นถ้วยของคุณ มันเติบโตบนดอยเวียงผา อ.ไชยปราการ จ.เชียงใหม่')}
+              </p>
+            </div>
+            <div className="flex items-end gap-5 md:gap-8 md:justify-end">
+              <div className="w-[3px] h-32 md:h-72 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
+              <div>
+                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums">
+                  <ElevationCounter target={ELEVATION_M} />
+                </div>
+                <div className="mt-2 font-mono text-[12px] md:text-sm tracking-[0.18em] text-[#f3bc8b] uppercase">
+                  {tr('metres above sea level', 'เมตร เหนือระดับน้ำทะเล')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Asymmetrical Editorial 2-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+            {/* Tactile Slate Visual with Roasted & Cherry Contrast (6 Cols) */}
+            <div className="lg:col-span-6 relative">
+              <div className="relative rounded-xl overflow-hidden shadow-2xl bg-[#211f1e] border border-[#2b2a28]">
+                <img
+                  src={ASSETS.storyRidges}
+                  alt={tr('Misty highland ridges of Doi Wiang Pa at dusk', 'สันเขาและหมอกบนดอยเวียงผายามเย็น')}
+                  className="w-full h-[340px] md:h-[480px] object-cover object-center transform transition-transform duration-700 hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/80 via-transparent to-transparent" />
+              </div>
+
+              {/* Overlapping Micro Terroir Floating Badge */}
+              <div className="absolute -bottom-6 right-3 bg-[#2b2a28]/95 backdrop-blur-md p-4 rounded-lg shadow-2xl max-w-xs border border-[#5b4138]/50 hidden sm:block z-10">
+                <div className="flex items-center gap-1.5 text-[#ffb59c] mb-1">
+                  <span className="material-symbols-outlined text-[18px]">eco</span>
+                  <span className="font-mono text-[11px] tracking-widest font-semibold uppercase">
+                    {tr('Selective Hand-Pick', 'คัดด้วยมือ')}
+                  </span>
+                </div>
+                <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 leading-normal">
+                  {tr('Ripe cherries are picked by hand, selected for quality.', 'เก็บผลเชอร์รี่สุกด้วยมือ คัดเฉพาะผลที่คุณภาพดี')}
+                </p>
+              </div>
+            </div>
+
+            {/* Editorial Content Column (6 Cols) */}
+            <div className="lg:col-span-6 space-y-8">
+              <div>
+                <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
+                  {tr('Careful Selection. Clean Cup.', 'คัดเลือกพิถีพิถัน เพื่อรสที่สะอาด')}
+                </h3>
+                <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/80 font-light leading-relaxed">
+                  {tr(
+                    'Every bean tells the story of Doi Wiang’s soil. We select ripe cherries and process them with care, then roast to order.',
+                    'ทุกเมล็ดบอกเรื่องราวของผืนดินดอยเวียง เราคัดผลสุกและแปรรูปอย่างพิถีพิถัน แล้วคั่วสดตามออเดอร์'
+                  )}
+                </p>
+              </div>
+
+              {/* Feature Breakdown Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-[#211f1e] p-5 rounded-lg border border-[#2b2a28] shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-[#67401a] flex items-center justify-center mb-3 text-[#ffdcc0]">
+                    <span className="material-symbols-outlined text-[18px]">water_drop</span>
+                  </div>
+                  <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
+                    {tr('Careful Processing', 'แปรรูปอย่างพิถีพิถัน')}
+                  </h4>
+                  <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
+                    {tr('Cherries are processed with attention to cleanliness and consistency.', 'แปรรูปโดยใส่ใจความสะอาดและความสม่ำเสมอของเมล็ด')}
+                  </p>
+                </div>
+
+                <div className="bg-[#211f1e] p-5 rounded-lg border border-[#2b2a28] shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-[#ff5e1a]/20 flex items-center justify-center mb-3 text-[#ff5e1a]">
+                    <span className="material-symbols-outlined text-[18px]">wb_sunny</span>
+                  </div>
+                  <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
+                    {tr('Raised Beds', 'ตากบนแคร่ยกพื้น')}
+                  </h4>
+                  <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
+                    {tr('Dried slowly on raised beds to help keep flavor even.', 'ตากช้าๆ บนแคร่ยกสูงเพื่อให้รสชาติสม่ำเสมอ')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ==================== 04 / PRODUCT SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d] overflow-hidden">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
@@ -564,7 +548,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               <div>
                 <div className="inline-flex items-center gap-1.5 text-[#ff5e1a] font-mono text-[11px] uppercase tracking-widest mb-2 font-semibold">
                   <span className="material-symbols-outlined text-[16px]">local_fire_department</span>
-                  <span>{tr('Roasted Fresh To Order', 'คั่วสดตามออเดอร์')}</span>
+                  <span>{tr('Sealed to keep the aroma', 'ถุงรักษากลิ่นหอม')}</span>
                 </div>
                 <h3 className="font-['Anuphan'] text-2xl md:text-3xl text-[#e6e1df] font-semibold leading-[1.4]">
                   {tr('Roasted fresh to order. Peak aroma.', 'คั่วสดตามออเดอร์ หอมที่สุดตอนถึงมือคุณ')}
