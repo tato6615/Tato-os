@@ -40,50 +40,6 @@ const SENSORY_METRICS: Record<RoastType, { acidity: number; sweetness: number; b
   },
 };
 
-const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M }) => {
-  const [val, setVal] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const [hasStarted, setHasStarted] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !hasStarted) {
-          setHasStarted(true);
-        }
-      },
-      { threshold: 0.3 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasStarted]);
-
-  useEffect(() => {
-    if (!hasStarted) return;
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setVal(target);
-      return;
-    }
-    const duration = 1800;
-    const start = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / duration);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setVal(Math.round(ease * target));
-      if (p < 1) {
-        frame = requestAnimationFrame(tick);
-      }
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [hasStarted, target]);
-
-  return <span ref={ref}>{val.toLocaleString('en-US')} m</span>;
-};
-
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoToStory }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>('medium');
   const { language } = useLanguage();
@@ -123,215 +79,77 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
 
   return (
     <div className="flex flex-col w-full pb-20 md:pb-0 overflow-hidden">
-      {/* ==================== HERO SECTION ==================== */}
-      <section className="relative w-full min-h-[92vh] flex items-center justify-center -mt-20 overflow-hidden bg-[#0f0e0d]">
-        {/* Atmospheric Highland Aerial Background with Slow Ken Burns Drift */}
+      {/* ==================== HERO (ใช้ภาพ/ฟอนต์เดียวกับหน้าแรก) ==================== */}
+      <section className="relative w-full min-h-[64vh] flex items-end -mt-20 overflow-hidden bg-[#0f0e0d]">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img
-            src={ASSETS.highlandAerial}
-            alt="Doi Wiang highland coffee plantation enveloped in morning sea of mist at sunrise"
-            className="w-full h-full object-cover object-center scale-105 opacity-65 filter brightness-[0.7] contrast-125 animate-ken-burns"
+            src={ASSETS.storyMist}
+            alt={tr('Morning mist over highland ridges at sunrise', 'หมอกเช้ายามพระอาทิตย์ขึ้นเหนือสันเขา')}
+            className="w-full h-full object-cover object-center opacity-85 brightness-[0.9] contrast-110 animate-ken-burns"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/60 to-[#141312]/40" />
-          <div className="absolute inset-0 bg-radial from-transparent via-[#141312]/30 to-[#0f0e0d]" />
-          {/* Subtle warm center glow */}
-          <div className="absolute top-1/2 left-1/2 w-[500px] h-[300px] bg-[#ff5e1a]/15 rounded-full blur-[120px] pointer-events-none animate-warm-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/55 to-[#141312]/35" />
         </div>
 
-        {/* Hero Content Envelope */}
-        <div className="relative z-10 max-w-[1440px] w-full mx-auto px-5 md:px-10 lg:px-20 pt-32 pb-16 flex flex-col items-center text-center">
-          {/* Monogram Tag with live pulsing beacon */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#2b2a28]/80 backdrop-blur-md shadow-lg mb-6 border border-[#5b4138]/50 animate-page-enter">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff5e1a] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff5e1a]"></span>
-            </span>
-            <span className="font-mono text-[11px] text-[#f3bc8b] uppercase tracking-[0.18em] font-medium">
-              Single-Origin Terroir Reserve · 1,500 MASL
-            </span>
-          </div>
-
-          {/* Core Display Headline with Staggered Entrance */}
-          <h1 className="font-['Manrope'] text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-semibold text-[#e6e1df] uppercase tracking-tight max-w-4xl drop-shadow-2xl leading-[1.08] animate-stagger-1">
-            KNOW YOUR COFFEE.
-          </h1>
-
-          {/* Supporting Spec Note */}
-          <p className="mt-4 font-['Manrope'] text-base md:text-lg text-[#e3beb3]/90 max-w-xl font-light animate-stagger-2">
-            Single Origin • Doi Wiang Pa, Chiang Mai
-          </p>
-
-          {/* Audience line: tells café owners this site is for them too */}
-          <p className="mt-3 font-['Manrope'] text-sm md:text-base text-[#e3beb3]/80 max-w-xl animate-stagger-2">
-            {tr('Fresh-roasted beans for cafés and home brewers.', 'เมล็ดคั่วสดสำหรับร้านกาแฟและดื่มที่บ้าน')}{' '}
-            <a
-              href="/cafe/?src=site-hero-line"
-              className="text-[#ff5e1a] font-semibold underline underline-offset-4 hover:text-[#ffb59c] transition-colors"
+        <div className="relative z-10 w-full max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20 pt-32 pb-12 md:pb-16">
+          {onGoToStory && (
+            <button
+              onClick={onGoToStory}
+              className="mb-5 min-h-11 inline-flex items-center gap-2 font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] hover:text-[#e6e1df] transition-colors"
             >
-              {tr('Café owner? See café pricing →', 'เป็นร้านกาแฟ? ดูราคาและสั่งครั้งแรก →')}
-            </a>
+              <span aria-hidden="true">←</span>
+              <span>{tr('Back to the story', 'กลับหน้าแรก')}</span>
+            </button>
+          )}
+          <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-4">
+            {tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}
+          </span>
+          <h1 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-[8.6vw] sm:text-6xl lg:text-[64px] leading-[1.12]">
+            {tr('Choose your coffee', 'เลือกกาแฟของคุณ')}
+          </h1>
+          <p className="mt-5 max-w-xl font-['Anuphan'] font-light text-base md:text-xl leading-relaxed text-[#e3beb3]/85">
+            {tr('100% Arabica from Doi Wiang Pa, roasted when you order.', 'อาราบิก้า 100% จากดอยเวียงผา คั่วเมื่อคุณสั่ง')}
           </p>
-
-          {/* Primary Action CTA with interactive micro-motion */}
-          <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3.5 animate-stagger-3">
+          <div className="mt-5 flex flex-wrap gap-2 font-mono text-[12px] text-[#f3bc8b]">
+            <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">Arabica 100%</span>
+            <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">{ELEVATION_M.toLocaleString('en-US')} MASL</span>
+            <span className="px-3 py-1 rounded-full bg-[#2b2a28]/70 border border-[#5b4138]/50">{tr(`From ${PRICE_RETAIL} THB/kg`, `เริ่มต้น ${PRICE_RETAIL} บาท/กก.`)}</span>
+          </div>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <button
               onClick={() => onGoToProduct(selectedRoast)}
-              className="group flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-all duration-300 shadow-[0_12px_32px_rgba(255,94,26,0.35)] hover-lift-subtle interactive-press animate-pulse-glow"
+              className="px-7 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2"
             >
-              <span>{tr('ORDER NOW', 'สั่งซื้อเลย')}</span>
-              <span className="material-symbols-outlined text-[16px] transition-transform duration-300 group-hover:translate-x-0.5">shopping_bag</span>
+              {tr('Order coffee', 'สั่งกาแฟเลย')}
             </button>
-
-            {onGoToStory && (
-              <button
-                onClick={onGoToStory}
-                className="group flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ffdcc0] bg-[#2b2a28]/70 hover:bg-[#363433] border border-[#5b4138]/60 transition-all duration-300 hover-lift-subtle interactive-press"
-              >
-                <span className="material-symbols-outlined text-[18px] text-[#ffb59c]">landscape</span>
-                <span>{tr('STORY JOURNEY', 'เรื่องราวดอยเวียงผา')}</span>
-              </button>
-            )}
-
             <button
-              onClick={() => scrollToSection('origin')}
-              className="flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#e6e1df] transition-all duration-300 hover:text-[#ff5e1a] hover:bg-[#2b2a28]/60 border border-[#5b4138]/40 hover-lift-subtle interactive-press"
+              onClick={() => scrollToSection('roasts')}
+              className="px-6 py-3.5 rounded-full border border-[#e6e1df]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2"
             >
-              <span>EXPLORE TATO</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+              {tr('Choose a roast', 'เลือกระดับคั่ว')}
             </button>
-
-            <a
-              href="/cafe/calculator/?src=site-hero"
-              aria-label={tr('Calculate cost per cup', 'คำนวณต้นทุนกาแฟต่อแก้ว')}
-              className="flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] transition-all duration-300 hover:bg-[#ff5e1a]/10 border border-[#ff5e1a]/60 hover-lift-subtle interactive-press"
-            >
-              <span className="material-symbols-outlined text-[20px]">calculate</span>
-              <span>{tr('Cost per cup', 'คำนวณต้นทุนกาแฟ')}</span>
-            </a>
           </div>
+          <a
+            href="/cafe/?src=site-hero-line"
+            className="mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]"
+          >
+            {tr(`Order for your café · ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก. →`)}
+          </a>
         </div>
       </section>
 
-      {/* ==================== 01 / ORIGIN SECTION ==================== */}
-      <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="origin">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
-          {/* Section Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 reveal-init">
-            <div>
-              <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-widest block mb-1">
-                01 / ORIGIN
-              </span>
-              <h2 className="font-['Manrope'] text-3xl md:text-5xl font-medium text-[#e6e1df] tracking-tight uppercase">
-                FROM DOI WIANG.
-              </h2>
-              <p className="text-[20px] text-[#f3bc8b] font-light mt-1 font-['Anuphan']">
-                จากแหล่งกำเนิดบนดอยเวียง
-              </p>
-            </div>
-            <p className="font-['Manrope'] text-[15px] leading-relaxed text-[#e3beb3]/80 max-w-md">
-              {tr(
-                'Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.',
-                'ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่'
-              )}
-            </p>
-          </div>
-
-          {/* Terroir Interactive Card & Metrics Mosaic */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* Large Terroir Visual Card (7 Cols) */}
-            <div className="lg:col-span-7 group relative rounded-xl overflow-hidden shadow-2xl bg-[#0f0e0d] min-h-[440px] flex flex-col justify-end p-8 md:p-10 border border-[#2b2a28] reveal-init">
-              <img
-                src={ASSETS.highlandAerial}
-                alt="Aerial panoramic view of misty mountain slopes and Arabica estate"
-                className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.75] contrast-110 transition-transform duration-700 ease-out group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d] via-[#0f0e0d]/50 to-transparent" />
-
-              {/* Terroir Badges on Image */}
-              <div className="relative z-10 flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-3 py-1 rounded bg-[#0f0e0d]/85 backdrop-blur-md font-mono text-[11px] text-[#ffdbcf] border border-white/10">
-                  19.824° N, 99.782° E
-                </span>
-                <span className="px-3 py-1 rounded bg-[#0f0e0d]/85 backdrop-blur-md font-mono text-[11px] text-[#f3bc8b] border border-white/10">
-                  {tr('DOI WIANG ESTATE', 'ไร่ดอยเวียง')}
-                </span>
-              </div>
-
-              <h3 className="relative z-10 font-['Manrope'] text-xl md:text-2xl font-semibold text-[#e6e1df] max-w-lg mb-2">
-                Highland Cloud Mist & Shade-Grown Microclimate
-              </h3>
-              <p className="relative z-10 font-['Manrope'] text-[14px] text-[#e3beb3]/80 max-w-md leading-relaxed">
-                The distinct diurnal temperature shift at 1,500 MASL concentrates organic sugars deep within each coffee bean.
-              </p>
-            </div>
-
-            {/* 3 Terroir Metrics Split Panel (5 Cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
-              {/* Metric 1: Elevation with Animated Count */}
-              <div className="flex-1 bg-[#1d1b1a] rounded-xl p-6 flex flex-col justify-center transition-all duration-300 hover:bg-[#211f1e] border border-[#2b2a28] shadow-md hover-lift reveal-init">
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase tracking-widest">
-                    ELEVATION
-                  </span>
-                  <span className="material-symbols-outlined text-[#ffb59c] text-[20px] animate-bounce">filter_hdr</span>
-                </div>
-                <div className="font-['Manrope'] text-[46px] md:text-[52px] leading-tight text-[#ffb59c] font-bold tracking-tight">
-                  <ElevationCounter target={ELEVATION_M} />
-                </div>
-                <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
-                  High-altitude cool air slows photosynthesis, dense bean structure.
-                </p>
-              </div>
-
-              {/* Metric 2: Purity */}
-              <div className="flex-1 bg-[#1d1b1a] rounded-xl p-6 flex flex-col justify-center transition-all duration-300 hover:bg-[#211f1e] border border-[#2b2a28] shadow-md hover-lift reveal-init">
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase tracking-widest">
-                    PURITY
-                  </span>
-                  <span className="material-symbols-outlined text-[#f3bc8b] text-[20px]">verified</span>
-                </div>
-                <div className="font-['Manrope'] text-[36px] md:text-[42px] leading-tight text-[#e6e1df] font-bold tracking-tight">
-                  Arabica 100%
-                </div>
-                <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
-                  {tr('Single-estate Arabica from one origin. No blends.', 'อาราบิก้าจากแหล่งปลูกเดียว ไม่ผสมแหล่งอื่น')}
-                </p>
-              </div>
-
-              {/* Metric 3: Terroir */}
-              <div className="flex-1 bg-[#1d1b1a] rounded-xl p-6 flex flex-col justify-center transition-all duration-300 hover:bg-[#211f1e] border border-[#2b2a28] shadow-md hover-lift reveal-init">
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase tracking-widest">
-                    TERROIR
-                  </span>
-                  <span className="material-symbols-outlined text-[#e3beb3] text-[20px]">terrain</span>
-                </div>
-                <div className="font-['Manrope'] text-[24px] md:text-[28px] leading-tight text-[#ffdcc0] font-semibold">
-                  Chiang Mai Highlands
-                </div>
-                <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
-                  Rich forest humus soil, continuous shade canopies, clean alpine spring water.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ==================== 02 / BEAN SECTION ==================== */}
-      <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]">
+      {/* ==================== 01 / BEAN SECTION (Header "ORIGIN" ลิงก์มาที่นี่) ==================== */}
+      <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]" id="origin">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Tag & Title */}
           <div className="mb-12">
-            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-widest block mb-1">
-              02 / BEAN
+            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+              01 · {tr('From the farm', 'จากไร่สู่เมล็ด')}
             </span>
-            <h2 className="font-['Manrope'] text-3xl md:text-5xl font-medium text-[#e6e1df] tracking-tight uppercase">
-              BEFORE THE ROAST.
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+              {tr('Before the roast', 'ก่อนเข้าสู่การคั่ว')}
             </h2>
-            <p className="text-[20px] text-[#f3bc8b] font-light mt-1 font-['Anuphan']">
-              ก่อนเข้าสู่การคั่ว
+            <p className="mt-3 max-w-xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
+              {tr('Grown in the cool highlands of Doi Wiang Pa, Chiang Mai.', 'ปลูกบนที่สูงอากาศเย็นของดอยเวียงผา จังหวัดเชียงใหม่')}
             </p>
           </div>
 
@@ -341,8 +159,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <div className="lg:col-span-6 relative">
               <div className="relative rounded-xl overflow-hidden shadow-2xl bg-[#211f1e] border border-[#2b2a28]">
                 <img
-                  src={ASSETS.cherriesAndBeans}
-                  alt="Fresh deep crimson coffee cherries alongside artisanal roasted beans resting on matte dark slate"
+                  src={ASSETS.storyCherries}
+                  alt={tr('Freshly picked coffee cherries in a pink mesh sack', 'ผลกาแฟสดที่เพิ่งเก็บ ในถุงตาข่ายสีชมพู')}
                   className="w-full h-[460px] md:h-[520px] object-cover object-center transform transition-transform duration-700 hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/80 via-transparent to-transparent" />
@@ -353,7 +171,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                 <div className="flex items-center gap-1.5 text-[#ffb59c] mb-1">
                   <span className="material-symbols-outlined text-[18px]">eco</span>
                   <span className="font-mono text-[11px] tracking-widest font-semibold uppercase">
-                    Selective Hand-Pick
+                    {tr('Selective Hand-Pick', 'คัดด้วยมือ')}
                   </span>
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/80 leading-normal">
@@ -395,7 +213,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                     <span className="material-symbols-outlined text-[18px]">wb_sunny</span>
                   </div>
                   <h4 className="font-['Manrope'] text-[17px] text-[#e6e1df] font-medium">
-                    Raised Solar Beds
+                    {tr('Raised Beds', 'ตากบนแคร่ยกพื้น')}
                   </h4>
                   <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/75 mt-1 leading-normal">
                     {tr('Dried slowly on raised beds to help keep flavor even.', 'ตากช้าๆ บนแคร่ยกสูงเพื่อให้รสชาติสม่ำเสมอ')}
@@ -412,21 +230,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Header */}
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-widest block mb-1">
-              03 / ROAST
+            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+              02 · {tr('Roasts', 'ระดับการคั่ว')}
             </span>
-            <h2 className="font-['Manrope'] text-3xl md:text-5xl font-medium text-[#e6e1df] tracking-tight uppercase">
-              ROAST PROFILES.
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+              {tr('Choose the cup you want', 'เลือกได้ว่าอยากได้ถ้วยแบบไหน')}
             </h2>
-            <div className="flex items-center justify-center gap-2 mt-2 font-['Manrope'] text-[11px] font-bold tracking-widest uppercase">
-              <span className="text-[#ffdcc0]">DARK</span>
-              <span className="text-[#5b4138]">/</span>
-              <span className="text-[#f3bc8b]">MEDIUM</span>
-              <span className="text-[#5b4138]">/</span>
-              <span className="text-[#ffb59c]">LIGHT</span>
-            </div>
-            <p className="font-['Anuphan'] text-[16px] text-[#e3beb3]/80 mt-3">
-              คัดสรรระดับการคั่วที่ดึงรสชาติเฉพาะตัวออกมาอย่างสมบูรณ์แบบ
+            <p className="mt-3 font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
+              {tr('Light, medium or dark: each brings out a different side of the beans.', 'คั่วอ่อน กลาง หรือเข้ม ดึงรสชาติของเมล็ดออกมาคนละแบบ')}
             </p>
           </div>
 
@@ -628,13 +439,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Header */}
           <div className="mb-12">
-            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-widest block mb-1">
-              04 / PRODUCT
+            <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+              03 · {tr('The coffee', 'ตัวกาแฟ')}
             </span>
-            <h2 className="font-['Manrope'] text-3xl md:text-5xl font-medium text-[#e6e1df] tracking-tight uppercase">
-              MEET TATO.
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+              {tr('Meet TATO', 'รู้จัก TATO')}
             </h2>
-            <p className="text-[20px] text-[#f3bc8b] font-light mt-1 font-['Anuphan']">
+            <p className="mt-3 max-w-xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
               {tr('Single-origin Arabica, roasted to order', 'อาราบิก้าสายพันธุ์เดียว คั่วสดตามออเดอร์')}
             </p>
           </div>
@@ -660,11 +471,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   <span className="material-symbols-outlined text-[16px]">local_fire_department</span>
                   <span>{tr('Roasted Fresh To Order', 'คั่วสดตามออเดอร์')}</span>
                 </div>
-                <h3 className="font-['Manrope'] text-2xl md:text-3xl text-[#e6e1df] font-semibold tracking-tight">
-                  Roasted Fresh To Order. Peak Aromatics.
+                <h3 className="font-['Anuphan'] text-2xl md:text-3xl text-[#e6e1df] font-semibold leading-snug">
+                  {tr('Roasted fresh to order. Peak aroma.', 'คั่วสดตามออเดอร์ หอมที่สุดตอนถึงมือคุณ')}
                 </h3>
                 <p className="mt-3 font-['Anuphan'] text-[15px] md:text-[16px] text-[#e3beb3]/80 leading-relaxed">
-                  คั่วสดใหม่ทุกออเดอร์ เพื่อให้คุณได้ดื่มกาแฟในจุดที่รสชาติและกลิ่นหอมสมบูรณ์ที่สุด บรรจุในถุงฟอยล์กันความชื้นแบบมีวาล์วทางเดียว (One-way Degassing Valve) เพื่อช่วยรักษากลิ่นหอมของเมล็ด
+                  {tr(
+                    'Every order is roasted fresh so you drink it when flavor and aroma are at their best. Packed in a moisture-proof foil bag with a one-way degassing valve to help keep the aroma.',
+                    'คั่วสดใหม่ทุกออเดอร์ เพื่อให้คุณได้ดื่มกาแฟในจุดที่รสชาติและกลิ่นหอมสมบูรณ์ที่สุด บรรจุในถุงฟอยล์กันความชื้นแบบมีวาล์วทางเดียว (One-way Degassing Valve) เพื่อช่วยรักษากลิ่นหอมของเมล็ด'
+                  )}
                 </p>
               </div>
 
@@ -686,7 +500,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   onClick={() => onGoToProduct(selectedRoast)}
                   className="flex items-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-widest uppercase transition-all duration-300 shadow-[0_12px_24px_rgba(255,94,26,0.3)] active:scale-95"
                 >
-                  <span>VIEW COFFEE</span>
+                  <span>{tr('ORDER THIS COFFEE', 'สั่งกาแฟนี้')}</span>
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
                 <span className="font-mono text-[12px] text-[#e3beb3]/70">
@@ -742,17 +556,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#ff5e1a]/10 rounded-full blur-[140px] pointer-events-none" />
 
         <div className="relative z-10 max-w-[1000px] mx-auto px-5 md:px-10 text-center">
-          <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-widest block mb-2">
-            RESERVE YOUR HARVEST
+          <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+            04 · {tr('Order', 'สั่งซื้อ')}
           </span>
-          <h2 className="font-['Manrope'] text-4xl sm:text-5xl md:text-6xl leading-tight text-[#e6e1df] uppercase font-bold tracking-tight">
-            FIND YOUR ROAST.
+          <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl sm:text-5xl md:text-6xl leading-[1.15]">
+            {tr('From the mountain to your cup', 'ชิมจากดอย ถึงถ้วยของคุณ')}
           </h2>
 
           {/* Prominent Price Indicator */}
           <div className="my-8 inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#2b2a28] shadow-lg border border-[#363433]">
             <span className="font-['Manrope'] text-[11px] font-bold text-[#e3beb3]/70 uppercase tracking-widest">
-              STARTING AT
+              {tr('Starting at', 'เริ่มต้น')}
             </span>
             <span className="font-['Manrope'] text-2xl font-bold tracking-tight text-[#ff5e1a]">
               {PRICE_RETAIL} THB
@@ -766,7 +580,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               onClick={() => onGoToProduct(selectedRoast)}
               className="inline-flex items-center justify-center gap-3 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-10 py-4 rounded-full font-['Manrope'] text-[14px] font-bold tracking-widest uppercase transition-all duration-300 shadow-[0_16px_36px_rgba(255,94,26,0.4)] transform hover:-translate-y-1 active:scale-95"
             >
-              <span>CHOOSE YOUR ROAST</span>
+              <span>{tr('CHOOSE YOUR ROAST', 'เลือกระดับคั่ว')}</span>
               <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
             </button>
           </div>
@@ -775,11 +589,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-[#e3beb3]/70 font-mono text-[12px] uppercase">
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">local_shipping</span>
-              Nationwide Delivery
+              {tr('Nationwide Delivery', 'จัดส่งทั่วประเทศ')}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#ff5e1a]">lock</span>
-              PromptPay Payment
+              {tr('PromptPay Payment', 'ชำระด้วยพร้อมเพย์')}
             </span>
           </div>
         </div>
