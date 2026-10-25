@@ -2,6 +2,7 @@ import React from 'react';
 import { RoastType, GrindType } from '../types';
 import { BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS } from '../data/coffeeData';
 import { quote as buildQuote } from '../../shared/shipping.js';
+import { PRICE_RETAIL } from '../data/siteFacts';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const unitPrice = 650; // retail per kg; same value as ProductView and products.price in D1
+  const unitPrice = PRICE_RETAIL; // retail per kg; same value as ProductView and products.price in D1
   // Same formula as checkout (shared/shipping.js): shipping is by parcel weight, there is no free shipping.
   // Postal code is unknown here, so this is the default-zone fee; checkout shows the exact total.
   const { subtotal, shipping, total, contactShop } = buildQuote({ kg: quantityKg, unitPrice });

@@ -5,6 +5,7 @@ import { ASSETS, BAG_IMAGES, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSO
 import { useLanguage, translateText } from '../i18n';
 import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
+import { PRICE_RETAIL, MIN_ORDER_KG } from '../data/siteFacts';
 
 const PRODUCT_ID = 'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0';
 type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; contactShop?: boolean; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
@@ -101,8 +102,8 @@ export const ProductView: React.FC<ProductViewProps> = ({
     }
   }, [initialRoast]);
 
-  const unitPrice = 650; // retail price per kg (must match products.price in D1). Cafés get 550 via code CAFE.
-  const minimumQuantityKg = 0.5;
+  const unitPrice = PRICE_RETAIL; // retail price per kg (must match products.price in D1). Cafés get PRICE_CAFE via code CAFE.
+  const minimumQuantityKg = MIN_ORDER_KG;
   const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
 
