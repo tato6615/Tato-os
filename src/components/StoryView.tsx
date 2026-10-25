@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n';
-import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
+import { ASSETS } from '../data/coffeeData';
+import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, PHONE } from '../data/siteFacts';
 import { RoastType } from '../types';
 import { Fog, Smoke, FxDebug } from './StoryFx';
 import BagTurntable from './BagTurntable';
@@ -8,10 +9,13 @@ import { REVIEWS } from '../data/reviews';
 
 interface StoryViewProps {
   onGoToProduct: (roast?: RoastType) => void;
-  onGoToDiscover?: () => void;
+  onGoToDiscover?: (sectionId?: string) => void;
 }
 
-// หน้าเล่าเรื่องแบบเลื่อนซ้าย-ขวา (scrollytelling) ที่ /doi-wiang/
+// หน้าแรกแบบสั้น เลื่อนซ้าย-ขวา (scrollytelling) ที่ / และ /doi-wiang/
+// เล่าแค่: ฮีโร่ถุงหมุน → ที่มา → คั่วสดตามออเดอร์ → (รีวิวลูกค้า) → สั่งซื้อ
+// รายละเอียดเต็ม (การตาก ระดับคั่ว โปรไฟล์รส ร้านกาแฟ) อยู่หน้าร้าน DiscoverView ไม่ต้องเขียนซ้ำที่นี่
+// ตัวเลขที่ใช้ร่วมกัน (ราคา ความสูง เบอร์โทร) มาจาก data/siteFacts.ts
 // ใช้สี ฟอนต์ ของเว็บ และรูปใน ASSETS (coffeeData.ts) ไฟล์ภาพอยู่ที่ public/images/story/
 // เนื้อหาใช้เฉพาะข้อเท็จจริงที่ตรงกับหน้าเว็บ: ไม่มีส่งฟรี ไม่มีใบรับรอง ไม่ระบุระยะเวลาคั่ว/ส่ง
 // ภาพฉาก 3, 4 และ 6 เป็นภาพถ่ายจริงของร้าน (ผลกาแฟ, การคัดเมล็ด, เครื่องคั่ว) ส่วนฉาก 1, 2 และ 5 ยังเป็นภาพบรรยากาศจากคลังภาพฟรี
@@ -19,7 +23,7 @@ interface StoryViewProps {
 
 // ฉากรีวิวลูกค้าจะเพิ่มเข้ามาก่อนฉากสุดท้าย เมื่อมีรีวิวจริงใน data/reviews.ts เท่านั้น
 const HAS_REVIEWS = REVIEWS.length > 0;
-const COUNT = HAS_REVIEWS ? 8 : 7;
+const COUNT = HAS_REVIEWS ? 6 : 5;
 // เมล็ดคั่วอ่อน/กลาง/เข้ม: ตัดจากภาพ 06b-beans-trio.webp (643x299) ด้วย CSS ไม่ต้องมีไฟล์ใหม่
 const BEAN_CROP: Record<RoastType, { x: number; w: number }> = { light: { x: 10, w: 195 }, medium: { x: 228, w: 193 }, dark: { x: 443, w: 191 } };
 const TRIO_W = 643, TRIO_H = 299;
@@ -29,12 +33,6 @@ const CUP_EMITTERS = [{ nx: 0.57, ny: 0.555 }];
 const AUTO_MS = 3500;
 const AUTO_MS_ROASTS = 6000;
 const IDLE_MS = 3000;
-
-const ROAST_NOTES: Record<RoastType, { th: string; en: string; feel: { th: string; en: string }; accent: string }> = {
-  light: { th: 'ดอกมะลิ ซิตรัส ชาเอิร์ลเกรย์', en: 'Jasmine, citrus, Earl Grey tea', feel: { th: 'หอมใส', en: 'Bright & aromatic' }, accent: '#f3bc8b' },
-  medium: { th: 'คาราเมล พลัมสุก น้ำผึ้งป่า', en: 'Caramel, ripe plum, wild honey', feel: { th: 'หวานกลมกล่อม · เหมาะกับคนเพิ่งเริ่มลอง', en: 'Sweet & balanced · a good first try' }, accent: '#ffb59c' },
-  dark: { th: 'โกโก้เข้ม แมคคาเดเมียคั่ว', en: 'Dark cocoa, roasted macadamia', feel: { th: 'เข้มลึก ไม่ไหม้', en: 'Deep & smooth' }, accent: '#ff5e1a' },
-};
 
 const CSS = `
 .tv-line{display:block;overflow:hidden;padding:.32em 0 .12em;margin:-.32em 0 0}
@@ -83,25 +81,6 @@ const CSS = `
 }
 `;
 
-// photoreal bag that leans toward the finger / cursor. Static for prefers-reduced-motion.
-const BagTilt: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
-  const ref = useRef<HTMLImageElement>(null);
-  const move = (e: React.PointerEvent<HTMLElement>) => {
-    const el = ref.current;
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width - 0.5;
-    const y = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `perspective(900px) rotateY(${(x * 22).toFixed(1)}deg) rotateX(${(-y * 10).toFixed(1)}deg) translateY(-8px) scale(1.04)`;
-  };
-  const leave = () => { if (ref.current) ref.current.style.transform = ''; };
-  return (
-    <span className="block md:mb-5" onPointerMove={move} onPointerLeave={leave} onPointerCancel={leave}>
-      <img ref={ref} src={src} alt={alt} loading="lazy" decoding="async" draggable={false} className="tv-bag mx-auto" />
-    </span>
-  );
-};
-
 const Lines: React.FC<{ text: string; base?: number }> = ({ text, base = 0 }) => (
   <>
     {text.split('\n').map((l, i) => (
@@ -138,7 +117,6 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
   const [active, setActive] = useState(0);
   const [seen, setSeen] = useState<boolean[]>(() => Array.from({ length: COUNT }, (_, i) => reduce || i === 0));
   const lastTouch = useRef(0);
-  const hover = useRef(false);
   const src = (() => {
     try { return new URLSearchParams(window.location.search).get('src') || 'doi-wiang'; } catch { return 'doi-wiang'; }
   })();
@@ -236,10 +214,10 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
     if (active >= COUNT - 1) return;
     let t = 0;
     const tick = () => {
-      if (document.hidden || hover.current || Date.now() - lastTouch.current < IDLE_MS) { t = window.setTimeout(tick, 1000); return; }
+      if (document.hidden || Date.now() - lastTouch.current < IDLE_MS) { t = window.setTimeout(tick, 1000); return; }
       goTo(active + 1);
     };
-    t = window.setTimeout(tick, active === 5 || (HAS_REVIEWS && active === 6) ? AUTO_MS_ROASTS : AUTO_MS);
+    t = window.setTimeout(tick, active === 3 || (HAS_REVIEWS && active === 4) ? AUTO_MS_ROASTS : AUTO_MS);
     return () => window.clearTimeout(t);
   }, [active]);
 
@@ -316,9 +294,9 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               <p className={sub} style={delay(600)}>{tr('100% Arabica, roasted when you order. Smooth, never burnt.', 'อาราบิก้า 100% คั่วเมื่อคุณสั่ง นุ่ม ไม่ไหม้')}</p>
               <div className="tv-fade mt-6 flex flex-wrap items-center gap-3" style={delay(800)}>
                 <button onClick={() => onGoToProduct('medium')} className="px-7 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Order coffee', 'สั่งกาแฟเลย')}</button>
-                <button onClick={() => userGo(5)} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Choose a roast', 'เลือกระดับคั่ว')}</button>
+                <button onClick={() => (onGoToDiscover ? onGoToDiscover('roasts') : userGo(COUNT - 1))} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">{tr('Choose a roast', 'เลือกระดับคั่ว')}</button>
               </div>
-              <a href={`/cafe/?src=${src}`} className="tv-fade mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]" style={delay(950)}>{tr('Order for your café · 550 THB/kg →', 'สั่งสำหรับร้านกาแฟ 550 บาท/กก. →')}</a>
+              <a href={`/cafe/?src=${src}`} className="tv-fade mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]" style={delay(950)}>{tr(`Order for your café · ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก. →`)}</a>
             </div>
             <div data-vis className="relative mt-6 lg:mt-0 flex items-end justify-center">
               {/* ถุงใบเดียว สัดส่วนจริง: กำหนดแค่ความสูง ความกว้างตามภาพ (max-w-none กัน Tailwind บีบความกว้างจนภาพเพี้ยน) */}
@@ -326,7 +304,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
                 <BagTurntable active={active === 0} height="clamp(280px, min(60vh, 62vw, calc(60vw - 68px)), 700px)"
                   label={tr('TATO Coffee black bag, rotate to view every side', 'ถุงกาแฟ TATO สีดำ หมุนดูได้ทุกด้าน')} />
                 <span className="tv-fade absolute z-[4] right-[-14%] top-[6%] w-[84px] h-[84px] md:w-[104px] md:h-[104px] rounded-full bg-[#ff5e1a] text-[#390c00] flex flex-col items-center justify-center font-['Anuphan'] shadow-[0_14px_30px_rgba(0,0,0,.5)] rotate-[8deg]" style={delay(1000)}>
-                  <span className="text-[26px] md:text-[34px] font-extrabold leading-none">650</span>
+                  <span className="text-[26px] md:text-[34px] font-extrabold leading-none">{PRICE_RETAIL}</span>
                   <span className="text-[11px] md:text-[13px] font-semibold mt-0.5 whitespace-nowrap">{tr('THB/kg', 'บาท/กก.')}</span>
                 </span>
               </span>
@@ -350,7 +328,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
             <div data-vis className="relative mt-10 md:mt-0 flex items-end gap-5 md:justify-end pointer-events-none">
               <div className="tv-grow w-[3px] h-32 md:h-72 bg-gradient-to-t from-transparent to-[#ff5e1a]" />
               <div className="tv-drop">
-                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums"><CountUp run={seen[1]} to={1500} /></div>
+                <div className="font-['Manrope'] font-extrabold leading-none text-white [text-shadow:0_0_44px_rgba(255,255,255,.28)] text-[84px] sm:text-[120px] lg:text-[170px] tabular-nums"><CountUp run={seen[1]} to={ELEVATION_M} /></div>
                 <div className="mt-2 font-mono text-[12px] md:text-sm tracking-[0.18em] text-[#f3bc8b] uppercase">{tr('metres above sea level', 'เมตร เหนือระดับน้ำทะเล')}</div>
               </div>
             </div>
@@ -370,77 +348,29 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           </div>
         </section>
 
-        {/* 4 drying */}
-        <section ref={setRef(3)} className={`${scene} ${on(3)}`}>
-          {bg('/images/story/04-drying-beds.webp', '60% 55%', tr('Coffee beans drying on raised beds under shade net on a hillside', 'เมล็ดกาแฟตากบนแคร่ยกพื้นคลุมตาข่ายพรางแสง บนเนินเขา'), { tone: 'bright', veil: 'bg-gradient-to-b from-[#141312]/80 via-[#141312]/45 to-[#141312]/25 md:bg-gradient-to-r md:from-[#141312]/88 md:via-[#141312]/45 md:to-transparent' })}
-          <div className={grid}>
-            <div data-copy>
-              <span className={label}>03 · {tr('Dried', 'การตาก')}</span>
-              <h2 className={head}><Lines text={tr('Dried on\nraised beds', 'ตากบน\nแคร่ยกพื้น')} base={100} /></h2>
-              <p className={sub} style={delay(500)}>{tr('The beans are dried on raised beds before they reach our roaster.', 'เมล็ดถูกตากบนแคร่ยกพื้น ก่อนเดินทางมาถึงเครื่องคั่วของเรา')}</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 5 roast to order */}
+        {/* 4 roast to order */}
         {/* cinematic dark: copy sits at the top, the pouring beans own the lower half */}
-        <section ref={setRef(4)} className={`${scene} !items-start pt-24 md:pt-28 bg-[#141312] ${on(4)}`}>
-          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal', fx: <Smoke run={Math.abs(active - 4) <= 1} iw={900} ih={1350} pos={[0.5, 0.4]} preset="roast" emitters={ROAST_EMITTERS} />, veil: 'bg-[linear-gradient(to_bottom,rgba(20,19,18,.92)_0%,rgba(20,19,18,.6)_26%,rgba(20,19,18,.08)_52%,rgba(20,19,18,.88)_100%)]' })}
+        <section ref={setRef(3)} className={`${scene} !items-start pt-24 md:pt-28 bg-[#141312] ${on(3)}`}>
+          {bg(ASSETS.storyRoastPour, '50% 40%', tr('Freshly roasted beans pouring out of a drum roaster', 'เมล็ดกาแฟคั่วใหม่ไหลออกจากเครื่องคั่วแบบดรัม'), { tone: 'normal', fx: <Smoke run={Math.abs(active - 3) <= 1} iw={900} ih={1350} pos={[0.5, 0.4]} preset="roast" emitters={ROAST_EMITTERS} />, veil: 'bg-[linear-gradient(to_bottom,rgba(20,19,18,.92)_0%,rgba(20,19,18,.6)_26%,rgba(20,19,18,.08)_52%,rgba(20,19,18,.88)_100%)]' })}
           <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#141312]/55 via-[#141312]/10 to-transparent" />
           <div className={grid}>
             <div data-copy>
-              <span className={label}>04 · {tr('Roasted', 'การคั่ว')}</span>
+              <span className={label}>03 · {tr('Roasted', 'การคั่ว')}</span>
               <h2 className={head}><Lines text={tr('We don’t roast stock.\nWe roast when\nyou order.', 'เราไม่คั่วสต็อก\nเราคั่วเมื่อคุณสั่ง')} base={100} /></h2>
               <p className={sub} style={delay(600)}>{tr('Every order is roasted to order.', 'ทุกออเดอร์คั่วตามคำสั่งซื้อ')}</p>
+              {onGoToDiscover && (
+                <button onClick={() => onGoToDiscover('roasts')} className="tv-fade mt-4 min-h-11 text-[15px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df] font-['Anuphan']" style={delay(800)}>{tr('See light, medium and dark roasts →', 'ดูระดับคั่วอ่อน กลาง เข้ม →')}</button>
+              )}
             </div>
           </div>
         </section>
 
-        {/* 6 roast levels -> opens the real order flow */}
-        <section ref={setRef(5)} className={`${scene} bg-[#0f0e0d] pt-16 md:pt-0 ${on(5)}`}>
-          {bg(ASSETS.storyRoastDrum, '60% 50%', tr('Roasted coffee beans in the drum of a roaster', 'เมล็ดกาแฟคั่วในถังของเครื่องคั่ว'), { tone: 'dim' })}
-          {glow('left-[-5%] bottom-[0%] w-[460px] h-[460px]')}
-          <div data-copy className="relative z-10 w-full max-w-6xl">
-            <div>
-              <div>
-                <span className={label}>05 · {tr('Roasts', 'ระดับการคั่ว')}</span>
-                <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('Choose the cup\nyou want', 'เลือกได้ว่า\nอยากได้ถ้วยแบบไหน')} base={100} /></h2>
-              </div>
-            </div>
-            <div className="mt-5 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-5">
-              {(['light', 'medium', 'dark'] as RoastType[]).map((id, i) => {
-                const p = ROAST_PROFILES.find((r) => r.id === id)!;
-                const n = ROAST_NOTES[id];
-                return (
-                  <button key={id} onClick={() => onGoToProduct(id)} style={{ ...delay(450 + i * 160), borderTop: `3px solid ${n.accent}` }}
-                    onPointerEnter={() => { hover.current = true; }} onPointerLeave={() => { hover.current = false; }}
-                    className="tv-card text-left rounded-xl bg-[#1d1b1a] border border-[#5b4138]/40 hover:border-[#ff5e1a]/70 p-4 md:p-6 flex items-center gap-4 md:block focus-visible:outline-2 focus-visible:outline-[#ffb59c]">
-                    <span className="block w-20 shrink-0 md:w-auto">
-                      <BagTilt src={BAG_IMAGES[id].cut} alt={tr(`TATO Coffee bag, ${p.name.toLowerCase()} roast`, `ถุงกาแฟ TATO ${p.nameThai}`)} />
-                    </span>
-                    <span className="block min-w-0 flex-1">
-                      <span className="flex items-center gap-3">
-                        <span className="tv-bean" role="img" aria-label={tr(`${p.name} roast bean`, `เมล็ดกาแฟ${p.nameThai}`)}
-                          style={{ aspectRatio: `${BEAN_CROP[id].w} / ${TRIO_H}`, backgroundImage: `url(${ASSETS.storyBeansTrio})`, backgroundSize: `${(TRIO_W / BEAN_CROP[id].w) * 100}% 100%`, backgroundPosition: `${(BEAN_CROP[id].x / (TRIO_W - BEAN_CROP[id].w)) * 100}% 0` }} />
-                        <span className="font-['Anuphan'] font-semibold text-xl md:text-2xl text-[#e6e1df]">{tr(p.name, p.nameThai)}</span>
-                      </span>
-                      <span className="block mt-2 md:mt-3 font-['Anuphan'] font-light text-sm md:text-base text-[#e3beb3]/85">{tr(n.en, n.th)}</span>
-                      <span className="block mt-1 md:mt-2 font-['Anuphan'] text-[13px]" style={{ color: n.accent }}>{tr(n.feel.en, n.feel.th)}</span>
-                      <span className="block mt-2 md:mt-4 font-['Anuphan'] text-[13px] text-[#e6e1df]/70">{tr('Order this roast', 'สั่งระดับคั่วนี้')} ›</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* 7 customer reviews (แสดงเมื่อมีรีวิวจริงเท่านั้น) */}
+        {/* 5 customer reviews (แสดงเมื่อมีรีวิวจริงเท่านั้น) */}
         {HAS_REVIEWS && (
-          <section ref={setRef(6)} className={`${scene} bg-[#0f0e0d] ${on(6)}`}>
+          <section ref={setRef(4)} className={`${scene} bg-[#0f0e0d] ${on(4)}`}>
             {glow('right-[-6%] bottom-[8%] w-[420px] h-[420px]')}
             <div data-copy className="relative z-10 w-full max-w-6xl">
-              <span className={label}>06 · {tr('Customers', 'ลูกค้า')}</span>
+              <span className={label}>04 · {tr('Customers', 'ลูกค้า')}</span>
               <h2 className={`${head} !text-[7.4vw] sm:!text-5xl lg:!text-[56px] xl:!text-[64px]`}><Lines text={tr('What customers say', 'เสียงจากลูกค้า')} base={100} /></h2>
               <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
                 {REVIEWS.slice(0, 4).map((r, i) => (
@@ -456,9 +386,9 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
           </section>
         )}
 
-        {/* 7/8 call to action */}
+        {/* last: call to action */}
         <section ref={setRef(COUNT - 1)} className={`${scene} ${on(COUNT - 1)}`}>
-          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'), <Smoke run={active >= 5} iw={784} ih={1168} pos={[0.3, 0.62]} preset="steam" emitters={CUP_EMITTERS} />)}
+          {bgSide(ASSETS.storyBag, '30% 62%', tr('A TATO Coffee bag beside a steaming cup on a café counter', 'ถุงกาแฟ TATO วางข้างถ้วยกาแฟร้อนบนเคาน์เตอร์'), <Smoke run={active >= COUNT - 2} iw={784} ih={1168} pos={[0.3, 0.62]} preset="steam" emitters={CUP_EMITTERS} />)}
           <div className={`${grid} self-start mt-16 md:self-center md:mt-0`}>
             <div data-copy>
               <span className={label}>0{COUNT - 1} · {tr('Order', 'สั่งซื้อ')}</span>
@@ -466,15 +396,15 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
               <p className={sub} style={delay(500)}>{tr('Roasted fresh to order. No minimum for cafés.', 'คั่วสดตามออเดอร์ ร้านกาแฟไม่มีขั้นต่ำ')}</p>
               <div className="tv-fade mt-8 flex flex-wrap gap-3" style={delay(700)}>
                 <button onClick={() => onGoToProduct('medium')} className="tv-pulse px-6 py-3.5 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">
-                  {tr('Order fresh-roasted · 650 THB/kg', 'สั่งกาแฟคั่วสด 650 บาท/กก.')}
+                  {tr(`Order fresh-roasted · ${PRICE_RETAIL} THB/kg`, `สั่งกาแฟคั่วสด ${PRICE_RETAIL} บาท/กก.`)}
                 </button>
                 <a href={`/cafe/?src=${src}`} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/70 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 inline-flex items-center focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">
-                  {tr('Order for cafés · 550 THB/kg', 'สั่งสำหรับร้านกาแฟ 550 บาท/กก.')}
+                  {tr(`Order for cafés · ${PRICE_CAFE} THB/kg`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก.`)}
                 </a>
               </div>
-              <p className="tv-fade mt-5 text-[13px] text-[#e3beb3]/70 font-['Anuphan']" style={delay(850)}>{tr('Prices exclude shipping. Questions? Call 064-293-6615.', 'ราคายังไม่รวมค่าส่ง สอบถามได้ที่ 064-293-6615')}</p>
+              <p className="tv-fade mt-5 text-[13px] text-[#e3beb3]/70 font-['Anuphan']" style={delay(850)}>{tr(`Prices exclude shipping. Questions? Call ${PHONE}.`, `ราคายังไม่รวมค่าส่ง สอบถามได้ที่ ${PHONE}`)}</p>
               {onGoToDiscover && (
-                <button onClick={onGoToDiscover} className="tv-fade mt-2 min-h-11 text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df] font-['Anuphan']" style={delay(1000)}>{tr('Learn more about the coffee →', 'ดูรายละเอียดเกี่ยวกับกาแฟ →')}</button>
+                <button onClick={() => onGoToDiscover()} className="tv-fade mt-2 min-h-11 text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df] font-['Anuphan']" style={delay(1000)}>{tr('Learn more about the coffee →', 'ดูรายละเอียดเกี่ยวกับกาแฟ →')}</button>
               )}
             </div>
           </div>
@@ -484,8 +414,8 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
       {/* sticky order bar */}
       {active < COUNT - 1 && (
       <div className="absolute bottom-0 inset-x-0 z-30 flex justify-center gap-2.5 px-3.5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#0f0e0d]/90 to-transparent">
-        <button onClick={() => onGoToProduct('medium')} className="flex-1 max-w-[280px] py-3 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-sm">{tr('Order · 650/kg', 'สั่งกาแฟ 650/กก.')}</button>
-        <a href={`/cafe/?src=${src}`} className="flex-1 max-w-[280px] py-3 rounded-full text-center border border-[#5b4138] bg-[#0f0e0d]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-sm">{tr('For cafés · 550/kg', 'สั่งสำหรับร้านกาแฟ 550/กก.')}</a>
+        <button onClick={() => onGoToProduct('medium')} className="flex-1 max-w-[280px] py-3 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-semibold text-sm">{tr(`Order · ${PRICE_RETAIL}/kg`, `สั่งกาแฟ ${PRICE_RETAIL}/กก.`)}</button>
+        <a href={`/cafe/?src=${src}`} className="flex-1 max-w-[280px] py-3 rounded-full text-center border border-[#5b4138] bg-[#0f0e0d]/60 text-[#e6e1df] font-['Anuphan'] font-semibold text-sm">{tr(`For cafés · ${PRICE_CAFE}/kg`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE}/กก.`)}</a>
       </div>
       )}
       {debug && <FxDebug active={active} count={COUNT} />}

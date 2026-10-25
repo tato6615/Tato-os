@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
 import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
+import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG } from '../data/siteFacts';
 
 interface DiscoverViewProps {
   onGoToProduct: (preselectedRoast?: RoastType) => void;
@@ -39,7 +40,7 @@ const SENSORY_METRICS: Record<RoastType, { acidity: number; sweetness: number; b
   },
 };
 
-const ElevationCounter: React.FC<{ target?: number }> = ({ target = 1500 }) => {
+const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M }) => {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const [hasStarted, setHasStarted] = useState(false);
@@ -275,7 +276,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   <span className="material-symbols-outlined text-[#ffb59c] text-[20px] animate-bounce">filter_hdr</span>
                 </div>
                 <div className="font-['Manrope'] text-[46px] md:text-[52px] leading-tight text-[#ffb59c] font-bold tracking-tight">
-                  <ElevationCounter target={1500} />
+                  <ElevationCounter target={ELEVATION_M} />
                 </div>
                 <p className="font-['Manrope'] text-[13px] text-[#e3beb3]/70 mt-1">
                   High-altitude cool air slows photosynthesis, dense bean structure.
@@ -493,7 +494,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   {/* Price + what you get */}
                   <div className="mt-6">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">650</span>
+                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">{PRICE_RETAIL}</span>
                       <span className="font-['Anuphan'] text-[14px] text-[#e3beb3]">
                         {language === 'th' ? 'บาท ต่อ กก.' : 'THB per kg'}
                       </span>
@@ -689,7 +690,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
                 <span className="font-mono text-[12px] text-[#e3beb3]/70">
-                  {tr('Minimum order 0.5 kg, in 0.5 kg steps', 'สั่งขั้นต่ำ 0.5 กก. เพิ่มครั้งละ 0.5 กก.')}
+                  {tr(`Minimum order ${MIN_ORDER_KG} kg, in ${MIN_ORDER_KG} kg steps`, `สั่งขั้นต่ำ ${MIN_ORDER_KG} กก. เพิ่มครั้งละ ${MIN_ORDER_KG} กก.`)}
                 </span>
               </div>
             </div>
@@ -705,8 +706,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             </h2>
             <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
               {tr(
-                'Tell us about your café. First order is 550 THB/kg with no minimum, shipping not included.',
-                'บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลยที่ 550 บาท/กก. ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง'
+                `Tell us about your café. First order is ${PRICE_CAFE} THB/kg with no minimum, shipping not included.`,
+                `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลยที่ ${PRICE_CAFE} บาท/กก. ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
               )}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -754,7 +755,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               STARTING AT
             </span>
             <span className="font-['Manrope'] text-2xl font-bold tracking-tight text-[#ff5e1a]">
-              650 THB
+              {PRICE_RETAIL} THB
             </span>
             <span className="font-mono text-[12px] text-[#e3beb3]/70">/ KG</span>
           </div>
