@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
-import { ASSETS, BAG_IMAGES, ROAST_PROFILES } from '../data/coffeeData';
+import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
 import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG, PHONE } from '../data/siteFacts';
 import { REVIEWS } from '../data/reviews';
 import BagTurntable from './BagTurntable';
@@ -150,7 +150,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-4">
             {tr('TATO Coffee · Doi Wiang Pa, Chiang Mai', 'TATO COFFEE · ดอยเวียงผา เชียงใหม่')}
           </span>
-          <h1 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-[8.6vw] sm:text-6xl lg:text-[64px] leading-[1.12]">
+          <h1 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-[8.6vw] sm:text-6xl lg:text-[64px] leading-[1.3]">
             {tr('Choose your coffee', 'เลือกกาแฟของคุณ')}
           </h1>
           <p className="mt-5 max-w-xl font-['Anuphan'] font-light text-base md:text-xl leading-relaxed text-[#e3beb3]/85">
@@ -207,7 +207,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
                 01 · {tr('Where it grows', 'แหล่งปลูก')}
               </span>
-              <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl md:text-6xl leading-[1.12]">
+              <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl md:text-6xl leading-[1.3]">
                 {tr('Above sea level', 'สูงกว่า\nน้ำทะเล').split('\n').map((l, i) => <span key={i} className="block">{l}</span>)}
               </h2>
               <p className="mt-4 max-w-md font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
@@ -247,15 +247,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <div className="lg:col-span-6 relative">
               <div className="relative rounded-xl overflow-hidden shadow-2xl bg-[#211f1e] border border-[#2b2a28]">
                 <img
-                  src={ASSETS.storyCherries}
-                  alt={tr('Freshly picked coffee cherries in a pink mesh sack', 'ผลกาแฟสดที่เพิ่งเก็บ ในถุงตาข่ายสีชมพู')}
-                  className="w-full h-[460px] md:h-[520px] object-cover object-center transform transition-transform duration-700 hover:scale-105"
+                  src={ASSETS.storyRidges}
+                  alt={tr('Misty highland ridges of Doi Wiang Pa at dusk', 'สันเขาและหมอกบนดอยเวียงผายามเย็น')}
+                  className="w-full h-[340px] md:h-[480px] object-cover object-center transform transition-transform duration-700 hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/80 via-transparent to-transparent" />
               </div>
 
               {/* Overlapping Micro Terroir Floating Badge */}
-              <div className="absolute -bottom-5 -right-3 bg-[#2b2a28]/95 backdrop-blur-md p-4 rounded-lg shadow-2xl max-w-xs border border-[#5b4138]/50 hidden sm:block">
+              <div className="absolute -bottom-6 right-3 bg-[#2b2a28]/95 backdrop-blur-md p-4 rounded-lg shadow-2xl max-w-xs border border-[#5b4138]/50 hidden sm:block z-10">
                 <div className="flex items-center gap-1.5 text-[#ffb59c] mb-1">
                   <span className="material-symbols-outlined text-[18px]">eco</span>
                   <span className="font-mono text-[11px] tracking-widest font-semibold uppercase">
@@ -321,7 +321,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
               02 · {tr('Roasts', 'ระดับการคั่ว')}
             </span>
-            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.3]">
               {tr('Choose the cup you want', 'เลือกได้ว่าอยากได้ถ้วยแบบไหน')}
             </h2>
             <p className="mt-3 font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
@@ -538,7 +538,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
               03 · {tr('The coffee', 'ตัวกาแฟ')}
             </span>
-            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.3]">
               {tr('Meet TATO', 'รู้จัก TATO')}
             </h2>
             <p className="mt-3 max-w-xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85">
@@ -550,13 +550,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center bg-[#1d1b1a] rounded-2xl p-6 md:p-12 border border-[#2b2a28] shadow-2xl">
             {/* Luxury Matte Black Pouch Image Presentation (6 Cols) */}
             <div className="lg:col-span-6 relative flex items-center justify-center">
-              <div className="relative w-full max-w-md rounded-xl overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.85)] group border border-[#2b2a28]">
-                <img
-                  src={BAG_IMAGES.medium.scene}
-                  alt="TATO Coffee bag with roasted coffee beans on burlap"
-                  className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-105"
+              <div className="relative flex items-center justify-center w-full py-6">
+                <BagTurntable
+                  active={true}
+                  height="clamp(320px, 52vh, 560px)"
+                  label={tr('TATO Coffee black bag, drag to rotate', 'ถุงกาแฟ TATO สีดำ ลากเพื่อหมุนดูได้ทุกด้าน')}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0d]/60 via-transparent to-transparent pointer-events-none" />
               </div>
             </div>
 
@@ -567,7 +566,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   <span className="material-symbols-outlined text-[16px]">local_fire_department</span>
                   <span>{tr('Roasted Fresh To Order', 'คั่วสดตามออเดอร์')}</span>
                 </div>
-                <h3 className="font-['Anuphan'] text-2xl md:text-3xl text-[#e6e1df] font-semibold leading-snug">
+                <h3 className="font-['Anuphan'] text-2xl md:text-3xl text-[#e6e1df] font-semibold leading-[1.4]">
                   {tr('Roasted fresh to order. Peak aroma.', 'คั่วสดตามออเดอร์ หอมที่สุดตอนถึงมือคุณ')}
                 </h3>
                 <p className="mt-3 font-['Anuphan'] text-[15px] md:text-[16px] text-[#e3beb3]/80 leading-relaxed">
@@ -653,7 +652,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
               04 · {tr('Reviews', 'รีวิว')}
             </span>
-            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.15]">
+            <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.3]">
               {tr('What customers say', 'เสียงจากลูกค้า')}
             </h2>
           </div>
@@ -700,7 +699,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
             05 · {tr('Order', 'สั่งซื้อ')}
           </span>
-          <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl sm:text-5xl md:text-6xl leading-[1.15]">
+          <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-4xl sm:text-5xl md:text-6xl leading-[1.3]">
             {tr('From the mountain to your cup', 'ชิมจากดอย ถึงถ้วยของคุณ')}
           </h2>
 
