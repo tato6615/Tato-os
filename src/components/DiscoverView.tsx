@@ -104,7 +104,7 @@ const SubscribeSection: React.FC = () => {
   const msg =
     `สนใจรับกาแฟประจำ TATO (${kind === 'office' ? 'ออฟฟิศ/โคเวิร์กกิ้ง' : 'ดื่มเอง'})\n` +
     `ระดับคั่ว: ${roastTh}\nปริมาณ: ${kg} กก./รอบ\nส่งทุก ${weeks} สัปดาห์\n` +
-    `ประมาณ ${total} บาท/รอบ (ยังไม่รวมค่าส่ง)\nขอรายละเอียดและวิธีชำระเงินครับ/ค่ะ`;
+    `${total} บาท/รอบ (ยังไม่รวมค่าส่ง)\nขอรายละเอียดและวิธีชำระเงินครับ/ค่ะ`;
   const lineUrl = oa ? `https://line.me/R/oaMessage/${oa.startsWith('@') ? oa : '@' + oa}/?${encodeURIComponent(msg)}` : '';
   const chip = (on: boolean) =>
     `px-4 py-2 rounded-full border font-['Anuphan'] text-[15px] transition-colors ${on ? 'bg-[#ff5e1a] border-[#ff5e1a] text-[#390c00] font-semibold' : 'border-[#5b4138]/70 text-[#e3beb3] hover:border-[#ff5e1a]/60'}`;
@@ -166,7 +166,7 @@ const SubscribeSection: React.FC = () => {
                 {tr(`${roast} roast · ${kg} kg · every ${weeks} wk`, `${roastTh} · ${kg} กก. · ทุก ${weeks} สัปดาห์`)}
               </div>
               <div className="mt-4 font-['Manrope'] font-bold text-[44px] leading-none text-[#ffb59c] tabular-nums">
-                ~{total.toLocaleString('en-US')} <span className="text-[18px] text-[#e3beb3]">{tr('THB / round', 'บาท / รอบ')}</span>
+                {total.toLocaleString('en-US')} <span className="text-[18px] text-[#e3beb3]">{tr('THB / round', 'บาท / รอบ')}</span>
               </div>
               <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">
                 {tr('Shipping not included. No automatic charge: we confirm every round with you first.', 'ยังไม่รวมค่าส่ง ไม่มีการตัดเงินอัตโนมัติ เราขอยืนยันกับคุณทุกรอบก่อน')}
