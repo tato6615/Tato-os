@@ -86,6 +86,110 @@ const ElevationCounter: React.FC<{ target?: number }> = ({ target = ELEVATION_M 
   return <span ref={ref}>{val.toLocaleString('en-US')}</span>;
 };
 
+const SubscribeSection: React.FC = () => {
+  const { language } = useLanguage();
+  const tr = (en: string, th: string) => (language === 'th' ? th : en);
+  const [kind, setKind] = useState<'home' | 'office'>('home');
+  const [roast, setRoast] = useState<RoastType>('medium');
+  const [kg, setKg] = useState(1);
+  const [weeks, setWeeks] = useState(2);
+  const [oa, setOa] = useState('');
+
+  useEffect(() => {
+    fetch('/api/public-config').then((r) => r.json()).then((d) => setOa(String(d?.line_oa || ''))).catch(() => {});
+  }, []);
+
+  const roastTh = roast === 'light' ? 'คั่วอ่อน' : roast === 'medium' ? 'คั่วกลาง' : 'คั่วเข้ม';
+  const total = Math.round(kg * PRICE_RETAIL);
+  const msg =
+    `สนใจรับกาแฟประจำ TATO (${kind === 'office' ? 'ออฟฟิศ/โคเวิร์กกิ้ง' : 'ดื่มเอง'})\n` +
+    `ระดับคั่ว: ${roastTh}\nปริมาณ: ${kg} กก./รอบ\nส่งทุก ${weeks} สัปดาห์\n` +
+    `ประมาณ ${total} บาท/รอบ (ยังไม่รวมค่าส่ง)\nขอรายละเอียดและวิธีชำระเงินครับ/ค่ะ`;
+  const lineUrl = oa ? `https://line.me/R/oaMessage/${oa.startsWith('@') ? oa : '@' + oa}/?${encodeURIComponent(msg)}` : '';
+  const chip = (on: boolean) =>
+    `px-4 py-2 rounded-full border font-['Anuphan'] text-[15px] transition-colors ${on ? 'bg-[#ff5e1a] border-[#ff5e1a] text-[#390c00] font-semibold' : 'border-[#5b4138]/70 text-[#e3beb3] hover:border-[#ff5e1a]/60'}`;
+
+  return (
+    <section className="relative w-full py-20 md:py-24 bg-[#0f0e0d]" id="subscribe">
+      <div className="max-w-[1100px] mx-auto px-5 md:px-10">
+        <span className="font-mono text-[12px] text-[#ffb59c] uppercase tracking-[0.18em] block mb-3">
+          {tr('Regular delivery', 'รับกาแฟประจำ')}
+        </span>
+        <h2 className="font-['Anuphan'] font-semibold text-[#e6e1df] text-3xl md:text-5xl leading-[1.3]">
+          {tr('Never run out of fresh coffee', 'กาแฟสดมาถึงมือ ไม่ต้องสั่งทุกครั้ง')}
+        </h2>
+        <p className="mt-3 max-w-2xl font-['Anuphan'] font-light text-base md:text-lg text-[#e3beb3]/85 leading-relaxed">
+          {tr('Pick your roast and rhythm. We roast for each round and confirm payment with you on LINE.', 'เลือกระดับคั่วและความถี่ที่ใช่ เราคั่วสดให้ทุกรอบ และยืนยันการชำระเงินกับคุณทางไลน์ทุกครั้ง')}
+        </p>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="space-y-6">
+            <div>
+              <div className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest mb-2">{tr('For', 'สำหรับ')}</div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={chip(kind === 'home')} onClick={() => setKind('home')}>{tr('Home', 'ดื่มเอง')}</button>
+                <button type="button" className={chip(kind === 'office')} onClick={() => setKind('office')}>{tr('Office / co-working', 'ออฟฟิศ / โคเวิร์กกิ้ง')}</button>
+              </div>
+            </div>
+            <div>
+              <div className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest mb-2">{tr('Roast', 'ระดับคั่ว')}</div>
+              <div className="flex flex-wrap gap-2">
+                {(['light', 'medium', 'dark'] as RoastType[]).map((r) => (
+                  <button key={r} type="button" className={chip(roast === r)} onClick={() => setRoast(r)}>
+                    {r === 'light' ? tr('Light', 'คั่วอ่อน') : r === 'medium' ? tr('Medium', 'คั่วกลาง') : tr('Dark', 'คั่วเข้ม')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest mb-2">{tr('Per delivery', 'ปริมาณต่อรอบ')}</div>
+              <div className="flex flex-wrap gap-2">
+                {[0.5, 1, 2, 5].map((k) => (
+                  <button key={k} type="button" className={chip(kg === k)} onClick={() => setKg(k)}>{k} {tr('kg', 'กก.')}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest mb-2">{tr('Every', 'ส่งทุก')}</div>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 4].map((w) => (
+                  <button key={w} type="button" className={chip(weeks === w)} onClick={() => setWeeks(w)}>{w} {tr('weeks', 'สัปดาห์')}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#1d1b1a] border border-[#2b2a28] p-6 md:p-8 flex flex-col justify-between">
+            <div>
+              <div className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Your plan', 'แผนของคุณ')}</div>
+              <div className="mt-3 font-['Anuphan'] text-xl text-[#e6e1df] leading-relaxed">
+                {tr(`${roast} roast · ${kg} kg · every ${weeks} wk`, `${roastTh} · ${kg} กก. · ทุก ${weeks} สัปดาห์`)}
+              </div>
+              <div className="mt-4 font-['Manrope'] font-bold text-[44px] leading-none text-[#ffb59c] tabular-nums">
+                ~{total.toLocaleString('en-US')} <span className="text-[18px] text-[#e3beb3]">{tr('THB / round', 'บาท / รอบ')}</span>
+              </div>
+              <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">
+                {tr('Shipping not included. No automatic charge: we confirm every round with you first.', 'ยังไม่รวมค่าส่ง ไม่มีการตัดเงินอัตโนมัติ เราขอยืนยันกับคุณทุกรอบก่อน')}
+              </p>
+            </div>
+            <div className="mt-6">
+              {lineUrl ? (
+                <a href={lineUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-full px-6 py-4 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-bold text-lg active:scale-[0.98] transition-transform">
+                  {tr('Request on LINE', 'ขอรับประจำทางไลน์')}
+                </a>
+              ) : (
+                <a href={`tel:${PHONE.replace(/-/g, '')}`} className="inline-flex items-center justify-center w-full px-6 py-4 rounded-full bg-[#ff5e1a] text-[#390c00] font-['Anuphan'] font-bold text-lg active:scale-[0.98] transition-transform">
+                  {tr(`Call ${PHONE}`, `โทร ${PHONE}`)}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoToStory }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>('medium');
   const { language } = useLanguage();
@@ -590,6 +694,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
           </div>
         </div>
       </section>
+      <SubscribeSection />
+
       {/* ==================== CAFE OWNERS SECTION ==================== */}
       <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30" id="for-cafes">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
