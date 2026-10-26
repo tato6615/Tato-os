@@ -166,7 +166,7 @@ const SubscribeSection: React.FC = () => {
                 {tr(`${roast} roast · ${kg} kg · every ${weeks} wk`, `${roastTh} · ${kg} กก. · ทุก ${weeks} สัปดาห์`)}
               </div>
               <div className="mt-4 font-['Manrope'] font-bold text-[44px] leading-none text-[#ffb59c] tabular-nums">
-                {total.toLocaleString('en-US')} <span className="text-[18px] text-[#e3beb3]">{tr('THB / round', 'บาท / รอบ')}</span>
+                <span className="text-[0.62em] align-[0.28em] mr-1 text-[#e3beb3]">฿</span>{total.toLocaleString('en-US')}<span className="text-[18px] ml-2 text-[#e3beb3] font-normal">{tr('per delivery', 'ต่อรอบ')}</span>
               </div>
               <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">
                 {tr('Shipping not included. No automatic charge: we confirm every round with you first.', 'ยังไม่รวมค่าส่ง ไม่มีการตัดเงินอัตโนมัติ เราขอยืนยันกับคุณทุกรอบก่อน')}
