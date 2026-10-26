@@ -261,7 +261,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
 
       {/* top bar */}
       <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between gap-3 px-5 md:px-10 py-4">
-        <a href="/" aria-label="TATO Coffee"><img src={ASSETS.logo} alt="TATO Coffee" className="h-9 w-auto" /></a>
+        <a href="/doi-wiang/" aria-label="TATO Coffee"><img src={ASSETS.logo} alt="TATO Coffee" className="h-9 w-auto" /></a>
         <nav className="hidden md:flex gap-1.5" aria-label={tr('Scenes', 'ฉาก')}>
           {Array.from({ length: COUNT }).map((_, i) => (
             <button key={i} onClick={() => userGo(i)} aria-label={tr(`Scene ${i + 1}`, `ฉากที่ ${i + 1}`)} aria-current={i === active}
@@ -275,7 +275,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
             <button type="button" onClick={() => setLanguage('th')} aria-pressed={language === 'th'} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[11px] font-bold transition-all ${language === 'th' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#e3beb3]'}`}>TH</button>
             <button type="button" onClick={() => setLanguage('en')} aria-pressed={language === 'en'} className={`px-2.5 py-1 rounded-full font-['Manrope'] text-[11px] font-bold transition-all ${language === 'en' ? 'bg-[#ff5e1a] text-[#390c00]' : 'text-[#e3beb3]'}`}>EN</button>
           </div>
-          <a href={`/?shop=1&src=${src}`} className="hidden sm:inline font-mono text-[12px] text-[#f3bc8b] tracking-widest">{tr('SHOP', 'หน้าร้าน')}</a>
+          <a href={src==='doi-wiang'?'/':`/?src=${src}`} className="hidden sm:inline font-mono text-[12px] text-[#f3bc8b] tracking-widest">{tr('SHOP', 'หน้าร้าน')}</a>
         </div>
       </div>
       <div className="absolute top-0 inset-x-0 z-40 h-[3px] bg-[#5b4138]/30"><div ref={barRef} className="h-full origin-left bg-[#ff5e1a]" style={{ transform: 'scaleX(0)' }} /></div>
