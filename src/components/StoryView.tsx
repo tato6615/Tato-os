@@ -399,7 +399,7 @@ export const StoryView: React.FC<StoryViewProps> = ({ onGoToProduct, onGoToDisco
                   {tr(`Order fresh-roasted · ${PRICE_RETAIL} THB/kg`, `สั่งกาแฟคั่วสด ${PRICE_RETAIL} บาท/กก.`)}
                 </button>
                 <a href={`/cafe/?src=${src}`} className="px-6 py-3.5 rounded-full border border-[#e6e1df]/70 text-[#e6e1df] font-['Anuphan'] font-semibold text-base md:text-lg min-h-12 inline-flex items-center focus-visible:outline-2 focus-visible:outline-[#ffb59c] focus-visible:outline-offset-2">
-                  {tr(`Order for cafés · ${PRICE_CAFE} THB/kg`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก.`)}
+                  {tr(`Order for cafés · from ${PRICE_CAFE} THB/kg`, `สั่งสำหรับร้านกาแฟ เริ่ม ${PRICE_CAFE} บาท/กก.`)}
                 </a>
               </div>
               <p className="tv-fade mt-5 text-[13px] text-[#e3beb3]/70 font-['Anuphan']" style={delay(850)}>{tr(`Prices exclude shipping. Questions? Call ${PHONE}.`, `ราคายังไม่รวมค่าส่ง สอบถามได้ที่ ${PHONE}`)}</p>
