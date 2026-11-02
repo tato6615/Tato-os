@@ -111,9 +111,9 @@ function renderCustomers(M){
   tb.innerHTML='<tr><th>Customer</th><th class="thai">สถานะ</th><th class="thai">แก้สถานะ</th><th class="thai">กลุ่มราคา</th><th>Orders</th><th>kg</th><th>Revenue</th><th>Gross profit</th><th>Last order</th></tr>'+
   (rows.map(r=>{const id=esc(r.id);
     return '<tr><td>'+esc(r.name)+'<small style="display:block;color:#777">'+esc(r.phone)+'</small></td>'+
-    '<td><span class="st '+esc(r.status)+'">'+esc(L[r.status]||r.status)+'</span>'+(r.cafePrice?' <span class="st cafe">คาเฟ่ ฿550</span>':'')+'</td>'+
+    '<td><span class="st '+esc(r.status)+'">'+esc(L[r.status]||r.status)+'</span>'+(r.cafePrice?' <span class="st cafe">คาเฟ่ ฿550-590</span>':'')+'</td>'+
     '<td><select class="tier" onchange="setTier(\''+id+'\',\'tier\',this.value)">'+opts([['','อัตโนมัติ ('+(L[r.auto]||r.auto)+')'],['new','ลูกค้าใหม่'],['regular','ลูกค้าประจำ']],r.manual||'')+'</select></td>'+
-    '<td><select class="tier" onchange="setTier(\''+id+'\',\'price_group\',this.value)">'+opts([['',r.cafePrice&&!r.groupManual?'อัตโนมัติ (ใช้โค้ด CAFE)':'ราคาปลีก ฿650'],['cafe','คาเฟ่ ฿550']],r.groupManual?'cafe':'')+'</select></td>'+
+    '<td><select class="tier" onchange="setTier(\''+id+'\',\'price_group\',this.value)">'+opts([['',r.cafePrice&&!r.groupManual?'อัตโนมัติ (ใช้โค้ด CAFE)':'ราคาปลีก ฿650-690'],['cafe','คาเฟ่ ฿550-590']],r.groupManual?'cafe':'')+'</select></td>'+
     '<td>'+r.orders+'</td><td>'+r.kg+'</td><td>'+money(r.revenue)+'</td><td>'+money(r.profit)+'</td><td>'+esc((r.last||'—').slice(0,10))+'</td></tr>'}).join('')||'<tr><td colspan="9" style="color:#777">ยังไม่มีลูกค้า</td></tr>');
 }
 async function setTier(id,field,value){
