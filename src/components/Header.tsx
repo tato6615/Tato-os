@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="py-1 transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#ffdcc0] hover:text-[#ffb59c] hover-lift-subtle"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#ffb59c] shrink-0">landscape</span>
+              <span className="material-symbols-outlined text-[16px] text-[#ffb59c] shrink-0">history_edu</span>
               <span>{language === 'th' ? 'เรื่องราวดอยเวียง' : 'STORY'}</span>
             </button>
           )}
@@ -254,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center justify-between py-2 text-left text-[#ffdcc0] hover:text-[#ffb59c] transition-colors"
               >
                 <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px] text-[#ffb59c]">landscape</span>
+                  <span className="material-symbols-outlined text-[18px] text-[#ffb59c]">history_edu</span>
                   <span>{language === 'th' ? 'เรื่องราวดอยเวียง' : 'STORY JOURNEY'}</span>
                 </span>
                 <span className="material-symbols-outlined text-[16px] text-[#ffb59c]">chevron_right</span>
