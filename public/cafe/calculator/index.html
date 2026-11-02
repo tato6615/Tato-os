@@ -53,7 +53,7 @@ a{color:#f3bc8b}.dim{color:#a39a95;font-size:13px}.chk{display:flex;gap:8px;alig
 <div class="card" id="cmp" style="display:none">
 <h2 style="margin-top:0">ถ้าเทียบกับเมล็ด TATO</h2>
 <p style="margin:0" id="cmpTxt"></p>
-<p class="dim" style="margin:8px 0 0">ราคา 550 บาท/กก. ยังไม่รวมค่าส่ง (คิดตามน้ำหนักพัสดุตอนสั่งซื้อ) และรสชาติต้องลองเองว่าเหมาะกับเมนูร้านคุณไหม</p>
+<p class="dim" style="margin:8px 0 0">ราคาเริ่ม 550 บาท/กก. (คั่วอ่อน 590) ยังไม่รวมค่าส่ง (คิดตามน้ำหนักพัสดุตอนสั่งซื้อ) และรสชาติต้องลองเองว่าเหมาะกับเมนูร้านคุณไหม</p>
 </div>
 <div id="next" style="display:none">
 <a class="btn" id="goList" href="/cafe/checklist/">รับเช็กลิสต์เปิดร้านกาแฟ</a>
@@ -96,7 +96,7 @@ function run(){
   if(cd&&kg!==null){
     var diff=(bk-550)*kg, per=bean-tatoBean;
     $("cmp").style.display="block"; $("cmp").classList.add("pop-in");
-    $("cmpTxt").textContent="ที่ "+g+" กรัม/แก้ว เมล็ด TATO (550 บาท/กก.) เท่ากับ "+baht(Math.round(tatoBean*100)/100)+" ต่อแก้ว "+
+    $("cmpTxt").textContent="ที่ "+g+" กรัม/แก้ว เมล็ด TATO (เริ่ม 550 บาท/กก.) เท่ากับ "+baht(Math.round(tatoBean*100)/100)+" ต่อแก้ว "+
       (diff>0?"ต่ำกว่าที่คุณซื้ออยู่ประมาณ "+baht(Math.round(diff))+" ต่อเดือน ที่ปริมาณ "+(Math.round(kg*10)/10)+" กก.":
        diff<0?"สูงกว่าที่คุณซื้ออยู่ประมาณ "+baht(Math.round(-diff))+" ต่อเดือน ที่ปริมาณ "+(Math.round(kg*10)/10)+" กก. จึงควรดูว่ารสชาติคุ้มกับส่วนต่างไหม":
        "ใกล้เคียงกับที่คุณซื้ออยู่");
