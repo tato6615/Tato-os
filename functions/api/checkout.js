@@ -10,6 +10,7 @@
 // idempotent submit (request_id), status link for the customer, optional confirmation email.
 
 import { quote as buildQuote } from "../../shared/shipping.js";
+import { isRoast, unitPriceFor } from "../../shared/pricing.js";
 import { validateCustomer, normalizePhone } from "../../shared/validate.js";
 import { ensureSchema } from "../../shared/schema.js";
 import { notifyOwner, sendEmail } from "../../shared/notify.js";
@@ -108,7 +109,9 @@ export async function onRequestGet(context){
       await ensureSchema(db);
       const kg=Number(u.searchParams.get("kg")), postal=text(u.searchParams.get("postal"));
       if(!(kg>0)||kg>100)return json({success:false,layer:LAYER,status:"INVALID_QUANTITY"},400);
-      const unit=price(p), codeRaw=text(u.searchParams.get("code"));
+      const roastQ=text(u.searchParams.get("roast")).toLowerCase();
+      if(roastQ&&!isRoast(roastQ))return json({success:false,layer:LAYER,status:"INVALID_ROAST"},400);
+      const unit=unitPriceFor(price(p),roastQ), codeRaw=text(u.searchParams.get("code"));
       const cr=await findCode(db,codeRaw,kg);
       const q=buildQuote({kg,unitPrice:unit,postal,code:cr.ok?cr.code:null});
       const cap=await capacity(db);
@@ -164,8 +167,12 @@ export async function onRequestPost(context){
     const p=await product(db,productId);
     if(!p)return json({success:false,layer:LAYER,status:"PRODUCT_NOT_FOUND"},404);
     if(text(p.status).toLowerCase()&&text(p.status).toLowerCase()!=="active")return json({success:false,layer:LAYER,status:"PRODUCT_NOT_ACTIVE"},400);
-    const unit=price(p);
-    if(!(unit>0))return json({success:false,layer:LAYER,status:"PRODUCT_PRICE_NOT_CONFIGURED"},400);
+    const base=price(p);
+    if(!(base>0))return json({success:false,layer:LAYER,status:"PRODUCT_PRICE_NOT_CONFIGURED"},400);
+    // price depends on the roast (shared/pricing.js); a missing roast is priced as medium
+    const roast=text(b.roast).toLowerCase();
+    if(roast&&!isRoast(roast))return json({success:false,layer:LAYER,status:"INVALID_ROAST",error:"roast must be light, medium or dark"},400);
+    const unit=unitPriceFor(base,roast);
     if(!await exists(db,"customers")||!await exists(db,"orders"))return json({success:false,layer:LAYER,status:"SALES_TABLES_NOT_READY"},500);
 
     // 4) price: single formula in shared/shipping.js; refuse if the page showed a different total
@@ -198,7 +205,7 @@ export async function onRequestPost(context){
     const names=Object.keys(orderData).filter(k=>allowed.has(k));
     const stmts=[
       db.prepare("INSERT INTO orders ("+names.join(",")+") VALUES ("+names.map(()=>"?").join(",")+")").bind(...names.map(k=>orderData[k])),
-      db.prepare("INSERT INTO order_details (order_id,name,phone,email,address,postal_code,roast,grind,note,payment_method,created_at,consent_at,consent_version,request_id,lookup_token,ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(orderId,clip(name,120),phone,clip(email,120),clip(b.address,500),postal,clip(b.roast,30),clip(b.grind,30),clip(b.note,500),paymentMethod||null,now(),now(),CONSENT_VERSION,requestId||null,token,ih)
+      db.prepare("INSERT INTO order_details (order_id,name,phone,email,address,postal_code,roast,grind,note,payment_method,created_at,consent_at,consent_version,request_id,lookup_token,ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(orderId,clip(name,120),phone,clip(email,120),clip(b.address,500),postal,clip(roast,30),clip(b.grind,30),clip(b.note,500),paymentMethod||null,now(),now(),CONSENT_VERSION,requestId||null,token,ih)
     ];
     if(cr.code) stmts.push(db.prepare("UPDATE discount_codes SET used_count=used_count+1 WHERE code=?").bind(cr.code.code));
     try{ await db.batch(stmts); }
@@ -214,7 +221,7 @@ export async function onRequestPost(context){
     await recordEvent(db,"purchase_intent",{...ev,amount:q.total,quantity_kg:kg});
 
     const num=orderNo(orderId), link=statusUrl(origin,orderId,token);
-    const msg="🛒 ออเดอร์ใหม่ "+num+"\nยอด "+q.total+" บาท ("+kg+" กก.) ค่าส่ง "+q.shipping+" บาท"+(q.discount?" ส่วนลด "+q.discount+" บาท ("+cr.code.code+")":"")+"\nคั่ว: "+clip(b.roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+phone+"\nที่อยู่: "+clip(b.address,300)+" "+postal+"\nหมายเหตุ: "+clip(b.note,200)+"\nช่องทาง: "+(utmSource?utmSource+"/"+utmMedium:"ไม่ระบุ")+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+origin+"/admin/";
+    const msg="🛒 ออเดอร์ใหม่ "+num+"\nยอด "+q.total+" บาท ("+kg+" กก.) ค่าส่ง "+q.shipping+" บาท"+(q.discount?" ส่วนลด "+q.discount+" บาท ("+cr.code.code+")":"")+"\nคั่ว: "+clip(roast,30)+" / บด: "+clip(b.grind,30)+"\nผู้รับ: "+clip(name,120)+" โทร "+phone+"\nที่อยู่: "+clip(b.address,300)+" "+postal+"\nหมายเหตุ: "+clip(b.note,200)+"\nช่องทาง: "+(utmSource?utmSource+"/"+utmMedium:"ไม่ระบุ")+"\nรอลูกค้าโอน แล้วกดยืนยันที่ "+origin+"/admin/";
     const jobs=[notifyOwner(env,msg)];
     if(email) jobs.push(sendEmail(env,{to:email,subject:"ยืนยันออเดอร์ "+num+" - TATO Coffee",text:"ขอบคุณที่สั่งซื้อ TATO Coffee\nเลขออเดอร์ "+num+"\nยอดชำระ "+q.total+" บาท ("+kg+" กก.)\n\nดูสถานะออเดอร์/วิธีชำระเงิน/เลขพัสดุได้ที่ลิงก์นี้ (เปิดซ้ำได้ตลอด):\n"+link+"\n\nออเดอร์ที่ยังไม่ชำระภายใน 48 ชั่วโมงจะถูกยกเลิกอัตโนมัติ"}));
     const nj=Promise.all(jobs);
