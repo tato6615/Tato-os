@@ -84,7 +84,7 @@ export function calcSubtotal(kg, unitPrice) {
   return Math.round((Math.round(Number(kg) * 1000) * Number(unitPrice)) / 1000);
 }
 
-/** Discount in baht. code = {type:'percent'|'fixed', value, min_kg}. Never exceeds subtotal. */
+/** Discount in baht. code = {type:'percent'|'fixed'|'per_kg', value, min_kg}. Never exceeds subtotal. */
 /** @param {number} subtotal @param {number} kg @param {any=} code */
 export function calcDiscount(subtotal, kg, code) {
   if (!code) return 0;
@@ -92,6 +92,7 @@ export function calcDiscount(subtotal, kg, code) {
   let d = 0;
   if (code.type === "percent") d = Math.floor((subtotal * Number(code.value)) / 100);
   else if (code.type === "fixed") d = Math.floor(Number(code.value));
+  else if (code.type === "per_kg") d = Math.round(Number(code.value) * Number(kg)); // flat THB off per kg (code CAFE, see shared/pricing.js)
   return Math.max(0, Math.min(d, subtotal));
 }
 
