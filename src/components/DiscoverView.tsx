@@ -190,6 +190,92 @@ const SubscribeSection: React.FC = () => {
   );
 };
 
+// ข้อเสนอสำหรับร้านกาแฟ: 2 ทางเลือกคู่กัน (สั่ง 1 กก. / เซ็ตลอง 3 ระดับ)
+// ทดสอบด้วยการรับออเดอร์ทางไลน์ก่อน ยังไม่ได้เพิ่มเป็นสินค้าในเว็บ/ระบบ checkout
+const TRIAL_SET_PRICE = 349; // บาท ต่อเซ็ต (3 ระดับคั่ว × 200 กรัม = 600 กรัม)
+const REORDER_DISCOUNT = 100; // บาท ลดตอนสั่งต่อ 3 กก. ขึ้นไปภายใน 30 วัน (ไม่ใช่ตอนซื้อเซ็ต)
+
+const CafeOffers: React.FC = () => {
+  const { language } = useLanguage();
+  const tr = (en: string, th: string) => (language === 'th' ? th : en);
+  const [oa, setOa] = useState('');
+
+  useEffect(() => {
+    fetch('/api/public-config').then((r) => r.json()).then((d) => setOa(String(d?.line_oa || ''))).catch(() => {});
+  }, []);
+
+  const lineLink = (msg: string) =>
+    oa ? `https://line.me/R/oaMessage/${oa.startsWith('@') ? oa : '@' + oa}/?${encodeURIComponent(msg)}` : `tel:${PHONE.replace(/-/g, '')}`;
+  const ctaClass = (primary: boolean) =>
+    `inline-flex items-center justify-center w-full px-6 py-3.5 rounded-full font-['Anuphan'] font-bold text-base active:scale-[0.98] transition-all ${
+      primary ? 'bg-[#ff5e1a] text-[#390c00] hover:bg-[#ff7a40]' : 'border border-[#ff5e1a]/70 text-[#ffb59c] hover:bg-[#ff5e1a]/10'
+    }`;
+  const callLabel = (th: string, en: string) => (oa ? tr(en, th) : tr(`Call ${PHONE}`, `โทร ${PHONE}`));
+
+  const msgKg = 'สนใจสั่งกาแฟสำหรับร้านกาแฟ 1 กก. (ราคาร้านกาแฟ)\nชื่อร้าน: \nระดับคั่วที่สนใจ: \nขอรายละเอียดและวิธีชำระเงินครับ/ค่ะ';
+  const msgSet = `สนใจเซ็ตลอง 3 ระดับคั่ว (คั่วอ่อน/กลาง/เข้ม อย่างละ 200 กรัม) ราคา ${TRIAL_SET_PRICE} บาท\nชื่อร้าน: \nขอรายละเอียดและวิธีชำระเงินครับ/ค่ะ`;
+
+  return (
+    <div className="mt-10 grid gap-5 md:grid-cols-2">
+      {/* ทางเลือก 1: สั่ง 1 กก. */}
+      <div className="rounded-2xl bg-[#1d1b1a] border border-[#2b2a28] p-6 md:p-8 flex flex-col justify-between">
+        <div>
+          <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Option A · Know your roast', 'ทางเลือก A · รู้ระดับคั่วที่ใช่แล้ว')}</span>
+          <h3 className="mt-3 font-['Anuphan'] text-xl md:text-2xl font-semibold text-[#e6e1df] leading-snug">
+            {tr('Order 1 kg', 'สั่ง 1 กก. ได้เลย')}
+          </h3>
+          <div className="mt-4 font-['Manrope'] font-bold text-[40px] leading-none text-[#ffb59c] tabular-nums">
+            <span className="text-[0.6em] align-[0.28em] mr-1 text-[#e3beb3]">฿</span>{PRICE_CAFE}
+            <span className="text-[16px] ml-2 text-[#e3beb3] font-normal">{tr('per kg', 'ต่อ กก.')}</span>
+          </div>
+          <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">
+            {tr(`Light roast ${PRICE_CAFE_LIGHT} THB/kg. Shipping not included.`, `คั่วอ่อน ${PRICE_CAFE_LIGHT} บาท/กก. ยังไม่รวมค่าส่ง`)}
+          </p>
+          <p className="mt-4 font-['Anuphan'] text-[15px] text-[#e3beb3]/85 leading-relaxed">
+            {tr('Pick one roast and get a full kilo, roasted to order. Best when you already know which roast fits your menu.', 'เลือกระดับคั่วเดียว ได้เต็ม 1 กก. คั่วสดตามออเดอร์ เหมาะกับร้านที่รู้อยู่แล้วว่าระดับไหนเข้ากับเมนู')}
+          </p>
+        </div>
+        <div className="mt-6">
+          <a href={lineLink(msgKg)} target={oa ? '_blank' : undefined} rel="noopener noreferrer" className={ctaClass(false)}>
+            {callLabel(`สั่ง 1 กก. ทางไลน์`, 'Order 1 kg on LINE')}
+          </a>
+        </div>
+      </div>
+
+      {/* ทางเลือก 2: เซ็ตลอง 3 ระดับ */}
+      <div className="rounded-2xl bg-[#1d1b1a] border border-[#ff5e1a]/50 p-6 md:p-8 flex flex-col justify-between relative">
+        <span className="absolute -top-3 left-6 font-mono text-[11px] px-2.5 py-1 rounded bg-[#ff5e1a] text-[#390c00] font-semibold">
+          {tr('NOT SURE WHICH ROAST?', 'ยังไม่แน่ใจระดับคั่ว?')}
+        </span>
+        <div>
+          <span className="font-mono text-[11px] text-[#e3beb3]/70 uppercase tracking-widest">{tr('Option B · Taste first', 'ทางเลือก B · ลองก่อนตัดสินใจ')}</span>
+          <h3 className="mt-3 font-['Anuphan'] text-xl md:text-2xl font-semibold text-[#e6e1df] leading-snug">
+            {tr('Trial set: 3 roasts', 'เซ็ตลอง 3 ระดับคั่ว')}
+          </h3>
+          <div className="mt-4 font-['Manrope'] font-bold text-[40px] leading-none text-[#ffb59c] tabular-nums">
+            <span className="text-[0.6em] align-[0.28em] mr-1 text-[#e3beb3]">฿</span>{TRIAL_SET_PRICE}
+            <span className="text-[16px] ml-2 text-[#e3beb3] font-normal">{tr('per set · 3 × 200 g', 'ต่อเซ็ต · 3 × 200 กรัม')}</span>
+          </div>
+          <p className="mt-2 font-['Anuphan'] text-[13px] text-[#e3beb3]/75">
+            {tr('Light, medium and dark, 200 g each (600 g total). Shipping not included.', 'คั่วอ่อน คั่วกลาง คั่วเข้ม อย่างละ 200 กรัม (รวม 600 กรัม) ยังไม่รวมค่าส่ง')}
+          </p>
+          <p className="mt-4 font-['Anuphan'] text-[15px] text-[#e3beb3]/85 leading-relaxed">
+            {tr('Taste all three, then tell us your favourite. We will follow up in 5–7 days to help you pick.', 'ชิมครบทั้ง 3 ระดับ แล้วบอกเราว่าชอบระดับไหน เราจะติดต่อกลับภายใน 5-7 วันเพื่อช่วยเลือก')}
+          </p>
+          <p className="mt-3 font-['Anuphan'] text-[14px] text-[#f3bc8b] leading-relaxed">
+            {tr(`Order 3 kg or more of your favourite within 30 days and take ${REORDER_DISCOUNT} THB off.`, `สั่งระดับที่ชอบต่อ 3 กก. ขึ้นไปภายใน 30 วัน ลด ${REORDER_DISCOUNT} บาท`)}
+          </p>
+        </div>
+        <div className="mt-6">
+          <a href={lineLink(msgSet)} target={oa ? '_blank' : undefined} rel="noopener noreferrer" className={ctaClass(true)}>
+            {callLabel(`สั่งเซ็ตลอง ${TRIAL_SET_PRICE} บาท ทางไลน์`, `Order the trial set on LINE`)}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoToStory }) => {
   const [selectedRoast, setSelectedRoast] = useState<RoastType>('medium');
   const { language } = useLanguage();
@@ -709,6 +795,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                 `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลย เริ่มที่ ${PRICE_CAFE} บาท/กก. (คั่วอ่อน ${PRICE_CAFE_LIGHT}) ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
               )}
             </p>
+          </div>
+          <CafeOffers />
+          <div className="max-w-2xl">
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <a
                 href="/cafe/calculator/?src=site-home"
