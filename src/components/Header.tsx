@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
           : 'bg-[#141312]/80 backdrop-blur-sm shadow-[0_1px_8px_rgba(0,0,0,0.35)] border-b border-[#2b2a28]/40'
       }`}
     >
-      <div className="h-20 max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20 flex items-center justify-between">
+      <div className="h-20 max-w-[1440px] mx-auto px-5 md:px-10 lg:px-6 xl:px-20 flex items-center justify-between">
         {/* Brandmark */}
         <div className="flex items-center gap-4">
           <button
@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-8 xl:gap-10">
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-8 2xl:gap-10">
           <button
             onClick={() => handleNavClick('discover')}
             className={`group relative py-1 transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex flex-col items-center gap-1 focus:outline-none hover-lift-subtle ${
@@ -74,11 +74,8 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">explore</span>
-              <span className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-[18px]">explore</span>
-                <span>{language === 'th' ? 'ค้นพบ' : 'DISCOVER'}</span>
-              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">explore</span>
+              <span>{language === 'th' ? 'ค้นพบ' : 'DISCOVER'}</span>
             </span>
             <span
               className={`h-0.5 rounded-full bg-[#ff5e1a] transition-all duration-300 ${
@@ -96,11 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">terrain</span>
-              <span className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-[18px]">terrain</span>
-                <span>{language === 'th' ? 'ดอยเวียงผา 1,500M' : 'ORIGIN'}</span>
-              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">terrain</span>
+              <span>{language === 'th' ? 'ดอยเวียงผา 1,500M' : 'ORIGIN'}</span>
             </span>
             <span
               className={`h-0.5 rounded-full bg-[#ff5e1a] transition-all duration-300 ${
@@ -118,11 +112,8 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">local_fire_department</span>
-              <span className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-[18px]">local_fire_department</span>
-                <span>{language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}</span>
-              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">local_fire_department</span>
+              <span>{language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}</span>
             </span>
             <span
               className={`h-0.5 rounded-full bg-[#ff5e1a] transition-all duration-300 ${
@@ -140,11 +131,8 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">coffee</span>
-              <span className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-[18px]">coffee</span>
-                <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
-              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">coffee</span>
+              <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
             </span>
             <span
               className={`h-0.5 rounded-full bg-[#ff5e1a] transition-all duration-300 ${
@@ -161,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="py-1 transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#ffdcc0] hover:text-[#ffb59c] hover-lift-subtle"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#ffb59c]">landscape</span>
+              <span className="material-symbols-outlined text-[16px] text-[#ffb59c] shrink-0">landscape</span>
               <span>{language === 'th' ? 'เรื่องราวดอยเวียง' : 'STORY'}</span>
             </button>
           )}
@@ -170,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
             href="/cafe/?src=site"
             className="transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#e3beb3]/80 hover:text-[#e6e1df] hover-lift-subtle"
           >
-            <span className="material-symbols-outlined text-[16px]">storefront</span>
+            <span className="material-symbols-outlined text-[16px] shrink-0">storefront</span>
             <span>{language === 'th' ? 'สำหรับร้านกาแฟ' : 'FOR CAFÉS'}</span>
           </a>
         </nav>
@@ -182,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:text-[#ffdbcf] hover:bg-[#822800] px-4 py-2 rounded-full font-['Manrope'] text-[11px] font-bold tracking-wider transition-all duration-300 shadow-[0_12px_24px_-4px_rgba(255,94,26,0.3)] hover-lift-subtle interactive-press focus:outline-none"
             title="ตะกร้าและสั่งซื้อ TATO"
           >
-            <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
+            <span className="material-symbols-outlined text-[16px] shrink-0">shopping_bag</span>
             <span className="font-semibold tracking-wider">{language === 'th' ? 'สั่งซื้อ TATO' : 'ORDER TATO'}</span>
             {cartCount > 0 && (
               <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#141312] text-[#ffb59c] text-[10px] font-bold animate-pulse">
@@ -219,22 +207,31 @@ export const Header: React.FC<HeaderProps> = ({
                 currentView === 'discover' ? 'text-[#ff5e1a]' : 'text-[#e6e1df] hover:text-[#ff5e1a]'
               }`}
             >
-              <span>{language === 'th' ? 'ค้นพบ' : 'DISCOVER'}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">explore</span>
+                <span>{language === 'th' ? 'ค้นพบ' : 'DISCOVER'}</span>
+              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">chevron_right</span>
             </button>
             <button
               onClick={() => handleNavClick('discover', 'origin')}
               className="flex items-center justify-between py-2 text-left text-[#e6e1df] hover:text-[#ff5e1a] transition-colors"
             >
-              <span>{language === 'th' ? 'ดอยเวียงผา 1,500M' : 'ORIGIN'}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">terrain</span>
+                <span>{language === 'th' ? 'ดอยเวียงผา 1,500M' : 'ORIGIN'}</span>
+              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">chevron_right</span>
             </button>
             <button
               onClick={() => handleNavClick('discover', 'roasts')}
               className="flex items-center justify-between py-2 text-left text-[#e6e1df] hover:text-[#ff5e1a] transition-colors"
             >
-              <span>{language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">local_fire_department</span>
+                <span>{language === 'th' ? 'ระดับการคั่ว' : 'ROASTS'}</span>
+              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">chevron_right</span>
             </button>
             <button
               onClick={() => handleNavClick('product')}
@@ -242,8 +239,11 @@ export const Header: React.FC<HeaderProps> = ({
                 currentView === 'product' ? 'text-[#ff5e1a]' : 'text-[#e6e1df] hover:text-[#ff5e1a]'
               }`}
             >
-              <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[18px]">coffee</span>
+                <span>{language === 'th' ? 'สั่งซื้อเมล็ดกาแฟ' : 'PRODUCT'}</span>
+              </span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">chevron_right</span>
             </button>
             {onOpenStory && (
               <button
@@ -268,7 +268,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined text-[18px]">storefront</span>
                 <span>{language === 'th' ? 'สำหรับร้านกาแฟ' : 'FOR CAFÉS'}</span>
               </span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">chevron_right</span>
             </a>
           </div>
         </div>
