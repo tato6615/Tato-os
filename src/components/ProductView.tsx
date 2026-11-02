@@ -6,7 +6,7 @@ import { ASSETS, ROAST_PROFILES, GRIND_OPTIONS, TERROIR_SPECS, SENSORY_CARDS } f
 import { useLanguage, translateText } from '../i18n';
 import { quote as buildQuote, SHIPPING } from '../../shared/shipping.js';
 import { validateCustomer } from '../../shared/validate.js';
-import { PRICE_RETAIL, MIN_ORDER_KG } from '../data/siteFacts';
+import { retailPrice, PRICE_CAFE, PRICE_CAFE_LIGHT, MIN_ORDER_KG } from '../data/siteFacts';
 
 const PRODUCT_ID = 'e71d46e6-8f1d-4c3d-aedc-8461d79f13c0';
 type ServerQuote = { key: string; unit_price: number; subtotal: number; discount: number; shipping: number; total: number; contactShop?: boolean; code: { input: string; valid: boolean; error: string | null; min_kg: number | null } | null; capacity: { limited: boolean; left: number | null }; turnstile_site_key: string };
@@ -103,7 +103,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
     }
   }, [initialRoast]);
 
-  const unitPrice = PRICE_RETAIL; // retail price per kg (must match products.price in D1). Cafés get PRICE_CAFE via code CAFE.
+  const unitPrice = retailPrice(selectedRoast); // retail price per kg of the chosen roast (shared/pricing.js; base must match products.price in D1). Cafés get 100 THB/kg off via code CAFE.
   const minimumQuantityKg = MIN_ORDER_KG;
   const maximumQuantityKg = 100;
   const quantityStepKg = 0.5;
@@ -111,7 +111,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   // Price = shared formula (shared/shipping.js, same file the server uses). While the server quote
   // for the current inputs is loading we show the local calculation; once it arrives its numbers win.
   const localQuote = buildQuote({ kg: quantityKg, unitPrice, postal: customerPostal.trim() });
-  const quoteKey = quantityKg + '|' + customerPostal.trim() + '|' + appliedCode;
+  const quoteKey = quantityKg + '|' + customerPostal.trim() + '|' + appliedCode + '|' + selectedRoast;
   const sq = serverQuote && serverQuote.key === quoteKey ? serverQuote : null;
   const subtotal = sq ? sq.subtotal : localQuote.subtotal;
   const discount = sq ? sq.discount : 0;
@@ -132,7 +132,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   useEffect(() => {
     const key = quoteKey;
     const h = window.setTimeout(() => {
-      const qs = new URLSearchParams({ action: 'quote', product_id: PRODUCT_ID, kg: String(quantityKg), postal: customerPostal.trim(), code: appliedCode });
+      const qs = new URLSearchParams({ action: 'quote', product_id: PRODUCT_ID, kg: String(quantityKg), postal: customerPostal.trim(), code: appliedCode, roast: selectedRoast });
       fetch('/api/checkout?' + qs.toString()).then((r) => r.json()).then((d) => {
         if (d && d.success) setServerQuote({ ...d, key });
       }).catch(() => {});
@@ -485,7 +485,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <p className="font-['Anuphan'] text-[12px] text-[#e3beb3]/70">
                 {tr('VAT included · shipping calculated by parcel weight', 'รวมภาษีมูลค่าเพิ่มแล้ว · ค่าจัดส่งคิดตามน้ำหนักพัสดุ')}
               </p>
-              <a href="/cafe/?src=shop" className="inline-block font-['Anuphan'] text-[13px] text-[#ffb59c] underline underline-offset-4 hover:text-[#e6e1df]">{tr('Café owner? 550 THB/kg →', 'เจ้าของร้านกาแฟ? ราคา 550 บาท/กก. →')}</a>
+              <a href="/cafe/?src=shop" className="inline-block font-['Anuphan'] text-[13px] text-[#ffb59c] underline underline-offset-4 hover:text-[#e6e1df]">{tr(`Café owner? From ${PRICE_CAFE} THB/kg (light ${PRICE_CAFE_LIGHT}) →`, `เจ้าของร้านกาแฟ? เริ่ม ${PRICE_CAFE} บาท/กก. (คั่วอ่อน ${PRICE_CAFE_LIGHT}) →`)}</a>
             </div>          </div>
 
           {/* ORDER CONFIGURATION OR SUCCESS STAGE */}
