@@ -1,5 +1,6 @@
 // TATO-OS order helpers shared by the /api functions.
 import { sendEmail, emailEnabled } from "./notify.js";
+import { cafeCodeAsPerKg } from "./pricing.js";
 
 export const PENDING_EXPIRE_HOURS = 48;
 export const PENDING_REMIND_HOURS = 24;
@@ -69,7 +70,7 @@ export async function findCode(db, raw, kg) {
   if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return { ok: false, error: "CODE_EXPIRED" };
   if (row.max_uses != null && Number(row.used_count) >= Number(row.max_uses)) return { ok: false, error: "CODE_USED_UP" };
   if (Number(row.min_kg) > 0 && Number(kg) < Number(row.min_kg)) return { ok: false, error: "CODE_MIN_KG", min_kg: row.min_kg };
-  return { ok: true, code: row };
+  return { ok: true, code: cafeCodeAsPerKg(row) };
 }
 
 export async function getSetting(db, key, dflt = null) {
