@@ -18,8 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22   # tests use node:sqlite, needs Node 22.5+
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - name: Type check
         run: npm run lint
       - name: Unit tests
