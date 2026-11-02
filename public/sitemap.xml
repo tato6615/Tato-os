@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://tato-os.pages.dev/</loc></url>
+  <url><loc>https://tato-os.pages.dev/</loc><lastmod>2026-11-02</lastmod></url>
   <url><loc>https://tato-os.pages.dev/doi-wiang/</loc></url>
-  <url><loc>https://tato-os.pages.dev/roast/dark/</loc></url>
-  <url><loc>https://tato-os.pages.dev/roast/medium/</loc></url>
-  <url><loc>https://tato-os.pages.dev/roast/light/</loc></url>
+  <url><loc>https://tato-os.pages.dev/roast/dark/</loc><lastmod>2026-11-02</lastmod></url>
+  <url><loc>https://tato-os.pages.dev/roast/medium/</loc><lastmod>2026-11-02</lastmod></url>
+  <url><loc>https://tato-os.pages.dev/roast/light/</loc><lastmod>2026-11-02</lastmod></url>
   <url><loc>https://tato-os.pages.dev/cafe/</loc></url>
   <url><loc>https://tato-os.pages.dev/cafe/calculator/</loc></url>
   <url><loc>https://tato-os.pages.dev/cafe/checklist/</loc></url>
