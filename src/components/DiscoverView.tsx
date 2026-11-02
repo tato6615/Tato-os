@@ -363,12 +363,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
               {tr('Choose a roast', 'เลือกระดับคั่ว')}
             </button>
           </div>
-          <a
-            href="/cafe/?src=site-hero-line"
-            className="mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]"
+          <button
+            type="button"
+            onClick={() => scrollToSection('for-cafes')}
+            className="mt-4 inline-flex min-h-11 items-center text-left font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]"
           >
-            {tr(`Order for your café · from ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ เริ่ม ${PRICE_CAFE} บาท/กก. →`)}
-          </a>
+            {tr(`Own a café? Try 3 roasts for ${TRIAL_SET_PRICE} THB, or order from ${PRICE_CAFE} THB/kg →`, `มีร้านกาแฟ? ลองเซ็ต 3 ระดับคั่ว ${TRIAL_SET_PRICE} บาท หรือสั่งเริ่ม ${PRICE_CAFE} บาท/กก. →`)}
+          </button>
           </div>
           <div className="md:col-span-5 flex justify-center md:justify-end">
             <span className="relative inline-block">
@@ -386,6 +387,48 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         </div>
       </section>
 
+      {/* ==================== CAFE OWNERS SECTION ==================== */}
+      <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30" id="for-cafes">
+        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
+          <div className="max-w-2xl">
+            <h2 className="font-['Manrope'] text-2xl md:text-3xl font-bold text-[#e6e1df] leading-tight">
+              {tr('Own a café? Know your cost per cup first', 'มีร้านกาแฟ? รู้ต้นทุนต่อแก้วก่อน')}
+            </h2>
+            <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
+              {tr(
+                `Tell us about your café. First order starts at ${PRICE_CAFE} THB/kg (light roast ${PRICE_CAFE_LIGHT}) with no minimum, shipping not included.`,
+                `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลย เริ่มที่ ${PRICE_CAFE} บาท/กก. (คั่วอ่อน ${PRICE_CAFE_LIGHT}) ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
+              )}
+            </p>
+          </div>
+          <CafeOffers />
+          <div className="max-w-2xl">
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <a
+                href="/cafe/calculator/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-colors"
+              >
+                <span>{tr('Calculate cost per cup', 'คำนวณต้นทุนต่อแก้ว')}</span>
+                <span className="material-symbols-outlined text-[16px]">calculate</span>
+              </a>
+              <a
+                href="/cafe/checklist/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-all duration-300"
+              >
+                <span>{tr('Cafe opening checklist', 'เช็กลิสต์เปิดร้านกาแฟ')}</span>
+                <span className="material-symbols-outlined text-[16px]">checklist</span>
+              </a>
+              <a
+                href="/cafe/?src=site-home"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-colors"
+              >
+                <span>{tr('Café order & contact', 'สั่งและติดต่อสำหรับร้านกาแฟ')}</span>
+                <span className="material-symbols-outlined text-[16px]">storefront</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* ==================== 03 / ROAST SECTION ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="roasts">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
@@ -782,48 +825,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
       </section>
       <SubscribeSection />
 
-      {/* ==================== CAFE OWNERS SECTION ==================== */}
-      <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30" id="for-cafes">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
-          <div className="max-w-2xl">
-            <h2 className="font-['Manrope'] text-2xl md:text-3xl font-bold text-[#e6e1df] leading-tight">
-              {tr('Own a café? Know your cost per cup first', 'มีร้านกาแฟ? รู้ต้นทุนต่อแก้วก่อน')}
-            </h2>
-            <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
-              {tr(
-                `Tell us about your café. First order starts at ${PRICE_CAFE} THB/kg (light roast ${PRICE_CAFE_LIGHT}) with no minimum, shipping not included.`,
-                `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลย เริ่มที่ ${PRICE_CAFE} บาท/กก. (คั่วอ่อน ${PRICE_CAFE_LIGHT}) ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
-              )}
-            </p>
-          </div>
-          <CafeOffers />
-          <div className="max-w-2xl">
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <a
-                href="/cafe/calculator/?src=site-home"
-                className="inline-flex items-center justify-center gap-2 bg-[#ff5e1a] text-[#390c00] hover:bg-[#822800] hover:text-[#ffdbcf] px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase transition-colors"
-              >
-                <span>{tr('Calculate cost per cup', 'คำนวณต้นทุนต่อแก้ว')}</span>
-                <span className="material-symbols-outlined text-[16px]">calculate</span>
-              </a>
-              <a
-                href="/cafe/checklist/?src=site-home"
-                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-all duration-300"
-              >
-                <span>{tr('Cafe opening checklist', 'เช็กลิสต์เปิดร้านกาแฟ')}</span>
-                <span className="material-symbols-outlined text-[16px]">checklist</span>
-              </a>
-              <a
-                href="/cafe/?src=site-home"
-                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-['Manrope'] text-[12px] font-bold tracking-[0.14em] uppercase text-[#ff5e1a] border border-[#ff5e1a]/60 hover:bg-[#ff5e1a]/10 transition-colors"
-              >
-                <span>{tr('Café order & contact', 'สั่งและติดต่อสำหรับร้านกาแฟ')}</span>
-                <span className="material-symbols-outlined text-[16px]">storefront</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
       {/* ==================== 04 / CUSTOMER REVIEWS ==================== */}
       <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="reviews">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
