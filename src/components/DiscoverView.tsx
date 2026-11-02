@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage, translateText } from '../i18n';
 import { RoastType } from '../types';
 import { ASSETS, ROAST_PROFILES } from '../data/coffeeData';
-import { PRICE_RETAIL, PRICE_CAFE, ELEVATION_M, MIN_ORDER_KG, PHONE } from '../data/siteFacts';
+import { PRICE_RETAIL, PRICE_CAFE, PRICE_CAFE_LIGHT, retailPrice, ELEVATION_M, MIN_ORDER_KG, PHONE } from '../data/siteFacts';
 import { REVIEWS } from '../data/reviews';
 import BagTurntable from './BagTurntable';
 
@@ -100,7 +100,7 @@ const SubscribeSection: React.FC = () => {
   }, []);
 
   const roastTh = roast === 'light' ? 'คั่วอ่อน' : roast === 'medium' ? 'คั่วกลาง' : 'คั่วเข้ม';
-  const total = Math.round(kg * PRICE_RETAIL);
+  const total = Math.round(kg * retailPrice(roast));
   const msg =
     `สนใจรับกาแฟประจำ TATO (${kind === 'office' ? 'ออฟฟิศ/โคเวิร์กกิ้ง' : 'ดื่มเอง'})\n` +
     `ระดับคั่ว: ${roastTh}\nปริมาณ: ${kg} กก./รอบ\nส่งทุก ${weeks} สัปดาห์\n` +
@@ -281,7 +281,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             href="/cafe/?src=site-hero-line"
             className="mt-4 inline-flex min-h-11 items-center font-['Anuphan'] text-[14px] underline underline-offset-4 text-[#ffb59c] hover:text-[#e6e1df]"
           >
-            {tr(`Order for your café · ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ ${PRICE_CAFE} บาท/กก. →`)}
+            {tr(`Order for your café · from ${PRICE_CAFE} THB/kg →`, `สั่งสำหรับร้านกาแฟ เริ่ม ${PRICE_CAFE} บาท/กก. →`)}
           </a>
           </div>
           <div className="md:col-span-5 flex justify-center md:justify-end">
@@ -386,7 +386,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
                   {/* Price + what you get */}
                   <div className="mt-6">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">{PRICE_RETAIL}</span>
+                      <span className="font-['Manrope'] text-3xl font-bold text-[#e6e1df]">{retailPrice(profile.id)}</span>
                       <span className="font-['Anuphan'] text-[14px] text-[#e3beb3]">
                         {language === 'th' ? 'บาท ต่อ กก.' : 'THB per kg'}
                       </span>
@@ -705,8 +705,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
             </h2>
             <p className="mt-4 text-[#e3beb3]/80 leading-relaxed">
               {tr(
-                `Tell us about your café. First order is ${PRICE_CAFE} THB/kg with no minimum, shipping not included.`,
-                `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลยที่ ${PRICE_CAFE} บาท/กก. ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
+                `Tell us about your café. First order starts at ${PRICE_CAFE} THB/kg (light roast ${PRICE_CAFE_LIGHT}) with no minimum, shipping not included.`,
+                `บอกเราเกี่ยวกับร้านของคุณ หรือสั่งครั้งแรกได้เลย เริ่มที่ ${PRICE_CAFE} บาท/กก. (คั่วอ่อน ${PRICE_CAFE_LIGHT}) ไม่มีขั้นต่ำ ยังไม่รวมค่าส่ง`
               )}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
