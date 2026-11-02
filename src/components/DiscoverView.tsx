@@ -388,7 +388,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
       </section>
 
       {/* ==================== CAFE OWNERS SECTION ==================== */}
-      <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30" id="for-cafes">
+      <section className="relative w-full py-16 md:py-20 bg-[#0f0e0d] border-t border-[#5b4138]/30 scroll-mt-20" id="for-cafes">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           <div className="max-w-2xl">
             <h2 className="font-['Manrope'] text-2xl md:text-3xl font-bold text-[#e6e1df] leading-tight">
@@ -430,7 +430,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({ onGoToProduct, onGoT
         </div>
       </section>
       {/* ==================== 03 / ROAST SECTION ==================== */}
-      <section className="relative w-full py-20 md:py-24 bg-[#141312]" id="roasts">
+      <section className="relative w-full py-20 md:py-24 bg-[#141312] scroll-mt-20" id="roasts">
         <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
           {/* Section Header */}
           <div className="text-center max-w-2xl mx-auto mb-12">
