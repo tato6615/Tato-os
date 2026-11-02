@@ -147,9 +147,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenStory();
                 setMobileMenuOpen(false);
               }}
-              className="py-1 transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#ffdcc0] hover:text-[#ffb59c] hover-lift-subtle"
+              className="py-1 transition-all duration-200 font-['Manrope'] text-[11px] font-bold tracking-[0.14em] uppercase flex items-center gap-1.5 text-[#e3beb3]/80 hover:text-[#e6e1df] hover-lift-subtle"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#ffb59c] shrink-0">history_edu</span>
+              <span className="material-symbols-outlined text-[16px] shrink-0">history_edu</span>
               <span>{language === 'th' ? 'เรื่องราวดอยเวียง' : 'STORY'}</span>
             </button>
           )}
@@ -251,13 +251,13 @@ export const Header: React.FC<HeaderProps> = ({
                   onOpenStory();
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center justify-between py-2 text-left text-[#ffdcc0] hover:text-[#ffb59c] transition-colors"
+                className="flex items-center justify-between py-2 text-left text-[#e6e1df] hover:text-[#ff5e1a] transition-colors"
               >
                 <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px] text-[#ffb59c]">history_edu</span>
+                  <span className="material-symbols-outlined text-[18px]">history_edu</span>
                   <span>{language === 'th' ? 'เรื่องราวดอยเวียง' : 'STORY JOURNEY'}</span>
                 </span>
-                <span className="material-symbols-outlined text-[16px] text-[#ffb59c]">chevron_right</span>
+                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
               </button>
             )}
             <a
